@@ -46,6 +46,9 @@ build_report.js v3 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에
   "events_calendar": [
     {"date": "2026-06-11", "region": "한국", "event": "선물옵션 동시만기", "importance": "★★★", "expected_impact": "헤지 청산 시 변동성 급확대"}
   ],
+  "events_calendar_longterm": [
+    {"date": "2026-11-03", "region": "미국", "event": "중간선거", "importance": "★★★", "expected_impact": "정책 불확실성 분기점"}
+  ],
   "fx_snapshot": {
     "krw_trend": "원화 약세", "krw_comment": "..."
   }
@@ -53,7 +56,7 @@ build_report.js v3 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에
 ```
 
 impact 값: `★ 강세` / `▲ 양면` / `▼ 부정` / `■ 중립` (보강 표기 허용).
-events_calendar 는 향후 2주, 날짜순 5~10건. importance 는 ★~★★★.
+events_calendar 는 향후 1개월 전체 중요도(★~★★★) 7~12건, events_calendar_longterm 은 1개월~1년 ★★★만 6~10건 — 모두 날짜순.
 (구버전 호환: fx_snapshot 에 USD_KRW 등 현재가 문자열이 있으면 빌더가 폴백 렌더링한다.)
 
 ## markets

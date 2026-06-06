@@ -47,7 +47,9 @@ function validate(d) {
     issues.push("news.top_news 누락 (품질기준 1: Top News 10)");
   else if (d.news.top_news.length < 10) warn.push(`top_news ${d.news.top_news.length}개 (<10)`);
   if (!has(d, 'news') || !Array.isArray(d.news.events_calendar) || d.news.events_calendar.length === 0)
-    warn.push("news.events_calendar 누락 (품질기준 2: 이벤트 캘린더)");
+    warn.push("news.events_calendar 누락 (품질기준 2: 1개월 캘린더)");
+  if (!has(d, 'news') || !Array.isArray(d.news.events_calendar_longterm) || d.news.events_calendar_longterm.length === 0)
+    warn.push("news.events_calendar_longterm 누락 (품질기준 2: 중장기 ★★★ 캘린더)");
   if (!has(d, 'markets')) issues.push("markets 누락 (품질기준 3,4: 증시 추세)");
   else {
     if (!d.markets.korea) warn.push("markets.korea 누락 (코스피·코스닥)");
@@ -226,7 +228,7 @@ children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(h("목   차", 1));
 const toc = [
   "1. 글로벌 Top News 10",
-  "2. 글로벌 주요 이벤트 캘린더 (향후 2주)",
+  "2. 글로벌 주요 이벤트 캘린더 (향후 1개월 + 중장기 ★★★)",
   "3. 글로벌 증시 단·중·장기 추세 (한국·미국·일본·중국·홍콩·인도·베트남·유럽)",
   "4. 매크로 지표 (달러지수·VIX·미국채 10년)",
   "5. 원자재 - 에너지·금속(희토류 포함)·농산물",
@@ -268,7 +270,8 @@ if (data.news && Array.isArray(data.news.top_news)) {
 // 2. 글로벌 주요 이벤트 캘린더
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("2. 글로벌 주요 이벤트 캘린더 (향후 2주)", 1));
+children.push(h("2. 글로벌 주요 이벤트 캘린더", 1));
+children.push(h("2.1 향후 1개월 (전체 중요도)", 2));
 if (data.news && Array.isArray(data.news.events_calendar) && data.news.events_calendar.length > 0) {
   const evHeader = ["날짜", "지역", "이벤트", "중요도", "예상 영향"];
   const evWidths = [1300, 1100, 2800, 1100, 3060];
@@ -285,7 +288,27 @@ if (data.news && Array.isArray(data.news.events_calendar) && data.news.events_ca
   }));
   children.push(makeTable(evWidths, evRows));
 } else {
-  children.push(p("(이벤트 캘린더 데이터 없음)"));
+  children.push(p("(1개월 이벤트 캘린더 데이터 없음)"));
+}
+children.push(p(""));
+children.push(h("2.2 중장기 — 1개월 이후 ~ 1년 (★★★ 핵심 이벤트만)", 2));
+if (data.news && Array.isArray(data.news.events_calendar_longterm) && data.news.events_calendar_longterm.length > 0) {
+  const lvHeader = ["날짜", "지역", "이벤트", "예상 영향"];
+  const lvWidths = [1500, 1200, 3000, 3660];
+  const lvRows = [lvHeader, ...data.news.events_calendar_longterm.map(e => [
+    e.date ?? "-", e.region ?? "-", e.event ?? "-", e.expected_impact ?? "-"
+  ])].map((r, i) => new TableRow({
+    children: r.map((c, j) => cell(c, {
+      width: lvWidths[j], header: i === 0,
+      alt: i > 0 && i % 2 === 0,
+      align: (j === 0 || j === 1) ? AlignmentType.CENTER : AlignmentType.LEFT,
+      bold: j === 2 && i > 0
+    }))
+  }));
+  children.push(makeTable(lvWidths, lvRows));
+  children.push(p("※ 중장기 캘린더는 중요도 ★★★ 이벤트만 수록. 미확정 일정은 (예정) 표기.", { italics: true, color: "94A3B8", size: 18 }));
+} else {
+  children.push(p("(중장기 이벤트 캘린더 데이터 없음)"));
 }
 
 // ============================================================

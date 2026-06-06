@@ -102,12 +102,56 @@
         "event": "FOMC (~6/17)",
         "importance": "★★★",
         "expected_impact": "점도표가 글로벌 멀티플 좌우"
+      },
+      {
+        "date": "2026-06-26",
+        "region": "미국",
+        "event": "5월 PCE 물가",
+        "importance": "★★★",
+        "expected_impact": "연준 선호 지표"
+      },
+      {
+        "date": "2026-07-02",
+        "region": "미국",
+        "event": "6월 고용보고서",
+        "importance": "★★★",
+        "expected_impact": "고용 서프라이즈 재현 여부"
       }
     ],
     "fx_snapshot": {
       "krw_trend": "원화 약세",
       "krw_comment": "테스트 코멘트."
-    }
+    },
+    "events_calendar_longterm": [
+      {
+        "date": "2026-07-29 (예정)",
+        "region": "미국",
+        "event": "FOMC",
+        "importance": "★★★",
+        "expected_impact": "인상 사이클 복귀 여부"
+      },
+      {
+        "date": "2026-08-말 (예정)",
+        "region": "미국",
+        "event": "잭슨홀 심포지엄",
+        "importance": "★★★",
+        "expected_impact": "중장기 정책 프레임"
+      },
+      {
+        "date": "2026-11-03",
+        "region": "미국",
+        "event": "중간선거",
+        "importance": "★★★",
+        "expected_impact": "정책 불확실성 분기점"
+      },
+      {
+        "date": "2026-12-초 (예정)",
+        "region": "미국",
+        "event": "FOMC (연말 점도표)",
+        "importance": "★★★",
+        "expected_impact": "2027 금리 사이클 확정"
+      }
+    ]
   },
   "markets": {
     "korea": {

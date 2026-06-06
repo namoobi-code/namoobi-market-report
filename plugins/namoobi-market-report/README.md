@@ -1,4 +1,4 @@
-# namoobi-market-report (Cowork Plugin) v1.2.0
+# namoobi-market-report (Cowork Plugin) v1.2.1
 
 한 마디만 입력하면 7개 서브에이전트가 병렬로 글로벌 시장 데이터를 수집해
 종합 시황 보고서(DOCX)를 만들고, Claude in Chrome 가 로그인된 Gmail 에서 직접 발송하는 플러그인.
@@ -17,6 +17,9 @@
 - **DOCX 자동 생성**: Executive Summary·표·헤더·페이지 번호·한글 폰트, `--validate` 사전 검증
 - **Gmail 직접 발송**: Claude in Chrome 가 로그인된 Gmail 작성창에서 작성·첨부·발송 (SMTP 불필요)
 - 기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com
+
+### v1.2.1 변경점
+- 이벤트 캘린더 2단 구성: 2.1 향후 1개월(전체 중요도) + 2.2 중장기 1개월~1년(★★★만)
 
 ### v1.2.0 변경점
 - 글로벌 주요 IB 리서치 섹션 추가 — UBS(CIO Daily)·Goldman Sachs(Insights)·J.P. Morgan(Global Research)·Morgan Stanley(Thoughts on the Market)·BlackRock(BII Weekly) 무료 공개 채널 기반 하우스 뷰. 원문 리포트는 고객 전용이라 핵심 메시지만 수집.

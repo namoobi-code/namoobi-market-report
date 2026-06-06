@@ -11,8 +11,11 @@ description: |
   (기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com).
 ---
 
-# Namoobi Market Report (v3.2)
+# Namoobi Market Report (v3.2.1)
 
+> v3.2.1 (plugin 1.2.1) 변경점:
+> - 이벤트 캘린더 2단 구성 — **2.1 향후 1개월(전체 중요도)** + **2.2 중장기 1개월~1년(★★★만)**. NewsAgent 가 events_calendar / events_calendar_longterm 분리 수집.
+>
 > v3.2 (plugin 1.2.0) 변경점:
 > - **GlobalSecuritiesAgent 추가** — 해외 주요 IB 5사(UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock)의 무료 공개 하우스 뷰 수집, 보고서 새 섹션 "글로벌 주요 IB 리서치". 원문 리포트는 고객 전용이므로 공개 채널(Insights/CIO View/언론 보도)·WebSearch 로 핵심 메시지만 수집. 부록 B 강점표 참조.
 >
@@ -33,7 +36,7 @@ description: |
 생성되는 docx 는 다음 10개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.
 
 1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨
-2. **글로벌 주요 이벤트 캘린더** — 향후 2주 핵심 이벤트 (날짜·지역·이벤트·중요도·예상 영향)
+2. **글로벌 주요 이벤트 캘린더** — ① 향후 1개월 전체 중요도(★~★★★) ② 1개월~1년 중장기는 ★★★만 (날짜·지역·이벤트·예상 영향)
 3. **단·중·장기 추세** — 모든 자산을 1주/1개월/3개월/6개월/1년 변화율로 제시
 4. **글로벌 증시 풀커버리지** — 한국(코스피·코스닥)·미국·홍콩·중국·일본·인도·베트남·유럽
 5. **매크로 지표** — 달러지수(DXY), VIX, 美 10년 국채금리
