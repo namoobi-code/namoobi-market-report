@@ -14,7 +14,8 @@ build_report.js v3 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에
   "markets":     { "...": "MarketsAgent 반환 (korea, us_markets, asia_markets, europe_markets)" },
   "commodities": { "...": "CommoditiesAgent 반환 (energy, metals, agriculture, commentary)" },
   "crypto":      { "...": "CryptoAgent 반환 (market_overview, fear_greed, kimchi_premium, top_gainers, top_losers)" },
-  "securities":  { "...": "SecuritiesAgent 반환 (5사 + common_themes + investor_type_recommendation)" },
+  "securities":  { "...": "SecuritiesAgent 반환 (한국 5사 + common_themes + investor_type_recommendation)" },
+  "global_securities": { "...": "GlobalSecuritiesAgent 반환 (UBS/GS/JPM/MS/BlackRock + common_themes + wall_street_consensus)" },
   "analysis":    { "...": "AnalysisAgent 반환 (summary, macro_view, key_themes, key_risks, asset_view, portfolios, action_items)" }
 }
 ```
@@ -117,16 +118,10 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 
 접속 실패: `key_reports: []`, `key_message: ""` → 빌더가 "(리포트 수집 실패)" 렌더링.
 
-## analysis
+## global_securities (v3.2)
 
 ```json
 {
-  "summary": "Executive Summary 3~5문장 (보고서 맨 앞 1페이지)",
-  "macro_view": "매크로 톤 1문단",
-  "key_themes": [{"theme": "AI 반도체", "direction": "▲", "comment": "..."}],
-  "key_risks": ["..."],
-  "asset_view": {
-    "us_equity": "...", "kr_equity": "...", "china_equity": "...", "japan_equity": "...",
-    "em_equity": "...", "europe_equity": "...", "kr_treasury": "...", "us_treasury": "...",
-    "gold": "...", "oil": "...", "btc": "..."
- 
+  "ubs":            {"strength": "...", "channels": ["UBS CIO Daily"], "key_reports": ["..."], "key_message": "...", "house_view": "..."},
+  "goldman":        {"strength": "...", "channels": [], "key_reports": [], "key_message": "", "macro_commodity_view": "..."},
+  "jpmorgan":       {"strength": "...", "channels"

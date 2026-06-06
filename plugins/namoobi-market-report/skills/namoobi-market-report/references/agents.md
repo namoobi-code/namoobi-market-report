@@ -1,8 +1,8 @@
-# 서브에이전트 상세 프롬프트 및 반환 스키마 (v3)
+# 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.2)
 
-6개 에이전트 전부 **general-purpose** 타입으로 호출한다.
-Phase 1 = News/Markets/Commodities/Crypto/Securities 5개를 **단일 메시지에 동시 발행**.
-Phase 2 = AnalysisAgent 를 5개 결과와 함께 **단독 호출**.
+7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
+Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
+Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
 
 모든 에이전트 프롬프트에 공통으로 포함할 문구:
 
@@ -149,4 +149,52 @@ gainers/losers/dominance 는 간헐 오류 → null/빈배열로 두고 진행.
   "kiwoom":     {"strength": "...", "channels": [], "key_reports": [], "key_message": "", "global_etf_view": "..."},
   "common_themes": ["..."],
   "investor_type_recommendation": {
-    "long_term_allocator": "...", "overseas_stock_picker": "
+    "long_term_allocator": "...", "overseas_stock_picker": "...",
+    "short_term_trader": "...", "etf_passive": "...", "china_focused": "..."
+  }
+}
+```
+
+---
+
+## 6. GlobalSecuritiesAgent (v3.2 신규)
+
+**임무**: 해외 주요 IB 5사(UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock)의 최신 하우스 뷰 수집. SKILL.md 부록 B 의 강점표를 프롬프트에 포함해 각 사의 강점 영역 시각을 우선 수집한다.
+
+**도구**: WebSearch 주력 (예: "UBS CIO daily view", "Goldman Sachs S&P 500 target", "Morgan Stanley Mike Wilson outlook", "BlackRock weekly commentary"), mcp__workspace__web_fetch 로 공개 Insights 페이지 보강. Bigdata.com MCP `bigdata_search` 가 있으면 활용.
+Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgent 와 충돌).
+
+**주의**:
+- 원문 리포트(목표주가 PDF)는 고객 전용 → 공개 채널·언론 보도로 핵심 메시지만 수집.
+- 보조: UsStockInfo MCP `get_recommendations` 로 주요 종목 월가 컨센서스 확인 가능.
+- 수집 실패한 기관은 key_reports: [], key_message: "" 로 두고 진행.
+
+**반환 JSON**:
+```json
+{
+  "ubs":            {"strength": "CIO House View 자산배분·일일 시황", "channels": ["UBS CIO Daily"], "key_reports": ["..."], "key_message": "...", "house_view": "..."},
+  "goldman":        {"strength": "매크로·원자재·경제전망", "channels": ["GS Insights"], "key_reports": [], "key_message": "", "macro_commodity_view": "..."},
+  "jpmorgan":       {"strength": "글로벌 전략·시장 전망", "channels": ["JPM Global Research"], "key_reports": [], "key_message": "", "global_strategy_view": "..."},
+  "morgan_stanley": {"strength": "미국주식 전략", "channels": ["Thoughts on the Market"], "key_reports": [], "key_message": "", "us_equity_view": "..."},
+  "blackrock":      {"strength": "ETF·자산배분", "channels": ["BII Weekly Commentary"], "key_reports": [], "key_message": "", "etf_allocation_view": "..."},
+  "common_themes": ["..."],
+  "wall_street_consensus": "S&P500 목표지수 등 월가 컨센서스 1~2문장 (확보 시)"
+}
+```
+
+---
+
+## 7. AnalysisAgent (마지막 단독 호출)
+
+**임무**: Phase 1 의 6개 JSON 전체를 입력으로 받아 종합 분석과 포트폴리오를 도출. 외부 도구 불필요(입력 데이터만으로 추론).
+
+**프롬프트에 6개 결과 JSON 을 그대로 첨부**하고 아래를 요구:
+- `summary`: 3~5문장 Executive Summary (보고서 맨 앞에 들어감)
+- `macro_view`: 매크로 톤 1문단
+- `key_themes`: 3~6개 {theme, direction(▲/▼/■), comment}
+- `key_risks`: 3~5개 리스크 문장
+- `asset_view`: 자산군별(미국/한국/중국/일본/신흥/유럽 주식, 한·미 국채, 금, 원유, BTC) 단·중·장기 견해 1줄씩
+- `portfolios`: aggressive/balanced/conservative — label, expected_return, max_drawdown, rebalance, allocation[{asset, weight_pct, vehicle}] (비중 합계 100%)
+- `action_items`: 단기·중기·장기 체크리스트 5~8개
+
+**반환 JSON**: `data-schema.md` 의 analysis 섹션과 동일.

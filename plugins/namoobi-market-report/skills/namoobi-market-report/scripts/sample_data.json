@@ -6,103 +6,538 @@
   },
   "news": {
     "top_news": [
-      {"rank": 1, "headline": "샘플 헤드라인 1", "summary": "테스트용 요약 문장입니다.", "impact": "★ 강세"},
-      {"rank": 2, "headline": "샘플 헤드라인 2", "summary": "테스트용 요약 문장입니다.", "impact": "▲ 양면"},
-      {"rank": 3, "headline": "샘플 헤드라인 3", "summary": "테스트용 요약 문장입니다.", "impact": "▼ 부정"},
-      {"rank": 4, "headline": "샘플 헤드라인 4", "summary": "테스트용 요약 문장입니다.", "impact": "■ 중립"},
-      {"rank": 5, "headline": "샘플 헤드라인 5", "summary": "테스트용 요약 문장입니다.", "impact": "★ 강세"},
-      {"rank": 6, "headline": "샘플 헤드라인 6", "summary": "테스트용 요약 문장입니다.", "impact": "■ 중립"},
-      {"rank": 7, "headline": "샘플 헤드라인 7", "summary": "테스트용 요약 문장입니다.", "impact": "▲ 양면"},
-      {"rank": 8, "headline": "샘플 헤드라인 8", "summary": "테스트용 요약 문장입니다.", "impact": "▼ 부정"},
-      {"rank": 9, "headline": "샘플 헤드라인 9", "summary": "테스트용 요약 문장입니다.", "impact": "★ 강세"},
-      {"rank": 10, "headline": "샘플 헤드라인 10", "summary": "테스트용 요약 문장입니다.", "impact": "■ 중립"}
+      {
+        "rank": 1,
+        "headline": "샘플 헤드라인 1",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "★ 강세"
+      },
+      {
+        "rank": 2,
+        "headline": "샘플 헤드라인 2",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "▲ 양면"
+      },
+      {
+        "rank": 3,
+        "headline": "샘플 헤드라인 3",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "▼ 부정"
+      },
+      {
+        "rank": 4,
+        "headline": "샘플 헤드라인 4",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "■ 중립"
+      },
+      {
+        "rank": 5,
+        "headline": "샘플 헤드라인 5",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "★ 강세"
+      },
+      {
+        "rank": 6,
+        "headline": "샘플 헤드라인 6",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "■ 중립"
+      },
+      {
+        "rank": 7,
+        "headline": "샘플 헤드라인 7",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "▲ 양면"
+      },
+      {
+        "rank": 8,
+        "headline": "샘플 헤드라인 8",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "▼ 부정"
+      },
+      {
+        "rank": 9,
+        "headline": "샘플 헤드라인 9",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "★ 강세"
+      },
+      {
+        "rank": 10,
+        "headline": "샘플 헤드라인 10",
+        "summary": "테스트용 요약 문장입니다.",
+        "impact": "■ 중립"
+      }
     ],
     "events_calendar": [
-      {"date": "2026-06-10", "region": "미국", "event": "5월 CPI 발표", "importance": "★★★", "expected_impact": "금리 경로 검증 분수령"},
-      {"date": "2026-06-11", "region": "한국", "event": "선물옵션 동시만기", "importance": "★★★", "expected_impact": "헤지 청산 시 변동성 급확대"},
-      {"date": "2026-06-11", "region": "유럽", "event": "ECB 통화정책회의", "importance": "★★★", "expected_impact": "25bp 인상 확률 98%"},
-      {"date": "2026-06-12", "region": "미국", "event": "대형 IPO 상장", "importance": "★★", "expected_impact": "IPO 수급 이벤트"},
-      {"date": "2026-06-16", "region": "미국", "event": "FOMC (~6/17)", "importance": "★★★", "expected_impact": "점도표가 글로벌 멀티플 좌우"}
+      {
+        "date": "2026-06-10",
+        "region": "미국",
+        "event": "5월 CPI 발표",
+        "importance": "★★★",
+        "expected_impact": "금리 경로 검증 분수령"
+      },
+      {
+        "date": "2026-06-11",
+        "region": "한국",
+        "event": "선물옵션 동시만기",
+        "importance": "★★★",
+        "expected_impact": "헤지 청산 시 변동성 급확대"
+      },
+      {
+        "date": "2026-06-11",
+        "region": "유럽",
+        "event": "ECB 통화정책회의",
+        "importance": "★★★",
+        "expected_impact": "25bp 인상 확률 98%"
+      },
+      {
+        "date": "2026-06-12",
+        "region": "미국",
+        "event": "대형 IPO 상장",
+        "importance": "★★",
+        "expected_impact": "IPO 수급 이벤트"
+      },
+      {
+        "date": "2026-06-16",
+        "region": "미국",
+        "event": "FOMC (~6/17)",
+        "importance": "★★★",
+        "expected_impact": "점도표가 글로벌 멀티플 좌우"
+      }
     ],
     "fx_snapshot": {
-      "krw_trend": "원화 약세", "krw_comment": "테스트 코멘트."
+      "krw_trend": "원화 약세",
+      "krw_comment": "테스트 코멘트."
     }
   },
   "markets": {
     "korea": {
-      "kospi":  {"current": 8228.70, "1w_pct": 1.2, "1mo_pct": 4.5, "3mo_pct": 31.8, "6mo_pct": 42.0, "1y_pct": 55.3, "trend": "장기 상승"},
-      "kosdaq": {"current": 1250.00, "1w_pct": 0.5, "1mo_pct": 2.1, "3mo_pct": 12.0, "6mo_pct": 18.0, "1y_pct": 25.0, "trend": "동반 상승"}
+      "kospi": {
+        "current": 8228.7,
+        "1w_pct": 1.2,
+        "1mo_pct": 4.5,
+        "3mo_pct": 31.8,
+        "6mo_pct": 42.0,
+        "1y_pct": 55.3,
+        "trend": "장기 상승"
+      },
+      "kosdaq": {
+        "current": 1250.0,
+        "1w_pct": 0.5,
+        "1mo_pct": 2.1,
+        "3mo_pct": 12.0,
+        "6mo_pct": 18.0,
+        "1y_pct": 25.0,
+        "trend": "동반 상승"
+      }
     },
     "us_markets": {
-      "sp500":  {"current": 7519.12, "1w_pct": 0.8, "1mo_pct": 2.0, "3mo_pct": 8.1, "6mo_pct": 15.0, "1y_pct": 27.2, "trend": "상승"},
-      "nasdaq": {"current": 26656.18, "1w_pct": 1.5, "1mo_pct": 3.2, "3mo_pct": 12.5, "6mo_pct": 22.0, "1y_pct": 39.5, "trend": "강세"},
-      "dow":    {"current": 50461.68, "1w_pct": 0.3, "1mo_pct": 1.1, "3mo_pct": 5.0, "6mo_pct": 9.0, "1y_pct": 15.0, "trend": "완만 상승"},
-      "vix":    {"current": 16.84, "1w_pct": -3.1, "1mo_pct": -8.0, "3mo_pct": -15.0, "6mo_pct": -20.0, "1y_pct": -23.5, "trend": "안정"},
-      "dxy":    {"current": 98.97, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.2, "1y_pct": 1.4, "trend": "보합"},
-      "us10y":  {"current": 4.12, "1w_pct": -0.5, "1mo_pct": -1.0, "3mo_pct": -2.0, "6mo_pct": -3.0, "1y_pct": -5.0, "trend": "하향 안정"}
+      "sp500": {
+        "current": 7519.12,
+        "1w_pct": 0.8,
+        "1mo_pct": 2.0,
+        "3mo_pct": 8.1,
+        "6mo_pct": 15.0,
+        "1y_pct": 27.2,
+        "trend": "상승"
+      },
+      "nasdaq": {
+        "current": 26656.18,
+        "1w_pct": 1.5,
+        "1mo_pct": 3.2,
+        "3mo_pct": 12.5,
+        "6mo_pct": 22.0,
+        "1y_pct": 39.5,
+        "trend": "강세"
+      },
+      "dow": {
+        "current": 50461.68,
+        "1w_pct": 0.3,
+        "1mo_pct": 1.1,
+        "3mo_pct": 5.0,
+        "6mo_pct": 9.0,
+        "1y_pct": 15.0,
+        "trend": "완만 상승"
+      },
+      "vix": {
+        "current": 16.84,
+        "1w_pct": -3.1,
+        "1mo_pct": -8.0,
+        "3mo_pct": -15.0,
+        "6mo_pct": -20.0,
+        "1y_pct": -23.5,
+        "trend": "안정"
+      },
+      "dxy": {
+        "current": 98.97,
+        "1w_pct": 0.2,
+        "1mo_pct": 0.5,
+        "3mo_pct": 1.0,
+        "6mo_pct": 1.2,
+        "1y_pct": 1.4,
+        "trend": "보합"
+      },
+      "us10y": {
+        "current": 4.12,
+        "1w_pct": -0.5,
+        "1mo_pct": -1.0,
+        "3mo_pct": -2.0,
+        "6mo_pct": -3.0,
+        "1y_pct": -5.0,
+        "trend": "하향 안정"
+      }
     },
     "asia_markets": {
-      "nikkei":   {"current": 64999, "1w_pct": 0.9, "1mo_pct": 3.0, "3mo_pct": 10.4, "6mo_pct": 14.0, "1y_pct": 20.0, "trend": "상승"},
-      "shanghai": {"current": 4093, "1w_pct": -0.3, "1mo_pct": -1.0, "3mo_pct": -1.7, "6mo_pct": 2.0, "1y_pct": 5.0, "trend": "박스권"},
-      "hsi":      {"current": 25328, "1w_pct": -1.0, "1mo_pct": -2.5, "3mo_pct": -4.9, "6mo_pct": -1.0, "1y_pct": 3.0, "trend": "조정"},
-      "sensex":   {"current": 75867, "1w_pct": -0.8, "1mo_pct": -3.0, "3mo_pct": -6.7, "6mo_pct": -2.0, "1y_pct": 4.0, "trend": "조정"},
-      "vietnam":  {"current": 18.87, "1w_pct": 0.1, "1mo_pct": -0.5, "3mo_pct": -1.1, "6mo_pct": 2.0, "1y_pct": 6.0, "trend": "보합"}
+      "nikkei": {
+        "current": 64999,
+        "1w_pct": 0.9,
+        "1mo_pct": 3.0,
+        "3mo_pct": 10.4,
+        "6mo_pct": 14.0,
+        "1y_pct": 20.0,
+        "trend": "상승"
+      },
+      "shanghai": {
+        "current": 4093,
+        "1w_pct": -0.3,
+        "1mo_pct": -1.0,
+        "3mo_pct": -1.7,
+        "6mo_pct": 2.0,
+        "1y_pct": 5.0,
+        "trend": "박스권"
+      },
+      "hsi": {
+        "current": 25328,
+        "1w_pct": -1.0,
+        "1mo_pct": -2.5,
+        "3mo_pct": -4.9,
+        "6mo_pct": -1.0,
+        "1y_pct": 3.0,
+        "trend": "조정"
+      },
+      "sensex": {
+        "current": 75867,
+        "1w_pct": -0.8,
+        "1mo_pct": -3.0,
+        "3mo_pct": -6.7,
+        "6mo_pct": -2.0,
+        "1y_pct": 4.0,
+        "trend": "조정"
+      },
+      "vietnam": {
+        "current": 18.87,
+        "1w_pct": 0.1,
+        "1mo_pct": -0.5,
+        "3mo_pct": -1.1,
+        "6mo_pct": 2.0,
+        "1y_pct": 6.0,
+        "trend": "보합"
+      }
     },
     "europe_markets": {
-      "stoxx50": {"current": 6123, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": -0.2, "6mo_pct": 3.0, "1y_pct": 8.0, "trend": "보합"},
-      "dax":     {"current": 21500, "1w_pct": 0.4, "1mo_pct": 1.0, "3mo_pct": 2.0, "6mo_pct": 6.0, "1y_pct": 12.0, "trend": "상승"},
-      "ftse":    {"current": 8900, "1w_pct": 0.1, "1mo_pct": 0.3, "3mo_pct": 1.0, "6mo_pct": 3.5, "1y_pct": 7.0, "trend": "완만 상승"}
+      "stoxx50": {
+        "current": 6123,
+        "1w_pct": 0.2,
+        "1mo_pct": 0.5,
+        "3mo_pct": -0.2,
+        "6mo_pct": 3.0,
+        "1y_pct": 8.0,
+        "trend": "보합"
+      },
+      "dax": {
+        "current": 21500,
+        "1w_pct": 0.4,
+        "1mo_pct": 1.0,
+        "3mo_pct": 2.0,
+        "6mo_pct": 6.0,
+        "1y_pct": 12.0,
+        "trend": "상승"
+      },
+      "ftse": {
+        "current": 8900,
+        "1w_pct": 0.1,
+        "1mo_pct": 0.3,
+        "3mo_pct": 1.0,
+        "6mo_pct": 3.5,
+        "1y_pct": 7.0,
+        "trend": "완만 상승"
+      }
     },
     "fx_markets": {
-      "usd_krw": {"current": 1558.84, "1w_pct": 2.8, "1mo_pct": 4.1, "3mo_pct": 5.5, "6mo_pct": 7.2, "1y_pct": 10.5, "trend": "원화 급속 약세"},
-      "eur_krw": {"current": 1795.10, "1w_pct": 2.2, "1mo_pct": 3.0, "3mo_pct": 4.8, "6mo_pct": 6.0, "1y_pct": 9.0, "trend": "유로 동반 강세"},
-      "jpy_krw": {"current": 953.20, "1w_pct": 1.1, "1mo_pct": 1.8, "3mo_pct": 2.5, "6mo_pct": 3.0, "1y_pct": 4.2, "trend": "엔화 점진 강세 (100엔 기준)"},
-      "cny_krw": {"current": 216.80, "1w_pct": 1.5, "1mo_pct": 2.0, "3mo_pct": 3.1, "6mo_pct": 4.0, "1y_pct": 5.5, "trend": "위안 완만 강세"},
-      "hkd_krw": {"current": 197.00, "1w_pct": 2.7, "1mo_pct": 3.9, "3mo_pct": 5.2, "6mo_pct": 7.0, "1y_pct": 10.1, "trend": "달러 페그 동반 상승"}
+      "usd_krw": {
+        "current": 1558.84,
+        "1w_pct": 2.8,
+        "1mo_pct": 4.1,
+        "3mo_pct": 5.5,
+        "6mo_pct": 7.2,
+        "1y_pct": 10.5,
+        "trend": "원화 급속 약세"
+      },
+      "eur_krw": {
+        "current": 1795.1,
+        "1w_pct": 2.2,
+        "1mo_pct": 3.0,
+        "3mo_pct": 4.8,
+        "6mo_pct": 6.0,
+        "1y_pct": 9.0,
+        "trend": "유로 동반 강세"
+      },
+      "jpy_krw": {
+        "current": 953.2,
+        "1w_pct": 1.1,
+        "1mo_pct": 1.8,
+        "3mo_pct": 2.5,
+        "6mo_pct": 3.0,
+        "1y_pct": 4.2,
+        "trend": "엔화 점진 강세 (100엔 기준)"
+      },
+      "cny_krw": {
+        "current": 216.8,
+        "1w_pct": 1.5,
+        "1mo_pct": 2.0,
+        "3mo_pct": 3.1,
+        "6mo_pct": 4.0,
+        "1y_pct": 5.5,
+        "trend": "위안 완만 강세"
+      },
+      "hkd_krw": {
+        "current": 197.0,
+        "1w_pct": 2.7,
+        "1mo_pct": 3.9,
+        "3mo_pct": 5.2,
+        "6mo_pct": 7.0,
+        "1y_pct": 10.1,
+        "trend": "달러 페그 동반 상승"
+      }
     }
   },
   "commodities": {
     "energy": {
-      "wti":    {"current": 88.32, "1w_pct": 2.0, "1mo_pct": 10.0, "3mo_pct": 31.8, "6mo_pct": 25.0, "1y_pct": 18.0, "trend": "강세"},
-      "brent":  {"current": 92.10, "1w_pct": 1.8, "1mo_pct": 9.0, "3mo_pct": 28.0, "6mo_pct": 22.0, "1y_pct": 15.0, "trend": "강세"},
-      "natgas": {"current": 3.05, "1w_pct": 0.5, "1mo_pct": 3.0, "3mo_pct": 6.7, "6mo_pct": 10.0, "1y_pct": 12.0, "trend": "상승"}
+      "wti": {
+        "current": 88.32,
+        "1w_pct": 2.0,
+        "1mo_pct": 10.0,
+        "3mo_pct": 31.8,
+        "6mo_pct": 25.0,
+        "1y_pct": 18.0,
+        "trend": "강세"
+      },
+      "brent": {
+        "current": 92.1,
+        "1w_pct": 1.8,
+        "1mo_pct": 9.0,
+        "3mo_pct": 28.0,
+        "6mo_pct": 22.0,
+        "1y_pct": 15.0,
+        "trend": "강세"
+      },
+      "natgas": {
+        "current": 3.05,
+        "1w_pct": 0.5,
+        "1mo_pct": 3.0,
+        "3mo_pct": 6.7,
+        "6mo_pct": 10.0,
+        "1y_pct": 12.0,
+        "trend": "상승"
+      }
     },
     "metals": {
-      "gold":     {"current": 4484.5, "1w_pct": 0.8, "1mo_pct": 2.5, "3mo_pct": 6.3, "6mo_pct": 12.0, "1y_pct": 30.0, "trend": "강세"},
-      "silver":   {"current": 75.07, "1w_pct": -1.0, "1mo_pct": -5.0, "3mo_pct": -19.0, "6mo_pct": 10.0, "1y_pct": 40.0, "trend": "변동성 확대"},
-      "copper":   {"current": 6.39, "1w_pct": 0.3, "1mo_pct": 2.0, "3mo_pct": 6.5, "6mo_pct": 9.0, "1y_pct": 14.0, "trend": "상승"},
-      "platinum": {"current": null, "trend": "데이터 없음"},
-      "rare_earth": {"current": 88.59, "1w_pct": -10.92, "1mo_pct": -5.2, "3mo_pct": 12.4, "6mo_pct": 25.0, "1y_pct": 48.3, "trend": "반도체 쇼크 동반 급락, 장기 상승 (REMX)"}
+      "gold": {
+        "current": 4484.5,
+        "1w_pct": 0.8,
+        "1mo_pct": 2.5,
+        "3mo_pct": 6.3,
+        "6mo_pct": 12.0,
+        "1y_pct": 30.0,
+        "trend": "강세"
+      },
+      "silver": {
+        "current": 75.07,
+        "1w_pct": -1.0,
+        "1mo_pct": -5.0,
+        "3mo_pct": -19.0,
+        "6mo_pct": 10.0,
+        "1y_pct": 40.0,
+        "trend": "변동성 확대"
+      },
+      "copper": {
+        "current": 6.39,
+        "1w_pct": 0.3,
+        "1mo_pct": 2.0,
+        "3mo_pct": 6.5,
+        "6mo_pct": 9.0,
+        "1y_pct": 14.0,
+        "trend": "상승"
+      },
+      "platinum": {
+        "current": null,
+        "trend": "데이터 없음"
+      },
+      "rare_earth": {
+        "current": 88.59,
+        "1w_pct": -10.92,
+        "1mo_pct": -5.2,
+        "3mo_pct": 12.4,
+        "6mo_pct": 25.0,
+        "1y_pct": 48.3,
+        "trend": "반도체 쇼크 동반 급락, 장기 상승 (REMX)"
+      }
     },
     "agriculture": {
-      "corn":    {"current": 480.25, "1w_pct": 0.5, "1mo_pct": 1.5, "3mo_pct": 4.0, "6mo_pct": 6.0, "1y_pct": 8.0, "trend": "완만 상승"},
-      "soybean": {"current": 1050.50, "1w_pct": -0.3, "1mo_pct": 0.8, "3mo_pct": 2.5, "6mo_pct": 4.0, "1y_pct": 5.0, "trend": "보합"},
-      "wheat":   {"current": 590.75, "1w_pct": 1.0, "1mo_pct": 2.0, "3mo_pct": 5.0, "6mo_pct": 7.0, "1y_pct": 9.0, "trend": "상승"}
+      "corn": {
+        "current": 480.25,
+        "1w_pct": 0.5,
+        "1mo_pct": 1.5,
+        "3mo_pct": 4.0,
+        "6mo_pct": 6.0,
+        "1y_pct": 8.0,
+        "trend": "완만 상승"
+      },
+      "soybean": {
+        "current": 1050.5,
+        "1w_pct": -0.3,
+        "1mo_pct": 0.8,
+        "3mo_pct": 2.5,
+        "6mo_pct": 4.0,
+        "1y_pct": 5.0,
+        "trend": "보합"
+      },
+      "wheat": {
+        "current": 590.75,
+        "1w_pct": 1.0,
+        "1mo_pct": 2.0,
+        "3mo_pct": 5.0,
+        "6mo_pct": 7.0,
+        "1y_pct": 9.0,
+        "trend": "상승"
+      }
     },
     "commentary": "샘플 원자재 코멘트."
   },
   "crypto": {
-    "market_overview": {"total_volume_24h_usd": 93598932897, "avg_change_pct": -0.32, "coins_up": 25, "coins_down": 69, "btc_dominance": 58.2},
-    "fear_greed": {"current": 25, "classification": "공포", "yesterday": 34, "last_week": 27, "last_month": 33},
+    "market_overview": {
+      "total_volume_24h_usd": 93598932897,
+      "avg_change_pct": -0.32,
+      "coins_up": 25,
+      "coins_down": 69,
+      "btc_dominance": 58.2
+    },
+    "fear_greed": {
+      "current": 25,
+      "classification": "공포",
+      "yesterday": 34,
+      "last_week": 27,
+      "last_month": 33
+    },
     "kimchi_premium": {
       "rate_usd_krw": 1495.39,
       "coins": [
-        {"symbol": "BTC", "upbit_krw": 111900000, "binance_usd": 75823, "premium_pct": -1.31, "status": "디스카운트"},
-        {"symbol": "ETH", "upbit_krw": 5200000, "binance_usd": 3520, "premium_pct": -1.2, "status": "디스카운트"},
-        {"symbol": "XRP", "upbit_krw": 3100, "binance_usd": 2.1, "premium_pct": -1.4, "status": "디스카운트"},
-        {"symbol": "SOL", "upbit_krw": 310000, "binance_usd": 210, "premium_pct": -1.3, "status": "디스카운트"}
+        {
+          "symbol": "BTC",
+          "upbit_krw": 111900000,
+          "binance_usd": 75823,
+          "premium_pct": -1.31,
+          "status": "디스카운트"
+        },
+        {
+          "symbol": "ETH",
+          "upbit_krw": 5200000,
+          "binance_usd": 3520,
+          "premium_pct": -1.2,
+          "status": "디스카운트"
+        },
+        {
+          "symbol": "XRP",
+          "upbit_krw": 3100,
+          "binance_usd": 2.1,
+          "premium_pct": -1.4,
+          "status": "디스카운트"
+        },
+        {
+          "symbol": "SOL",
+          "upbit_krw": 310000,
+          "binance_usd": 210,
+          "premium_pct": -1.3,
+          "status": "디스카운트"
+        }
       ]
     },
-    "top_gainers": [{"symbol": "AAA", "change_pct": 12.3}, {"symbol": "BBB", "change_pct": 9.1}],
-    "top_losers": [{"symbol": "CCC", "change_pct": -9.8}, {"symbol": "DDD", "change_pct": -7.2}]
+    "top_gainers": [
+      {
+        "symbol": "AAA",
+        "change_pct": 12.3
+      },
+      {
+        "symbol": "BBB",
+        "change_pct": 9.1
+      }
+    ],
+    "top_losers": [
+      {
+        "symbol": "CCC",
+        "change_pct": -9.8
+      },
+      {
+        "symbol": "DDD",
+        "change_pct": -7.2
+      }
+    ]
   },
   "securities": {
-    "shinhan":    {"strength": "자산배분 통합", "channels": ["쏠쏠한 리포트"], "key_reports": ["샘플 리포트 A"], "key_message": "샘플 메시지", "asset_allocation_view": "주식 비중 확대"},
-    "miraeasset": {"strength": "ETF·신흥국", "channels": ["m.Global"], "key_reports": [], "key_message": "", "etf_emerging_view": "베트남 비중 유지"},
-    "samsung":    {"strength": "파생·선물", "channels": ["mPOP"], "key_reports": ["샘플 리포트 B"], "key_message": "샘플 메시지", "derivatives_view": "변동성 매도 유리"},
-    "korea_inv":  {"strength": "IB 리서치", "channels": ["한투 앱"], "key_reports": [], "key_message": "", "ib_china_view": "중국 보수적"},
-    "kiwoom":     {"strength": "글로벌 ETF", "channels": ["텔레그램"], "key_reports": ["샘플 리포트 C"], "key_message": "샘플 메시지", "global_etf_view": "미국 기술 ETF 선호"},
-    "common_themes": ["반도체 쏠림", "달러 보합"],
+    "shinhan": {
+      "strength": "자산배분 통합",
+      "channels": [
+        "쏠쏠한 리포트"
+      ],
+      "key_reports": [
+        "샘플 리포트 A"
+      ],
+      "key_message": "샘플 메시지",
+      "asset_allocation_view": "주식 비중 확대"
+    },
+    "miraeasset": {
+      "strength": "ETF·신흥국",
+      "channels": [
+        "m.Global"
+      ],
+      "key_reports": [],
+      "key_message": "",
+      "etf_emerging_view": "베트남 비중 유지"
+    },
+    "samsung": {
+      "strength": "파생·선물",
+      "channels": [
+        "mPOP"
+      ],
+      "key_reports": [
+        "샘플 리포트 B"
+      ],
+      "key_message": "샘플 메시지",
+      "derivatives_view": "변동성 매도 유리"
+    },
+    "korea_inv": {
+      "strength": "IB 리서치",
+      "channels": [
+        "한투 앱"
+      ],
+      "key_reports": [],
+      "key_message": "",
+      "ib_china_view": "중국 보수적"
+    },
+    "kiwoom": {
+      "strength": "글로벌 ETF",
+      "channels": [
+        "텔레그램"
+      ],
+      "key_reports": [
+        "샘플 리포트 C"
+      ],
+      "key_message": "샘플 메시지",
+      "global_etf_view": "미국 기술 ETF 선호"
+    },
+    "common_themes": [
+      "반도체 쏠림",
+      "달러 보합"
+    ],
     "investor_type_recommendation": {
       "long_term_allocator": "신한 + 미래에셋",
       "overseas_stock_picker": "한투 IB",
@@ -111,15 +546,89 @@
       "china_focused": "한투"
     }
   },
+  "global_securities": {
+    "ubs": {
+      "strength": "CIO House View 자산배분·일일 시황",
+      "channels": [
+        "UBS CIO Daily"
+      ],
+      "key_reports": [
+        "샘플 CIO Daily"
+      ],
+      "key_message": "샘플 메시지",
+      "house_view": "주식 비중확대 유지, 변동성 헤지 병행"
+    },
+    "goldman": {
+      "strength": "매크로·원자재·경제전망",
+      "channels": [
+        "GS Insights"
+      ],
+      "key_reports": [],
+      "key_message": "",
+      "macro_commodity_view": "원자재 강세 지속 전망"
+    },
+    "jpmorgan": {
+      "strength": "글로벌 전략·시장 전망",
+      "channels": [
+        "JPM Global Research"
+      ],
+      "key_reports": [
+        "샘플 Market Outlook"
+      ],
+      "key_message": "샘플 메시지",
+      "global_strategy_view": "분산 강화 권고"
+    },
+    "morgan_stanley": {
+      "strength": "미국주식 전략",
+      "channels": [
+        "Thoughts on the Market"
+      ],
+      "key_reports": [],
+      "key_message": "",
+      "us_equity_view": "대형 우량주 선호"
+    },
+    "blackrock": {
+      "strength": "ETF·자산배분",
+      "channels": [
+        "BII Weekly Commentary"
+      ],
+      "key_reports": [
+        "샘플 BII Weekly"
+      ],
+      "key_message": "샘플 메시지",
+      "etf_allocation_view": "미국 주식 비중확대"
+    },
+    "common_themes": [
+      "AI 투자 사이클 지속",
+      "금리 경로 불확실성"
+    ],
+    "wall_street_consensus": "샘플: 월가 S&P500 평균 목표 7,800선."
+  },
   "analysis": {
     "summary": "샘플 Executive Summary. 글로벌 증시는 상승 추세를 유지하고 있으며 원자재는 에너지 중심 강세, 암호화폐는 공포 구간이다. 포트폴리오는 위험자산 비중을 단계적으로 조절할 시점이다.",
     "macro_view": "샘플 매크로 톤 문단.",
     "key_themes": [
-      {"theme": "AI 반도체", "direction": "▲", "comment": "수요 견조"},
-      {"theme": "에너지", "direction": "▲", "comment": "지정학 리스크"},
-      {"theme": "중국 소비", "direction": "■", "comment": "회복 지연"}
+      {
+        "theme": "AI 반도체",
+        "direction": "▲",
+        "comment": "수요 견조"
+      },
+      {
+        "theme": "에너지",
+        "direction": "▲",
+        "comment": "지정학 리스크"
+      },
+      {
+        "theme": "중국 소비",
+        "direction": "■",
+        "comment": "회복 지연"
+      }
     ],
-    "key_risks": ["밸류에이션 부담", "지정학 리스크", "금리 변동성"],
+    "key_risks": [
+      "밸류에이션 부담",
+      "지정학 리스크",
+      "금리 변동성"
+    ],
     "asset_view": {
       "us_equity": "단기 중립 / 중기 긍정 / 장기 긍정",
       "kr_equity": "단기 과열 / 중기 긍정 / 장기 긍정",
@@ -135,32 +644,97 @@
     },
     "portfolios": {
       "aggressive": {
-        "label": "공격형", "expected_return": "연 15~25%", "max_drawdown": "-30%", "rebalance": "월 1회",
+        "label": "공격형",
+        "expected_return": "연 15~25%",
+        "max_drawdown": "-30%",
+        "rebalance": "월 1회",
         "allocation": [
-          {"asset": "미국 기술주", "weight_pct": 40, "vehicle": "QQQ, SMH"},
-          {"asset": "한국 반도체", "weight_pct": 25, "vehicle": "삼성전자, SK하이닉스"},
-          {"asset": "신흥국 주식", "weight_pct": 15, "vehicle": "VWO"},
-          {"asset": "비트코인", "weight_pct": 10, "vehicle": "현물 ETF"},
-          {"asset": "현금", "weight_pct": 10, "vehicle": "MMF"}
+          {
+            "asset": "미국 기술주",
+            "weight_pct": 40,
+            "vehicle": "QQQ, SMH"
+          },
+          {
+            "asset": "한국 반도체",
+            "weight_pct": 25,
+            "vehicle": "삼성전자, SK하이닉스"
+          },
+          {
+            "asset": "신흥국 주식",
+            "weight_pct": 15,
+            "vehicle": "VWO"
+          },
+          {
+            "asset": "비트코인",
+            "weight_pct": 10,
+            "vehicle": "현물 ETF"
+          },
+          {
+            "asset": "현금",
+            "weight_pct": 10,
+            "vehicle": "MMF"
+          }
         ]
       },
       "balanced": {
-        "label": "중립형", "expected_return": "연 8~12%", "max_drawdown": "-15%", "rebalance": "분기 1회",
+        "label": "중립형",
+        "expected_return": "연 8~12%",
+        "max_drawdown": "-15%",
+        "rebalance": "분기 1회",
         "allocation": [
-          {"asset": "글로벌 주식", "weight_pct": 45, "vehicle": "VT"},
-          {"asset": "채권", "weight_pct": 30, "vehicle": "AGG, 국고채"},
-          {"asset": "금", "weight_pct": 10, "vehicle": "GLD"},
-          {"asset": "리츠", "weight_pct": 5, "vehicle": "VNQ"},
-          {"asset": "현금", "weight_pct": 10, "vehicle": "MMF"}
+          {
+            "asset": "글로벌 주식",
+            "weight_pct": 45,
+            "vehicle": "VT"
+          },
+          {
+            "asset": "채권",
+            "weight_pct": 30,
+            "vehicle": "AGG, 국고채"
+          },
+          {
+            "asset": "금",
+            "weight_pct": 10,
+            "vehicle": "GLD"
+          },
+          {
+            "asset": "리츠",
+            "weight_pct": 5,
+            "vehicle": "VNQ"
+          },
+          {
+            "asset": "현금",
+            "weight_pct": 10,
+            "vehicle": "MMF"
+          }
         ]
       },
       "conservative": {
-        "label": "안정형", "expected_return": "연 4~6%", "max_drawdown": "-7%", "rebalance": "반기 1회",
+        "label": "안정형",
+        "expected_return": "연 4~6%",
+        "max_drawdown": "-7%",
+        "rebalance": "반기 1회",
         "allocation": [
-          {"asset": "단기채", "weight_pct": 40, "vehicle": "SHY, 단기 국고채"},
-          {"asset": "배당주", "weight_pct": 25, "vehicle": "SCHD"},
-          {"asset": "금", "weight_pct": 15, "vehicle": "GLD"},
-          {"asset": "현금", "weight_pct": 20, "vehicle": "MMF, CMA"}
+          {
+            "asset": "단기채",
+            "weight_pct": 40,
+            "vehicle": "SHY, 단기 국고채"
+          },
+          {
+            "asset": "배당주",
+            "weight_pct": 25,
+            "vehicle": "SCHD"
+          },
+          {
+            "asset": "금",
+            "weight_pct": 15,
+            "vehicle": "GLD"
+          },
+          {
+            "asset": "현금",
+            "weight_pct": 20,
+            "vehicle": "MMF, CMA"
+          }
         ]
       }
     },

@@ -64,7 +64,8 @@ function validate(d) {
   }
   if (!has(d, 'crypto')) issues.push("crypto 누락 (품질기준 8)");
   else { if (!d.crypto.fear_greed) warn.push("crypto.fear_greed 누락"); if (!d.crypto.kimchi_premium) warn.push("crypto.kimchi_premium 누락"); }
-  if (!has(d, 'securities')) warn.push("securities 누락 (5대 증권사)");
+  if (!has(d, 'securities')) warn.push("securities 누락 (한국 5대 증권사)");
+  if (!has(d, 'global_securities')) warn.push("global_securities 누락 (글로벌 IB 5사: UBS/GS/JPM/MS/BlackRock)");
   if (!has(d, 'analysis')) issues.push("analysis 누락 (품질기준 8)");
   else {
     if (!d.analysis.portfolios) issues.push("analysis.portfolios 누락 (공격/중립/안정형)");
@@ -205,7 +206,7 @@ children.push(new Paragraph({
 }));
 children.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 120 },
-  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.1", size: 22, color: "64748B" })]
+  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.2", size: 22, color: "64748B" })]
 }));
 
 // Executive Summary
@@ -232,11 +233,12 @@ const toc = [
   "6. 주요 환율 단·중·장기 추세 (+달러인덱스)",
   "7. 암호화폐 - 시장·공포탐욕·김치프리미엄",
   "8. 한국 5대 증권사 리서치 (강점·채널·시각)",
-  "9. 종합 분석 - 매크로 톤·핵심 테마·리스크",
-  "10. 자산별 단·중·장기 견해",
-  "11. 추천 포트폴리오 (공격형 / 중립형 / 안정형)",
-  "12. 액션 아이템 - 단기·중기·장기 체크리스트",
-  "13. 주의 사항 및 출처"
+  "9. 글로벌 주요 IB 리서치 (UBS·GS·JPM·MS·BlackRock)",
+  "10. 종합 분석 - 매크로 톤·핵심 테마·리스크",
+  "11. 자산별 단·중·장기 견해",
+  "12. 추천 포트폴리오 (공격형 / 중립형 / 안정형)",
+  "13. 액션 아이템 - 단기·중기·장기 체크리스트",
+  "14. 주의 사항 및 출처"
 ];
 toc.forEach(t => children.push(p(t, { size: 22, after: 40 })));
 
@@ -599,18 +601,75 @@ if (data.securities) {
 }
 
 // ============================================================
-// 9. 종합 분석
+// 9. 글로벌 주요 IB 리서치
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("9. 종합 분석 - 매크로·테마·리스크", 1));
+children.push(h("9. 글로벌 주요 IB 리서치 (UBS·GS·JPM·MS·BlackRock)", 1));
+
+const gsecLabels = {
+  ubs: "UBS",
+  goldman: "Goldman Sachs",
+  jpmorgan: "J.P. Morgan",
+  morgan_stanley: "Morgan Stanley",
+  blackrock: "BlackRock"
+};
+const gsecViewFields = {
+  ubs: { field: 'house_view', label: 'CIO 하우스 뷰' },
+  goldman: { field: 'macro_commodity_view', label: '매크로·원자재 시각' },
+  jpmorgan: { field: 'global_strategy_view', label: '글로벌 전략 시각' },
+  morgan_stanley: { field: 'us_equity_view', label: '미국주식 전략 시각' },
+  blackrock: { field: 'etf_allocation_view', label: 'ETF·자산배분 시각' }
+};
+
+if (data.global_securities) {
+  let gidx = 0;
+  for (const key of Object.keys(gsecLabels)) {
+    const sec = data.global_securities[key];
+    if (!sec) continue;
+    gidx++;
+    children.push(h(`9.${gidx} ${gsecLabels[key]}`, 2));
+    if (sec.strength) children.push(p(`핵심 강점: ${sec.strength}`, { bold: true, color: "1E40AF" }));
+    if (Array.isArray(sec.channels) && sec.channels.length > 0) {
+      children.push(p(`공개 채널: ${sec.channels.join(' / ')}`, { italics: true, color: "475569" }));
+    }
+    if (sec.key_message) children.push(p(`오늘의 메시지: ${sec.key_message}`));
+    const gvMeta = gsecViewFields[key];
+    if (gvMeta && sec[gvMeta.field]) {
+      children.push(p(`${gvMeta.label}: ${sec[gvMeta.field]}`, { color: "0F766E" }));
+    }
+    if (Array.isArray(sec.key_reports) && sec.key_reports.length > 0) {
+      children.push(p("대표 발간물:", { bold: true, after: 40 }));
+      sec.key_reports.forEach(r => children.push(bullet(r)));
+    } else {
+      children.push(p("(수집 실패 또는 비공개 - 공개 채널 한정 수집)", { italics: true, color: "94A3B8" }));
+    }
+  }
+  if (Array.isArray(data.global_securities.common_themes) && data.global_securities.common_themes.length > 0) {
+    children.push(h("9.6 글로벌 IB 공통 핵심 주제", 2));
+    data.global_securities.common_themes.forEach(t => children.push(bullet(t)));
+  }
+  if (data.global_securities.wall_street_consensus) {
+    children.push(h("9.7 월가 컨센서스", 2));
+    children.push(p(data.global_securities.wall_street_consensus));
+  }
+  children.push(p("※ 해외 IB 원문 리포트는 고객 전용으로, 본 섹션은 각 사 공개 Insights 채널과 언론 보도 기반 하우스 뷰 요약입니다.", { italics: true, color: "94A3B8", size: 18 }));
+} else {
+  children.push(p("(글로벌 IB 리서치 데이터 없음)"));
+}
+
+// ============================================================
+// 10. 종합 분석
+// ============================================================
+children.push(new Paragraph({ children: [new PageBreak()] }));
+children.push(h("10. 종합 분석 - 매크로·테마·리스크", 1));
 if (data.analysis) {
   const a = data.analysis;
   if (a.macro_view) {
-    children.push(h("9.1 매크로 톤", 2));
+    children.push(h("10.1 매크로 톤", 2));
     children.push(p(a.macro_view));
   }
   if (Array.isArray(a.key_themes) && a.key_themes.length > 0) {
-    children.push(h("9.2 핵심 테마", 2));
+    children.push(h("10.2 핵심 테마", 2));
     const thRows = [["테마", "방향", "코멘트"]];
     a.key_themes.forEach(t => thRows.push([t.theme || "-", t.direction || "-", t.comment || "-"]));
     children.push(makeTable([2400, 1400, 5560], thRows.map((r, i) => new TableRow({
@@ -622,17 +681,17 @@ if (data.analysis) {
     }))));
   }
   if (Array.isArray(a.key_risks) && a.key_risks.length > 0) {
-    children.push(h("9.3 핵심 리스크", 2));
+    children.push(h("10.3 핵심 리스크", 2));
     a.key_risks.forEach(r => children.push(bullet(r, { color: negativeColor })));
   }
 }
 
 // ============================================================
-// 10. 자산별 견해
+// 11. 자산별 견해
 // ============================================================
 if (data.analysis && data.analysis.asset_view) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(h("10. 자산별 단·중·장기 견해", 1));
+  children.push(h("11. 자산별 단·중·장기 견해", 1));
   const av = data.analysis.asset_view;
   const avMap = [
     ["미국 주식", av.us_equity],
@@ -657,11 +716,11 @@ if (data.analysis && data.analysis.asset_view) {
 }
 
 // ============================================================
-// 11. 추천 포트폴리오
+// 12. 추천 포트폴리오
 // ============================================================
 if (data.analysis && data.analysis.portfolios) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(h("11. 추천 포트폴리오 (공격형 · 중립형 · 안정형)", 1));
+  children.push(h("12. 추천 포트폴리오 (공격형 · 중립형 · 안정형)", 1));
   children.push(p("아래 포트폴리오는 본 시황 분석을 바탕으로 한 모델 예시이며 개인의 위험감내도·투자목표·세금 상황에 따라 조정해야 한다.", { italics: true, color: "64748B" }));
   const pf = data.analysis.portfolios;
   const order = [
@@ -672,7 +731,7 @@ if (data.analysis && data.analysis.portfolios) {
   order.forEach((o, idx) => {
     const pfObj = pf[o.key];
     if (!pfObj) return;
-    children.push(h(`11.${idx+1} ${pfObj.label || o.key}`, 2));
+    children.push(h(`12.${idx+1} ${pfObj.label || o.key}`, 2));
     const meta = [
       ['기대수익', pfObj.expected_return],
       ['최대 낙폭(MDD)', pfObj.max_drawdown],
@@ -699,19 +758,19 @@ if (data.analysis && data.analysis.portfolios) {
 }
 
 // ============================================================
-// 12. 액션 아이템
+// 13. 액션 아이템
 // ============================================================
 if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.action_items.length > 0) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(h("12. 액션 아이템 - 단기·중기·장기 체크리스트", 1));
+  children.push(h("13. 액션 아이템 - 단기·중기·장기 체크리스트", 1));
   data.analysis.action_items.forEach(item => children.push(bullet(item)));
 }
 
 // ============================================================
-// 13. 주의 사항 및 출처
+// 14. 주의 사항 및 출처
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("13. 주의 사항 및 출처", 1));
+children.push(h("14. 주의 사항 및 출처", 1));
 children.push(p("본 보고서는 Claude AI Research(Cowork)가 다양한 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다. 모든 수치는 보고서 기준일의 시장 데이터이며, 시점에 따라 변동될 수 있습니다.", { italics: true }));
 children.push(p("본 보고서의 어떤 내용도 특정 종목 매수·매도 권유나 보장된 투자 수익을 약속하지 않으며, 포트폴리오 추천은 모델 예시일 뿐 개인의 위험감내도·투자목표·세금 상황에 맞춰 조정·검증이 필요합니다. 투자 판단의 최종 책임은 이용자에게 있습니다.", { italics: true, color: "64748B" }));
 children.push(p(""));
@@ -754,7 +813,7 @@ const doc = new Document({
         new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "64748B" }),
         new TextRun({ text: " / ", size: 18, color: "64748B" }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: "64748B" }),
-        new TextRun({ text: "  |  namoobi-market-report v3.1", size: 18, color: "64748B" })
+        new TextRun({ text: "  |  namoobi-market-report v3.2", size: 18, color: "64748B" })
       ]
     })]})},
     children

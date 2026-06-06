@@ -4,15 +4,18 @@ description: |
   글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 사용자가
   "글로벌 시황 보고서", "오늘 시장 보고서 보내줘", "global market report",
   "daily market briefing", "매일 시황 발송", "코스피 미국증시 보고서 만들어줘",
-  "namoobi 시황 보고서" 등으로 요청할 때 트리거된다. 6개의 서브에이전트
-  (뉴스/시장데이터/원자재/암호화폐/증권사/종합분석)를 병렬로 호출해 자료를 수집하고,
+  "namoobi 시황 보고서" 등으로 요청할 때 트리거된다. 7개의 서브에이전트
+  (뉴스/시장데이터/원자재/암호화폐/한국증권사/글로벌IB/종합분석)를 병렬로 호출해 자료를 수집하고,
   종합 데이터를 JSON으로 정리한 뒤 DOCX 보고서를 생성하고, Claude in Chrome 가
   로그인된 Gmail 작성창에서 직접 메일을 작성·docx 첨부·발송한다
   (기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com).
 ---
 
-# Namoobi Market Report (v3.1)
+# Namoobi Market Report (v3.2)
 
+> v3.2 (plugin 1.2.0) 변경점:
+> - **GlobalSecuritiesAgent 추가** — 해외 주요 IB 5사(UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock)의 무료 공개 하우스 뷰 수집, 보고서 새 섹션 "글로벌 주요 IB 리서치". 원문 리포트는 고객 전용이므로 공개 채널(Insights/CIO View/언론 보도)·WebSearch 로 핵심 메시지만 수집. 부록 B 강점표 참조.
+>
 > v3.1 (plugin 1.1.0) 변경점:
 > - **글로벌 주요 이벤트 캘린더** 섹션 추가 (NewsAgent가 향후 2주 이벤트 수집)
 > - **희토류(REMX ETF)** 를 금속 테이블에 추가 (단·중·장기 추세 전 컬럼)
@@ -27,7 +30,7 @@ description: |
 
 ## 보고서 품질 기준 (반드시 충족)
 
-생성되는 docx 는 다음 9개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.
+생성되는 docx 는 다음 10개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.
 
 1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨
 2. **글로벌 주요 이벤트 캘린더** — 향후 2주 핵심 이벤트 (날짜·지역·이벤트·중요도·예상 영향)
@@ -37,15 +40,17 @@ description: |
 6. **원자재 풀커버리지** — 에너지(WTI·천연가스) + 금속(금·은·구리·**희토류 REMX**) + 농산물(옥수수·대두·밀)
 7. **주요 환율 추세** — USD/EUR/JPY/CNY/HKD vs KRW 단·중·장기 추세 + **달러인덱스(DXY)** 병기 + 원화 톤
 8. **암호화폐** — 시장 개요 + 공포·탐욕 지수(현재/1일/1주/1개월) + 김치프리미엄(BTC/ETH/XRP/SOL)
-9. **종합 분석 + 포트폴리오** — 매크로 톤·테마·리스크 + 공격형/중립형/안정형 3개 모델 + 액션 아이템
+9. **글로벌 주요 IB 리서치** — UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock 하우스 뷰 (한국 5대 증권사와 동일 구조)
+10. **종합 분석 + 포트폴리오** — 매크로 톤·테마·리스크 + 공격형/중립형/안정형 3개 모델 + 액션 아이템
 
 ## 워크플로우 개요
 
 ```
 [Phase 0: 사전 점검]  스크립트 경로 자동탐색 / node_modules / 오늘 날짜 / Chrome 연결
         ↓
-[Phase 1: 병렬 수집 — 5개 서브에이전트를 단일 메시지로 동시 발행]
-  ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent / SecuritiesAgent
+[Phase 1: 병렬 수집 — 6개 서브에이전트를 단일 메시지로 동시 발행]
+  ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent
+  ├─ SecuritiesAgent (한국 5대) / GlobalSecuritiesAgent (해외 IB 5사)
         ↓
 [Phase 2: AnalysisAgent 단독 호출]  Phase 1 결과를 입력으로 종합·포트폴리오 도출
         ↓
@@ -81,8 +86,8 @@ node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
 상세 프롬프트와 각 에이전트의 반환 JSON 스키마는 **`references/agents.md`** 를 읽고 그대로 사용한다.
 
 핵심 규칙:
-- Phase 1의 5개 에이전트(News/Markets/Commodities/Crypto/Securities)는 **반드시 단일 메시지에서 동시 발행** (general-purpose 타입).
-- AnalysisAgent 는 5개 결과를 모두 받은 뒤 **마지막에 단독 호출**.
+- Phase 1의 6개 에이전트(News/Markets/Commodities/Crypto/Securities/GlobalSecurities)는 **반드시 단일 메시지에서 동시 발행** (general-purpose 타입).
+- AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**.
 - MCP 도구는 deferred 상태일 수 있으므로 각 에이전트 프롬프트에 "먼저 `ToolSearch` 키워드 검색(예: `+UsStockInfo historical`, `+CoinInfo fear greed`)으로 도구를 로드한 뒤 사용하라"고 명시한다. **UUID 가 포함된 도구명을 하드코딩하지 말 것** — 서버 ID는 세션마다 다를 수 있다.
 - 실패한 데이터는 null / 빈 배열로 두고 진행한다. 빌더가 "-" 로 렌더링한다.
 
@@ -153,4 +158,22 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 |--------|-----------|-----------|-------------|
 | 신한투자증권 | 자산배분 통합 (주식·채권·원자재·대안), 매크로 일관성 | 카카오채널 '쏠쏠한 리포트', 신한 알파 앱 | 장기 자산배분형 |
 | 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
-| 삼성증권 | SGR 독립 싱크탱크, 파생·선
+| 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
+| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
+| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
+
+복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
+
+## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
+
+| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
+|------|-----------|----------------|-----------|
+| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
+| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
+| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
+| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
+| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
+
+수집 시 주의:
+- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
+- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
