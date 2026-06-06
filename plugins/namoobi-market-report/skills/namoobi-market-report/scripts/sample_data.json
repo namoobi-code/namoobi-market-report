@@ -17,9 +17,14 @@
       {"rank": 9, "headline": "샘플 헤드라인 9", "summary": "테스트용 요약 문장입니다.", "impact": "★ 강세"},
       {"rank": 10, "headline": "샘플 헤드라인 10", "summary": "테스트용 요약 문장입니다.", "impact": "■ 중립"}
     ],
+    "events_calendar": [
+      {"date": "2026-06-10", "region": "미국", "event": "5월 CPI 발표", "importance": "★★★", "expected_impact": "금리 경로 검증 분수령"},
+      {"date": "2026-06-11", "region": "한국", "event": "선물옵션 동시만기", "importance": "★★★", "expected_impact": "헤지 청산 시 변동성 급확대"},
+      {"date": "2026-06-11", "region": "유럽", "event": "ECB 통화정책회의", "importance": "★★★", "expected_impact": "25bp 인상 확률 98%"},
+      {"date": "2026-06-12", "region": "미국", "event": "대형 IPO 상장", "importance": "★★", "expected_impact": "IPO 수급 이벤트"},
+      {"date": "2026-06-16", "region": "미국", "event": "FOMC (~6/17)", "importance": "★★★", "expected_impact": "점도표가 글로벌 멀티플 좌우"}
+    ],
     "fx_snapshot": {
-      "USD_KRW": "1495.25", "EUR_KRW": "1743.00", "JPY_KRW": "938.46",
-      "CNY_KRW": "220.34", "HKD_KRW": "190.87",
       "krw_trend": "원화 약세", "krw_comment": "테스트 코멘트."
     }
   },
@@ -47,6 +52,13 @@
       "stoxx50": {"current": 6123, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": -0.2, "6mo_pct": 3.0, "1y_pct": 8.0, "trend": "보합"},
       "dax":     {"current": 21500, "1w_pct": 0.4, "1mo_pct": 1.0, "3mo_pct": 2.0, "6mo_pct": 6.0, "1y_pct": 12.0, "trend": "상승"},
       "ftse":    {"current": 8900, "1w_pct": 0.1, "1mo_pct": 0.3, "3mo_pct": 1.0, "6mo_pct": 3.5, "1y_pct": 7.0, "trend": "완만 상승"}
+    },
+    "fx_markets": {
+      "usd_krw": {"current": 1558.84, "1w_pct": 2.8, "1mo_pct": 4.1, "3mo_pct": 5.5, "6mo_pct": 7.2, "1y_pct": 10.5, "trend": "원화 급속 약세"},
+      "eur_krw": {"current": 1795.10, "1w_pct": 2.2, "1mo_pct": 3.0, "3mo_pct": 4.8, "6mo_pct": 6.0, "1y_pct": 9.0, "trend": "유로 동반 강세"},
+      "jpy_krw": {"current": 953.20, "1w_pct": 1.1, "1mo_pct": 1.8, "3mo_pct": 2.5, "6mo_pct": 3.0, "1y_pct": 4.2, "trend": "엔화 점진 강세 (100엔 기준)"},
+      "cny_krw": {"current": 216.80, "1w_pct": 1.5, "1mo_pct": 2.0, "3mo_pct": 3.1, "6mo_pct": 4.0, "1y_pct": 5.5, "trend": "위안 완만 강세"},
+      "hkd_krw": {"current": 197.00, "1w_pct": 2.7, "1mo_pct": 3.9, "3mo_pct": 5.2, "6mo_pct": 7.0, "1y_pct": 10.1, "trend": "달러 페그 동반 상승"}
     }
   },
   "commodities": {
@@ -59,7 +71,8 @@
       "gold":     {"current": 4484.5, "1w_pct": 0.8, "1mo_pct": 2.5, "3mo_pct": 6.3, "6mo_pct": 12.0, "1y_pct": 30.0, "trend": "강세"},
       "silver":   {"current": 75.07, "1w_pct": -1.0, "1mo_pct": -5.0, "3mo_pct": -19.0, "6mo_pct": 10.0, "1y_pct": 40.0, "trend": "변동성 확대"},
       "copper":   {"current": 6.39, "1w_pct": 0.3, "1mo_pct": 2.0, "3mo_pct": 6.5, "6mo_pct": 9.0, "1y_pct": 14.0, "trend": "상승"},
-      "platinum": {"current": null, "trend": "데이터 없음"}
+      "platinum": {"current": null, "trend": "데이터 없음"},
+      "rare_earth": {"current": 88.59, "1w_pct": -10.92, "1mo_pct": -5.2, "3mo_pct": 12.4, "6mo_pct": 25.0, "1y_pct": 48.3, "trend": "반도체 쇼크 동반 급락, 장기 상승 (REMX)"}
     },
     "agriculture": {
       "corn":    {"current": 480.25, "1w_pct": 0.5, "1mo_pct": 1.5, "3mo_pct": 4.0, "6mo_pct": 6.0, "1y_pct": 8.0, "trend": "완만 상승"},

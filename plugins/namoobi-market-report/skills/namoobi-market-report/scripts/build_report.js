@@ -46,18 +46,23 @@ function validate(d) {
   if (!has(d, 'news') || !Array.isArray(d.news.top_news) || d.news.top_news.length === 0)
     issues.push("news.top_news 누락 (품질기준 1: Top News 10)");
   else if (d.news.top_news.length < 10) warn.push(`top_news ${d.news.top_news.length}개 (<10)`);
-  if (!has(d, 'news') || !d.news.fx_snapshot) issues.push("news.fx_snapshot 누락 (품질기준 6: 환율)");
-  if (!has(d, 'markets')) issues.push("markets 누락 (품질기준 2,3: 증시 추세)");
+  if (!has(d, 'news') || !Array.isArray(d.news.events_calendar) || d.news.events_calendar.length === 0)
+    warn.push("news.events_calendar 누락 (품질기준 2: 이벤트 캘린더)");
+  if (!has(d, 'markets')) issues.push("markets 누락 (품질기준 3,4: 증시 추세)");
   else {
     if (!d.markets.korea) warn.push("markets.korea 누락 (코스피·코스닥)");
     if (!d.markets.us_markets) issues.push("markets.us_markets 누락");
-    else { if (!d.markets.us_markets.vix) warn.push("VIX 누락 (품질기준 4)"); if (!d.markets.us_markets.dxy) warn.push("DXY 누락 (품질기준 4)"); }
+    else { if (!d.markets.us_markets.vix) warn.push("VIX 누락 (품질기준 5)"); if (!d.markets.us_markets.dxy) warn.push("DXY 누락 (품질기준 5)"); }
     if (!d.markets.asia_markets) warn.push("markets.asia_markets 누락");
     if (!d.markets.europe_markets) warn.push("markets.europe_markets 누락");
+    if (!d.markets.fx_markets) warn.push("markets.fx_markets 누락 (품질기준 7: 환율 추세) — fx_snapshot 폴백 사용");
   }
-  if (!has(d, 'commodities')) issues.push("commodities 누락 (품질기준 5)");
-  else if (!d.commodities.agriculture) warn.push("commodities.agriculture 누락 (옥수수·대두·밀)");
-  if (!has(d, 'crypto')) issues.push("crypto 누락 (품질기준 7)");
+  if (!has(d, 'commodities')) issues.push("commodities 누락 (품질기준 6)");
+  else {
+    if (!d.commodities.agriculture) warn.push("commodities.agriculture 누락 (옥수수·대두·밀)");
+    if (!d.commodities.metals || !d.commodities.metals.rare_earth) warn.push("commodities.metals.rare_earth 누락 (희토류 REMX)");
+  }
+  if (!has(d, 'crypto')) issues.push("crypto 누락 (품질기준 8)");
   else { if (!d.crypto.fear_greed) warn.push("crypto.fear_greed 누락"); if (!d.crypto.kimchi_premium) warn.push("crypto.kimchi_premium 누락"); }
   if (!has(d, 'securities')) warn.push("securities 누락 (5대 증권사)");
   if (!has(d, 'analysis')) issues.push("analysis 누락 (품질기준 8)");
@@ -192,7 +197,7 @@ children.push(new Paragraph({
 }));
 children.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 1200 },
-  children: [new TextRun({ text: "Top News · 단·중·장기 추세 · 매크로 · 원자재 · 환율 · 코인 · 5대 증권사 · 포트폴리오", size: 20, color: "64748B" })]
+  children: [new TextRun({ text: "Top News · 이벤트 캘린더 · 단·중·장기 추세 · 매크로 · 원자재·희토류 · 환율 · 코인 · 5대 증권사 · 포트폴리오", size: 20, color: "64748B" })]
 }));
 children.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 120 },
@@ -200,7 +205,7 @@ children.push(new Paragraph({
 }));
 children.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 120 },
-  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3", size: 22, color: "64748B" })]
+  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.1", size: 22, color: "64748B" })]
 }));
 
 // Executive Summary
@@ -220,17 +225,18 @@ children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(h("목   차", 1));
 const toc = [
   "1. 글로벌 Top News 10",
-  "2. 글로벌 증시 단·중·장기 추세 (한국·미국·일본·중국·홍콩·인도·베트남·유럽)",
-  "3. 매크로 지표 (달러지수·VIX·미국채 10년)",
-  "4. 원자재 - 에너지·금속·농산물",
-  "5. 주요 환율 현황",
-  "6. 암호화폐 - 시장·공포탐욕·김치프리미엄",
-  "7. 한국 5대 증권사 리서치 (강점·채널·시각)",
-  "8. 종합 분석 - 매크로 톤·핵심 테마·리스크",
-  "9. 자산별 단·중·장기 견해",
-  "10. 추천 포트폴리오 (공격형 / 중립형 / 안정형)",
-  "11. 액션 아이템 - 단기·중기·장기 체크리스트",
-  "12. 주의 사항 및 출처"
+  "2. 글로벌 주요 이벤트 캘린더 (향후 2주)",
+  "3. 글로벌 증시 단·중·장기 추세 (한국·미국·일본·중국·홍콩·인도·베트남·유럽)",
+  "4. 매크로 지표 (달러지수·VIX·미국채 10년)",
+  "5. 원자재 - 에너지·금속(희토류 포함)·농산물",
+  "6. 주요 환율 단·중·장기 추세 (+달러인덱스)",
+  "7. 암호화폐 - 시장·공포탐욕·김치프리미엄",
+  "8. 한국 5대 증권사 리서치 (강점·채널·시각)",
+  "9. 종합 분석 - 매크로 톤·핵심 테마·리스크",
+  "10. 자산별 단·중·장기 견해",
+  "11. 추천 포트폴리오 (공격형 / 중립형 / 안정형)",
+  "12. 액션 아이템 - 단기·중기·장기 체크리스트",
+  "13. 주의 사항 및 출처"
 ];
 toc.forEach(t => children.push(p(t, { size: 22, after: 40 })));
 
@@ -257,10 +263,34 @@ if (data.news && Array.isArray(data.news.top_news)) {
 }
 
 // ============================================================
-// 2. 증시 단·중·장기 추세
+// 2. 글로벌 주요 이벤트 캘린더
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("2. 글로벌 증시 단·중·장기 추세", 1));
+children.push(h("2. 글로벌 주요 이벤트 캘린더 (향후 2주)", 1));
+if (data.news && Array.isArray(data.news.events_calendar) && data.news.events_calendar.length > 0) {
+  const evHeader = ["날짜", "지역", "이벤트", "중요도", "예상 영향"];
+  const evWidths = [1300, 1100, 2800, 1100, 3060];
+  const evRows = [evHeader, ...data.news.events_calendar.map(e => [
+    e.date ?? "-", e.region ?? "-", e.event ?? "-", e.importance ?? "-", e.expected_impact ?? "-"
+  ])].map((r, i) => new TableRow({
+    children: r.map((c, j) => cell(c, {
+      width: evWidths[j], header: i === 0,
+      alt: i > 0 && i % 2 === 0,
+      align: (j === 0 || j === 1 || j === 3) ? AlignmentType.CENTER : AlignmentType.LEFT,
+      bold: j === 2 && i > 0,
+      color: (j === 3 && i > 0 && String(c).includes("★★★")) ? "DC2626" : undefined
+    }))
+  }));
+  children.push(makeTable(evWidths, evRows));
+} else {
+  children.push(p("(이벤트 캘린더 데이터 없음)"));
+}
+
+// ============================================================
+// 3. 증시 단·중·장기 추세
+// ============================================================
+children.push(new Paragraph({ children: [new PageBreak()] }));
+children.push(h("3. 글로벌 증시 단·중·장기 추세", 1));
 children.push(p("각 시장의 단기(1주)·중기(1~3개월)·장기(6개월~1년) 변화율을 통해 추세 강도와 모멘텀을 동시에 평가한다.", { italics: true, color: "64748B" }));
 
 function trendRow(name, m, i) {
@@ -300,27 +330,27 @@ function renderMarketBlock(title, marketObj, labels) {
 }
 
 if (data.markets) {
-  renderMarketBlock("2.1 한국 증시", data.markets.korea, {
+  renderMarketBlock("3.1 한국 증시", data.markets.korea, {
     kospi: "코스피", kosdaq: "코스닥"
   });
-  renderMarketBlock("2.2 미국 증시", data.markets.us_markets, {
+  renderMarketBlock("3.2 미국 증시", data.markets.us_markets, {
     sp500: "S&P 500", nasdaq: "나스닥", dow: "다우",
     vix: "VIX (공포지수)", dxy: "달러지수 DXY", us10y: "美 10년 국채"
   });
-  renderMarketBlock("2.3 아시아 증시", data.markets.asia_markets, {
+  renderMarketBlock("3.3 아시아 증시", data.markets.asia_markets, {
     nikkei: "닛케이 225", shanghai: "상하이종합",
     hsi: "홍콩 항셍", sensex: "인도 센섹스", vietnam: "베트남 (VNM)"
   });
-  renderMarketBlock("2.4 유럽 증시", data.markets.europe_markets, {
+  renderMarketBlock("3.4 유럽 증시", data.markets.europe_markets, {
     stoxx50: "유로 스톡스 50", dax: "독일 DAX", ftse: "영국 FTSE 100"
   });
 }
 
 // ============================================================
-// 3. 매크로 지표
+// 4. 매크로 지표
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("3. 매크로 지표 종합 코멘트", 1));
+children.push(h("4. 매크로 지표 종합 코멘트", 1));
 const usM = (data.markets && data.markets.us_markets) || {};
 const macroRows = [
   ["지표", "현재치", "단기 시그널", "장기 추세"],
@@ -341,33 +371,53 @@ const macroRows = [
 children.push(makeTable([2400, 2000, 2200, 2760], macroRows));
 
 // ============================================================
-// 4. 원자재
+// 5. 원자재
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("4. 원자재 종합 - 에너지·금속·농산물", 1));
+children.push(h("5. 원자재 종합 - 에너지·금속·희토류·농산물", 1));
 
 if (data.commodities) {
-  renderMarketBlock("4.1 에너지", data.commodities.energy, {
+  renderMarketBlock("5.1 에너지", data.commodities.energy, {
     wti: "WTI 원유", brent: "Brent 원유", natgas: "천연가스"
   });
-  renderMarketBlock("4.2 금속 (귀금속·산업금속)", data.commodities.metals, {
-    gold: "금 (Gold)", silver: "은 (Silver)", copper: "구리 (Copper)", platinum: "백금 (Platinum)"
+  renderMarketBlock("5.2 금속 (귀금속·산업금속·희토류)", data.commodities.metals, {
+    gold: "금 (Gold)", silver: "은 (Silver)", copper: "구리 (Copper)", platinum: "백금 (Platinum)",
+    rare_earth: "희토류 (REMX ETF)"
   });
-  renderMarketBlock("4.3 농산물", data.commodities.agriculture, {
+  renderMarketBlock("5.3 농산물", data.commodities.agriculture, {
     corn: "옥수수 (Corn)", soybean: "대두 (Soybeans)", wheat: "밀 (Wheat)"
   });
+  if (data.commodities.metals && data.commodities.metals.rare_earth) {
+    children.push(p("※ 희토류는 거래소 선물 시세가 없어 VanEck 희토류·전략금속 ETF(REMX)를 프록시로 사용.", { italics: true, color: "94A3B8", size: 18 }));
+  }
   if (data.commodities.commentary) {
-    children.push(h("4.4 원자재 종합 코멘트", 2));
+    children.push(h("5.4 원자재 종합 코멘트", 2));
     children.push(p(data.commodities.commentary));
   }
 }
 
 // ============================================================
-// 5. 환율
+// 6. 환율 (단·중·장기 추세 + 달러인덱스)
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("5. 주요 환율 현황", 1));
-if (data.news && data.news.fx_snapshot) {
+children.push(h("6. 주요 환율 단·중·장기 추세", 1));
+if (data.markets && data.markets.fx_markets) {
+  children.push(p("환율 상승 = 원화 약세. 달러인덱스(DXY)는 6개 주요통화 대비 달러 가치.", { italics: true, color: "64748B" }));
+  const fxLabels = {
+    usd_krw: "USD/KRW", eur_krw: "EUR/KRW", jpy_krw: "JPY/KRW (100엔)",
+    cny_krw: "CNY/KRW", hkd_krw: "HKD/KRW"
+  };
+  const fxRows = [trendHeaderRow()];
+  let fi = 0;
+  for (const [key, val] of Object.entries(data.markets.fx_markets)) {
+    fxRows.push(trendRow(fxLabels[key] || key.toUpperCase(), val, fi)); fi++;
+  }
+  if (data.markets.us_markets && data.markets.us_markets.dxy) {
+    fxRows.push(trendRow("달러인덱스 (DXY)", data.markets.us_markets.dxy, fi));
+  }
+  children.push(makeTable(tw, fxRows));
+} else if (data.news && data.news.fx_snapshot) {
+  // 구버전 폴백: 현재가 스냅샷만 렌더링
   const fx = data.news.fx_snapshot;
   const fxRows = [
     ["통화쌍", "현재 환율 (원화 기준)"],
@@ -384,23 +434,24 @@ if (data.news && data.news.fx_snapshot) {
     }))
   }));
   children.push(makeTable([3000, 6360], fxRows));
-  if (fx.krw_trend || fx.krw_comment) {
-    children.push(p(""));
-    children.push(p(`원화 톤: ${fx.krw_trend || '-'}`, { bold: true }));
-    if (fx.krw_comment) children.push(p(fx.krw_comment));
-  }
+}
+if (data.news && data.news.fx_snapshot && (data.news.fx_snapshot.krw_trend || data.news.fx_snapshot.krw_comment)) {
+  const fx = data.news.fx_snapshot;
+  children.push(p(""));
+  children.push(p(`원화 톤: ${fx.krw_trend || '-'}`, { bold: true }));
+  if (fx.krw_comment) children.push(p(fx.krw_comment));
 }
 
 // ============================================================
-// 6. 암호화폐
+// 7. 암호화폐
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("6. 암호화폐 시장", 1));
+children.push(h("7. 암호화폐 시장", 1));
 if (data.crypto) {
   const c = data.crypto;
 
   if (c.market_overview) {
-    children.push(h("6.1 시장 개요", 2));
+    children.push(h("7.1 시장 개요", 2));
     const mo = c.market_overview;
     const vol = Number(mo.total_volume_24h_usd);
     children.push(bullet(`24시간 거래량: ${isNaN(vol) || !vol ? "-" : "$" + (vol/1e8).toFixed(1) + "억"}`));
@@ -410,7 +461,7 @@ if (data.crypto) {
   }
 
   if (c.fear_greed) {
-    children.push(h("6.2 공포 & 탐욕 지수", 2));
+    children.push(h("7.2 공포 & 탐욕 지수", 2));
     const fg = c.fear_greed;
     const fgRows = [
       ["시점", "지수", "분류 / 변화"],
@@ -429,7 +480,7 @@ if (data.crypto) {
   }
 
   if (c.kimchi_premium && Array.isArray(c.kimchi_premium.coins) && c.kimchi_premium.coins.length > 0) {
-    children.push(h("6.3 김치 프리미엄", 2));
+    children.push(h("7.3 김치 프리미엄", 2));
     children.push(p(`기준 환율: 1 USD = ${c.kimchi_premium.rate_usd_krw ?? "-"} KRW`));
     const kpRows = [
       ["코인", "업비트 (KRW)", "바이낸스 (USD)", "프리미엄", "상태"],
@@ -452,7 +503,7 @@ if (data.crypto) {
   }
 
   if (Array.isArray(c.top_gainers) && c.top_gainers.length > 0) {
-    children.push(h("6.4 24h Top Gainers / Losers", 2));
+    children.push(h("7.4 24h Top Gainers / Losers", 2));
     const gainers = (c.top_gainers || []).slice(0, 5);
     const losers  = (c.top_losers || []).slice(0, 5);
     const maxLen = Math.max(gainers.length, losers.length);
@@ -480,10 +531,10 @@ if (data.crypto) {
 }
 
 // ============================================================
-// 7. 한국 5대 증권사
+// 8. 한국 5대 증권사
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("7. 한국 5대 증권사 리서치 (강점·채널·시각)", 1));
+children.push(h("8. 한국 5대 증권사 리서치 (강점·채널·시각)", 1));
 
 const secLabels = {
   shinhan: "신한투자증권",
@@ -506,7 +557,7 @@ if (data.securities) {
     const sec = data.securities[key];
     if (!sec) continue;
     idx++;
-    children.push(h(`7.${idx} ${secLabels[key]}`, 2));
+    children.push(h(`8.${idx} ${secLabels[key]}`, 2));
     if (sec.strength) children.push(p(`핵심 강점: ${sec.strength}`, { bold: true, color: "1E40AF" }));
     if (Array.isArray(sec.channels) && sec.channels.length > 0) {
       children.push(p(`주요 채널: ${sec.channels.join(' / ')}`, { italics: true, color: "475569" }));
@@ -524,11 +575,11 @@ if (data.securities) {
     }
   }
   if (Array.isArray(data.securities.common_themes) && data.securities.common_themes.length > 0) {
-    children.push(h("7.6 5사 공통 핵심 주제", 2));
+    children.push(h("8.6 5사 공통 핵심 주제", 2));
     data.securities.common_themes.forEach(t => children.push(bullet(t)));
   }
   if (data.securities.investor_type_recommendation) {
-    children.push(h("7.7 투자자 유형별 추천 조합", 2));
+    children.push(h("8.7 투자자 유형별 추천 조합", 2));
     const rec = data.securities.investor_type_recommendation;
     const recMap = [
       ["장기 자산배분형", rec.long_term_allocator],
@@ -548,18 +599,18 @@ if (data.securities) {
 }
 
 // ============================================================
-// 8. 종합 분석
+// 9. 종합 분석
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("8. 종합 분석 - 매크로·테마·리스크", 1));
+children.push(h("9. 종합 분석 - 매크로·테마·리스크", 1));
 if (data.analysis) {
   const a = data.analysis;
   if (a.macro_view) {
-    children.push(h("8.1 매크로 톤", 2));
+    children.push(h("9.1 매크로 톤", 2));
     children.push(p(a.macro_view));
   }
   if (Array.isArray(a.key_themes) && a.key_themes.length > 0) {
-    children.push(h("8.2 핵심 테마", 2));
+    children.push(h("9.2 핵심 테마", 2));
     const thRows = [["테마", "방향", "코멘트"]];
     a.key_themes.forEach(t => thRows.push([t.theme || "-", t.direction || "-", t.comment || "-"]));
     children.push(makeTable([2400, 1400, 5560], thRows.map((r, i) => new TableRow({
@@ -571,17 +622,17 @@ if (data.analysis) {
     }))));
   }
   if (Array.isArray(a.key_risks) && a.key_risks.length > 0) {
-    children.push(h("8.3 핵심 리스크", 2));
+    children.push(h("9.3 핵심 리스크", 2));
     a.key_risks.forEach(r => children.push(bullet(r, { color: negativeColor })));
   }
 }
 
 // ============================================================
-// 9. 자산별 견해
+// 10. 자산별 견해
 // ============================================================
 if (data.analysis && data.analysis.asset_view) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(h("9. 자산별 단·중·장기 견해", 1));
+  children.push(h("10. 자산별 단·중·장기 견해", 1));
   const av = data.analysis.asset_view;
   const avMap = [
     ["미국 주식", av.us_equity],
@@ -606,11 +657,11 @@ if (data.analysis && data.analysis.asset_view) {
 }
 
 // ============================================================
-// 10. 추천 포트폴리오
+// 11. 추천 포트폴리오
 // ============================================================
 if (data.analysis && data.analysis.portfolios) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(h("10. 추천 포트폴리오 (공격형 · 중립형 · 안정형)", 1));
+  children.push(h("11. 추천 포트폴리오 (공격형 · 중립형 · 안정형)", 1));
   children.push(p("아래 포트폴리오는 본 시황 분석을 바탕으로 한 모델 예시이며 개인의 위험감내도·투자목표·세금 상황에 따라 조정해야 한다.", { italics: true, color: "64748B" }));
   const pf = data.analysis.portfolios;
   const order = [
@@ -621,7 +672,7 @@ if (data.analysis && data.analysis.portfolios) {
   order.forEach((o, idx) => {
     const pfObj = pf[o.key];
     if (!pfObj) return;
-    children.push(h(`10.${idx+1} ${pfObj.label || o.key}`, 2));
+    children.push(h(`11.${idx+1} ${pfObj.label || o.key}`, 2));
     const meta = [
       ['기대수익', pfObj.expected_return],
       ['최대 낙폭(MDD)', pfObj.max_drawdown],
@@ -648,19 +699,19 @@ if (data.analysis && data.analysis.portfolios) {
 }
 
 // ============================================================
-// 11. 액션 아이템
+// 12. 액션 아이템
 // ============================================================
 if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.action_items.length > 0) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(h("11. 액션 아이템 - 단기·중기·장기 체크리스트", 1));
+  children.push(h("12. 액션 아이템 - 단기·중기·장기 체크리스트", 1));
   data.analysis.action_items.forEach(item => children.push(bullet(item)));
 }
 
 // ============================================================
-// 12. 주의 사항 및 출처
+// 13. 주의 사항 및 출처
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("12. 주의 사항 및 출처", 1));
+children.push(h("13. 주의 사항 및 출처", 1));
 children.push(p("본 보고서는 Claude AI Research(Cowork)가 다양한 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다. 모든 수치는 보고서 기준일의 시장 데이터이며, 시점에 따라 변동될 수 있습니다.", { italics: true }));
 children.push(p("본 보고서의 어떤 내용도 특정 종목 매수·매도 권유나 보장된 투자 수익을 약속하지 않으며, 포트폴리오 추천은 모델 예시일 뿐 개인의 위험감내도·투자목표·세금 상황에 맞춰 조정·검증이 필요합니다. 투자 판단의 최종 책임은 이용자에게 있습니다.", { italics: true, color: "64748B" }));
 children.push(p(""));
@@ -703,7 +754,7 @@ const doc = new Document({
         new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "64748B" }),
         new TextRun({ text: " / ", size: 18, color: "64748B" }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: "64748B" }),
-        new TextRun({ text: "  |  namoobi-market-report v3", size: 18, color: "64748B" })
+        new TextRun({ text: "  |  namoobi-market-report v3.1", size: 18, color: "64748B" })
       ]
     })]})},
     children
@@ -719,3 +770,4 @@ Packer.toBuffer(doc).then(buffer => {
   console.error("❌ DOCX 생성 실패: " + e.message);
   process.exit(1);
 });
+// EOF — namoobi-market-report v1.1.0
