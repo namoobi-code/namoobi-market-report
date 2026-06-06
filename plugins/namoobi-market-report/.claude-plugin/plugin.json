@@ -1,0 +1,9 @@
+{
+  "name": "namoobi-market-report",
+  "version": "1.0.0",
+  "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성하고 이메일로 발송하는 워크플로우. 6개 서브에이전트가 병렬로 자료를 수집한 뒤 DOCX 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송합니다. (global-market-report v0.3.0 후속, 운영 학습 반영 리빌드)",
+  "author": {
+    "name": "namoobi (Claude AI Research)"
+  },
+  "keywords": ["finance", "market", "report", "kospi", "global-market", "automation", "docx", "gmail", "portfolio"]
+}

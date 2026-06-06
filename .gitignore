@@ -1,0 +1,5 @@
+node_modules/
+_market_report_data/
+nmr_build/
+gmr_build/
+*.docx

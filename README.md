@@ -1,0 +1,79 @@
+# namoobi-market-report (Claude Cowork / Claude Code 마켓플레이스)
+
+글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 플러그인 마켓플레이스.
+`global-market-report` v0.3.0(SKILL v2.1)의 운영 학습을 전부 반영해 리빌드한 v3 단일 플러그인을 포함한다.
+
+- 로컬 유지관리: `D:\claudeCowork\namoobi-market-report`
+- 원격 저장소: https://github.com/namoobi-code/namoobi-market-report
+
+## v3 주요 개선점 (구 global-market-report 대비)
+
+1. **서브에이전트 프롬프트 완전 수록** — 구버전은 "기존 v2와 동일" 참조만 있고 실제 내용이 없었음 → `references/agents.md` 에 6개 에이전트 프롬프트·티커맵·반환 스키마 완비
+2. **Progressive disclosure** — SKILL.md 는 오케스트레이터만, Gmail 발송 함정·절차는 `references/email-sending.md` 로 분리
+3. **MCP 도구 탐색 견고화** — UUID 하드코딩 제거, ToolSearch 키워드 검색 방식
+4. **build_report.js v3** — `--validate` 모드(품질기준 8개 항목 사전 검증), null 안전 처리, Executive Summary 섹션, 포트폴리오 비중 합계 검증, 표 개수 출력
+5. **sample_data.json 픽스처** — 데이터 수집 없이 빌더 단독 테스트 가능
+6. **SMTP 잔재 제거** — send_report.py / 네이버 앱 비밀번호 설정 삭제 (샌드박스에서 동작하지 않아 혼란만 유발)
+
+## 구조
+
+```
+namoobi-market-report/
+├── .claude-plugin/
+│   └── marketplace.json                  # 마켓플레이스 정의
+└── plugins/
+    └── namoobi-market-report/
+        ├── .claude-plugin/plugin.json    # version 으로 업데이트 판단 (semver)
+        ├── README.md
+        └── skills/namoobi-market-report/
+            ├── SKILL.md                  # 오케스트레이터 (v3.0)
+            ├── scripts/
+            │   ├── build_report.js       # JSON → DOCX (--validate 지원)
+            │   ├── sample_data.json      # 테스트 픽스처
+            │   └── package.json
+            └── references/
+                ├── agents.md             # 6개 서브에이전트 프롬프트·스키마
+                ├── data-schema.md        # 통합 JSON 스키마
+                └── email-sending.md      # Chrome Gmail 발송 절차·함정
+```
+
+## 최초 1회: GitHub 연동
+
+GitHub 에서 빈 저장소 `namoobi-code/namoobi-market-report` 를 만든 뒤:
+
+```bash
+cd D:\claudeCowork\namoobi-market-report
+git push -u origin main      # remote 는 이미 설정돼 있음
+```
+
+## Cowork/Claude Code 등록 + 설치
+
+```
+/plugin marketplace add namoobi-code/namoobi-market-report
+/plugin install namoobi-market-report@namoobi-market-report
+```
+(로컬 경로 테스트: `/plugin marketplace add D:\claudeCowork\namoobi-market-report`)
+
+## 유지관리 루틴 (수정 → 커밋 → 푸시 → 업데이트)
+
+```bash
+# (1) SKILL.md / scripts / references 수정
+# (2) plugin.json 의 version 을 올린다  예: 1.0.0 → 1.0.1   ← 업데이트 트리거 (필수!)
+git add . && git commit -m "fix: ..." && git push
+```
+이후 Cowork/Claude Code 에서: `/plugin marketplace update`
+
+## 빌더 단독 테스트
+
+```bash
+cd plugins/namoobi-market-report/skills/namoobi-market-report/scripts
+npm install docx
+node build_report.js --validate sample_data.json   # 데이터 검증
+node build_report.js sample_data.json out.docx     # 샘플 docx 생성
+```
+
+## 메모
+
+- `version` 을 안 올리면 업데이트로 인식되지 않는다 — 변경 시 항상 semver 로 올릴 것
+- `node_modules`, 생성된 `*.docx`, `_market_report_data/`, `nmr_build/` 는 .gitignore 로 제외
+- 기존 `namoobi-plugins`(global-market-report v0.3.0)는 별도 저장소로 그대로 두고, 이 저장소가 후속 버전

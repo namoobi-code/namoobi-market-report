@@ -1,0 +1,9 @@
+{
+  "name": "namoobi-market-report-scripts",
+  "version": "1.0.0",
+  "description": "DOCX builder for namoobi-market-report Cowork plugin",
+  "main": "build_report.js",
+  "dependencies": {
+    "docx": "^9.0.0"
+  }
+}

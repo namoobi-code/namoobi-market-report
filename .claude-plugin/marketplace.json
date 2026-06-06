@@ -1,0 +1,12 @@
+{
+  "name": "namoobi-market-report",
+  "owner": {
+    "name": "namoobi"
+  },
+  "plugins": [
+    {
+      "name": "namoobi-market-report",
+      "source": "plugins/namoobi-market-report"
+    }
+  ]
+}
