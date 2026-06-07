@@ -716,15 +716,17 @@ if (data.analysis && data.analysis.asset_view) {
   children.push(new Paragraph({ children: [new PageBreak()] }));
   children.push(h("11. 자산별 단·중·장기 견해", 1));
   const av = data.analysis.asset_view;
+  // 키 별칭 허용: AnalysisAgent 가 cn_equity/jp_equity/eu_equity/kr_bond/us_bond 식 축약 키를
+  // 반환해도 렌더링되도록 양쪽 표기를 모두 수용한다 (v1.2.2).
   const avMap = [
     ["미국 주식", av.us_equity],
     ["한국 주식", av.kr_equity],
-    ["중국 주식", av.china_equity],
-    ["일본 주식", av.japan_equity],
+    ["중국 주식", av.china_equity || av.cn_equity],
+    ["일본 주식", av.japan_equity || av.jp_equity],
     ["신흥시장 주식", av.em_equity],
-    ["유럽 주식", av.europe_equity],
-    ["한국 채권", av.kr_treasury],
-    ["美 국채", av.us_treasury],
+    ["유럽 주식", av.europe_equity || av.eu_equity],
+    ["한국 채권", av.kr_treasury || av.kr_bond],
+    ["美 국채", av.us_treasury || av.us_bond],
     ["금 (Gold)", av.gold],
     ["원유 (Oil)", av.oil],
     ["비트코인 (BTC)", av.btc]
@@ -852,4 +854,4 @@ Packer.toBuffer(doc).then(buffer => {
   console.error("❌ DOCX 생성 실패: " + e.message);
   process.exit(1);
 });
-// EOF — namoobi-market-report v1.1.0
+// EOF — namoobi-market-report v1.2.2 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)

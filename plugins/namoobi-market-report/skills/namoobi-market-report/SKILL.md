@@ -11,8 +11,12 @@ description: |
   (기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com).
 ---
 
-# Namoobi Market Report (v3.2.1)
+# Namoobi Market Report (v3.2.2)
 
+> v3.2.2 (plugin 1.2.2) 변경점:
+> - **Phase 0 스크립트 무결성 검사 추가** — 설치 캐시에서 build_report.js 가 잘려(713행) docx 가 생성되지 않는 사례 발생(2026-06-07). EOF 마커 검사로 사전 감지하고 잘렸으면 git 원본/.plugin 에서 재복사.
+> - **asset_view 키 별칭 수용** — 빌더가 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 키도 렌더링. agents.md 에 정식 키명 명시.
+>
 > v3.2.1 (plugin 1.2.1) 변경점:
 > - 이벤트 캘린더 2단 구성 — **2.1 향후 1개월(전체 중요도)** + **2.2 중장기 1개월~1년(★★★만)**. NewsAgent 가 events_calendar / events_calendar_longterm 분리 수집.
 >
@@ -80,9 +84,13 @@ cp "$SRC/build_report.js" "$SRC/package.json" "$WORK/"
 cd "$WORK"
 [ -d "$WORK/node_modules/docx" ] || npm install docx --no-fund --no-audit
 node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
+# 스크립트 무결성 검사 — 설치(동기화) 과정에서 파일이 잘리는 사례가 있었음 (2026-06-07 실제 발생).
+# 마지막 줄의 EOF 마커가 없으면 잘린 사본이므로 git 원본 또는 .plugin 패키지에서 다시 복사할 것.
+tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" && echo "script OK" || echo "⚠️ build_report.js 잘림(truncated) — 원본에서 재복사 필요"
 ```
 
 > ⚠️ `/tmp` 는 이전 세션 잔존물로 권한 오류가 날 수 있으니 사용하지 말 것. 항상 outputs 하위에서 빌드.
+> ⚠️ 무결성 검사 실패 시: 설치 캐시 사본이 잘린 것 (Packer/Document 코드가 없어 docx 가 생성되지 않고 exit 0 으로 조용히 끝남). 플러그인 재설치 또는 git 원본의 scripts/build_report.js 를 WORK 로 직접 복사해 진행.
 
 ## Phase 1–2: 서브에이전트 호출
 
@@ -154,6 +162,7 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 | 선물 티커 실패(PL=F 등) | current:null → 빌더가 "-" 렌더 |
 | CoinInfo gainers/losers 간헐 오류 | null/빈배열로 두고 진행 |
 | 한글 폰트 깨짐 | 시스템에 맑은 고딕 설치 확인 |
+| 빌드 exit 0 인데 docx 미생성 | 설치 사본 잘림(truncation) — Phase 0 EOF 마커 검사로 확인, git 원본/.plugin 의 build_report.js 재복사 |
 
 ## 부록 A: 5대 증권사 강점 사전 정의
 

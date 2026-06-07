@@ -198,7 +198,9 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `macro_view`: 매크로 톤 1문단
 - `key_themes`: 3~6개 {theme, direction(▲/▼/■), comment}
 - `key_risks`: 3~5개 리스크 문장
-- `asset_view`: 자산군별(미국/한국/중국/일본/신흥/유럽 주식, 한·미 국채, 금, 원유, BTC) 단·중·장기 견해 1줄씩
+- `asset_view`: 자산군별 단·중·장기 견해 1줄씩. **키명은 정확히 다음을 사용**:
+  `us_equity, kr_equity, china_equity, japan_equity, em_equity, europe_equity, kr_treasury, us_treasury, gold, oil, btc`
+  (빌더 v1.2.2 부터는 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 별칭도 수용하지만 위 정식 키를 우선 사용할 것)
 - `portfolios`: aggressive/balanced/conservative — label, expected_return, max_drawdown, rebalance, allocation[{asset, weight_pct, vehicle}] (비중 합계 100%)
 - `action_items`: 단기·중기·장기 체크리스트 5~8개
 
