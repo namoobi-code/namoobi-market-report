@@ -208,7 +208,7 @@ children.push(new Paragraph({
 }));
 children.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 120 },
-  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.2", size: 22, color: "64748B" })]
+  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.2.4", size: 22, color: "64748B" })]
 }));
 
 // Executive Summary
@@ -838,7 +838,7 @@ const doc = new Document({
         new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "64748B" }),
         new TextRun({ text: " / ", size: 18, color: "64748B" }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: "64748B" }),
-        new TextRun({ text: "  |  namoobi-market-report v3.2", size: 18, color: "64748B" })
+        new TextRun({ text: "  |  namoobi-market-report v3.2.4", size: 18, color: "64748B" })
       ]
     })]})},
     children
@@ -854,4 +854,4 @@ Packer.toBuffer(doc).then(buffer => {
   console.error("❌ DOCX 생성 실패: " + e.message);
   process.exit(1);
 });
-// EOF — namoobi-market-report v1.2.2 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)
+// EOF — namoobi-market-report v1.2.4 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)

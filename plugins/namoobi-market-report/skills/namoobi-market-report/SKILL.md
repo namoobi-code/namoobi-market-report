@@ -11,15 +11,23 @@ description: |
   (기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com).
 ---
 
-# Namoobi Market Report (v3.2.3)
+# Namoobi Market Report (v3.2.4)
 
+> v3.2.4 (plugin 1.2.4) 변경점 — 신뢰성·가시성 개선 (2026-06-07 검증 운영 학습):
+> - **잘림 원인 규명 + 자가복구** — 잘림의 원인은 설치 캐시 파일이 아니라 **샌드박스 마운트의 host→VM 동기화가 큰 파일을 간헐적으로 잘라 읽는 것** (호스트 원본은 정상. 같은 파일이 Read 도구로는 857행, bash 마운트로는 713행으로 보인 사례). 대응:
+>   ① `scripts/build_report.js.b64` (gzip+base64 백업, ~15KB) 동봉 — Phase 0 에서 EOF 마커 검사 실패 시 b64 를 디코드해 **자동 복구**.
+>   ② 파일 복사·패키징(.plugin 생성 포함) 후에는 **반드시 크기·EOF 마커 검증**. 잘린 파일로 .plugin 을 만들면 잘린 채 설치된다 (v123 .plugin 실제 사례).
+>   ③ 호스트 파일의 신뢰 기준은 Read 도구 (호스트 직접 읽기). bash 마운트 읽기와 결과가 다르면 Read 쪽이 맞다.
+> - **실행 시간 보고** — Phase 0 에서 시작시각 기록(`$WORK/nmr_start_epoch.txt`), Phase 6 결과 보고에 시작·완료(메일 발송 확인)·소요시간 표기.
+> - **작업 폴더 보장** — Phase 0 에서 연결 폴더(D:\claudeCowork) 확인, 미연결이면 `mcp__cowork__request_cowork_directory`(path="D:\claudeCowork") 로 연결 요청. 거부/실패 시 outputs 에서 진행하되 Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성"을 명시.
+>
 > v3.2.3 (plugin 1.2.3) 변경점 — 속도·결과물 위치 개선 (2026-06-07 운영 학습):
-> - **결과물 위치 고정** — 최종 docx 는 반드시 **연결 폴더(D:\claudeCowork) 최상위에도 저장**. 연결 폴더는 기존 파일 덮어쓰기가 차단되므로 동일 파일명 존재 시 `_HHMM` 시각 접미사를 붙여 새 파일로 저장. 보고서 JSON 도 연결 폴더 `_market_report_data` 에 복사.
+> - **결과물 위치 고정** — 최종 docx 는 반드시 **연결 폴더(D:\claudeCowork) 최상위에도 저장**. 연결 폴더는 기존 파일 덮어쓰기가 차단될 수 있으므로 동일 파일명 존재 시 `_HHMM` 시각 접미사를 붙여 새 파일로 저장. 보고서 JSON 도 연결 폴더 `_market_report_data` 에 복사.
 > - **수집 속도 개선** — MarketsAgent·CommoditiesAgent 는 `get_historical_stock_prices` 를 `period="1y", interval="1wk"`(주봉)로 호출 (일봉 대비 토큰 1/5, 최장 에이전트 소요 절반 이하). 1주 변화율은 직전 주봉 종가로 계산.
 > - **Phase 3 재조립 제거** — Phase 1/2 각 에이전트가 결과 JSON 을 outputs 파일(nmr_news.json 등)로 직접 저장하고, 메인 세션은 node 로 병합만 수행 (메인 세션 재타이핑 ~5분 절감).
 >
 > v3.2.2 (plugin 1.2.2) 변경점:
-> - **Phase 0 스크립트 무결성 검사 추가** — 설치 캐시에서 build_report.js 가 잘려(713행) docx 가 생성되지 않는 사례 발생(2026-06-07). EOF 마커 검사로 사전 감지하고 잘렸으면 git 원본/.plugin 에서 재복사.
+> - **Phase 0 스크립트 무결성 검사 추가** — build_report.js 가 잘려(713행) docx 가 생성되지 않는 사례 발생(2026-06-07). EOF 마커 검사로 사전 감지.
 > - **asset_view 키 별칭 수용** — 빌더가 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 키도 렌더링. agents.md 에 정식 키명 명시.
 >
 > v3.2.1 (plugin 1.2.1) 변경점:
@@ -58,7 +66,7 @@ description: |
 ## 워크플로우 개요
 
 ```
-[Phase 0: 사전 점검]  스크립트 경로 자동탐색 / node_modules / 오늘 날짜 / Chrome 연결
+[Phase 0: 사전 점검]  날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
         ↓
 [Phase 1: 병렬 수집 — 6개 서브에이전트를 단일 메시지로 동시 발행]
   ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent
@@ -68,34 +76,42 @@ description: |
         ↓
 [Phase 3: 데이터 종합 → JSON 저장 + 유효성 검증]
         ↓
-[Phase 4: DOCX 생성]  node build_report.js <json> <out.docx>
+[Phase 4: DOCX 생성]  node build_report.js <json> <out.docx>  → 연결 폴더 사본
         ↓
 [Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송 (references/email-sending.md)
         ↓
-[Phase 6: 결과 보고]  핵심 헤드라인 3개 + 포트폴리오 톤 요약
+[Phase 6: 결과 보고]  헤드라인 3개 + 포트폴리오 톤 + 시작/완료/소요시간
 ```
 
 ## Phase 0: 사전 점검
 
-1. **날짜**: `TZ=Asia/Seoul date '+%Y-%m-%d'` 로 오늘(KST) 확정. `YYYYMMDD` 압축형도 함께 만든다.
-2. **Chrome**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. 없으면 사용자에게 일반 크롬 창을 열어달라고 요청. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.)
-3. **빌드 환경 준비** — 플러그인 마운트는 읽기 전용이므로 쓰기 가능한 outputs 에 복사해 빌드한다:
+1. **날짜·시작시각**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` 로 오늘(KST)과 **워크플로우 시작시각**을 확정. `YYYYMMDD` 압축형도 함께 만든다. 시작시각(사람이 읽는 형식 + epoch)은 Phase 6 소요시간 계산에 쓰므로 아래 3번에서 `$WORK/nmr_start_epoch.txt` 로 기록한다.
+2. **연결 폴더 확인** (v3.2.4): D:\claudeCowork 가 세션에 연결돼 있는지 확인. 미연결이면 `mcp__cowork__request_cowork_directory`(path="D:\claudeCowork") 로 연결을 요청한다 (ToolSearch 로 로드). 사용자가 거부하거나 연결 불가면 outputs 에서 진행하되, Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성"을 명시한다.
+3. **Chrome**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. 없으면 사용자에게 일반 크롬 창을 열어달라고 요청. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.)
+4. **빌드 환경 준비 + 무결성 검사·자동복구** — 플러그인 마운트는 읽기 전용이므로 쓰기 가능한 outputs 에 복사해 빌드한다:
 
 ```bash
 SRC="$(dirname "$(find /sessions/*/mnt -path '*namoobi-market-report/scripts/build_report.js' 2>/dev/null | head -1)")"
 WORK="$(ls -d /sessions/*/mnt/outputs 2>/dev/null | head -1)/nmr_build"
 rm -rf "$WORK"; mkdir -p "$WORK"
+date +%s > "$WORK/nmr_start_epoch.txt"   # v3.2.4 시작시각 기록
+TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S' > "$WORK/nmr_start_human.txt"
 cp "$SRC/build_report.js" "$SRC/package.json" "$WORK/"
 cd "$WORK"
 [ -d "$WORK/node_modules/docx" ] || npm install docx --no-fund --no-audit
 node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
-# 스크립트 무결성 검사 — 설치(동기화) 과정에서 파일이 잘리는 사례가 있었음 (2026-06-07 실제 발생).
-# 마지막 줄의 EOF 마커가 없으면 잘린 사본이므로 git 원본 또는 .plugin 패키지에서 다시 복사할 것.
-tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" && echo "script OK" || echo "⚠️ build_report.js 잘림(truncated) — 원본에서 재복사 필요"
+# 무결성 검사 + 자동복구 (v3.2.4) — 원인은 샌드박스 마운트가 큰 파일을 잘라 읽는 것 (호스트 원본은 정상)
+if ! tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report"; then
+  echo "⚠️ 잘림 감지 → build_report.js.b64 백업에서 자동 복구"
+  base64 -d "$SRC/build_report.js.b64" | gunzip > "$WORK/build_report.js"
+fi
+tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
+  && node --check "$WORK/build_report.js" && echo "script OK" \
+  || echo "❌ 복구 실패 — 호스트의 git 원본을 Read 도구로 읽어(마운트 bash 금지) WORK 에 재구성할 것"
 ```
 
 > ⚠️ `/tmp` 는 이전 세션 잔존물로 권한 오류가 날 수 있으니 사용하지 말 것. 항상 outputs 하위에서 빌드.
-> ⚠️ 무결성 검사 실패 시: 설치 캐시 사본이 잘린 것 (Packer/Document 코드가 없어 docx 가 생성되지 않고 exit 0 으로 조용히 끝남). 플러그인 재설치 또는 git 원본의 scripts/build_report.js 를 WORK 로 직접 복사해 진행.
+> ⚠️ 마운트 읽기 잘림은 b64(~15KB, 작아서 안전) 디코드로 복구된다. b64 마저 잘렸으면 호스트 경로를 **Read 도구**로 읽어 재구성한다 — Read 는 호스트를 직접 읽으므로 항상 완전하다.
 
 ## Phase 1–2: 서브에이전트 호출
 
@@ -103,10 +119,11 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" && ech
 
 핵심 규칙:
 - Phase 1의 6개 에이전트(News/Markets/Commodities/Crypto/Securities/GlobalSecurities)는 **반드시 단일 메시지에서 동시 발행** (general-purpose 타입).
-- AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**.
+- AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**. 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
 - MCP 도구는 deferred 상태일 수 있으므로 각 에이전트 프롬프트에 "먼저 `ToolSearch` 키워드 검색(예: `+UsStockInfo historical`, `+CoinInfo fear greed`)으로 도구를 로드한 뒤 사용하라"고 명시한다. **UUID 가 포함된 도구명을 하드코딩하지 말 것** — 서버 ID는 세션마다 다를 수 있다.
+- 서브에이전트가 API 오류(소켓 끊김 등)로 결과 파일을 저장하지 못했으면 해당 에이전트만 재실행한다 (파일 존재 여부로 판단).
 - 실패한 데이터는 null / 빈 배열로 두고 진행한다. 빌더가 "-" 로 렌더링한다.
 
 ## Phase 3: 데이터 종합 및 저장
@@ -135,8 +152,9 @@ node build_report.js \
 docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Chrome file_upload 첨부가 가능하다.
 
 **(v3.2.3 필수) 최종 docx 를 연결 폴더 `D:\claudeCowork` 최상위에도 저장한다.**
-연결 폴더는 bash 에서 기존 파일 덮어쓰기·삭제가 차단되므로, 동일 파일명이 이미 있으면
+연결 폴더는 기존 파일 덮어쓰기·삭제가 차단될 수 있으므로, 동일 파일명이 이미 있으면
 `글로벌금융시장_종합시황보고서_YYYYMMDD_HHMM.docx` 처럼 실행 시각 접미사를 붙여 새 파일로 저장한다.
+복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). (v3.2.4) 연결 폴더가 없으면 outputs 에만 저장하고 Phase 6 에 명시.
 
 ## Phase 5: 이메일 발송
 
@@ -145,19 +163,27 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 - 기본 수신자: `namoobi@gmail.com`, `jaewoo.seo@mobis.com`, `hyun.jiyoun@gmail.com` (사용자 지정 시 대체)
 - 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
 - 수신자 칩 클릭 금지, 검증은 screenshot/zoom 으로만 — 상세 함정 목록은 reference 참조.
+- "메시지 전송됨" 확인 직후 완료시각을 기록한다: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` + `date +%s`
 
 ## Phase 6: 결과 보고
+
+소요시간 계산: `END=$(date +%s); START=$(cat "$WORK/nmr_start_epoch.txt"); echo $(( (END-START)/60 ))분 $(( (END-START)%60 ))초`
 
 ```
 📋 글로벌 시황 보고서 발송 완료
 생성: 글로벌금융시장_종합시황보고서_YYYYMMDD.docx (NN KB)
 수신: <recipients>
-수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N
+수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N+IB N
+[실행 시간]
+- 시작: YYYY-MM-DD HH:MM:SS (KST)
+- 완료(메일 발송 확인): YYYY-MM-DD HH:MM:SS (KST)
+- 소요: M분 S초
 [핵심 헤드라인 3개]
 1~3. (top_news 상위 3개)
 [추천 포트폴리오 톤]
 - 공격형/중립형/안정형 1줄씩
 ```
+연결 폴더 미연결로 docx 사본을 만들지 못했으면 그 사실도 함께 보고한다.
 
 ## 트러블슈팅 (요약)
 
@@ -166,15 +192,20 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 | Chrome "Tabs can only be moved to and from normal windows" | 일반 크롬 창 없음 → 사용자에게 열어달라 요청 후 `tabs_context_mcp(createIfEmpty=true)` 재시도 |
 | Gmail 로그인 안 됨 | 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
 | 작성창이 닫히고 초안만 남음 | `#drafts` 에서 초안 다시 열어 이어서 작성·발송 (email-sending.md) |
+| 작성창이 최소화돼 "새 메일" 바만 보임 | 하단 "새 메일" 바 클릭해 펼친 뒤 진행 |
+| 제목 입력이 누락됨 | 발송 전 screenshot 검증에서 제목 칸 확인, 비었으면 제목 칸 다시 클릭 후 입력 |
 | Write/Edit "outside connected folders" | bash heredoc 으로 저장 |
 | npm/cp 권한 오류 | /tmp 금지, outputs/nmr_build 에서 빌드 |
+| 파일이 중간에 잘려 보임 (마운트 잘림) | 호스트 원본은 정상 — Read 도구로 읽으면 완전하다. build_report.js 는 Phase 0 자동복구(b64). 복사·패키징 후 크기·EOF 검증 필수 |
+| 빌드 exit 0 인데 docx 미생성 | 스크립트 잘림 — Phase 0 EOF 검사·자동복구 수행 여부 확인 |
+| 연결 폴더 미연결 | `request_cowork_directory`(D:\claudeCowork) 요청, 거부 시 outputs 진행 + Phase 6 에 명시 |
+| 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
+| 서브에이전트 API 오류로 결과 누락 | nmr_*.json 존재 여부 확인 후 해당 에이전트만 재실행 |
 | Chrome 차단 도메인(naver.com 등) | NaverSearch MCP / web_fetch 로 대체 |
 | VNINDEX 데이터 부재 | VNM ETF (VanEck Vietnam) 로 대체 |
 | 선물 티커 실패(PL=F 등) | current:null → 빌더가 "-" 렌더 |
-| CoinInfo gainers/losers 간헐 오류 | null/빈배열로 두고 진행 |
+| CoinInfo gainers/losers 간헐 오류 (429 등) | null/빈배열로 두고 진행 |
 | 한글 폰트 깨짐 | 시스템에 맑은 고딕 설치 확인 |
-| 빌드 exit 0 인데 docx 미생성 | 설치 사본 잘림(truncation) — Phase 0 EOF 마커 검사로 확인, git 원본/.plugin 의 build_report.js 재복사 |
-| 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
 
 ## 부록 A: 5대 증권사 강점 사전 정의
 

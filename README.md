@@ -15,6 +15,7 @@
 5. **sample_data.json 픽스처** — 데이터 수집 없이 빌더 단독 테스트 가능
 6. **SMTP 잔재 제거** — send_report.py / 네이버 앱 비밀번호 설정 삭제 (샌드박스에서 동작하지 않아 혼란만 유발)
 7. **v1.1**: 이벤트 캘린더 + 희토류(REMX) + 환율·DXY 단·중·장기 추세 / **v1.2**: 글로벌 IB 5사 리서치 (UBS·GS·JPM·MS·BlackRock)
+8. **v1.2.4**: 샌드박스 마운트 잘림 **자가복구**(`build_report.js.b64` 동봉, Phase 0 자동 복원) + **실행 시작/완료/소요시간 보고** + **D:\claudeCowork 작업폴더 자동 연결 요청**. ⚠️ 잘림의 원인은 호스트 파일이 아니라 마운트 host→VM 동기화 — 파일 복사·.plugin 패키징 후 반드시 크기·EOF 마커 검증.
 
 ## 구조
 
@@ -27,9 +28,10 @@ namoobi-market-report/
         ├── .claude-plugin/plugin.json    # version 으로 업데이트 판단 (semver)
         ├── README.md
         └── skills/namoobi-market-report/
-            ├── SKILL.md                  # 오케스트레이터 (v3.2)
+            ├── SKILL.md                  # 오케스트레이터 (v3.2.4)
             ├── scripts/
             │   ├── build_report.js       # JSON → DOCX (--validate 지원)
+            │   ├── build_report.js.b64   # gzip+base64 백업 (잘림 자가복구용 — build_report.js 수정 시 재생성 필수!)
             │   ├── sample_data.json      # 테스트 픽스처
             │   └── package.json
             └── references/
@@ -56,7 +58,9 @@ namoobi-market-report/
 
 ```bash
 # (1) SKILL.md / scripts / references 수정
-# (2) plugin.json 의 version 을 올린다  예: 1.2.0 → 1.2.1   ← 업데이트 트리거 (필수!)
+# (2) build_report.js 를 수정했다면 b64 백업 재생성:
+#     gzip -9 -c build_report.js | base64 -w 76 > build_report.js.b64
+# (3) plugin.json 의 version 을 올린다  예: 1.2.3 → 1.2.4   ← 업데이트 트리거 (필수!)
 git add . && git commit -m "fix: ..." && git push
 ```
 이후 Cowork 는 Plugins 메뉴에서 마켓플레이스 갱신, Claude Code 는 `/plugin marketplace update`
@@ -75,3 +79,4 @@ node build_report.js sample_data.json out.docx     # 샘플 docx 생성
 - `version` 을 안 올리면 업데이트로 인식되지 않는다 — 변경 시 항상 semver 로 올릴 것
 - `node_modules`, 생성된 `*.docx`, `_market_report_data/`, `nmr_build/` 는 .gitignore 로 제외
 - 기존 `namoobi-plugins`(global-market-report v0.3.0)는 별도 저장소로 그대로 두고, 이 저장소가 후속 버전
+- **샌드박스(bash) 에서 이 저장소 파일을 읽을 때 잘려 보일 수 있다** — 호스트 원본은 정상이며, Read 도구(호스트 직접 읽기)가 신뢰 기준. 패키징·복사 작업은 반드시 검증 동반.

@@ -127,4 +127,39 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 {
   "ubs":            {"strength": "...", "channels": ["UBS CIO Daily"], "key_reports": ["..."], "key_message": "...", "house_view": "..."},
   "goldman":        {"strength": "...", "channels": [], "key_reports": [], "key_message": "", "macro_commodity_view": "..."},
-  "jpmorgan":       {"strength": "...", "channels"
+  "jpmorgan":       {"strength": "...", "channels": [], "key_reports": [], "key_message": "", "global_strategy_view": "..."},
+  "morgan_stanley": {"strength": "...", "channels": [], "key_reports": [], "key_message": "", "us_equity_view": "..."},
+  "blackrock":      {"strength": "...", "channels": [], "key_reports": [], "key_message": "", "etf_allocation_view": "..."},
+  "common_themes": ["..."],
+  "wall_street_consensus": "S&P500 목표지수 등 월가 컨센서스 (확보 시)"
+}
+```
+
+수집 실패 기관: `key_reports: []`, `key_message: ""` → 빌더가 "(리포트 수집 실패)" 렌더링.
+
+## analysis
+
+```json
+{
+  "summary": "3~5문장 Executive Summary (보고서 맨 앞)",
+  "macro_view": "매크로 톤 1문단",
+  "key_themes": [{"theme": "...", "direction": "▲", "comment": "..."}],
+  "key_risks": ["..."],
+  "asset_view": {
+    "us_equity": "단기 ... / 중기 ... / 장기 ...",
+    "kr_equity": "...", "china_equity": "...", "japan_equity": "...", "em_equity": "...",
+    "europe_equity": "...", "kr_treasury": "...", "us_treasury": "...",
+    "gold": "...", "oil": "...", "btc": "..."
+  },
+  "portfolios": {
+    "aggressive":   {"label": "공격형", "expected_return": "연 12~18%", "max_drawdown": "-25~-35%", "rebalance": "월 1회", "allocation": [{"asset": "...", "weight_pct": 0, "vehicle": "구체 종목·ETF"}]},
+    "balanced":     {"label": "중립형", "expected_return": "...", "max_drawdown": "...", "rebalance": "...", "allocation": []},
+    "conservative": {"label": "안정형", "expected_return": "...", "max_drawdown": "...", "rebalance": "...", "allocation": []}
+  },
+  "action_items": ["단기·중기·장기 체크리스트 5~8개"]
+}
+```
+
+- `asset_view` 키명은 위 정식 키를 사용 (빌더 v1.2.2+ 는 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 별칭도 수용).
+- `direction` 은 ▲/▼/■ 중 하나.
+- 각 portfolio 의 `allocation` 비중(weight_pct) 합계는 **반드시 100** — 빌더가 합계를 검증해 경고를 출력한다.
