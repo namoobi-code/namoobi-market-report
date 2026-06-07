@@ -11,8 +11,13 @@ description: |
   (기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com).
 ---
 
-# Namoobi Market Report (v3.2.2)
+# Namoobi Market Report (v3.2.3)
 
+> v3.2.3 (plugin 1.2.3) 변경점 — 속도·결과물 위치 개선 (2026-06-07 운영 학습):
+> - **결과물 위치 고정** — 최종 docx 는 반드시 **연결 폴더(D:\claudeCowork) 최상위에도 저장**. 연결 폴더는 기존 파일 덮어쓰기가 차단되므로 동일 파일명 존재 시 `_HHMM` 시각 접미사를 붙여 새 파일로 저장. 보고서 JSON 도 연결 폴더 `_market_report_data` 에 복사.
+> - **수집 속도 개선** — MarketsAgent·CommoditiesAgent 는 `get_historical_stock_prices` 를 `period="1y", interval="1wk"`(주봉)로 호출 (일봉 대비 토큰 1/5, 최장 에이전트 소요 절반 이하). 1주 변화율은 직전 주봉 종가로 계산.
+> - **Phase 3 재조립 제거** — Phase 1/2 각 에이전트가 결과 JSON 을 outputs 파일(nmr_news.json 등)로 직접 저장하고, 메인 세션은 node 로 병합만 수행 (메인 세션 재타이핑 ~5분 절감).
+>
 > v3.2.2 (plugin 1.2.2) 변경점:
 > - **Phase 0 스크립트 무결성 검사 추가** — 설치 캐시에서 build_report.js 가 잘려(713행) docx 가 생성되지 않는 사례 발생(2026-06-07). EOF 마커 검사로 사전 감지하고 잘렸으면 git 원본/.plugin 에서 재복사.
 > - **asset_view 키 별칭 수용** — 빌더가 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 키도 렌더링. agents.md 에 정식 키명 명시.
@@ -99,16 +104,18 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" && ech
 핵심 규칙:
 - Phase 1의 6개 에이전트(News/Markets/Commodities/Crypto/Securities/GlobalSecurities)는 **반드시 단일 메시지에서 동시 발행** (general-purpose 타입).
 - AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**.
+- **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
+- **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
 - MCP 도구는 deferred 상태일 수 있으므로 각 에이전트 프롬프트에 "먼저 `ToolSearch` 키워드 검색(예: `+UsStockInfo historical`, `+CoinInfo fear greed`)으로 도구를 로드한 뒤 사용하라"고 명시한다. **UUID 가 포함된 도구명을 하드코딩하지 말 것** — 서버 ID는 세션마다 다를 수 있다.
 - 실패한 데이터는 null / 빈 배열로 두고 진행한다. 빌더가 "-" 로 렌더링한다.
 
 ## Phase 3: 데이터 종합 및 저장
 
-6개 에이전트 결과를 `references/data-schema.md` 의 통합 스키마로 합쳐
-outputs 하위 `_market_report_data/report_data_YYYYMMDD.json` 으로 저장한다.
+에이전트들이 저장해 둔 `nmr_*.json` 파일을 **node 스크립트로 병합**해 (메인 세션 재타이핑 금지)
+outputs 하위 `_market_report_data/report_data_YYYYMMDD.json` 으로 저장한다. metadata 는 병합 시 추가.
 
-> ⚠️ Write/Edit 파일도구가 outputs 에 직접 못 쓰는 경우("outside connected folders")
-> bash heredoc 으로 저장한다. 한글 JSON 은 단일 인용 heredoc(`<<'JSONEOF'`)으로 변수확장을 막을 것.
+> ⚠️ 직접 heredoc 작성이 불가피한 경우: 한글 JSON 은 단일 인용 heredoc(`<<'JSONEOF'`)으로 변수확장을 막을 것.
+> 병합 후 JSON 사본을 연결 폴더 `D:\claudeCowork\_market_report_data\` 에도 복사한다 (새 파일 생성은 허용됨).
 
 저장 후 반드시 검증:
 ```bash
@@ -126,6 +133,10 @@ node build_report.js \
 ```
 빌드 후 파일 크기와 `unzip -l` 무결성, 표 개수(`<w:tbl>`)를 점검한다.
 docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Chrome file_upload 첨부가 가능하다.
+
+**(v3.2.3 필수) 최종 docx 를 연결 폴더 `D:\claudeCowork` 최상위에도 저장한다.**
+연결 폴더는 bash 에서 기존 파일 덮어쓰기·삭제가 차단되므로, 동일 파일명이 이미 있으면
+`글로벌금융시장_종합시황보고서_YYYYMMDD_HHMM.docx` 처럼 실행 시각 접미사를 붙여 새 파일로 저장한다.
 
 ## Phase 5: 이메일 발송
 
@@ -163,6 +174,7 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 | CoinInfo gainers/losers 간헐 오류 | null/빈배열로 두고 진행 |
 | 한글 폰트 깨짐 | 시스템에 맑은 고딕 설치 확인 |
 | 빌드 exit 0 인데 docx 미생성 | 설치 사본 잘림(truncation) — Phase 0 EOF 마커 검사로 확인, git 원본/.plugin 의 build_report.js 재복사 |
+| 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
 
 ## 부록 A: 5대 증권사 강점 사전 정의
 
