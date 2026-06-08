@@ -3,3 +3,5 @@ _market_report_data/
 nmr_build/
 gmr_build/
 *.docx
+SECURITY/
+메일수신자.txt

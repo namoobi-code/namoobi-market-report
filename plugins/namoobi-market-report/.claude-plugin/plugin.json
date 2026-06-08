@@ -1,7 +1,7 @@
 {
   "name": "namoobi-market-report",
-  "version": "1.2.4",
-  "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성하고 이메일로 발송하는 워크플로우. 7개 서브에이전트가 병렬로 자료를 수집한 뒤 DOCX 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송합니다. v1.2.4: 마운트 잘림 자가복구(build_report.js.b64 동봉·Phase 0 자동 복원) + 실행 시작/완료/소요시간 보고 + D:\\claudeCowork 작업폴더 자동 연결 요청. v1.2.3: 속도 개선(주봉 수집·에이전트 JSON 파일 저장) + 결과물 연결 폴더(D:\\claudeCowork) 저장 고정. v1.2.2: Phase 0 스크립트 무결성 검사 + asset_view 키 별칭 수용. v1.2.1: 이벤트 캘린더 2단 구성(1개월 전체 + 1개월~1년 ★★★). v1.2: 글로벌 주요 IB 리서치(UBS·GS·JPM·MS·BlackRock) 추가. v1.1: 이벤트 캘린더 + 희토류(REMX) + 환율·DXY 추세.",
+  "version": "1.2.5",
+  "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성하고 이메일로 발송하는 워크플로우. 7개 서브에이전트가 병렬로 자료를 수집한 뒤 DOCX 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송합니다. v1.2.5: 수신자 정책 변경 — 받는사람(To)은 namoobi@gmail.com 단독, 그 외는 D:\\claudeCowork\\SECURITY\\메일수신자.txt 의 주소를 숨은참조(BCC)로 발송. v1.2.4: 마운트 잘림 자가복구(build_report.js.b64 동봉·Phase 0 자동 복원) + 실행 시작/완료/소요시간 보고 + D:\\claudeCowork 작업폴더 자동 연결 요청. v1.2.3: 속도 개선(주봉 수집·에이전트 JSON 파일 저장) + 결과물 연결 폴더(D:\\claudeCowork) 저장 고정. v1.2.2: Phase 0 스크립트 무결성 검사 + asset_view 키 별칭 수용. v1.2.1: 이벤트 캘린더 2단 구성(1개월 전체 + 1개월~1년 ★★★). v1.2: 글로벌 주요 IB 리서치(UBS·GS·JPM·MS·BlackRock) 추가. v1.1: 이벤트 캘린더 + 희토류(REMX) + 환율·DXY 추세.",
   "author": {
     "name": "namoobi (Claude AI Research)"
   },

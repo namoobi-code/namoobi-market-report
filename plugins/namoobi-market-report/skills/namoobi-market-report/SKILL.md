@@ -8,11 +8,17 @@ description: |
   (뉴스/시장데이터/원자재/암호화폐/한국증권사/글로벌IB/종합분석)를 병렬로 호출해 자료를 수집하고,
   종합 데이터를 JSON으로 정리한 뒤 DOCX 보고서를 생성하고, Claude in Chrome 가
   로그인된 Gmail 작성창에서 직접 메일을 작성·docx 첨부·발송한다
-  (기본 수신자: namoobi@gmail.com, jaewoo.seo@mobis.com, hyun.jiyoun@gmail.com).
+  (받는사람: namoobi@gmail.com 단독, 숨은참조: D:\claudeCowork\SECURITY\메일수신자.txt 의 주소).
 ---
 
-# Namoobi Market Report (v3.2.4)
+# Namoobi Market Report (v3.2.5)
 
+> v3.2.5 (plugin 1.2.5) 변경점 — 수신자 정책 변경 (2026-06-08):
+> - **받는사람(To)** 는 `namoobi@gmail.com` **단 한 명만**.
+> - **숨은참조(BCC)** 는 `D:\claudeCowork\SECURITY\메일수신자.txt` 의 각 줄 이메일을 읽어 넣는다 (다른 수신자가 서로의 주소를 보지 못하게).
+> - BCC 주소는 **비공개 정보** — 채팅·보고·커밋에 평문 노출 금지, 인원 수만 보고. SECURITY 폴더는 git 커밋 금지.
+> - 파일이 없거나 비면 To(namoobi)에게만 발송하고 보고에 명시.
+>
 > v3.2.4 (plugin 1.2.4) 변경점 — 신뢰성·가시성 개선 (2026-06-07 검증 운영 학습):
 > - **잘림 원인 규명 + 자가복구** — 잘림의 원인은 설치 캐시 파일이 아니라 **샌드박스 마운트의 host→VM 동기화가 큰 파일을 간헐적으로 잘라 읽는 것** (호스트 원본은 정상. 같은 파일이 Read 도구로는 857행, bash 마운트로는 713행으로 보인 사례). 대응:
 >   ① `scripts/build_report.js.b64` (gzip+base64 백업, ~15KB) 동봉 — Phase 0 에서 EOF 마커 검사 실패 시 b64 를 디코드해 **자동 복구**.
@@ -160,7 +166,8 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
 - SMTP·Gmail MCP 초안 방식 금지. **Claude in Chrome 로그인된 Gmail 직접 발송만** 사용.
-- 기본 수신자: `namoobi@gmail.com`, `jaewoo.seo@mobis.com`, `hyun.jiyoun@gmail.com` (사용자 지정 시 대체)
+- **받는사람(To)**: `namoobi@gmail.com` 단독. **숨은참조(BCC)**: `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소를 읽어 넣는다 (파일 없으면 BCC 생략·보고에 명시).
+- BCC 주소는 비공개 정보 — 채팅·보고에 평문 노출 금지, **인원 수만** 보고 (예: "BCC 2명").
 - 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
 - 수신자 칩 클릭 금지, 검증은 screenshot/zoom 으로만 — 상세 함정 목록은 reference 참조.
 - "메시지 전송됨" 확인 직후 완료시각을 기록한다: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` + `date +%s`
@@ -172,7 +179,7 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 ```
 📋 글로벌 시황 보고서 발송 완료
 생성: 글로벌금융시장_종합시황보고서_YYYYMMDD.docx (NN KB)
-수신: <recipients>
+수신: namoobi@gmail.com (To) + 숨은참조 N명 (주소 비공개)
 수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N+IB N
 [실행 시간]
 - 시작: YYYY-MM-DD HH:MM:SS (KST)
