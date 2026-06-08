@@ -8,11 +8,15 @@ description: |
   (뉴스/시장데이터/원자재/암호화폐/한국증권사/글로벌IB/종합분석)를 병렬로 호출해 자료를 수집하고,
   종합 데이터를 JSON으로 정리한 뒤 DOCX 보고서를 생성하고, Claude in Chrome 가
   로그인된 Gmail 작성창에서 직접 메일을 작성·docx 첨부·발송한다
-  (받는사람: namoobi@gmail.com 단독, 숨은참조: D:\claudeCowork\SECURITY\메일수신자.txt 의 주소).
+  (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 메일수신자 목록 파일에 적힌 주소).
 ---
 
-# Namoobi Market Report (v3.2.5)
+# Namoobi Market Report (v3.2.6)
 
+> v3.2.6 (plugin 1.2.6) 변경점 — 설치 호환성 (2026-06-08):
+> - **build_report.js.b64 동봉 제거** — 비표준 백업 파일이 Cowork 플러그인 설치 검증을 막던 원인이라 삭제. 마운트 잘림 복구는 Phase 0 의 EOF 검사 후 git 원본 재복사로 대체(아래).
+> - SKILL 프론트매터에서 Windows 백슬래시 경로 제거(YAML 안전).
+>
 > v3.2.5 (plugin 1.2.5) 변경점 — 수신자 정책 변경 (2026-06-08):
 > - **받는사람(To)** 는 `namoobi@gmail.com` **단 한 명만**.
 > - **숨은참조(BCC)** 는 `D:\claudeCowork\SECURITY\메일수신자.txt` 의 각 줄 이메일을 읽어 넣는다 (다른 수신자가 서로의 주소를 보지 못하게).
@@ -21,7 +25,7 @@ description: |
 >
 > v3.2.4 (plugin 1.2.4) 변경점 — 신뢰성·가시성 개선 (2026-06-07 검증 운영 학습):
 > - **잘림 원인 규명 + 자가복구** — 잘림의 원인은 설치 캐시 파일이 아니라 **샌드박스 마운트의 host→VM 동기화가 큰 파일을 간헐적으로 잘라 읽는 것** (호스트 원본은 정상. 같은 파일이 Read 도구로는 857행, bash 마운트로는 713행으로 보인 사례). 대응:
->   ① `scripts/build_report.js.b64` (gzip+base64 백업, ~15KB) 동봉 — Phase 0 에서 EOF 마커 검사 실패 시 b64 를 디코드해 **자동 복구**.
+>   ① (v1.2.6 에서 제거) 과거엔 `build_report.js.b64` 백업을 동봉했으나, 비표준 파일이 설치 검증을 막아 삭제. 현재는 git 원본 재복사로 복구.
 >   ② 파일 복사·패키징(.plugin 생성 포함) 후에는 **반드시 크기·EOF 마커 검증**. 잘린 파일로 .plugin 을 만들면 잘린 채 설치된다 (v123 .plugin 실제 사례).
 >   ③ 호스트 파일의 신뢰 기준은 Read 도구 (호스트 직접 읽기). bash 마운트 읽기와 결과가 다르면 Read 쪽이 맞다.
 > - **실행 시간 보고** — Phase 0 에서 시작시각 기록(`$WORK/nmr_start_epoch.txt`), Phase 6 결과 보고에 시작·완료(메일 발송 확인)·소요시간 표기.
@@ -106,18 +110,18 @@ cp "$SRC/build_report.js" "$SRC/package.json" "$WORK/"
 cd "$WORK"
 [ -d "$WORK/node_modules/docx" ] || npm install docx --no-fund --no-audit
 node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
-# 무결성 검사 + 자동복구 (v3.2.4) — 원인은 샌드박스 마운트가 큰 파일을 잘라 읽는 것 (호스트 원본은 정상)
+# 무결성 검사 (v3.2.6) — 샌드박스 마운트가 큰 파일을 잘라 읽는 사례가 있음 (호스트 원본은 정상)
 if ! tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report"; then
-  echo "⚠️ 잘림 감지 → build_report.js.b64 백업에서 자동 복구"
-  base64 -d "$SRC/build_report.js.b64" | gunzip > "$WORK/build_report.js"
+  echo "⚠️ 잘림 감지 → git 원본에서 재복사"
+  cp "$SRC/build_report.js" "$WORK/build_report.js"
 fi
 tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
   && node --check "$WORK/build_report.js" && echo "script OK" \
-  || echo "❌ 복구 실패 — 호스트의 git 원본을 Read 도구로 읽어(마운트 bash 금지) WORK 에 재구성할 것"
+  || echo "❌ 여전히 잘림 — 호스트 git 원본을 Read 도구로 읽어(마운트 bash 금지) WORK 에 재구성할 것"
 ```
 
 > ⚠️ `/tmp` 는 이전 세션 잔존물로 권한 오류가 날 수 있으니 사용하지 말 것. 항상 outputs 하위에서 빌드.
-> ⚠️ 마운트 읽기 잘림은 b64(~15KB, 작아서 안전) 디코드로 복구된다. b64 마저 잘렸으면 호스트 경로를 **Read 도구**로 읽어 재구성한다 — Read 는 호스트를 직접 읽으므로 항상 완전하다.
+> ⚠️ 마운트 읽기 잘림이 의심되면 git 원본에서 재복사하고, 그래도 잘리면 호스트 경로를 **Read 도구**로 읽어 재구성한다 — Read 는 호스트를 직접 읽으므로 항상 완전하다.
 
 ## Phase 1–2: 서브에이전트 호출
 
@@ -203,7 +207,7 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 | 제목 입력이 누락됨 | 발송 전 screenshot 검증에서 제목 칸 확인, 비었으면 제목 칸 다시 클릭 후 입력 |
 | Write/Edit "outside connected folders" | bash heredoc 으로 저장 |
 | npm/cp 권한 오류 | /tmp 금지, outputs/nmr_build 에서 빌드 |
-| 파일이 중간에 잘려 보임 (마운트 잘림) | 호스트 원본은 정상 — Read 도구로 읽으면 완전하다. build_report.js 는 Phase 0 자동복구(b64). 복사·패키징 후 크기·EOF 검증 필수 |
+| 파일이 중간에 잘려 보임 (마운트 잘림) | 호스트 원본은 정상 — Read 도구로 읽으면 완전하다. build_report.js 잘림은 Phase 0 에서 git 원본 재복사. 복사·패키징 후 크기·EOF 검증 필수 |
 | 빌드 exit 0 인데 docx 미생성 | 스크립트 잘림 — Phase 0 EOF 검사·자동복구 수행 여부 확인 |
 | 연결 폴더 미연결 | `request_cowork_directory`(D:\claudeCowork) 요청, 거부 시 outputs 진행 + Phase 6 에 명시 |
 | 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |

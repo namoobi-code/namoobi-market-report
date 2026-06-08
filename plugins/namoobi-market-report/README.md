@@ -1,4 +1,4 @@
-# namoobi-market-report (Cowork Plugin) v1.2.5
+# namoobi-market-report (Cowork Plugin) v1.2.6
 
 한 마디만 입력하면 7개 서브에이전트가 병렬로 글로벌 시장 데이터를 수집해
 종합 시황 보고서(DOCX)를 만들고, Claude in Chrome 가 로그인된 Gmail 에서 직접 발송하는 플러그인.
@@ -17,6 +17,9 @@
 - **DOCX 자동 생성**: Executive Summary·표·헤더·페이지 번호·한글 폰트, `--validate` 사전 검증
 - **Gmail 직접 발송**: Claude in Chrome 가 로그인된 Gmail 작성창에서 작성·첨부·발송 (SMTP 불필요)
 - 받는사람(To): **namoobi@gmail.com 단독** / 숨은참조(BCC): `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소 (비공개, 인원 수만 보고)
+
+### v1.2.6 변경점 (2026-06-08)
+- build_report.js.b64 동봉 제거 — 비표준 백업 파일이 Cowork 플러그인 설치 검증을 막아 삭제. 마운트 잘림 복구는 Phase 0 의 git 원본 재복사로 대체.
 
 ### v1.2.5 변경점 (2026-06-08)
 - 수신자 정책 변경: To 는 namoobi@gmail.com 단독, 그 외 수신자는 `D:\claudeCowork\SECURITY\메일수신자.txt` 에서 읽어 **숨은참조(BCC)** 로 발송 (서로의 주소 비노출). BCC 주소는 비공개로 다루며 SECURITY 폴더는 git 커밋 제외.

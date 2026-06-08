@@ -17,6 +17,7 @@
 7. **v1.1**: 이벤트 캘린더 + 희토류(REMX) + 환율·DXY 단·중·장기 추세 / **v1.2**: 글로벌 IB 5사 리서치 (UBS·GS·JPM·MS·BlackRock)
 8. **v1.2.4**: 샌드박스 마운트 잘림 **자가복구**(`build_report.js.b64` 동봉, Phase 0 자동 복원) + **실행 시작/완료/소요시간 보고** + **D:\claudeCowork 작업폴더 자동 연결 요청**. ⚠️ 잘림의 원인은 호스트 파일이 아니라 마운트 host→VM 동기화 — 파일 복사·.plugin 패키징 후 반드시 크기·EOF 마커 검증.
 9. **v1.2.5**: 수신자 정책 — 받는사람(To)은 namoobi@gmail.com 단독, 그 외 수신자는 저장소 밖 `D:\claudeCowork\SECURITY\메일수신자.txt` 에서 읽어 **숨은참조(BCC)** 로 발송. 주소는 비공개로 다루며 SECURITY 폴더는 절대 커밋하지 않는다.
+10. **v1.2.6**: `build_report.js.b64` 동봉 제거 — 비표준 백업 파일이 Cowork 플러그인 설치 검증을 막아 삭제. 잘림 복구는 Phase 0 의 git 원본 재복사로 대체.
 
 ## 구조
 
@@ -32,8 +33,7 @@ namoobi-market-report/
             ├── SKILL.md                  # 오케스트레이터 (v3.2.4)
             ├── scripts/
             │   ├── build_report.js       # JSON → DOCX (--validate 지원)
-            │   ├── build_report.js.b64   # gzip+base64 백업 (잘림 자가복구용 — build_report.js 수정 시 재생성 필수!)
-            │   ├── sample_data.json      # 테스트 픽스처
+                        │   ├── sample_data.json      # 테스트 픽스처
             │   └── package.json
             └── references/
                 ├── agents.md             # 7개 서브에이전트 프롬프트·스키마
