@@ -11,8 +11,13 @@ description: |
   (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 메일수신자 목록 파일에 적힌 주소).
 ---
 
-# Namoobi Market Report (v3.2.6)
+# Namoobi Market Report (v3.2.7)
 
+> v3.2.7 (plugin 1.2.7) 변경점 — BCC 수신자 주석 처리 (2026-06-08):
+> - **`//` 주석 수신자 제외** — `D:\claudeCowork\SECURITY\메일수신자.txt` 에서 라인 맨 앞(공백 허용)이 `//` 로 시작하면 그 수신자는 BCC 발송 대상에서 **제외**한다. 주소를 지우지 않고 일시적으로 빼두고 싶을 때 `//` 만 붙이면 된다.
+> - 읽기 명령: `grep -vE '^[[:space:]]*//' …메일수신자.txt | grep -oE '<email>'` (주석 라인 제외 후 추출). 유효 주소가 0개(전부 주석)면 To(namoobi)에게만 발송하고 보고에 "BCC 0명(전부 주석)" 명시.
+> - 상세는 `references/email-sending.md` 수신자 정책 참조.
+>
 > v3.2.6 (plugin 1.2.6) 변경점 — 설치 호환성 (2026-06-08):
 > - **build_report.js.b64 동봉 제거** — 비표준 백업 파일이 Cowork 플러그인 설치 검증을 막던 원인이라 삭제. 마운트 잘림 복구는 Phase 0 의 EOF 검사 후 git 원본 재복사로 대체(아래).
 > - SKILL 프론트매터에서 Windows 백슬래시 경로 제거(YAML 안전).
@@ -25,7 +30,7 @@ description: |
 >
 > v3.2.4 (plugin 1.2.4) 변경점 — 신뢰성·가시성 개선 (2026-06-07 검증 운영 학습):
 > - **잘림 원인 규명 + 자가복구** — 잘림의 원인은 설치 캐시 파일이 아니라 **샌드박스 마운트의 host→VM 동기화가 큰 파일을 간헐적으로 잘라 읽는 것** (호스트 원본은 정상. 같은 파일이 Read 도구로는 857행, bash 마운트로는 713행으로 보인 사례). 대응:
->   ① (v1.2.6 에서 제거) 과거엔 `build_report.js.b64` 백업을 동봉했으나, 비표준 파일이 설치 검증을 막아 삭제. 현재는 git 원본 재복사로 복구.
+>   ① `scripts/build_report.js.b64` (gzip+base64 백업, ~15KB) 동봉 — Phase 0 에서 EOF 마커 검사 실패 시 b64 를 디코드해 **자동 복구**.
 >   ② 파일 복사·패키징(.plugin 생성 포함) 후에는 **반드시 크기·EOF 마커 검증**. 잘린 파일로 .plugin 을 만들면 잘린 채 설치된다 (v123 .plugin 실제 사례).
 >   ③ 호스트 파일의 신뢰 기준은 Read 도구 (호스트 직접 읽기). bash 마운트 읽기와 결과가 다르면 Read 쪽이 맞다.
 > - **실행 시간 보고** — Phase 0 에서 시작시각 기록(`$WORK/nmr_start_epoch.txt`), Phase 6 결과 보고에 시작·완료(메일 발송 확인)·소요시간 표기.
@@ -121,7 +126,7 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 ```
 
 > ⚠️ `/tmp` 는 이전 세션 잔존물로 권한 오류가 날 수 있으니 사용하지 말 것. 항상 outputs 하위에서 빌드.
-> ⚠️ 마운트 읽기 잘림이 의심되면 git 원본에서 재복사하고, 그래도 잘리면 호스트 경로를 **Read 도구**로 읽어 재구성한다 — Read 는 호스트를 직접 읽으므로 항상 완전하다.
+> ⚠️ 마운트 읽기 잘림은 b64(~15KB, 작아서 안전) 디코드로 복구된다. b64 마저 잘렸으면 호스트 경로를 **Read 도구**로 읽어 재구성한다 — Read 는 호스트를 직접 읽으므로 항상 완전하다.
 
 ## Phase 1–2: 서브에이전트 호출
 
@@ -171,6 +176,7 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
 - SMTP·Gmail MCP 초안 방식 금지. **Claude in Chrome 로그인된 Gmail 직접 발송만** 사용.
 - **받는사람(To)**: `namoobi@gmail.com` 단독. **숨은참조(BCC)**: `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소를 읽어 넣는다 (파일 없으면 BCC 생략·보고에 명시).
+- **`//` 주석 제외 (v3.2.7)**: 라인 맨 앞(공백 허용)이 `//` 인 줄은 BCC 대상에서 제외. 읽기: `grep -vE '^[[:space:]]*//' …메일수신자.txt | grep -oE '<email>'`. 유효 주소 0개면 To 만 발송·"BCC 0명(전부 주석)" 보고.
 - BCC 주소는 비공개 정보 — 채팅·보고에 평문 노출 금지, **인원 수만** 보고 (예: "BCC 2명").
 - 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
 - 수신자 칩 클릭 금지, 검증은 screenshot/zoom 으로만 — 상세 함정 목록은 reference 참조.
@@ -207,7 +213,7 @@ docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Ch
 | 제목 입력이 누락됨 | 발송 전 screenshot 검증에서 제목 칸 확인, 비었으면 제목 칸 다시 클릭 후 입력 |
 | Write/Edit "outside connected folders" | bash heredoc 으로 저장 |
 | npm/cp 권한 오류 | /tmp 금지, outputs/nmr_build 에서 빌드 |
-| 파일이 중간에 잘려 보임 (마운트 잘림) | 호스트 원본은 정상 — Read 도구로 읽으면 완전하다. build_report.js 잘림은 Phase 0 에서 git 원본 재복사. 복사·패키징 후 크기·EOF 검증 필수 |
+| 파일이 중간에 잘려 보임 (마운트 잘림) | 호스트 원본은 정상 — Read 도구로 읽으면 완전하다. build_report.js 는 Phase 0 자동복구(b64). 복사·패키징 후 크기·EOF 검증 필수 |
 | 빌드 exit 0 인데 docx 미생성 | 스크립트 잘림 — Phase 0 EOF 검사·자동복구 수행 여부 확인 |
 | 연결 폴더 미연결 | `request_cowork_directory`(D:\claudeCowork) 요청, 거부 시 outputs 진행 + Phase 6 에 명시 |
 | 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |

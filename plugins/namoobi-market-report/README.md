@@ -1,4 +1,4 @@
-# namoobi-market-report (Cowork Plugin) v1.2.6
+# namoobi-market-report (Cowork Plugin) v1.2.7
 
 한 마디만 입력하면 7개 서브에이전트가 병렬로 글로벌 시장 데이터를 수집해
 종합 시황 보고서(DOCX)를 만들고, Claude in Chrome 가 로그인된 Gmail 에서 직접 발송하는 플러그인.
@@ -17,6 +17,9 @@
 - **DOCX 자동 생성**: Executive Summary·표·헤더·페이지 번호·한글 폰트, `--validate` 사전 검증
 - **Gmail 직접 발송**: Claude in Chrome 가 로그인된 Gmail 작성창에서 작성·첨부·발송 (SMTP 불필요)
 - 받는사람(To): **namoobi@gmail.com 단독** / 숨은참조(BCC): `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소 (비공개, 인원 수만 보고)
+
+### v1.2.7 변경점 (2026-06-08)
+- BCC 수신자 **주석 처리**: `D:\claudeCowork\SECURITY\메일수신자.txt` 에서 라인 맨 앞(공백 허용)이 `//` 인 줄은 발송 대상에서 제외(주소 보존). 읽기 시 `grep -vE '^[[:space:]]*//'` 로 주석 라인을 거른 뒤 이메일 추출. 유효 주소 0개면 To(namoobi)만 발송.
 
 ### v1.2.6 변경점 (2026-06-08)
 - build_report.js.b64 동봉 제거 — 비표준 백업 파일이 Cowork 플러그인 설치 검증을 막아 삭제. 마운트 잘림 복구는 Phase 0 의 git 원본 재복사로 대체.
@@ -71,6 +74,7 @@
 ## 📝 라이선스 / 만든 사람
 
 MIT — namoobi (with Claude AI Research via Cowork)
+- v1.2.7 — 2026-06-08 (BCC 수신자 `//` 주석 제외)
 - v1.2.5 — 2026-06-08 (수신자 정책: To 단독 + SECURITY 파일 BCC)
 - v1.2.4 — 2026-06-07 (잘림 자가복구 + 실행시간 보고 + 작업폴더 보장)
 - v1.2.0 — 2026-06-06 (글로벌 IB 리서치 추가)
