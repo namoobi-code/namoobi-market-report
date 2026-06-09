@@ -287,7 +287,7 @@ const toc = [
   "1. 글로벌 Top News 10",
   "2. 글로벌 주요 이벤트 캘린더 (향후 1개월 + 중장기 ★★★)",
   "3. 글로벌 증시 단·중·장기 추세 (한국·미국·일본·중국·홍콩·인도·베트남·유럽)",
-  "4. 매크로 지표 (달러지수·VIX·미국채 10년)",
+  "4. 매크로 지표 단·중·장기 추세 (달러지수·VIX·미국채 10년)",
   "5. 원자재 - 에너지·금속(희토류 포함)·농산물",
   "6. 주요 환율 단·중·장기 추세 (+달러인덱스)",
   "7. 암호화폐 - 시장·공포탐욕·김치프리미엄",
@@ -443,25 +443,18 @@ if (data.markets) {
 // 4. 매크로 지표
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(h("4. 매크로 지표 종합 코멘트", 1));
+children.push(h("4. 매크로 지표 단·중·장기 추세", 1));
+children.push(p("VIX·달러지수(DXY)·미 10년 국채금리를 증시와 동일하게 1주·1개월·3개월·6개월·1년 변화율로 평가한다. (10년 국채금리는 수익률 %포인트 수준값)", { italics: true, color: "64748B" }));
 const usM = (data.markets && data.markets.us_markets) || {};
-const macroRows = [
-  ["지표", "현재치", "단기 시그널", "장기 추세"],
-  ["VIX (공포지수)", fmtNum(usM.vix && usM.vix.current),
-    fmtPct(usM.vix && usM.vix['1w_pct']),  (usM.vix && usM.vix.trend) || "-"],
-  ["DXY (달러지수)", fmtNum(usM.dxy && usM.dxy.current),
-    fmtPct(usM.dxy && usM.dxy['1w_pct']),  (usM.dxy && usM.dxy.trend) || "-"],
-  ["美 10년 국채금리", fmtNum(usM.us10y && usM.us10y.current),
-    fmtPct(usM.us10y && usM.us10y['1w_pct']),  (usM.us10y && usM.us10y.trend) || "-"]
-].map((r, i) => new TableRow({
-  children: r.map((c, j) => cell(c, {
-    width: [2400, 2000, 2200, 2760][j], header: i === 0,
-    alt: i > 0 && i % 2 === 0, bold: j === 0 && i > 0,
-    align: (j === 1 || j === 2) ? AlignmentType.RIGHT : AlignmentType.LEFT,
-    color: (j === 2 && i > 0) ? pctColor(String(r[j]).replace('%','').replace('+','')) : undefined
-  }))
-}));
-children.push(makeTable([2400, 2000, 2200, 2760], macroRows));
+const macroLabels = { vix: "VIX (공포지수)", dxy: "달러지수 DXY", us10y: "美 10년 국채금리" };
+const macroHeaders = ["지표", "현재치", "1주", "1개월", "3개월", "6개월", "1년", "추세 평가"];
+const macroRows = [ new TableRow({ children: macroHeaders.map((h_, i) => cell(h_, { width: tw[i], header: true, align: AlignmentType.CENTER })) }) ];
+let macroI = 0;
+for (const key of ["vix", "dxy", "us10y"]) {
+  macroRows.push(trendRow(macroLabels[key], usM[key], macroI));
+  macroI++;
+}
+children.push(makeTable(tw, macroRows));
 
 // ============================================================
 // 5. 원자재
@@ -561,7 +554,10 @@ if (data.crypto) {
       ["현재",    String(fg.current ?? "-"),    fg.classification || "-"],
       ["1일 전",  String(fg.yesterday ?? "-"),  fgDelta(fg.current, fg.yesterday)],
       ["1주 전",  String(fg.last_week ?? "-"),  fgDelta(fg.current, fg.last_week)],
-      ["1개월 전",String(fg.last_month ?? "-"), fgDelta(fg.current, fg.last_month)]
+      ["1개월 전",String(fg.last_month ?? "-"), fgDelta(fg.current, fg.last_month)],
+      ["3개월 전",String(fg.last_3month ?? "-"), (fg.last_3month_cls?fg.last_3month_cls+" ":"")+fgDelta(fg.current, fg.last_3month)],
+      ["6개월 전",String(fg.last_6month ?? "-"), (fg.last_6month_cls?fg.last_6month_cls+" ":"")+fgDelta(fg.current, fg.last_6month)],
+      ["1년 전",  String(fg.last_year ?? "-"),   (fg.last_year_cls?fg.last_year_cls+" ":"")+fgDelta(fg.current, fg.last_year)]
     ].map((r, i) => new TableRow({
       children: r.map((cc, j) => cell(cc, {
         width: [2400, 1800, 5160][j], header: i === 0,
@@ -914,7 +910,7 @@ const doc = new Document({
         new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "64748B" }),
         new TextRun({ text: " / ", size: 18, color: "64748B" }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: "64748B" }),
-        new TextRun({ text: "  |  namoobi-market-report v3.3.0", size: 18, color: "64748B" })
+        new TextRun({ text: "  |  namoobi-market-report v3.4.0", size: 18, color: "64748B" })
       ]
     })]})},
     children
@@ -930,4 +926,4 @@ Packer.toBuffer(doc).then(buffer => {
   console.error("❌ DOCX 생성 실패: " + e.message);
   process.exit(1);
 });
-// EOF — namoobi-market-report v1.3.0 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)
+// EOF — namoobi-market-report v1.4.0 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)

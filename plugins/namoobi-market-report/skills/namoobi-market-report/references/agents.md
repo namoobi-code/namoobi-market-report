@@ -19,6 +19,22 @@ Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
 
 ---
 
+## 공통 데이터 소스 폴백 (v3.4.0) — MCP 부재 시 적용
+
+지정 MCP 가 세션에 없으면 추정으로 채우지 말고 아래 폴백을 쓴다. 폴백도 안 되는 칸만 null.
+
+- **증시·환율·원자재 (UsStockInfo MCP 부재 시)** → **Claude in Chrome 으로 Yahoo chart API 직접 호출**.
+  절차: `navigate https://finance.yahoo.com` 후 `javascript_tool` 로 async IIFE 안에서
+  `await fetch("https://query1.finance.yahoo.com/v8/finance/chart/<TICKER>?range=1y&interval=1wk")` (CORS 허용, **top-level await 금지 → `(async()=>{...})()` 로 감쌀 것**).
+  주봉 close 배열 + `meta.regularMarketPrice` 로 1주(7d)/1개월(30d)/3개월(91d)/6개월(182d)/1년(365d) 변화율 계산(타깃일에 가장 가까운 주봉, 허용오차 ~11일).
+  결과 JSON 이 길면 `window.__x=obj` 저장 후 8개 키씩 나눠 반환(출력 잘림 회피). **JPYKRW=X 는 100엔 환산이라 current 보존·pct 만 갱신**. CNYKRW 희박 시 USD/KRW ÷ USD/CNY(CNY=X). `web_fetch`·stooq 는 본문 빈값이라 사용 금지(Chrome 만).
+- **암호화폐 (CryptoAgent)** → CoinInfo MCP 우선. `get_kimchi_premium` 이 "데이터 부족" 이면 **CoinDesk MCP `fetch_spot_tick`**(market=`upbit`, instruments=`BTC-KRW,ETH-KRW,XRP-KRW,SOL-KRW`)로 업비트 KRW + (market=`binance`, `BTC-USDT,...`) 로 USD 받아 김프=(업비트KRW/(USD×환율)−1)×100. 환율=Yahoo USD/KRW.
+  공포·탐욕은 **7개 시점**: `api.alternative.me/fng/?limit=400` (Chrome navigate→get_page_text, body 를 JSON.parse) 에서 현재·1일·1주·1개월·3개월(idx 90)·6개월(idx 182)·1년(idx 365) 값+분류 수집 → `last_3month(_cls)`/`last_6month(_cls)`/`last_year(_cls)` 로 저장. CoinGecko 429 면 ~20초 후 재시도, 실패 시 Crypto.com Exchange MCP/직전값 유지. **한국 거래소 API(업비트·빗썸)는 Chrome 이 차단** → CoinDesk MCP 로만.
+- **대형 IPO (NewsAgent)** → SpaceX·OpenAI·Anthropic·Databricks 등 대형 IPO 를 이벤트 캘린더에 포함. 상장일 확정은 `events_calendar`(1개월), 미확정/전망은 `events_calendar_longterm` 에 `(미확정/전망)`·출처와 함께, 날짜 칸엔 `expected_timing` 텍스트.
+- **추세 텍스트는 한글로** (trend 필드 영문 금지).
+
+---
+
 ## 1. NewsAgent
 
 **임무**: 글로벌 금융시장 Top News 10 + 향후 2주 주요 이벤트 캘린더 + 원화 톤 코멘트.

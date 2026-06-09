@@ -11,8 +11,17 @@ description: |
   (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 메일수신자 목록 파일에 적힌 주소).
 ---
 
-# Namoobi Market Report (v3.3.0)
+# Namoobi Market Report (v3.4.0)
 
+> v3.4.0 (plugin 1.4.0) 변경점 — 데이터 소스 폴백·표 보강 (2026-06-09 운영 학습):
+> - **시세 MCP 부재 시 Yahoo chart API 폴백 (가장 중요)** — UsStockInfo MCP 가 세션에 없으면 증시·환율·원자재의 1주~1년 변화율이 전부 "-" 가 된다. 이때 **Claude in Chrome 로 Yahoo chart API 를 직접 호출**해 주봉 1년 시계열을 받아 정밀 계산한다. 절차: `navigate https://finance.yahoo.com` → `javascript_tool` 로 `(async()=>{ ... await fetch("https://query1.finance.yahoo.com/v8/finance/chart/<TICKER>?range=1y&interval=1wk") ... })()` (CORS 허용됨, top-level await 금지 → async IIFE 로 감쌀 것). 각 티커의 주봉 close 와 `meta.regularMarketPrice` 로 1주(7d)/1개월(30d)/3개월(91d)/6개월(182d)/1년(365d) 변화율을 계산. **엔화(JPYKRW=X)는 100엔 환산이라 current 보존·변화율만 갱신**. CNY/KRW 데이터 희박 시 USD/KRW ÷ USD/CNY(CNY=X)로 도출. web_fetch·stooq 는 본문이 비어 못 쓰니 반드시 Chrome 사용.
+> - **암호화폐 폴백 체계** — CoinInfo MCP 우선. 단 `get_kimchi_premium` 이 "데이터 부족" 으로 실패하면 **CoinDesk MCP `fetch_spot_tick`**(market=upbit, instruments=BTC-KRW,ETH-KRW,XRP-KRW,SOL-KRW + market=binance USDT)로 업비트·바이낸스 실시세를 받아 김프=(업비트KRW/(바이낸스USD×환율)−1)×100 로 계산. 환율은 Yahoo USD/KRW. CoinGecko 429(레이트리밋)로 market_overview/gainers/dominance 가 막히면 ~20초 후 재시도, 그래도 실패면 Crypto.com Exchange MCP 값/직전값 유지. 한국 거래소 API(업비트·빗썸)는 Chrome navigate 가 안전정책으로 차단하니 직접 띄우지 말 것 — CoinDesk MCP 사용.
+> - **공포·탐욕 7개 시점 확장(증시처럼)** — alternative.me(`api.alternative.me/fng/?limit=400`, Chrome navigate→get_page_text 또는 JSON.parse(body))에서 현재·1일·1주·1개월·3개월(90d)·6개월(182d)·1년(365d) 전 값+분류를 수집. 빌더 7.2 표가 7행을 렌더(`last_3month(_cls)`/`last_6month(_cls)`/`last_year(_cls)`).
+> - **매크로 지표 추세표화** — 4장(VIX·DXY·美10년)을 "단기 시그널/장기 추세" 텍스트에서 **증시와 동일한 1주~1년 변화율 추세표**로 변경.
+> - **대형 IPO 일정 수록** — NewsAgent 가 SpaceX·OpenAI·Anthropic 등 대형 IPO 를 이벤트 캘린더에 넣는다. 상장일 확정 건은 1개월 캘린더, 미확정/전망 건은 중장기 캘린더에 `(미확정/전망)` 문구·출처와 함께. 날짜 미상은 expected_timing 텍스트(예: "2026년 4분기(전망)")를 날짜 칸에.
+> - **추세 평가 한글화** — 모든 추세(trend) 텍스트는 한글로 작성/생성한다(영문 금지).
+> - ⚠️ **git·패키징 주의(재강조)** — 샌드박스 bash 마운트가 build_report.js 등 큰 파일을 간헐적으로 잘라 읽는다(예: 933행을 842행으로). 파일 수정·검증은 **Read/Write/Edit 도구(호스트 직접)** 로만 신뢰하고, **bash 에서 `git add/commit` 하지 말 것**(잘린 blob 이 커밋돼 저장소 손상). 커밋은 잘림 없는 **사용자 터미널**에서 수행한다.
+>
 > v3.3.0 (plugin 1.3.0) 변경점 — 반환각(Hallucination) 보완 (2026-06-09):
 > - **공통 사실성 규칙** — 모든 서브에이전트 프롬프트에 "추정 금지·출처 의무·사실/의견 구분·결정적 출력" 7개 규칙을 붙인다 (`references/agents.md` 상단). 도구/검색으로 확인 안 된 값은 절대 기억으로 채우지 말고 null.
 > - **RAG 출처 grounding** — 뉴스·이벤트·증권사/IB 리포트에 `source`/`source_url`/`published_date` 수집. 뉴스 표에 '출처' 컬럼(하이퍼링크) 추가. 출처 없는 뉴스는 애초에 수록 금지.
