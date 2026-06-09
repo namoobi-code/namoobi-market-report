@@ -1,7 +1,12 @@
-# 통합 데이터 JSON 스키마 (v3)
+# 통합 데이터 JSON 스키마 (v3.3.0)
 
-build_report.js v3 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에이전트의 반환값을 그대로 넣는다.
+build_report.js 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에이전트의 반환값을 그대로 넣는다.
 누락 필드는 빌더가 `-` 로 렌더링하므로, 실패 항목은 null/빈배열로 두면 된다.
+
+> **v3.3.0 반환각 방지 필드 (요약)** — 자세한 규칙은 `agents.md` 참조:
+> - `news.top_news[]`·`events_calendar[]`: `source`/`source_url`/`published_date` 추가 (출처 grounding).
+> - `securities.*.key_reports[]`·`global_securities.*.key_reports[]`: 문자열 또는 `{title,url,date}` 객체 허용.
+> - `analysis.portfolios.*`: `basis` 필드 필수 (expected_return/max_drawdown 의 산출 근거).
 
 ```json
 {
@@ -41,13 +46,16 @@ build_report.js v3 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에
 ```json
 {
   "top_news": [
-    {"rank": 1, "headline": "코스피 사상 첫 8000 돌파", "summary": "2~4문장", "impact": "★ 강세"}
+    {"rank": 1, "headline": "코스피 사상 첫 8000 돌파", "summary": "2~4문장", "impact": "★ 강세",
+     "source": "한국경제", "source_url": "https://www.hankyung.com/article/...", "published_date": "2026-06-09"}
   ],
   "events_calendar": [
-    {"date": "2026-06-11", "region": "한국", "event": "선물옵션 동시만기", "importance": "★★★", "expected_impact": "헤지 청산 시 변동성 급확대"}
+    {"date": "2026-06-11", "region": "한국", "event": "선물옵션 동시만기", "importance": "★★★",
+     "expected_impact": "헤지 청산 시 변동성 급확대", "source": "한국거래소", "source_url": "https://..."}
   ],
   "events_calendar_longterm": [
-    {"date": "2026-11-03", "region": "미국", "event": "중간선거", "importance": "★★★", "expected_impact": "정책 불확실성 분기점"}
+    {"date": "2026-11-03", "region": "미국", "event": "중간선거", "importance": "★★★",
+     "expected_impact": "정책 불확실성 분기점", "source": "...", "source_url": "https://..."}
   ],
   "fx_snapshot": {
     "krw_trend": "원화 약세", "krw_comment": "..."
@@ -56,6 +64,7 @@ build_report.js v3 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에
 ```
 
 impact 값: `★ 강세` / `▲ 양면` / `▼ 부정` / `■ 중립` (보강 표기 허용).
+(v3.3.0) `source`/`source_url`/`published_date` 는 출처 grounding 용. top_news 는 출처 확인된 항목만 수록. 날짜 미확정 이벤트는 `date: "(미확정)"`.
 events_calendar 는 향후 1개월 전체 중요도(★~★★★) 7~12건, events_calendar_longterm 은 1개월~1년 ★★★만 6~10건 — 모두 날짜순.
 (구버전 호환: fx_snapshot 에 USD_KRW 등 현재가 문자열이 있으면 빌더가 폴백 렌더링한다.)
 
@@ -120,6 +129,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 ```
 
 접속 실패: `key_reports: []`, `key_message: ""` → 빌더가 "(리포트 수집 실패)" 렌더링.
+(v3.3.0) `key_reports` 항목은 문자열 `"제목"` 또는 객체 `{"title": "...", "url": "https://...", "date": "2026-06-09"}` 둘 다 허용 — 빌더가 객체면 제목+링크로 렌더.
 
 ## global_securities (v3.2)
 
@@ -152,9 +162,9 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
     "gold": "...", "oil": "...", "btc": "..."
   },
   "portfolios": {
-    "aggressive":   {"label": "공격형", "expected_return": "연 12~18%", "max_drawdown": "-25~-35%", "rebalance": "월 1회", "allocation": [{"asset": "...", "weight_pct": 0, "vehicle": "구체 종목·ETF"}]},
-    "balanced":     {"label": "중립형", "expected_return": "...", "max_drawdown": "...", "rebalance": "...", "allocation": []},
-    "conservative": {"label": "안정형", "expected_return": "...", "max_drawdown": "...", "rebalance": "...", "allocation": []}
+    "aggressive":   {"label": "공격형", "expected_return": "연 +8~14% (강세 지속 가정)", "max_drawdown": "-25~-35% (과거 변동성 기반)", "rebalance": "월 1회", "basis": "구성자산 1년 실적 변동성 가중평균 기반 추정 — 미래 보장 아님", "allocation": [{"asset": "...", "weight_pct": 0, "vehicle": "구체 종목·ETF"}]},
+    "balanced":     {"label": "중립형", "expected_return": "...", "max_drawdown": "...", "rebalance": "...", "basis": "...", "allocation": []},
+    "conservative": {"label": "안정형", "expected_return": "...", "max_drawdown": "...", "rebalance": "...", "basis": "...", "allocation": []}
   },
   "action_items": ["단기·중기·장기 체크리스트 5~8개"]
 }
@@ -163,3 +173,4 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 - `asset_view` 키명은 위 정식 키를 사용 (빌더 v1.2.2+ 는 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 별칭도 수용).
 - `direction` 은 ▲/▼/■ 중 하나.
 - 각 portfolio 의 `allocation` 비중(weight_pct) 합계는 **반드시 100** — 빌더가 합계를 검증해 경고를 출력한다.
+- (v3.3.0) `basis` 는 `expected_return`/`max_drawdown` 산출 근거 — **필수**. 단일 false-precision 숫자(예: "연 13.7%") 금지, 범위+가정 또는 계산근거로 표기. 빌더가 포트폴리오 표 아래에 출력하고, `--validate` 가 누락 시 경고한다.

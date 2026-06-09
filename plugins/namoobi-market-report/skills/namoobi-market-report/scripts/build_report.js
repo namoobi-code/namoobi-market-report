@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 /**
- * build_report.js v3 - 글로벌 시황 보고서 DOCX 생성기 (namoobi-market-report)
+ * build_report.js v3.3.0 - 글로벌 시황 보고서 DOCX 생성기 (namoobi-market-report)
+ *
+ * v3.3.0 변경점 (반환각/Hallucination 보완):
+ *  - 뉴스 표에 '출처' 컬럼 추가 (source/source_url 하이퍼링크 + published_date)
+ *  - 증권사/IB key_reports: 문자열 또는 {title,url,date} 객체 모두 렌더 (출처 링크)
+ *  - 포트폴리오: 기대수익/MDD '산출 근거(basis)' 표기 — 미기재 시 경고 문구
+ *  - 표지 디스클레이머 배너 + 10~13장 'AI 의견' 마커 + 14장 출처/생성시각 보강
+ *  - --validate: 출처 없는 뉴스·basis 누락 포트폴리오 grounding 경고
  *
  * v3 변경점 (v2 대비):
  *  - `--validate` 모드: docx 생성 없이 입력 JSON 의 섹션 완결성만 검사 (Phase 3 검증용)
@@ -45,7 +52,11 @@ function validate(d) {
   if (!has(d, 'metadata') || !d.metadata.report_date) issues.push("metadata.report_date 누락");
   if (!has(d, 'news') || !Array.isArray(d.news.top_news) || d.news.top_news.length === 0)
     issues.push("news.top_news 누락 (품질기준 1: Top News 10)");
-  else if (d.news.top_news.length < 10) warn.push(`top_news ${d.news.top_news.length}개 (<10)`);
+  else {
+    if (d.news.top_news.length < 10) warn.push(`top_news ${d.news.top_news.length}개 (<10)`);
+    const noSrc = d.news.top_news.filter(n => !n.source_url && !n.source).length;
+    if (noSrc) warn.push(`top_news 출처 없는 항목 ${noSrc}개 (v3.3.0 grounding: source/source_url 권장)`);
+  }
   if (!has(d, 'news') || !Array.isArray(d.news.events_calendar) || d.news.events_calendar.length === 0)
     warn.push("news.events_calendar 누락 (품질기준 2: 1개월 캘린더)");
   if (!has(d, 'news') || !Array.isArray(d.news.events_calendar_longterm) || d.news.events_calendar_longterm.length === 0)
@@ -71,6 +82,12 @@ function validate(d) {
   if (!has(d, 'analysis')) issues.push("analysis 누락 (품질기준 8)");
   else {
     if (!d.analysis.portfolios) issues.push("analysis.portfolios 누락 (공격/중립/안정형)");
+    else {
+      ['aggressive', 'balanced', 'conservative'].forEach(k => {
+        const pf = d.analysis.portfolios[k];
+        if (pf && !pf.basis) warn.push(`portfolios.${k}.basis 누락 (v3.3.0: 기대수익·MDD 산출 근거 필수 — 환각 방지)`);
+      });
+    }
     if (!d.analysis.summary) warn.push("analysis.summary 누락 (Executive Summary)");
   }
   return { issues, warn };
@@ -99,8 +116,9 @@ catch (e) {
 const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   Header, Footer, AlignmentType, LevelFormat, HeadingLevel,
-  BorderStyle, WidthType, ShadingType, PageNumber, PageBreak
+  BorderStyle, WidthType, ShadingType, PageNumber, PageBreak, ExternalHyperlink
 } = docx;
+const HAS_LINK = typeof ExternalHyperlink !== 'undefined' && !!ExternalHyperlink;
 
 const reportDate = (data.metadata && data.metadata.report_date) || new Date().toISOString().slice(0, 10);
 const dateCompact = reportDate.replace(/-/g, '');
@@ -168,6 +186,36 @@ function cellRun(text, opts={}) {
                        size: opts.size ?? 20,
                        color: opts.header ? "FFFFFF" : opts.color });
 }
+// v3.3.0: 출처 링크 (URL 있으면 하이퍼링크, 없으면 일반 텍스트)
+function linkRun(text, url, opts={}) {
+  const t = String(text);
+  if (url && HAS_LINK) {
+    return new ExternalHyperlink({
+      link: String(url),
+      children: [new TextRun({ text: t, size: opts.size ?? 20, color: "1D4ED8", underline: {} })]
+    });
+  }
+  return new TextRun({ text: t, size: opts.size ?? 20, color: opts.color });
+}
+// v3.3.0: key_reports 항목 렌더 (문자열 또는 {title,url,date} 객체 모두 수용)
+function reportBullet(r) {
+  if (r && typeof r === 'object') {
+    const title = r.title || r.url || '-';
+    const datePart = r.date ? `  (${r.date})` : '';
+    if (r.url && HAS_LINK) {
+      return new Paragraph({
+        numbering: { reference: "bullets", level: 0 }, spacing: { after: 60 },
+        children: [
+          new ExternalHyperlink({ link: String(r.url),
+            children: [new TextRun({ text: String(title), size: 22, color: "1D4ED8", underline: {} })] }),
+          new TextRun({ text: datePart, size: 20, color: "64748B" })
+        ]
+      });
+    }
+    return bullet(String(title) + datePart);
+  }
+  return bullet(String(r));
+}
 function cell(text, opts={}) {
   return new TableCell({
     borders, width: { size: opts.width, type: WidthType.DXA },
@@ -208,7 +256,16 @@ children.push(new Paragraph({
 }));
 children.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 120 },
-  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.2.4", size: 22, color: "64748B" })]
+  children: [new TextRun({ text: "작성: Claude AI Research (Cowork) — namoobi-market-report v3.3.0", size: 22, color: "64748B" })]
+}));
+// v3.3.0: 표지 하단 AI·환각 디스클레이머 배너
+children.push(new Paragraph({
+  alignment: AlignmentType.CENTER, spacing: { before: 360, after: 0 },
+  border: { top: { style: BorderStyle.SINGLE, size: 4, color: "F59E0B" }, bottom: { style: BorderStyle.SINGLE, size: 4, color: "F59E0B" } },
+  children: [new TextRun({
+    text: "⚠ 본 보고서는 AI(Claude)가 공개 데이터를 자동 수집·생성한 참고 자료입니다. 투자 자문이 아니며, "
+        + "자동 생성 특성상 오류·환각이 포함될 수 있으니 중요한 의사결정 전 반드시 원문 출처를 확인하십시오.",
+    size: 18, italics: true, color: "B45309" })]
 }));
 
 // Executive Summary
@@ -250,18 +307,29 @@ toc.forEach(t => children.push(p(t, { size: 22, after: 40 })));
 children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(h("1. 글로벌 Top News 10", 1));
 if (data.news && Array.isArray(data.news.top_news)) {
-  const newsHeader = ["#", "헤드라인", "내용 요약", "임팩트"];
-  const rows = [newsHeader, ...data.news.top_news.map(n => [
-    String(n.rank ?? "-"), n.headline ?? "-", n.summary ?? "-", n.impact ?? "-"
-  ])].map((r, i) => new TableRow({
-    children: r.map((c, j) => cell(c, {
-      width: [600, 2200, 4660, 1900][j], header: i === 0,
-      alt: i > 0 && i % 2 === 0,
-      align: j === 0 ? AlignmentType.CENTER : AlignmentType.LEFT,
-      bold: j === 1 && i > 0
-    }))
-  }));
-  children.push(makeTable([600, 2200, 4660, 1900], rows));
+  const nw = [500, 1900, 3800, 1300, 1860];  // v3.3.0: 출처 컬럼 추가
+  const newsHeader = ["#", "헤드라인", "내용 요약", "임팩트", "출처"];
+  const rows = [new TableRow({
+    children: newsHeader.map((c, j) => cell(c, { width: nw[j], header: true, align: AlignmentType.CENTER }))
+  })];
+  data.news.top_news.forEach((n, k) => {
+    const alt = (k + 1) % 2 === 0;
+    // 출처 셀: source_url 있으면 하이퍼링크, source 만 있으면 텍스트, 없으면 "-"
+    const srcLabel = n.source || (n.source_url ? "링크" : "-");
+    const srcRuns = (n.source || n.source_url)
+      ? [linkRun(srcLabel, n.source_url, { size: 18 })]
+      : [cellRun("-", { size: 18 })];
+    const dateSuffix = n.published_date ? ` (${n.published_date})` : "";
+    if (dateSuffix && (n.source || n.source_url)) srcRuns.push(new TextRun({ text: dateSuffix, size: 16, color: "94A3B8" }));
+    rows.push(new TableRow({ children: [
+      cell(String(n.rank ?? "-"), { width: nw[0], alt, align: AlignmentType.CENTER }),
+      cell(n.headline ?? "-", { width: nw[1], alt, bold: true }),
+      cell(n.summary ?? "-", { width: nw[2], alt }),
+      cell(n.impact ?? "-", { width: nw[3], alt }),
+      cell("", { width: nw[4], alt, runs: srcRuns })
+    ]}));
+  });
+  children.push(makeTable(nw, rows));
 } else {
   children.push(p("(뉴스 데이터 없음)"));
 }
@@ -594,7 +662,7 @@ if (data.securities) {
     }
     if (Array.isArray(sec.key_reports) && sec.key_reports.length > 0) {
       children.push(p("대표 리포트:", { bold: true, after: 40 }));
-      sec.key_reports.forEach(r => children.push(bullet(r)));
+      sec.key_reports.forEach(r => children.push(reportBullet(r)));
     } else {
       children.push(p("(리포트 수집 실패 - 사이트 접근 제한)", { italics: true, color: "94A3B8" }));
     }
@@ -662,7 +730,7 @@ if (data.global_securities) {
     }
     if (Array.isArray(sec.key_reports) && sec.key_reports.length > 0) {
       children.push(p("대표 발간물:", { bold: true, after: 40 }));
-      sec.key_reports.forEach(r => children.push(bullet(r)));
+      sec.key_reports.forEach(r => children.push(reportBullet(r)));
     } else {
       children.push(p("(수집 실패 또는 비공개 - 공개 채널 한정 수집)", { italics: true, color: "94A3B8" }));
     }
@@ -685,6 +753,7 @@ if (data.global_securities) {
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(h("10. 종합 분석 - 매크로·테마·리스크", 1));
+children.push(p("※ 이하 10~13장(종합분석·자산별 견해·포트폴리오·액션아이템)은 앞 장의 수집 데이터에 근거한 AI 해석·의견이며, 확정된 사실이나 투자 권유가 아닙니다.", { italics: true, color: "B45309", size: 18 }));
 if (data.analysis) {
   const a = data.analysis;
   if (a.macro_view) {
@@ -763,6 +832,9 @@ if (data.analysis && data.analysis.portfolios) {
       ['리밸런싱 주기', pfObj.rebalance]
     ];
     meta.forEach(([k,v]) => { if (v) children.push(bullet(`${k}: ${v}`)); });
+    // v3.3.0: 기대수익·MDD 산출 근거(환각 방지) 표기
+    if (pfObj.basis) children.push(p(`산출 근거: ${pfObj.basis}`, { italics: true, color: "64748B", size: 18 }));
+    else children.push(p("산출 근거: (미기재 — 추정치 신뢰도 주의)", { italics: true, color: "B45309", size: 18 }));
     if (Array.isArray(pfObj.allocation)) {
       const wsum = pfObj.allocation.reduce((s,a)=>s+(Number(a.weight_pct)||0),0);
       if (wsum !== 100) console.error(`  (경고) ${o.key} 포트폴리오 비중 합계 ${wsum}% (≠100%)`);
@@ -796,10 +868,14 @@ if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.
 // ============================================================
 children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(h("14. 주의 사항 및 출처", 1));
-children.push(p("본 보고서는 Claude AI Research(Cowork)가 다양한 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다. 모든 수치는 보고서 기준일의 시장 데이터이며, 시점에 따라 변동될 수 있습니다.", { italics: true }));
+children.push(p("본 보고서는 Claude AI Research(Cowork)가 다양한 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사·글로벌 IB 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다. 모든 수치는 보고서 기준일의 시장 데이터이며, 시점에 따라 변동될 수 있습니다.", { italics: true }));
+children.push(p("자동 생성(AI) 특성상 수집·요약 과정에서 오류나 환각(사실과 다른 서술)이 포함될 수 있습니다. 1~9장의 데이터·뉴스·리서치는 각 항목의 출처 링크로 원문을 검증할 수 있으며, 10~13장의 종합분석·포트폴리오는 그 데이터에 기반한 AI 의견입니다. 기대수익·최대낙폭(MDD) 등 추정치는 과거 데이터·가정에 근거한 시나리오일 뿐 미래 성과를 보장하지 않습니다.", { italics: true, color: "B45309" }));
 children.push(p("본 보고서의 어떤 내용도 특정 종목 매수·매도 권유나 보장된 투자 수익을 약속하지 않으며, 포트폴리오 추천은 모델 예시일 뿐 개인의 위험감내도·투자목표·세금 상황에 맞춰 조정·검증이 필요합니다. 투자 판단의 최종 책임은 이용자에게 있습니다.", { italics: true, color: "64748B" }));
 children.push(p(""));
-children.push(p("주요 출처: Yahoo Finance / CoinGecko / 한국경제 / 신한투자증권 / 미래에셋증권 / 삼성증권 / 한국투자증권 / 키움증권", { size: 18, color: "94A3B8" }));
+const genAt = (data.metadata && data.metadata.generated_at) ? String(data.metadata.generated_at) : "-";
+children.push(p(`데이터 기준일: ${reportDate}  |  보고서 생성시각: ${genAt}`, { size: 18, color: "64748B" }));
+children.push(p("주요 출처: Yahoo Finance / CoinGecko / 한국경제 / 신한투자증권 / 미래에셋증권 / 삼성증권 / 한국투자증권 / 키움증권 / UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock 공개 채널", { size: 18, color: "94A3B8" }));
+children.push(p("※ 개별 뉴스·이벤트·증권사 리포트의 원문 링크는 각 해당 섹션의 '출처' 항목을 참고하십시오.", { size: 18, color: "94A3B8" }));
 
 // ---------- Doc ----------
 const doc = new Document({
@@ -838,7 +914,7 @@ const doc = new Document({
         new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "64748B" }),
         new TextRun({ text: " / ", size: 18, color: "64748B" }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: "64748B" }),
-        new TextRun({ text: "  |  namoobi-market-report v3.2.4", size: 18, color: "64748B" })
+        new TextRun({ text: "  |  namoobi-market-report v3.3.0", size: 18, color: "64748B" })
       ]
     })]})},
     children
@@ -854,4 +930,4 @@ Packer.toBuffer(doc).then(buffer => {
   console.error("❌ DOCX 생성 실패: " + e.message);
   process.exit(1);
 });
-// EOF — namoobi-market-report v1.2.4 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)
+// EOF — namoobi-market-report v1.3.0 (이 마지막 줄은 설치본 무결성 검사용 마커 — 삭제 금지)
