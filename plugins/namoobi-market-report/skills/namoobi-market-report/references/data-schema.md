@@ -111,6 +111,8 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 }
 ```
 
+(v3.4.2) 빌더는 `kimchi_premium.coins[]` 의 키 별칭도 수용한다: `upbit_price_krw` / `global_price_usd`·`binance_price_usd` / `premium_percent`. 단 정식 키(`upbit_krw`/`binance_usd`/`premium_pct`) 사용을 권장.
+
 ## securities
 
 ```json

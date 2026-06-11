@@ -11,8 +11,16 @@ description: |
   (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 메일수신자 목록 파일에 적힌 주소).
 ---
 
-# Namoobi Market Report (v3.4.0)
+# Namoobi Market Report (v3.4.2)
 
+> v3.4.1~v3.4.2 변경점 — 보고서 구조·가독성·미리보기 (2026-06-11 사용자 피드백):
+> - **(v3.4.1) 매크로 4장 삭제·번호 재조정** — VIX·DXY·美10년이 3.2 미국 증시 표와 중복이라 별도 4장을 삭제, 이후 장 번호를 한 칸씩 당김 (총 13장). 목차·"AI 의견 9~12장" 문구도 갱신.
+> - **(v3.4.1) 김치 프리미엄 키 별칭** — CryptoAgent 가 `upbit_price_krw`/`global_price_usd`/`premium_percent` 로 저장해도 빌더가 렌더 (정식 키는 `upbit_krw`/`binance_usd`/`premium_pct`).
+> - **(v3.4.2) 공포·탐욕 표 개선** — 컬럼을 [시점|지수|분류(단계)|현재 대비]로 분리. 모든 행에 분류를 표기(값으로 5단계 자동 도출)하고 분류 칸을 단계별 배경색(빨강~초록)으로 구분. 변화는 "+3p ▲ 공포 완화 (탐욕 쪽으로)" 식으로 설명. 범위 범례 추가.
+> - **(v3.4.2) 한글 폰트 임베드 — 미리보기 깨짐 방지** — `scripts/fonts/nmr_kr.ttf`(나눔바른고딕 서브셋 2.2MB, OFL)를 빌더가 자동 임베드(폰트명 `NanumBarunGothic`). Phase 0 에서 fonts 폴더도 WORK 에 복사할 것. docx 크기 ~830KB→정상. **LibreOffice 계열 뷰어는 docx 임베드 폰트를 무시**하므로, 확실한 미리보기용으로 Phase 4 에서 PDF 사본도 생성한다: `mkdir -p ~/.fonts && cp fonts/nmr_kr.ttf ~/.fonts/ && fc-cache -f` 후 `soffice --headless --convert-to pdf`.
+> - **(v3.4.2) 작성자 익명화** — 문서 내 "(Cowork)"·"namoobi" 표기 전부 제거 (표지 "작성: Claude AI Research — v3.4.2", 푸터 "v3.4.2", 13장 문구). 메일 본문 서명도 "— Claude AI Research 자동 생성·발송" 으로 쓸 것.
+> - **(v3.4.2) 빅테크 신기술·신제품 이벤트 수록** — NewsAgent 이벤트 캘린더에 빅테크 발표(아이폰 이벤트·갤럭시 언팩·GTC·CES 키노트·OpenAI 신모델 등) 추가. 꼭 알아야 할 빅 이벤트만, expected_impact 에 관련 종목·섹터 명시, 중장기는 ★★★급만 (상세 `references/agents.md` NewsAgent 대상 목록).
+>
 > v3.4.0 (plugin 1.4.0) 변경점 — 데이터 소스 폴백·표 보강 (2026-06-09 운영 학습):
 > - **시세 MCP 부재 시 Yahoo chart API 폴백 (가장 중요)** — UsStockInfo MCP 가 세션에 없으면 증시·환율·원자재의 1주~1년 변화율이 전부 "-" 가 된다. 이때 **Claude in Chrome 로 Yahoo chart API 를 직접 호출**해 주봉 1년 시계열을 받아 정밀 계산한다. 절차: `navigate https://finance.yahoo.com` → `javascript_tool` 로 `(async()=>{ ... await fetch("https://query1.finance.yahoo.com/v8/finance/chart/<TICKER>?range=1y&interval=1wk") ... })()` (CORS 허용됨, top-level await 금지 → async IIFE 로 감쌀 것). 각 티커의 주봉 close 와 `meta.regularMarketPrice` 로 1주(7d)/1개월(30d)/3개월(91d)/6개월(182d)/1년(365d) 변화율을 계산. **엔화(JPYKRW=X)는 100엔 환산이라 current 보존·변화율만 갱신**. CNY/KRW 데이터 희박 시 USD/KRW ÷ USD/CNY(CNY=X)로 도출. web_fetch·stooq 는 본문이 비어 못 쓰니 반드시 Chrome 사용.
 > - **암호화폐 폴백 체계** — CoinInfo MCP 우선. 단 `get_kimchi_premium` 이 "데이터 부족" 으로 실패하면 **CoinDesk MCP `fetch_spot_tick`**(market=upbit, instruments=BTC-KRW,ETH-KRW,XRP-KRW,SOL-KRW + market=binance USDT)로 업비트·바이낸스 실시세를 받아 김프=(업비트KRW/(바이낸스USD×환율)−1)×100 로 계산. 환율은 Yahoo USD/KRW. CoinGecko 429(레이트리밋)로 market_overview/gainers/dominance 가 막히면 ~20초 후 재시도, 그래도 실패면 Crypto.com Exchange MCP 값/직전값 유지. 한국 거래소 API(업비트·빗썸)는 Chrome navigate 가 안전정책으로 차단하니 직접 띄우지 말 것 — CoinDesk MCP 사용.
@@ -136,6 +144,7 @@ rm -rf "$WORK"; mkdir -p "$WORK"
 date +%s > "$WORK/nmr_start_epoch.txt"   # v3.2.4 시작시각 기록
 TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S' > "$WORK/nmr_start_human.txt"
 cp "$SRC/build_report.js" "$SRC/package.json" "$WORK/"
+cp -r "$SRC/fonts" "$WORK/fonts" 2>/dev/null && echo "폰트 OK ($(wc -c < "$WORK/fonts/nmr_kr.ttf")B)"  # v3.4.2 한글 임베드 폰트
 cd "$WORK"
 [ -d "$WORK/node_modules/docx" ] || npm install docx --no-fund --no-audit
 node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
@@ -204,6 +213,14 @@ node build_report.js \
 ```
 빌드 후 파일 크기와 `unzip -l` 무결성, 표 개수(`<w:tbl>`)를 점검한다.
 docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Chrome file_upload 첨부가 가능하다.
+
+**(v3.4.2) PDF 사본 생성 (미리보기용)** — docx 임베드 폰트를 무시하는 뷰어 대비:
+```bash
+mkdir -p ~/.fonts && cp "$WORK/fonts/nmr_kr.ttf" ~/.fonts/ && fc-cache -f >/dev/null 2>&1
+timeout 40 soffice --headless --convert-to pdf --outdir "<outputs>" "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.docx"
+pdffonts <생성된 pdf> | grep -qi nanum && echo "PDF 한글 OK"
+```
+PDF 도 연결 폴더에 함께 복사한다 (메일 첨부는 docx 만, PDF 는 로컬 미리보기·아카이브용).
 
 **(v3.2.3 필수) 최종 docx 를 연결 폴더 `D:\claudeCowork` 최상위에도 저장한다.**
 연결 폴더는 기존 파일 덮어쓰기·삭제가 차단될 수 있으므로, 동일 파일명이 이미 있으면
