@@ -1,17 +1,21 @@
-# 이메일 발송 가이드 — Claude in Chrome 직접 발송 (v3.2.7)
+# 이메일 발송 가이드 — Claude in Chrome 직접 발송 (v3.4.3)
 
 > ⚠️ SMTP 는 샌드박스 네트워크 차단으로 동작하지 않는다. 사용 금지.
 > Gmail MCP 초안 방식도 첨부 미지원 + 계정 불일치로 부적합.
 > **아래 Chrome 직접 발송만 사용한다.**
 
-## 수신자 정책 (v3.2.7)
+## 수신자 정책 (v3.4.3 — 실행 모드별 수신자 파일 분기)
 
 - **받는사람(To)**: `namoobi@gmail.com` **단 한 명만**. (사용자가 다른 To 를 지정하면 대체)
-- **숨은참조(BCC)**: `D:\claudeCowork\SECURITY\메일수신자.txt` 파일의 각 줄에 적힌 이메일 주소를 모두 BCC 로 넣는다.
-  - **주석 처리 규칙 (v3.2.7)**: 라인 맨 앞(공백 허용)이 `//` 로 시작하면 그 줄의 수신자는 **발송 대상에서 제외**한다 (일시적으로 빼고 싶은 주소를 지우지 않고 `//` 만 붙여 보관 가능).
-  - bash 로 읽기 (`//` 주석 라인 제외 후 이메일 추출):
-    `grep -vE '^[[:space:]]*//' /sessions/*/mnt/claudeCowork/SECURITY/메일수신자.txt | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'`
-  - 파일이 없거나, 비어 있거나, **유효 주소가 0개(전부 `//` 주석)** 이면 BCC 없이 To(namoobi) 에게만 발송하고, 그 사실을 결과 보고에 명시한다.
+- **숨은참조(BCC)**: 실행 모드에 따라 **수신자 목록 파일이 달라진다** (Phase 0 에서 확정한 `$NMR_MODE` 사용):
+  - **예약(scheduled) 실행** → `D:\claudeCowork\SECURITY\예약메일수신자.txt`
+  - **일반(normal/direct) 실행** → `D:\claudeCowork\SECURITY\메일수신자.txt`
+  - 모드 판정: 스킬 인자(ARGUMENTS)에 `scheduled`/`schedule`/`예약` 이 있거나, 예약 작업 프롬프트가 예약 실행임을 명시하면 **예약 모드**. 그 외에는 **일반 모드**. (상세는 SKILL.md Phase 0 참조)
+  - **주석 처리 규칙**: 두 파일 모두, 라인 맨 앞(공백 허용)이 `//` 로 시작하면 그 줄의 수신자는 **발송 대상에서 제외**한다 (주소를 지우지 않고 `//` 만 붙여 일시 제외).
+  - bash 로 읽기 (`//` 주석 라인 제외 후 이메일 추출) — 모드에 맞는 파일을 지정:
+    - 예약: `grep -vE '^[[:space:]]*//' /sessions/*/mnt/claudeCowork/SECURITY/예약메일수신자.txt | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'`
+    - 일반: `grep -vE '^[[:space:]]*//' /sessions/*/mnt/claudeCowork/SECURITY/메일수신자.txt | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'`
+  - 해당 파일이 없거나, 비어 있거나, **유효 주소가 0개(전부 `//` 주석)** 이면 BCC 없이 To(namoobi) 에게만 발송하고, 그 사실을 결과 보고에 명시한다.
   - **이 주소들은 비공개 정보다 — 채팅·로그·보고서·커밋에 평문으로 노출하지 말 것.** BCC 인원 수만 보고한다 (예: "BCC 2명").
   - SECURITY 폴더와 그 내용은 절대 git 에 커밋하지 않는다 (저장소 밖 경로이며 .gitignore 로도 차단).
 
@@ -21,13 +25,13 @@
    (`mcp__Claude_in_Chrome__list_connected_browsers` 로 확인)
 2. 해당 브라우저에 발송 계정 로그인 (https://mail.google.com/mail/u/0/)
    — 로그인 안 돼 있으면 비밀번호 입력은 정책상 Claude 가 대신 못 함 → 사용자에게 요청
-3. docx 가 **연결된 폴더 또는 outputs** 에 있을 것 (file_upload 는 세션 공유 폴더 파일만 첨부 가능)
+3. **첨부할 PDF** 가 **연결 폴더(D:\claudeCowork)** 에 있을 것. ⚠️ file_upload 는 사용자 PC 경로만 받는다 — outputs 의 VM 경로(`/sessions/...`)는 거부되므로, 첨부는 반드시 **연결 폴더의 Windows 경로**(예: `D:\claudeCowork\글로벌금융시장_종합시황보고서_YYYYMMDD.pdf`)로 지정한다. (v3.4.3 실측: outputs 경로·VM 경로 모두 업로드 거부, `D:\claudeCowork\...` 만 성공)
 
-## 발송 절차 (docx 생성 후 추가 입력 없이 자동 수행)
+## 발송 절차 (PDF 생성 후 추가 입력 없이 자동 수행)
 
 사용자가 자동발송을 승인한 세션에서는 발송 직전 재확인도 생략한다.
 
-1. **docx 절대경로 확보** — 사용자 PC 경로 기준 (예: `C:\...\outputs\글로벌금융시장_종합시황보고서_YYYYMMDD.docx`)
+1. **PDF 절대경로 확보** — **연결 폴더 Windows 경로** 기준 (예: `D:\claudeCowork\글로벌금융시장_종합시황보고서_YYYYMMDD.pdf`). 같은 날짜 파일이 있어 `_HHMM` 접미사로 저장됐다면 그 실제 파일명을 사용.
 2. **탭 준비** — `tabs_context_mcp(createIfEmpty=true)`
    - "Tabs can only be moved to and from normal windows" 오류 → 일반 크롬 창 없음.
      사용자에게 일반 창을 열어달라 요청 후 **재시도** (열리면 보통 즉시 성공)
@@ -40,11 +44,11 @@
    파일이 비어 있거나 유효 주소가 0개(전부 `//` 주석)이면 이 단계를 건너뛴다.
 5. **제목 입력** — 반드시 **제목 칸을 새로 클릭한 뒤** 입력.
    형식: `[글로벌 시황 보고서] {YYYY년 M월 D일} 종합 보고서 송부`
-6. **본문 입력** — 본문 영역 클릭 후: 핵심 헤드라인 3개 + 포트폴리오 톤 1줄 + "자세한 내용은 첨부 docx 참고"
-7. **docx 첨부** — 첨부 버튼 클릭 금지(네이티브 파일창은 제어 불가).
+6. **본문 입력** — 본문 영역 클릭 후: 핵심 헤드라인 3개 + 포트폴리오 톤 1줄 + "자세한 내용은 첨부 PDF 참고"
+7. **PDF 첨부** — 첨부 버튼 클릭 금지(네이티브 파일창은 제어 불가).
    `find("file attachment input (type=file)")` 로 숨은 input 의 ref 획득 →
-   `file_upload(paths=[docx 절대경로], ref=..., tabId=...)` 로 직접 첨부
-8. **검증** — **screenshot/zoom 으로만** 받는사람(To)·숨은참조(BCC) 칩 개수·제목·본문·첨부(파일명/용량) 확인
+   `file_upload(paths=["D:\\claudeCowork\\...pdf"], ref=..., tabId=...)` 로 직접 첨부 (연결 폴더 Windows 경로 사용 — outputs/VM 경로는 거부됨).
+8. **검증** — **screenshot/zoom 으로만** 받는사람(To)·숨은참조(BCC) 칩 개수·제목·본문·첨부(PDF 파일명/용량) 확인
 9. **발송** — `보내기` 클릭 → "메시지 전송됨" 토스트 확인 (#sent URL 전환, 임시보관함 비워짐도 신호)
 
 ## ⚠️ 흔한 함정 (반드시 회피)
@@ -69,8 +73,8 @@
 | Gmail 미로그인 | 사용자가 직접 로그인 후 재시도 |
 | 작성창 닫힘/초안만 남음 | #drafts 에서 초안 재개 |
 | 칩이 사람 이름으로 표시 | 주소록 매칭 — 도메인/주소로 확인, 정상일 수 있음 |
-| 첨부 실패 | docx 가 연결 폴더/outputs 에 있는지 경로 확인 |
+| 첨부 실패 / "only files the user has shared" | PDF 를 **연결 폴더(D:\claudeCowork) Windows 경로**로 첨부 (outputs·`/sessions/...` VM 경로는 업로드 거부됨) |
 | 숨은참조 칸이 안 보임 | 받는사람 칸 우측 `숨은참조` 링크 클릭해 BCC 칸 펼치기 |
-| SECURITY/메일수신자.txt 없음 | BCC 없이 To(namoobi)만 발송 + 결과 보고에 "BCC 파일 없음" 명시 |
+| 수신자 파일 없음 | 예약 모드는 예약메일수신자.txt, 일반 모드는 메일수신자.txt. 해당 파일 없으면 BCC 없이 To(namoobi)만 발송 + 결과 보고에 "BCC 파일 없음" 명시 |
 | 특정 수신자만 일시 제외하고 싶음 | 해당 줄 맨 앞에 `//` 추가 (주소 보존). 빌더가 `//` 라인을 BCC 대상에서 제외 |
 | 전부 `//` 주석이라 유효 주소 0개 | To(namoobi)만 발송 + 결과 보고에 "BCC 0명(전부 주석)" 명시 |

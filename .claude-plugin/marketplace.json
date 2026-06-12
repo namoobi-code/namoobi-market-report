@@ -8,8 +8,8 @@
     {
       "name": "namoobi-market-report",
       "source": "./plugins/namoobi-market-report",
-      "version": "1.3.0",
-      "description": "글로벌 금융시장 종합 시황 보고서 자동 생성·발송 워크플로우"
+      "version": "1.5.0",
+      "description": "글로벌 금융시장 종합 시황 보고서 자동 생성·발송 워크플로우 (예약/일반 수신자 분기·PDF 발송)"
     }
   ]
 }

@@ -3,5 +3,7 @@ _market_report_data/
 nmr_build/
 gmr_build/
 *.docx
+*.pdf
 SECURITY/
 메일수신자.txt
+예약메일수신자.txt

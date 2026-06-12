@@ -6,13 +6,21 @@ description: |
   "daily market briefing", "매일 시황 발송", "코스피 미국증시 보고서 만들어줘",
   "namoobi 시황 보고서" 등으로 요청할 때 트리거된다. 7개의 서브에이전트
   (뉴스/시장데이터/원자재/암호화폐/한국증권사/글로벌IB/종합분석)를 병렬로 호출해 자료를 수집하고,
-  종합 데이터를 JSON으로 정리한 뒤 DOCX 보고서를 생성하고, Claude in Chrome 가
-  로그인된 Gmail 작성창에서 직접 메일을 작성·docx 첨부·발송한다
-  (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 메일수신자 목록 파일에 적힌 주소).
+  종합 데이터를 JSON으로 정리한 뒤 PDF 보고서를 생성하고, Claude in Chrome 가
+  로그인된 Gmail 작성창에서 직접 메일을 작성·PDF 첨부·발송한다
+  (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 수신자 목록 파일에 적힌 주소 —
+  예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.4.2)
+# Namoobi Market Report (v3.4.3)
 
+> v3.4.3 변경점 — 수신자 분기·PDF 발송·가독성 (2026-06-12 사용자 피드백):
+> - **실행 모드별 수신자 분기** — 예약(Schedule) 실행이면 `SECURITY\예약메일수신자.txt`, 일반 실행이면 `SECURITY\메일수신자.txt` 의 주소를 BCC 로 보낸다. 두 파일 모두 `//` 주석 라인은 제외. 모드 판정은 Phase 0 에서 스킬 인자(`scheduled`/`예약`)·예약 작업 프롬프트 명시로 한다. (예약 작업 SKILL.md 프롬프트에 `/namoobi-market-report:namoobi-market-report scheduled` 로 인자를 전달할 것.)
+> - **PDF 만 생성·발송** — 이제 메일 첨부는 **PDF** 다. docx 는 빌더 산출용 중간 파일로만 outputs 에 두고, **연결 폴더에는 PDF 만 저장**하고 메일에도 PDF 를 첨부한다. (⚠️ file_upload 는 `D:\claudeCowork\...` Windows 경로만 받는다 — outputs·VM 경로는 거부. 그래서 PDF 를 반드시 연결 폴더에 둔다.)
+> - **임팩트·핵심테마 색상 마커** — 1장 Top News 임팩트와 9.2 핵심테마 방향을 `▲ 강세(초록)`/`▼ 부정(빨강)`/`■ 양면(앰버)` 로 기호+색 구분. Top News 표 하단에 색상 범례 추가. (구버전 `★`/`중립` 표기 폐기 → NewsAgent 임팩트 라벨 변경.)
+> - **아시아 증시에 대만(가권 ^TWII) 추가** — MarketsAgent 티커맵·스키마(`asia_markets.taiwan`)·빌더 3.3 표에 반영.
+> - **빅테크 주요 이벤트 누락 방지** — NewsAgent 가 캘린더 작성 전 빅테크 이벤트(아이폰·갤럭시 언팩·GTC·CES·OpenAI 신모델 등)를 **별도 WebSearch 로 필수 확인**하고, 향후 일정에 있으면 누락하지 않는다 (`references/agents.md` NewsAgent).
+>
 > v3.4.1~v3.4.2 변경점 — 보고서 구조·가독성·미리보기 (2026-06-11 사용자 피드백):
 > - **(v3.4.1) 매크로 4장 삭제·번호 재조정** — VIX·DXY·美10년이 3.2 미국 증시 표와 중복이라 별도 4장을 삭제, 이후 장 번호를 한 칸씩 당김 (총 13장). 목차·"AI 의견 9~12장" 문구도 갱신.
 > - **(v3.4.1) 김치 프리미엄 키 별칭** — CryptoAgent 가 `upbit_price_krw`/`global_price_usd`/`premium_percent` 로 저장해도 빌더가 렌더 (정식 키는 `upbit_krw`/`binance_usd`/`premium_pct`).
@@ -92,10 +100,10 @@ description: |
 
 생성되는 docx 는 다음 10개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.
 
-1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨
-2. **글로벌 주요 이벤트 캘린더** — ① 향후 1개월 전체 중요도(★~★★★) ② 1개월~1년 중장기는 ★★★만 (날짜·지역·이벤트·예상 영향)
+1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨(`▲ 강세`/`▼ 부정`/`■ 양면` — 기호+색 구분)
+2. **글로벌 주요 이벤트 캘린더** — ① 향후 1개월 전체 중요도(★~★★★) ② 1개월~1년 중장기는 ★★★만 (날짜·지역·이벤트·예상 영향). **빅테크 주요 이벤트(아이폰·갤럭시 언팩·GTC·CES·OpenAI 신모델 등)가 향후 일정에 있으면 누락 금지** (NewsAgent 가 별도 검색으로 확인)
 3. **단·중·장기 추세** — 모든 자산을 1주/1개월/3개월/6개월/1년 변화율로 제시
-4. **글로벌 증시 풀커버리지** — 한국(코스피·코스닥)·미국·홍콩·중국·일본·인도·베트남·유럽
+4. **글로벌 증시 풀커버리지** — 한국(코스피·코스닥)·미국·홍콩·중국·일본·**대만**·인도·베트남·유럽
 5. **매크로 지표** — 달러지수(DXY), VIX, 美 10년 국채금리
 6. **원자재 풀커버리지** — 에너지(WTI·천연가스) + 금속(금·은·구리·**희토류 REMX**) + 농산물(옥수수·대두·밀)
 7. **주요 환율 추세** — USD/EUR/JPY/CNY/HKD vs KRW 단·중·장기 추세 + **달러인덱스(DXY)** 병기 + 원화 톤
@@ -111,7 +119,7 @@ description: |
 ## 워크플로우 개요
 
 ```
-[Phase 0: 사전 점검]  날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
+[Phase 0: 사전 점검]  실행 모드 판정(예약/일반) / 날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
         ↓
 [Phase 1: 병렬 수집 — 6개 서브에이전트를 단일 메시지로 동시 발행]
   ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent
@@ -123,15 +131,20 @@ description: |
         ↓
 [Phase 3.5: 반환각 교차검증]  서브에이전트 1개로 출처 누락·수치 모순·환각 점검 (v3.3.0)
         ↓
-[Phase 4: DOCX 생성]  node build_report.js <json> <out.docx>  → 연결 폴더 사본
+[Phase 4: 보고서 생성]  node build_report.js <json> <out.docx>(중간) → soffice 로 PDF 변환 → 연결 폴더에 PDF 저장
         ↓
-[Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송 (references/email-sending.md)
+[Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송(PDF 첨부) + 모드별 수신자 파일 (references/email-sending.md)
         ↓
 [Phase 6: 결과 보고]  헤드라인 3개 + 포트폴리오 톤 + 시작/완료/소요시간
 ```
 
 ## Phase 0: 사전 점검
 
+0. **실행 모드 판정 (v3.4.3 — Phase 5 수신자 결정)**: 이번 실행이 **예약(scheduled)** 인지 **일반(normal)** 인지 먼저 판정한다.
+   - **예약 모드 조건** (하나라도 해당): 스킬 인자(ARGUMENTS)에 `scheduled`/`schedule`/`예약` 포함 / 예약 작업 프롬프트가 예약 실행임을 명시(예: "이 실행은 예약 실행") / 세션이 사용자 입력 없이 스케줄러로 자동 시작됨.
+   - **일반 모드**: 그 외 모두 (사용자가 채팅에서 직접 `/namoobi-market-report` 실행, 인자 `direct` 등).
+   - 판정 결과를 메모해 두고(예: `$WORK/nmr_mode.txt` 에 `scheduled` 또는 `normal` 기록) Phase 5 에서 수신자 파일을 고른다:
+     예약 → `SECURITY\예약메일수신자.txt`, 일반 → `SECURITY\메일수신자.txt`. (애매하면 **일반 모드**로 처리하고 Phase 6 에 모드를 명시한다.)
 1. **날짜·시작시각**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` 로 오늘(KST)과 **워크플로우 시작시각**을 확정. `YYYYMMDD` 압축형도 함께 만든다. 시작시각(사람이 읽는 형식 + epoch)은 Phase 6 소요시간 계산에 쓰므로 아래 3번에서 `$WORK/nmr_start_epoch.txt` 로 기록한다.
 2. **연결 폴더 확인** (v3.2.4): D:\claudeCowork 가 세션에 연결돼 있는지 확인. 미연결이면 `mcp__cowork__request_cowork_directory`(path="D:\claudeCowork") 로 연결을 요청한다 (ToolSearch 로 로드). 사용자가 거부하거나 연결 불가면 outputs 에서 진행하되, Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성"을 명시한다.
 3. **Chrome**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. 없으면 사용자에게 일반 크롬 창을 열어달라고 요청. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.)
@@ -203,8 +216,11 @@ DOCX 생성 직전, **general-purpose 서브에이전트 1개**를 띄워 종합
 
 대응: `blocking` 이 있으면 해당 에이전트를 재실행하거나 문제 필드를 null/수정 후 재검증한다. `warnings` 만 있으면 진행하되 Phase 6 보고에 건수를 명시한다. (검증 실패가 반복되면 그 항목을 비우고 진행 — 환각을 남기느니 비우는 것이 낫다.)
 
-## Phase 4: DOCX 생성
+## Phase 4: 보고서 생성 (PDF 만 — v3.4.3)
 
+> **이제 메일 첨부·연결 폴더 산출물은 PDF 다.** docx 는 빌더(build_report.js)가 만드는 **중간 파일**로 outputs 에만 두고, 연결 폴더에는 복사하지 않는다. 최종 산출물은 PDF.
+
+1. **docx 생성 (중간 파일)** — outputs 에 생성:
 ```bash
 cd "$WORK"
 node build_report.js \
@@ -212,27 +228,28 @@ node build_report.js \
   <outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.docx
 ```
 빌드 후 파일 크기와 `unzip -l` 무결성, 표 개수(`<w:tbl>`)를 점검한다.
-docx 는 반드시 **연결된 폴더 또는 outputs 최상위**에 있어야 Chrome file_upload 첨부가 가능하다.
 
-**(v3.4.2) PDF 사본 생성 (미리보기용)** — docx 임베드 폰트를 무시하는 뷰어 대비:
+2. **PDF 변환** — 한글 임베드 폰트를 시스템에 설치한 뒤 soffice 로 변환:
 ```bash
 mkdir -p ~/.fonts && cp "$WORK/fonts/nmr_kr.ttf" ~/.fonts/ && fc-cache -f >/dev/null 2>&1
-timeout 40 soffice --headless --convert-to pdf --outdir "<outputs>" "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.docx"
-pdffonts <생성된 pdf> | grep -qi nanum && echo "PDF 한글 OK"
+timeout 60 soffice --headless --convert-to pdf --outdir "<outputs>" "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.docx"
+pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | grep -qi nanum && echo "PDF 한글 OK"
 ```
-PDF 도 연결 폴더에 함께 복사한다 (메일 첨부는 docx 만, PDF 는 로컬 미리보기·아카이브용).
 
-**(v3.2.3 필수) 최종 docx 를 연결 폴더 `D:\claudeCowork` 최상위에도 저장한다.**
-연결 폴더는 기존 파일 덮어쓰기·삭제가 차단될 수 있으므로, 동일 파일명이 이미 있으면
-`글로벌금융시장_종합시황보고서_YYYYMMDD_HHMM.docx` 처럼 실행 시각 접미사를 붙여 새 파일로 저장한다.
-복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). (v3.2.4) 연결 폴더가 없으면 outputs 에만 저장하고 Phase 6 에 명시.
+3. **(필수) PDF 를 연결 폴더 `D:\claudeCowork` 최상위에 저장한다.** ⚠️ file_upload 는 `D:\claudeCowork\...` Windows 경로만 받으므로(outputs·VM 경로 거부) **메일 첨부를 하려면 PDF 가 연결 폴더에 반드시 있어야 한다.**
+   연결 폴더는 기존 파일 덮어쓰기가 차단될 수 있으므로, 동일 파일명이 이미 있으면 `글로벌금융시장_종합시황보고서_YYYYMMDD_HHMM.pdf` 처럼 실행 시각 접미사를 붙여 **새 파일**로 저장하고, 그 실제 파일명을 Phase 5 첨부에 사용한다.
+   복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). 연결 폴더가 없으면 첨부가 불가하므로 Phase 6 에 "연결 폴더 미연결 — PDF 첨부 불가"를 명시한다.
+   (docx 중간 파일은 연결 폴더로 복사하지 않는다.)
 
 ## Phase 5: 이메일 발송
 
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
 - SMTP·Gmail MCP 초안 방식 금지. **Claude in Chrome 로그인된 Gmail 직접 발송만** 사용.
-- **받는사람(To)**: `namoobi@gmail.com` 단독. **숨은참조(BCC)**: `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소를 읽어 넣는다 (파일 없으면 BCC 생략·보고에 명시).
-- **`//` 주석 제외 (v3.2.7)**: 라인 맨 앞(공백 허용)이 `//` 인 줄은 BCC 대상에서 제외. 읽기: `grep -vE '^[[:space:]]*//' …메일수신자.txt | grep -oE '<email>'`. 유효 주소 0개면 To 만 발송·"BCC 0명(전부 주석)" 보고.
+- **첨부는 PDF** — 연결 폴더(`D:\claudeCowork\...pdf`) Windows 경로로 첨부 (outputs·VM 경로는 거부됨).
+- **받는사람(To)**: `namoobi@gmail.com` 단독.
+- **숨은참조(BCC) — 실행 모드별 파일 (v3.4.3)**: Phase 0 에서 판정한 모드에 따라
+  **예약** → `D:\claudeCowork\SECURITY\예약메일수신자.txt`, **일반** → `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소를 읽어 넣는다 (해당 파일 없으면 BCC 생략·보고에 명시).
+- **`//` 주석 제외**: 라인 맨 앞(공백 허용)이 `//` 인 줄은 BCC 대상에서 제외. 읽기: `grep -vE '^[[:space:]]*//' <모드별 파일> | grep -oE '<email>'`. 유효 주소 0개면 To 만 발송·"BCC 0명(전부 주석)" 보고.
 - BCC 주소는 비공개 정보 — 채팅·보고에 평문 노출 금지, **인원 수만** 보고 (예: "BCC 2명").
 - 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
 - 수신자 칩 클릭 금지, 검증은 screenshot/zoom 으로만 — 상세 함정 목록은 reference 참조.
@@ -244,7 +261,8 @@ PDF 도 연결 폴더에 함께 복사한다 (메일 첨부는 docx 만, PDF 는
 
 ```
 📋 글로벌 시황 보고서 발송 완료
-생성: 글로벌금융시장_종합시황보고서_YYYYMMDD.docx (NN KB)
+실행 모드: 예약 / 일반  (수신자 파일: 예약메일수신자.txt / 메일수신자.txt)
+생성: 글로벌금융시장_종합시황보고서_YYYYMMDD.pdf (NN KB)
 수신: namoobi@gmail.com (To) + 숨은참조 N명 (주소 비공개)
 수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N+IB N
 검증(Phase 3.5): blocking N건 / warnings N건  (v3.3.0)
@@ -257,7 +275,7 @@ PDF 도 연결 폴더에 함께 복사한다 (메일 첨부는 docx 만, PDF 는
 [추천 포트폴리오 톤]
 - 공격형/중립형/안정형 1줄씩
 ```
-연결 폴더 미연결로 docx 사본을 만들지 못했으면 그 사실도 함께 보고한다.
+연결 폴더 미연결로 PDF 를 연결 폴더에 두지 못해 첨부할 수 없었으면 그 사실도 함께 보고한다.
 
 ## 트러블슈팅 (요약)
 
@@ -274,6 +292,8 @@ PDF 도 연결 폴더에 함께 복사한다 (메일 첨부는 docx 만, PDF 는
 | 빌드 exit 0 인데 docx 미생성 | 스크립트 잘림 — Phase 0 EOF 검사·자동복구 수행 여부 확인 |
 | 연결 폴더 미연결 | `request_cowork_directory`(D:\claudeCowork) 요청, 거부 시 outputs 진행 + Phase 6 에 명시 |
 | 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
+| 첨부 시 "only files the user has shared" | file_upload 는 `D:\claudeCowork\...pdf` Windows 경로만 허용 — outputs·`/sessions/...` VM 경로는 거부. PDF 를 연결 폴더에 두고 그 경로로 첨부 |
+| 예약/일반 수신자 혼동 | Phase 0 모드 판정 결과로 결정 — 예약=예약메일수신자.txt, 일반=메일수신자.txt. 예약 작업 프롬프트에 `scheduled` 인자 전달 확인 |
 | 서브에이전트 API 오류로 결과 누락 | nmr_*.json 존재 여부 확인 후 해당 에이전트만 재실행 |
 | Chrome 차단 도메인(naver.com 등) | NaverSearch MCP / web_fetch 로 대체 |
 | VNINDEX 데이터 부재 | VNM ETF (VanEck Vietnam) 로 대체 |
