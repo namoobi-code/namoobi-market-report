@@ -12,8 +12,19 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.5.0)
+# Namoobi Market Report (v3.6.0)
 
+> v3.6.0 (plugin 1.7.0) 변경점 — 시각화 대폭 강화·섹션 재편 (2026-06-13 사용자 피드백):
+> - **3.1.1 한국 증시 기술적 멀티패널 차트** — 코스피·코스닥 각각 1년 일봉 캔들 + 이동평균(5·20·60·120) + 볼린저밴드 / 거래량 / RSI / **외국인·기관·개인 누적순매수**(빨강·파랑·초록)를 한 장의 차트로. 차트 생성은 `scripts/gen_tech_charts.py`(mplfinance). 데이터: 새 KoreaTechAgent 가 `nmr_kr_ohlcv.json`(^KS11·^KQ11 1년 일봉 OHLCV + 네이버금융 일별 투자자 순매수 시계열) 수집 → 빌더 `markets.korea_investors.{kospi,kosdaq}_chart`·`tech:true`. 투자자별 순매수 표는 **최근 장 마감일 1일 기준**임을 명시.
+> - **3.1 하위 섹션 재번호** — 3.1.1 외국인 수급(차트) / **3.1.2 투자자별 순매수·순매도 주요 종목(신설, `markets.korea_investor_stocks`)** / 3.1.3 경기선행지수 순환변동치(**최신순 정렬**, 통계청 `markets.korea_leading`+value) / 3.1.4 순환매 테마(대표 ETF + **1년** 미니차트, `markets.korea_theme_etfs`/`korea_theme_charts`).
+> - **2.3 빅테크 이벤트** — 시기 순(날짜 오름차순) 정렬, '중요한 것만' 폭넓게 수록.
+> - **1년 추세 스파크라인 전면 도입** — 3.2/3.3/3.4(지수)·4.1~4.3·4.5①ETF·5(환율)의 모든 행에 '추세(1년)' 그래프 열 추가(`renderMarketBlockC`/`trendRowC`, `charts/spark_<key>.png`). 차트는 `scripts/gen_rest_charts.py`. 지수·원자재·환율 1년 주봉 시계열은 IndexSeriesAgent(`nmr_series.json`/`nmr_series2.json`).
+> - **3.2 변동값 강조** — `renderMarketBlockC(...,prev)`+`trendRowC(...,changed)`로 직전 보고서(`markets.us_prev`) 대비 현재치가 바뀐 행은 **빨간색·볼드**. (메인 세션이 직전 연결폴더 JSON 의 us_markets current 를 `us_prev` 로 주입.)
+> - **5 환율 확장** — USD/JPY(JPY=X)·USD/CNY(CNY=X)·EUR/USD(EURUSD=X) 행 추가(`markets.fx_usd`), **HKD/KRW** 는 USD/KRW÷USD/HKD(약 7.8 페그)로 환산해 '-' 제거.
+> - **6 암호화폐 재편** — 구 6.2 공포·탐욕 표 **삭제**, 6.5 코인 차트 섹션을 **6.2 로 이동**: BTC·ETH·XRP·SOL 각 1년 가격+거래량 + 공포·탐욕 1년 라인 차트(`crypto.charts`, `scripts/gen_rest_charts.py` 의 coin/fng). 코인 1년 일봉·F&G 1년은 CryptoSeriesAgent(`nmr_crypto_series.json`).
+> - **부록 신설** — 기존 14장 → **[부록A] 워런 버핏·버크셔 13F**(BerkshireAgent `nmr_berkshire.json` → `data.berkshire`), **[부록B] 최신 AI Trends**(AINewsAgent: news.hada.io·/weekly·특이점 갤러리+웹검색, ≤10건, `data.ai_trends`). 목차도 반영.
+> - **차트 파이프라인** — Phase 4 직전 '차트 생성' 단계 추가: 위 시계열 JSON 들을 입력으로 `gen_tech_charts.py`·`gen_rest_charts.py`·`gen_hy_chart.py` 를 실행해 `<WORK>/charts/*.png` 생성(빌더가 상대경로로 임베드, 파일 없으면 해당 차트만 생략). `pip install mplfinance matplotlib pandas`. PDF 변환 시 한글 폰트 임베드 동일.
+>
 > v3.5.0 (plugin 1.6.0) 변경점 — 섹션 확장·작성주체 익명화 (2026-06-13 사용자 피드백):
 > - **3.1 한국 증시 확장** — 3.1.1 외국인 순매수 동향 · 3.1.2 경기선행지수 순환변동치 · 3.1.3 순환매 대비 테마별 현황(반도체·조선·방산·전력[전력기기·송배전·ESS·원전]·증권·로봇[피지컬AI]·우주) 추가. MarketsAgent 가 `markets.korea_flows`/`korea_leading`/`korea_themes` 수집.
 > - **3.2 미국 증시 확장** — 3.2.1 미국 하이일드(HY) 신용 스프레드(FRED ICE BofA OAS·유효수익률·내재국채 분해) · 3.2.2 AI 빅테크 자본지출(CAPEX) 추가. `markets.us_credit`/`markets.bigtech_capex`.
