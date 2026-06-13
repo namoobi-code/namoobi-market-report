@@ -12,8 +12,12 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.1)
+# Namoobi Market Report (v3.6.2)
 
+> v3.6.2 (plugin 1.7.2) 변경점 — 플러그인 배포 자동화·인덱스 복구 (2026-06-13 사용자 피드백):
+> - **플러그인 수정 후 git push 자동화** — `D:\claudeCowork\SECURITY\githubtoken.txt` 에 GitHub 토큰이 있으면 추가 질문 없이 그 토큰으로 `origin main` 에 push 한다 (토큰은 비공개·일회성 credential helper 로만 전달, URL/로그/커밋 노출 금지). 신설 '## 플러그인 유지보수·배포 (git push)' 섹션 참조.
+> - **마운트 잘림 회피 커밋 절차 + 로컬 인덱스 자동 복구** 도 같은 섹션에 문서화 — 손상된 `.git/index`("index file corrupt")는 사용자에게 미루지 말고 직접 `git read-tree HEAD` 로 재생성한다 (푸시엔 영향 없음).
+>
 > v3.6.1 (plugin 1.7.1) 변경점 — Gmail 미기동 시 발송 폴백 (2026-06-13 사용자 피드백):
 > - **메일 발송 시 Gmail 이 안 켜져 있어도 됨** — Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 `navigate` 하면 바로 받은편지함이 열린다. **로그인은 항상 유지**되므로 비밀번호 단계 없이 그대로 작성·PDF 첨부·발송한다. (`references/email-sending.md` 발송 전제 #2·발송 절차 #2·트러블슈팅에 반영.) Phase 5 절차는 동일.
 >
@@ -326,6 +330,25 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 | 선물 티커 실패(PL=F 등) | current:null → 빌더가 "-" 렌더 |
 | CoinInfo gainers/losers 간헐 오류 (429 등) | null/빈배열로 두고 진행 |
 | 한글 폰트 깨짐 | 시스템에 맑은 고딕 설치 확인 |
+
+## 플러그인 유지보수·배포 (git push)
+
+플러그인 파일(SKILL.md·references·scripts·plugin.json 등)을 수정한 뒤 GitHub(origin main)에 반영할 때 따른다.
+
+1. **토큰 자동 사용 — 추가 질문 없이 push**: `D:\claudeCowork\SECURITY\githubtoken.txt` 가 있고 그 안에 GitHub 토큰(`ghp_…`/`github_pat_…`)이 있으면, 사용자에게 다시 묻지 말고 그 토큰으로 `git push origin main` 한다. 파일이 없거나 비어 있을 때만 사용자에게 토큰을 요청하거나 사용자가 직접 푸시하도록 안내한다.
+2. **토큰 취급 (비공개)**: 토큰은 채팅·로그·커밋·remote URL 어디에도 평문 노출 금지. URL 에 토큰을 박지 말고 일회성 credential helper(환경변수)로만 전달한다:
+
+    ```bash
+    GH_TOKEN="$(grep -oE 'gh[ps]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+' /sessions/*/mnt/claudeCowork/SECURITY/githubtoken.txt | head -1)"
+    git -c credential.helper='!f(){ echo username=namoobi-code; echo password=$GH_TOKEN; };f' push origin main
+    unset GH_TOKEN
+    ```
+
+    (push 출력에 토큰이 섞일 수 있으면 `| sed "s/$GH_TOKEN/***REDACTED***/g"` 로 마스킹한다.)
+3. **SECURITY 폴더 커밋 금지**: `D:\claudeCowork\SECURITY` 는 레포(`D:\claudeCowork\namoobi-market-report`) 밖이고 `.gitignore` 에도 `SECURITY/` 가 있다. 토큰·수신자 파일은 절대 커밋하지 않는다.
+4. **마운트 잘림 회피 커밋 절차**: 샌드박스 D: 마운트가 큰 파일(SKILL.md·build_report.js 등)을 간헐적으로 잘라 읽고/쓴다. 워킹트리에서 바로 `git add` 하면 잘린 blob 이 커밋될 수 있으니 금지. 대신 ① 편집은 Read/Write/Edit(호스트 직접) 도구로 하고, ② 커밋은 `git show HEAD:<path>` 로 원본을 받아(객체는 git 이 완전히 읽음) 메모리에서 동일 편집을 적용한 뒤 `git hash-object -w --stdin` 으로 blob 을 만들고 `git cat-file` 로 무결성(끝부분 마커·바이트수)을 검증한다. ③ 인덱스는 마운트가 아닌 tmpfs(`GIT_INDEX_FILE=/dev/shm/idx`)에 두고 `read-tree HEAD` → `update-index --cacheinfo` → `write-tree` → `commit-tree -p HEAD` → `update-ref refs/heads/main` 순으로 커밋한 뒤 push 한다.
+5. **`.git/index.lock` 이 안 지워질 때**: 마운트 캐시 때문에 `rm` 이 'Operation not permitted' 가 나면 `mcp__cowork__allow_cowork_file_delete` 로 삭제 권한을 받은 뒤 제거한다.
+6. **로컬 인덱스 복구 (자동)**: 작업 후 `.git/index` 가 손상돼 `git status` 가 "index file corrupt"/"bad signature" 를 띄우면, 사용자에게 미루지 말고 직접 `git read-tree HEAD`(또는 `git reset`)로 HEAD 기준 깨끗한 인덱스를 재생성한다. 푸시에는 영향 없다.
 
 ## 부록 A: 5대 증권사 강점 사전 정의
 
