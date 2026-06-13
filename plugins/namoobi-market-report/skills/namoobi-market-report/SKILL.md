@@ -12,8 +12,11 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.2)
+# Namoobi Market Report (v3.6.3)
 
+> v3.6.3 (plugin 1.7.3) 변경점 — 자동 push 절차 버그픽스 (2026-06-13):
+> - **credential helper 토큰 전달 수정** — helper 는 별도 프로세스로 실행되므로 `GH_TOKEN` 을 반드시 `export` 해야 인식한다 (export 누락 시 빈 값이 전달돼 GitHub 가 "Invalid username or token" 으로 거부 — 실제로 이 버그로 여러 번 실패함). 또한 샌드박스 bash 의 `grep … githubtoken.txt` 는 긴 fine-grained 토큰(약 93자)을 잘라 읽으니, 토큰은 Read 도구(호스트 직접)로 전체값을 확인해 사용한다. 검증된 one-shot 대안(token-in-URL)도 병기. '## 플러그인 유지보수·배포 (git push)' 2번 항목 참조.
+>
 > v3.6.2 (plugin 1.7.2) 변경점 — 플러그인 배포 자동화·인덱스 복구 (2026-06-13 사용자 피드백):
 > - **플러그인 수정 후 git push 자동화** — `D:\claudeCowork\SECURITY\githubtoken.txt` 에 GitHub 토큰이 있으면 추가 질문 없이 그 토큰으로 `origin main` 에 push 한다 (토큰은 비공개·일회성 credential helper 로만 전달, URL/로그/커밋 노출 금지). 신설 '## 플러그인 유지보수·배포 (git push)' 섹션 참조.
 > - **마운트 잘림 회피 커밋 절차 + 로컬 인덱스 자동 복구** 도 같은 섹션에 문서화 — 손상된 `.git/index`("index file corrupt")는 사용자에게 미루지 말고 직접 `git read-tree HEAD` 로 재생성한다 (푸시엔 영향 없음).
@@ -339,9 +342,12 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 2. **토큰 취급 (비공개)**: 토큰은 채팅·로그·커밋·remote URL 어디에도 평문 노출 금지. URL 에 토큰을 박지 말고 일회성 credential helper(환경변수)로만 전달한다:
 
     ```bash
-    GH_TOKEN="$(grep -oE 'gh[ps]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+' /sessions/*/mnt/claudeCowork/SECURITY/githubtoken.txt | head -1)"
-    git -c credential.helper='!f(){ echo username=namoobi-code; echo password=$GH_TOKEN; };f' push origin main
+    # ⚠️ 토큰은 Read 도구(호스트 직접)로 전체값을 확인해 쓴다 — 마운트 bash 의 grep 은 긴 fine-grained 토큰을 잘라 읽는다.
+    # ⚠️ credential helper 는 별도 프로세스라 GH_TOKEN 을 반드시 export 해야 보인다 (export 안 하면 빈 값 → "Invalid username or token").
+    export GH_TOKEN='<githubtoken.txt 의 전체 토큰값>'
+    git -c credential.helper='!f(){ echo username=namoobi-code; echo "password=$GH_TOKEN"; };f' push origin main 2>&1 | sed "s/$GH_TOKEN/***REDACTED***/g"
     unset GH_TOKEN
+    # (검증된 one-shot 대안) git push "https://namoobi-code:<토큰>@github.com/namoobi-code/namoobi-market-report.git" main   # 토큰이 명령행에 남으니 마스킹 필수
     ```
 
     (push 출력에 토큰이 섞일 수 있으면 `| sed "s/$GH_TOKEN/***REDACTED***/g"` 로 마스킹한다.)
