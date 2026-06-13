@@ -7,3 +7,9 @@ gmr_build/
 SECURITY/
 메일수신자.txt
 예약메일수신자.txt
+
+# (temp) docx 변환 보조 스크립트 — 커밋 제외
+pack.py
+soffice.py
+unpack.py
+validate.py

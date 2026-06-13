@@ -87,16 +87,55 @@ function cell(text,opts={}){ return new TableCell({ borders, width:{size:opts.wi
   children:[new Paragraph({alignment:opts.align??AlignmentType.LEFT, children:opts.runs||[cellRun(text,opts)]})] }); }
 let tableCount=0;
 function makeTable(cw,rows){ tableCount++; const total=cw.reduce((a,b)=>a+b,0); return new Table({width:{size:total,type:WidthType.DXA},columnWidths:cw,rows}); }
+// ===== (v3.5.0) 추가 섹션 렌더러 — 데이터 없으면 자동 생략 =====
+function simpleTable(w,header,body,opts){ opts=opts||{}; const leftCols=opts.left||[header.length-1];
+  const rows=[header,...body].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:w[j],header:i===0,alt:i>0&&i%2===0,
+    bold:(j===0||(opts.boldCols&&opts.boldCols.includes(j)))&&i>0, align:leftCols.includes(j)?AlignmentType.LEFT:AlignmentType.CENTER,
+    color:(i>0&&opts.markCols&&opts.markCols.includes(j))?markColor(c):undefined}))}));
+  children.push(makeTable(w,rows)); }
+function renderBigtechEvents(){ const ev=data.news&&data.news.bigtech_events; if(!Array.isArray(ev)||!ev.length)return;
+  children.push(h("2.3 빅테크 주요 이벤트 (신제품·신기술)",2));
+  simpleTable([1500,3600,1100,3280],["시기","이벤트","중요도","예상 영향"],
+    ev.map(e=>[e.date??"-",e.event??"-",e.importance??"-",e.expected_impact??e.impact??"-"]),{left:[1,3],boldCols:[1]});
+  if(data.news.bigtech_events_comment) children.push(p(data.news.bigtech_events_comment)); }
+function renderKoreaExtras(){ const m=data.markets||{};
+  if(Array.isArray(m.korea_flows)&&m.korea_flows.length){ children.push(h("3.1.1 외국인 순매수 동향",3));
+    simpleTable([2000,2500,4880],["시장","최근 동향","코멘트"],m.korea_flows.map(f=>[f.market??"-",f.trend??"-",f.comment??"-"]),{left:[2],boldCols:[1],markCols:[1]});
+    if(m.korea_flows_comment)children.push(p(m.korea_flows_comment)); children.push(p("")); }
+  if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.2 경기선행지수 순환변동치",3));
+    simpleTable([2600,2400,4380],["시점","전월비","비고"],m.korea_leading.map(x=>[x.period??"-",x.mom??"-",x.note??"-"]),{left:[2]});
+    if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); }
+  if(Array.isArray(m.korea_themes)&&m.korea_themes.length){ children.push(h("3.1.3 순환매 대비 테마별 현황",3));
+    if(m.korea_themes_intro)children.push(p(m.korea_themes_intro,{italics:true,color:"64748B"}));
+    simpleTable([2000,1400,5980],["테마","방향","현황·코멘트"],m.korea_themes.map(t=>[t.theme??"-",t.direction??"-",t.comment??"-"]),{left:[2],boldCols:[1],markCols:[1]});
+    if(m.korea_themes_comment)children.push(p(m.korea_themes_comment)); children.push(p("")); } }
+function renderUSExtras(){ const m=data.markets||{};
+  if(m.us_credit){ const c=m.us_credit; children.push(h("3.2.1 미국 하이일드(HY) 신용 스프레드",3));
+    const body=Array.isArray(c.rows)?c.rows.map(r=>[r.label??"-",r.value??"-",r.note??"-"]):
+      [["HY OAS (스프레드)",c.hy_oas??"-",c.oas_note||"국채 대비 옵션조정 스프레드"],["HY 유효수익률 (절대)",c.hy_yield??"-",c.yield_note||"하이일드 지수 절대 만기수익률"],["(=) 내재 국채 성분",c.implied_ust??"-","유효수익률 − OAS(역산)"]];
+    simpleTable([3000,1700,5380],["지표","값","해석"],body,{left:[2]});
+    if(c.comment)children.push(p(c.comment)); children.push(p("")); }
+  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.2 AI 빅테크 자본지출(CAPEX)",3));
+    simpleTable([2100,1800,1800,4380],["기업","2025","2026(E)","코멘트"],cx.rows.map(r=>[r.company??"-",r.y2025??"-",r.y2026??"-",r.comment??"-"]),{left:[3]});
+    if(cx.comment)children.push(p(cx.comment)); children.push(p("")); } }
+function renderStrategicMetals(){ const sm=data.commodities&&data.commodities.strategic_metals; if(!sm)return;
+  children.push(h("4.5 전략광물·배터리 금속 (리튬·니켈·코발트·우라늄·희토류·흑연)",2));
+  if(Array.isArray(sm.etf)&&sm.etf.length){ children.push(p("① ETF 프록시 가격 추세",{bold:true,color:"1E40AF"}));
+    const rows=[trendHeaderRow()]; sm.etf.forEach((e,i)=>rows.push(trendRow(e.name||e.symbol||"-",e,i))); children.push(makeTable(tw,rows));
+    if(sm.etf_comment)children.push(p(sm.etf_comment)); }
+  if(Array.isArray(sm.spot)&&sm.spot.length){ children.push(p("② 주요 현물·실물 가격 현황",{bold:true,color:"1E40AF"}));
+    simpleTable([1800,2400,5880],["품목","최근 가격","추세·코멘트"],sm.spot.map(s=>[s.item??"-",s.price??"-",s.comment??"-"]),{left:[2]}); }
+  if(sm.comment)children.push(p(sm.comment)); children.push(p("")); }
 
 const children = [];
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:2400,after:240},children:[new TextRun({text:"글로벌 금융시장 종합 시황 보고서",bold:true,size:48,color:"1E3A8A"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:240},children:[new TextRun({text:"Global Financial Markets Comprehensive Report",italics:true,size:28,color:"475569"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:1200},children:[new TextRun({text:"Top News · 이벤트 캘린더 · 단·중·장기 추세 · 매크로 · 원자재·희토류 · 환율 · 코인 · 5대 증권사 · 포트폴리오",size:20,color:"64748B"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:`기준일: ${reportDate}`,size:26,bold:true})]}));
-children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: Claude AI Research — v3.4.3",size:22,color:"64748B"})]}));
+children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.5.0",size:22,color:"64748B"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},
   border:{top:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"},bottom:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"}},
-  children:[new TextRun({text:"⚠ 본 보고서는 AI(Claude)가 공개 데이터를 자동 수집·생성한 참고 자료입니다. 투자 자문이 아니며, 자동 생성 특성상 오류·환각이 포함될 수 있으니 중요한 의사결정 전 반드시 원문 출처를 확인하십시오.",size:18,italics:true,color:"B45309"})]}));
+  children:[new TextRun({text:"⚠ 본 보고서는 AI가 공개 데이터를 자동 수집·생성한 참고 자료입니다. 투자 자문이 아니며, 자동 생성 특성상 오류·환각이 포함될 수 있으니 중요한 의사결정 전 반드시 원문 출처를 확인하십시오.",size:18,italics:true,color:"B45309"})]}));
 
 if (data.analysis && data.analysis.summary) {
   children.push(new Paragraph({children:[new PageBreak()]}));
@@ -150,6 +189,7 @@ if (data.news && Array.isArray(data.news.events_calendar_longterm) && data.news.
   children.push(makeTable(lw,lr));
   children.push(p("※ 중장기는 ★★★만 수록. 미확정은 (예정) 표기.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(중장기 이벤트 없음)"));
+renderBigtechEvents();
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("3. 글로벌 증시 단·중·장기 추세",1));
@@ -165,11 +205,13 @@ function trendRow(name,m,i){ return new TableRow({children:[
   cell(fmtPct(m&&m['1y_pct']),{width:1100,alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['1y_pct'])}),
   cell((m&&m.trend)||"-",{width:1700,alt:i%2===1})]}); }
 function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
-function renderMarketBlock(title,obj,labels){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRow()]; let i=0;
-  for(const [k,v] of Object.entries(obj)){ rows.push(trendRow((labels&&labels[k])||k.toUpperCase(),v,i)); i++; } children.push(makeTable(tw,rows)); children.push(p("")); }
+function renderMarketBlock(title,obj,labels,exclude){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRow()]; let i=0;
+  for(const [k,v] of Object.entries(obj)){ if(exclude&&exclude.includes(k))continue; rows.push(trendRow((labels&&labels[k])||k.toUpperCase(),v,i)); i++; } children.push(makeTable(tw,rows)); children.push(p("")); }
 if (data.markets) {
   renderMarketBlock("3.1 한국 증시",data.markets.korea,{kospi:"코스피",kosdaq:"코스닥"});
+  renderKoreaExtras();
   renderMarketBlock("3.2 미국 증시",data.markets.us_markets,{sp500:"S&P 500",nasdaq:"나스닥",dow:"다우",vix:"VIX (공포지수)",dxy:"달러지수 DXY",us10y:"美 10년 국채"});
+  renderUSExtras();
   renderMarketBlock("3.3 아시아 증시",data.markets.asia_markets,{nikkei:"닛케이 225",shanghai:"상하이종합",hsi:"홍콩 항셍",taiwan:"대만 가권",sensex:"인도 센섹스",vietnam:"베트남 (VNM)"});
   renderMarketBlock("3.4 유럽 증시",data.markets.europe_markets,{stoxx50:"유로 스톡스 50",dax:"독일 DAX",ftse:"영국 FTSE 100"});
 }
@@ -177,10 +219,10 @@ children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("4. 원자재 종합 - 에너지·금속·희토류·농산물",1));
 if (data.commodities) {
   renderMarketBlock("4.1 에너지",data.commodities.energy,{wti:"WTI 원유",brent:"Brent 원유",natgas:"천연가스"});
-  renderMarketBlock("4.2 금속·희토류",data.commodities.metals,{gold:"금",silver:"은",copper:"구리",platinum:"백금",rare_earth:"희토류 (REMX)"});
+  renderMarketBlock("4.2 금속",data.commodities.metals,{gold:"금",silver:"은",copper:"구리",platinum:"백금"},["rare_earth"]);
   renderMarketBlock("4.3 농산물",data.commodities.agriculture,{corn:"옥수수",soybean:"대두",wheat:"밀"});
-  if(data.commodities.metals&&data.commodities.metals.rare_earth) children.push(p("※ 희토류는 선물 시세가 없어 VanEck REMX ETF 프록시 사용.",{italics:true,color:"94A3B8",size:18}));
   if(data.commodities.commentary){ children.push(h("4.4 원자재 종합 코멘트",2)); children.push(p(data.commodities.commentary)); }
+  renderStrategicMetals();
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("5. 주요 환율 단·중·장기 추세",1));
@@ -308,7 +350,7 @@ if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("13. 주의 사항 및 출처",1));
-children.push(p("본 보고서는 Claude AI Research가 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사·글로벌 IB 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다.",{italics:true}));
+children.push(p("본 보고서는 AI가 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사·글로벌 IB 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다.",{italics:true}));
 children.push(p("자동 생성(AI) 특성상 오류·환각이 포함될 수 있습니다. 1~8장은 출처 링크로 검증 가능하며, 9~12장은 AI 의견입니다.",{italics:true,color:"B45309"}));
 children.push(p("어떤 내용도 매수·매도 권유나 보장 수익을 약속하지 않으며, 투자 판단의 최종 책임은 이용자에게 있습니다.",{italics:true,color:"64748B"}));
 children.push(p(""));
@@ -325,9 +367,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.4.3",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.5.0",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.4.3 / plugin v1.5.0 (VM-safe compact build; +임팩트/핵심테마 ▲▼■ 색상 마커·범례, 아시아 증시 대만(가권) 추가)
+// EOF — namoobi-market-report v3.5.0 / plugin v1.6.0 (VM-safe compact build; +3.1 외국인순매수·경기선행지수·순환매 테마, +3.2 HY신용스프레드·빅테크 CAPEX, +2.3 빅테크 이벤트, +4.5 전략광물(리튬·니켈·코발트·우라늄·희토류·흑연), 4.2에서 희토류 제거, 작성주체 AI Research 익명화)

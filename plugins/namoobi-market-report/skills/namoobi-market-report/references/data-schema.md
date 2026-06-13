@@ -176,3 +176,14 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 - `direction` 은 ▲/▼/■ 중 하나.
 - 각 portfolio 의 `allocation` 비중(weight_pct) 합계는 **반드시 100** — 빌더가 합계를 검증해 경고를 출력한다.
 - (v3.3.0) `basis` 는 `expected_return`/`max_drawdown` 산출 근거 — **필수**. 단일 false-precision 숫자(예: "연 13.7%") 금지, 범위+가정 또는 계산근거로 표기. 빌더가 포트폴리오 표 아래에 출력하고, `--validate` 가 누락 시 경고한다.
+
+
+## (v3.5.0) 추가 필드 스키마 — 모두 선택(없으면 섹션 자동 생략)
+
+- `news.bigtech_events`: [{date:str, event:str, importance:"★|★★|★★★", expected_impact:str}], `news.bigtech_events_comment`:str.
+- `markets.korea_flows`: [{market:str, trend:str, comment:str}], `markets.korea_flows_comment`:str.
+- `markets.korea_leading`: [{period:str, mom:str, note:str}], `markets.korea_leading_comment`:str.
+- `markets.korea_themes`: [{theme:str, direction:"▲ 강세|▼ 부정|■ 양면", comment:str}], `markets.korea_themes_intro`/`korea_themes_comment`:str.
+- `markets.us_credit`: {hy_oas:str, hy_yield:str, implied_ust:str, comment:str} (또는 {rows:[{label,value,note}], comment}).
+- `markets.bigtech_capex`: {rows:[{company:str, y2025:str, y2026:str, comment:str}], comment:str}.
+- `commodities.strategic_metals`: {etf:[{name:str, current:num, "1w_pct"~"1y_pct":num, trend:str}], etf_comment:str, spot:[{item:str, price:str, comment:str}], comment:str}.

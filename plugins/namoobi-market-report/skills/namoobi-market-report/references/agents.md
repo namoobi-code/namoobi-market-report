@@ -250,3 +250,22 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - 저장 후 node 로 JSON.parse 검증까지 수행하도록 지시.
 
 **반환 JSON**: `data-schema.md` 의 analysis 섹션과 동일.
+
+
+## (v3.5.0) 신규 섹션 데이터 수집 — 추가 필드
+
+아래 필드를 담당 에이전트가 수집해 JSON 에 포함한다. 수집 실패 시 해당 키를 생략하면 빌더가 섹션을 자동 생략한다(오류 아님). 모든 수치는 공통 반환각 규칙(추정 금지·출처 의무)을 따른다.
+
+### NewsAgent 추가
+- `news.bigtech_events`: [{date, event, importance(★~★★★), expected_impact}] — **매우 중요한 빅테크 신제품·신기술 이벤트만**(삼성 갤럭시 언팩, 애플 9월/폴더블, OpenAI 신모델, NVIDIA GTC·CES 키노트 등). WebSearch 로 공식 일정 확인, 미확정은 날짜에 `(예정)`. `news.bigtech_events_comment` 선택.
+
+### MarketsAgent 추가
+- `markets.korea_flows`: [{market(코스피/코스닥/수급 구도), trend(▲/▼ 포함 가능), comment}] — 외국인 순매수 동향(필요시 기관/개인). 출처: 한국거래소·언론. `markets.korea_flows_comment` 선택.
+- `markets.korea_leading`: [{period(YYYY.MM), mom(전월비 +x.xp), note}] — 통계청 산업활동동향 경기선행지수 순환변동치 최근 3~4개월(기준선 100 상회=확장). `markets.korea_leading_comment` 선택.
+- `markets.korea_themes`: [{theme, direction(▲ 강세/▼ 부정/■ 양면), comment}] — 순환매 관점 주요 테마(반도체·조선·방산·전력[전력기기·송배전·ESS·원전]·증권·로봇[피지컬AI]·우주). 방향은 정성 평가. `markets.korea_themes_intro`/`korea_themes_comment` 선택.
+- `markets.us_credit`: {hy_oas, hy_yield, implied_ust, comment} — 美 하이일드. FRED ICE BofA OAS=`BAMLH0A0HYM2`, 유효수익률=`BAMLH0A0HYM2EY` (fred.stlouisfed.org/series/... 를 Chrome get_page_text 로 현재값 확인). 내재국채=유효수익률−OAS. ICE 저작권상 **현재값·요약통계만** 표기.
+- `markets.bigtech_capex`: {rows:[{company, y2025, y2026, comment}], comment} — MSFT·Alphabet·Amazon·Meta 연간 CAPEX(전년 실적 + 당해 가이던스) + 합산. 출처: 실적/언론.
+
+### CommoditiesAgent 추가
+- `commodities.strategic_metals`: {etf:[{name, current, "1w_pct".."1y_pct", trend}], etf_comment, spot:[{item, price, comment}], comment} — ETF 프록시 LIT(리튬)·REMX(희토류)·URA·URNM(우라늄) 주봉 변화율(MarketsAgent 방식) + 현물(탄산리튬·니켈 LME·코발트 LME·우라늄 U3O8·흑연)은 WebSearch.
+- `commodities.metals.rare_earth` 는 4.2 표에서 제거됨 — 희토류는 strategic_metals 로 일원화(수집은 계속, 4.2 미표시).
