@@ -1,4 +1,6 @@
-# 이메일 발송 가이드 — Claude in Chrome 직접 발송 (v3.4.3)
+# 이메일 발송 가이드 — Claude in Chrome 직접 발송 (v3.6.1)
+
+> v3.6.1: Gmail 이 안 켜져 있어도 Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 navigate 하면 바로 받은편지함이 열린다 (로그인 상시 유지 — 비밀번호 단계 불필요). 발송 전제 #2·발송 절차 #2 참조.
 
 > ⚠️ SMTP 는 샌드박스 네트워크 차단으로 동작하지 않는다. 사용 금지.
 > Gmail MCP 초안 방식도 첨부 미지원 + 계정 불일치로 부적합.
@@ -25,6 +27,7 @@
    (`mcp__Claude_in_Chrome__list_connected_browsers` 로 확인)
 2. 해당 브라우저에 발송 계정 로그인 (https://mail.google.com/mail/u/0/)
    — 로그인 안 돼 있으면 비밀번호 입력은 정책상 Claude 가 대신 못 함 → 사용자에게 요청
+   — **Gmail 이 아직 안 켜져 있어도 됨**: Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 바로 `navigate` 하면 받은편지함이 열린다. **로그인은 항상 유지돼 있으므로** 별도 로그인 절차 없이 그대로 작성·발송하면 된다.
 3. **첨부할 PDF** 가 **연결 폴더(D:\claudeCowork)** 에 있을 것. ⚠️ file_upload 는 사용자 PC 경로만 받는다 — outputs 의 VM 경로(`/sessions/...`)는 거부되므로, 첨부는 반드시 **연결 폴더의 Windows 경로**(예: `D:\claudeCowork\글로벌금융시장_종합시황보고서_YYYYMMDD.pdf`)로 지정한다. (v3.4.3 실측: outputs 경로·VM 경로 모두 업로드 거부, `D:\claudeCowork\...` 만 성공)
 
 ## 발송 절차 (PDF 생성 후 추가 입력 없이 자동 수행)
@@ -35,7 +38,8 @@
 2. **탭 준비** — `tabs_context_mcp(createIfEmpty=true)`
    - "Tabs can only be moved to and from normal windows" 오류 → 일반 크롬 창 없음.
      사용자에게 일반 창을 열어달라 요청 후 **재시도** (열리면 보통 즉시 성공)
-   - 성공하면 tabId 로 `navigate` → `https://mail.google.com/mail/u/0/` → screenshot 으로 로그인 확인
+   - 성공하면 tabId 로 `navigate` → `https://mail.google.com/mail/u/0/?ogbl#inbox` → screenshot 으로 로그인 확인.
+     **Gmail 탭이 열려 있지 않아도 이 URL 로 navigate 하면 바로 받은편지함이 뜬다** (로그인 상시 유지 — 비밀번호 단계 불필요).
 3. **작성창 열기** — 좌상단 `편지쓰기` 클릭 (작성창이 최소화돼 하단 "새 메일" 바만 보이면 그 바 클릭)
 4. **받는사람(To) 입력** — 받는사람 칸 클릭 → `namoobi@gmail.com` 입력 → **Enter(칩 확정)**. To 는 이 한 명만.
 4-1. **숨은참조(BCC) 입력** — 받는사람 칸 우측의 **`숨은참조`** 링크 클릭해 BCC 칸을 연 뒤,
@@ -70,7 +74,8 @@
 |------|------|
 | "normal windows" 탭 오류 | 일반 크롬 창 열기 요청 → `tabs_context_mcp(createIfEmpty=true)` 재시도 |
 | Chrome 미연결 | `list_connected_browsers` 확인, 확장 켜고 재시도 |
-| Gmail 미로그인 | 사용자가 직접 로그인 후 재시도 |
+| Gmail 탭이 안 열려 있음 | Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` navigate — 로그인 상시 유지라 바로 받은편지함 |
+| Gmail 미로그인 (드묾) | 보통은 로그인 상시 유지. 그래도 로그인 화면이면 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
 | 작성창 닫힘/초안만 남음 | #drafts 에서 초안 재개 |
 | 칩이 사람 이름으로 표시 | 주소록 매칭 — 도메인/주소로 확인, 정상일 수 있음 |
 | 첨부 실패 / "only files the user has shared" | PDF 를 **연결 폴더(D:\claudeCowork) Windows 경로**로 첨부 (outputs·`/sessions/...` VM 경로는 업로드 거부됨) |

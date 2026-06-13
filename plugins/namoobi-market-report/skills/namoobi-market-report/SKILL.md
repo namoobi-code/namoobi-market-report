@@ -12,8 +12,11 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.0)
+# Namoobi Market Report (v3.6.1)
 
+> v3.6.1 (plugin 1.7.1) 변경점 — Gmail 미기동 시 발송 폴백 (2026-06-13 사용자 피드백):
+> - **메일 발송 시 Gmail 이 안 켜져 있어도 됨** — Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 `navigate` 하면 바로 받은편지함이 열린다. **로그인은 항상 유지**되므로 비밀번호 단계 없이 그대로 작성·PDF 첨부·발송한다. (`references/email-sending.md` 발송 전제 #2·발송 절차 #2·트러블슈팅에 반영.) Phase 5 절차는 동일.
+>
 > v3.6.0 (plugin 1.7.0) 변경점 — 시각화 대폭 강화·섹션 재편 (2026-06-13 사용자 피드백):
 > - **3.1.1 한국 증시 기술적 멀티패널 차트** — 코스피·코스닥 각각 1년 일봉 캔들 + 이동평균(5·20·60·120) + 볼린저밴드 / 거래량 / RSI / **외국인·기관·개인 누적순매수**(빨강·파랑·초록)를 한 장의 차트로. 차트 생성은 `scripts/gen_tech_charts.py`(mplfinance). 데이터: 새 KoreaTechAgent 가 `nmr_kr_ohlcv.json`(^KS11·^KQ11 1년 일봉 OHLCV + 네이버금융 일별 투자자 순매수 시계열) 수집 → 빌더 `markets.korea_investors.{kospi,kosdaq}_chart`·`tech:true`. 투자자별 순매수 표는 **최근 장 마감일 1일 기준**임을 명시.
 > - **3.1 하위 섹션 재번호** — 3.1.1 외국인 수급(차트) / **3.1.2 투자자별 순매수·순매도 주요 종목(신설, `markets.korea_investor_stocks`)** / 3.1.3 경기선행지수 순환변동치(**최신순 정렬**, 통계청 `markets.korea_leading`+value) / 3.1.4 순환매 테마(대표 ETF + **1년** 미니차트, `markets.korea_theme_etfs`/`korea_theme_charts`).
@@ -267,6 +270,7 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
 - SMTP·Gmail MCP 초안 방식 금지. **Claude in Chrome 로그인된 Gmail 직접 발송만** 사용.
+- **Gmail 이 안 켜져 있으면** Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 navigate (로그인 상시 유지 — 비밀번호 단계 불필요).
 - **첨부는 PDF** — 연결 폴더(`D:\claudeCowork\...pdf`) Windows 경로로 첨부 (outputs·VM 경로는 거부됨).
 - **받는사람(To)**: `namoobi@gmail.com` 단독.
 - **숨은참조(BCC) — 실행 모드별 파일 (v3.4.3)**: Phase 0 에서 판정한 모드에 따라
