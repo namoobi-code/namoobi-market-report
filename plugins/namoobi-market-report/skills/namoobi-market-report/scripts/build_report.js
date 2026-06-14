@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-// namoobi-market-report builder — v3.6.10 (정합·견고화: CAPEX 미공개·리밸런싱 평면이벤트 정규화·반도체차트)
+// namoobi-market-report builder — v3.6.11 (반도체 11행·버크셔20·원자재 추세 한글 자동화)
 const argv = process.argv.slice(2);
 const validateOnly = argv[0] === '--validate';
 const args = validateOnly ? argv.slice(1) : argv;
@@ -295,7 +295,7 @@ const children = [];
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:2400,after:240},children:[new TextRun({text:"글로벌 금융시장 종합 시황 보고서",bold:true,size:48,color:"1E3A8A"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:1200},children:[new TextRun({text:"Global Financial Markets Comprehensive Report",italics:true,size:28,color:"475569"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:`기준일: ${reportDate}`,size:26,bold:true})]}));
-children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.6.10",size:22,color:"64748B"})]}));
+children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.6.11",size:22,color:"64748B"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},
   border:{top:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"},bottom:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"}},
   children:[new TextRun({text:"⚠ 본 보고서는 AI가 공개 데이터를 자동 수집·생성한 참고 자료입니다. 투자 자문이 아니며, 자동 생성 특성상 오류·환각이 포함될 수 있으니 중요한 의사결정 전 반드시 원문 출처를 확인하십시오.",size:18,italics:true,color:"B45309"})]}));
@@ -382,6 +382,12 @@ function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=nul
   return cell("-",{width:width,alt:alt,align:AlignmentType.CENTER}); }
 const tw2=[1450,1150,930,930,930,930,930,1400,1550];
 function trendHeaderRowC(){ return new TableRow({children:["지수","현재치","1주","1개월","3개월","6개월","1년","추세(1년)","추세 평가"].map((x,i)=>cell(x,{width:tw2[i],header:true,align:AlignmentType.CENTER}))}); }
+function koTrend(m){ if(!m)return "-"; const t=String(m.trend||"").trim(); if(t&&/[가-힣]/.test(t))return t; // v3.6.11 영문/빈 trend → 수익률 기반 한글 자동 생성
+  const y=m['1y_pct'],m3=m['3mo_pct'],m1=m['1mo_pct'],parts=[];
+  if(y!==undefined&&y!==null)parts.push("1년 "+(y>=0?"+":"")+Math.round(y)+"% "+(y>=0?"강세":"약세"));
+  if(m3!==undefined&&m3!==null)parts.push("3개월 "+(m3>=0?"+":"")+Math.round(m3)+"% "+(m3>=0?"상승":"조정"));
+  else if(m1!==undefined&&m1!==null)parts.push("1개월 "+(m1>=0?"+":"")+Math.round(m1)+"% "+(m1>=0?"반등":"조정"));
+  return parts.length?parts.join(", "):(t||"-"); }
 function trendRowC(name,m,i,chart,changed){ return new TableRow({children:[
   cell(name,{width:tw2[0],alt:i%2===1,bold:true}),
   cell(fmtNum(m&&m.current),{width:tw2[1],alt:i%2===1,align:AlignmentType.RIGHT,bold:changed===true,color:changed===true?negativeColor:undefined}),
@@ -391,7 +397,7 @@ function trendRowC(name,m,i,chart,changed){ return new TableRow({children:[
   cell(fmtPct(m&&m['6mo_pct']),{width:tw2[5],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['6mo_pct'])}),
   cell(fmtPct(m&&m['1y_pct']),{width:tw2[6],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['1y_pct'])}),
   imgCellSpark(chart,tw2[7],i%2===1),
-  cell((m&&m.trend)||"-",{width:tw2[8],alt:i%2===1})]}); }
+  cell(koTrend(m),{width:tw2[8],alt:i%2===1})]}); }
 function renderMarketBlockC(title,obj,labels,prev,comment){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRowC()]; let i=0;
   for(const [k,v] of Object.entries(obj)){ if(v===null||typeof v!=="object")continue; const ch=prev&&prev[k]!==undefined&&prev[k]!==null&&Number(prev[k])!==Number(v&&v.current); rows.push(trendRowC((labels&&labels[k])||k.toUpperCase(),v,i,"charts/spark_"+k+".png",ch)); i++; } children.push(makeTable(tw2,rows)); if(comment)children.push(p("추세 평가: "+comment,{bold:true,color:"0F766E"})); children.push(p("")); }
 function renderBerkshire(){ const b=data.berkshire; if(!b)return;
@@ -572,9 +578,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.10",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.11",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.10 / plugin v1.7.10 (v3.6.8 + 3.2.3 미국 지수 정기 리밸런싱 섹션 신설(renderIndexRebalance: markets.index_rebalance — S&P500·나스닥100 편입/편출 사업내용·사유·일정·기준·패스트엔트리 룰변경), 기존 CAPEX→3.2.4 이동)
+// EOF — namoobi-market-report v3.6.11 / plugin v1.7.11 (v3.6.8 + 3.2.3 미국 지수 정기 리밸런싱 섹션 신설(renderIndexRebalance: markets.index_rebalance — S&P500·나스닥100 편입/편출 사업내용·사유·일정·기준·패스트엔트리 룰변경), 기존 CAPEX→3.2.4 이동)

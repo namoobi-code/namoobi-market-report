@@ -18,6 +18,11 @@
 > - **IndexSeriesAgent — CNY/KRW 시계열 도출**: `CNYKRW=X` 가 단일 포인트만 반환하면 `cny_krw` 시계열을 **`usd_krw / usd_cny`(동일자)** 로 계산해 `nmr_series2.json.fx.cny_krw` 에 넣는다(5장 환율 추세차트 누락 방지).
 > - **UsEtfAgent — 사용자 참고 HTML 정합**: 연결폴더에 `3.2.2_미국ETF시황.html` 가 있으면 현재가·수익률·추세평가를 그 값으로 정합(HTML 우선).
 
+> **v3.6.11 변경점 (2026-06-14 사용자 피드백 — 반도체표·원자재추세·버크셔)**
+> - **CommoditiesAgent — trend 한글 필수**: 에너지·금속·농산물·전략광물 각 행의 `trend` 는 **반드시 한글 간략 평가**(예: `"1년 +26% 강세, 3개월 -16% 조정"`). **"up"/"down" 영문 단어 금지**(실측 위반). 섹션별 `energy_comment`/`metals_comment`/`agri_comment` 와 별개로 각 행 trend 도 채운다. (빌더도 v3.6.11 `koTrend` 로 영문/빈 trend 를 수익률 기반 한글로 자동 생성하지만, 에이전트가 우선 채울 것.)
+> - **KoreaMacroAgent — 반도체/AI 표 11행**: `semi_ai_breakdown` 은 **대표 종목 3개(삼성전자·SK하이닉스·삼성전기) + 한국 상장 반도체/AI ETF 중 AUM 상위 8개 = 총 11행, 시총/AUM 내림차순**. 각 행 `aum`(억원/조원) 필수, `note`(1줄 설명). **`semi_ai_comment`(현황 2~3문장: 삼성·SK 시총·HBM·AI 슈퍼사이클·ETF 자금흐름) 필수**. 각 행 1Y 주봉 series 를 `nmr_semi_series.json[종목/ETF명]`(키는 breakdown name 과 정확히 일치)으로 저장 → `charts/semi_<i>.png`(시총순). ETF 2개만 넣지 말 것.
+> - **BerkshireAgent — 상위 보유 최대 20**: `top_holdings` 는 포트폴리오 비중 **상위 최대 20종**(각 {name,ticker,weight_or_value,note}). 5종만 넣지 말 것. `new_buys/added/reduced/exited` 와 별개.
+
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
 Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
 Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.

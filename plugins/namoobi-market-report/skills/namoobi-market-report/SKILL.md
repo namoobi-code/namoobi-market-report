@@ -12,8 +12,13 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.10)
+# Namoobi Market Report (v3.6.11)
 
+> v3.6.11 (plugin 1.7.11) 변경점 — 반도체표·원자재추세·버크셔 (2026-06-14 사용자 피드백):
+> - **3.1.4 반도체/AI 표 11행** — `semi_ai_breakdown` = 대표 종목 3(삼성전자·SK하이닉스·삼성전기) + 한국 반도체/AI ETF **AUM 상위 8개**(시총순 11행), 각 `aum`·1Y `charts/semi_<i>.png`, **`semi_ai_comment` 현황 코멘트 필수**(ETF 2개·코멘트 없음 문제 해결).
+> - **4 원자재 추세열 한글화** — 각 행 `trend` 가 "up"/"down" 영문이면 빌더 `koTrend` 가 수익률 기반 한글("1년 +X% 강세, 3개월 -Y% 조정")로 자동 생성. CommoditiesAgent 도 한글 trend 의무화.
+> - **[부록A] 버크셔 상위 보유 최대 20종** — BerkshireAgent `top_holdings` 5→최대 20.
+>
 > v3.6.10 (plugin 1.7.10) 변경점 — 보고서 정합·견고화 (2026-06-14 사용자 피드백):
 > - **3.2.3 리밸런싱 정상화** — IndexRebalanceAgent 가 빌더 스키마(`events:[{title,effective,add[],remove[]}]`)로 출력하도록 강제(평면 `[{ticker,reason}]` 금지). 빌더도 평면 배열이 와도 add/remove 로 자동 정규화(`renderEvents`). 최근 2~3개 분기/연례+M&A·임시 변경 모두 수집. 사용자 `3.2.3_지수리밸런싱.html` 1차 정합.
 > - **3.1.1/3.1.2 코스닥 수급** — KoreaTechAgent 가 다음금융 REST(`market_index/days`, 헤더 User-Agent·Referer 필수·perPage=250)로 코스피·코스닥 **1년 일별 외국인/기관/개인 순매수**와 **KOSDAQ 거래량(accTradeVolume)**을 수집(누적순매수 차트·거래량 정상화). KoreaMacroAgent 가 `korea_investor_stocks.kosdaq_buy/sell` 도 채움(누락 방지).
