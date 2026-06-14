@@ -12,8 +12,13 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.8)
+# Namoobi Market Report (v3.6.9)
 
+> v3.6.9 (plugin 1.7.9) 변경점 — 3.2.3 미국 지수 정기 리밸런싱 섹션 신설 (2026-06-14 사용자 피드백):
+> - **3.2.3 미국 지수 정기 리밸런싱(신설)** — S&P 500·나스닥 100 의 **편입/편출 종목(사업 내용·사유 포함)**, 분기/연례 적용 일정, S&P 편입 기준, 나스닥 **2026-05-01 패스트엔트리 룰 변경**(상위 40위·15거래일 조기편입 / 10% float 폐지→3x cap / 10bp 중간편출 폐지), 패스트엔트리 후보 대형 IPO(SpaceX·OpenAI·Anthropic). 데이터 `markets.index_rebalance`(빌더 `renderIndexRebalance`), 편입=초록·편출=빨강. 신규 **IndexRebalanceAgent**(WebSearch·1차 출처 grounding) Phase 1 병렬 수집에 추가.
+> - **기존 3.2.3 CAPEX → 3.2.4 로 이동** (3.2.1 HY → 3.2.2 ETF → 3.2.3 리밸런싱 → 3.2.4 CAPEX 순).
+> - `references/agents.md` IndexRebalanceAgent·`data-schema.md` index_rebalance 참조. 구성종목·일정은 press.spglobal.com / ir.nasdaq.com 1차 출처로만 확인(기억 생성 금지, 미확정은 `미확인`).
+>
 > v3.6.8 (plugin 1.7.8) 변경점 — 3.2.2 주요 미국 ETF 섹션 신설 (2026-06-14 사용자 피드백):
 > - **3.2.2 주요 미국 ETF(신설)** — 미국 대표 지수추종(SPY·VOO·SPYM·QQQ·QQQM·DIA), 11개 S&P 500 섹터(XLK~XLU, S&P500 비중 표기), 테마/특화(SOXX·SMH·BOTZ·ARKK·SCHD·JEPI·QTUM·NASA·ICLN), 방어형(GLD·TLT·IEF) **29종**을 4개 그룹 표로. 각 행: 티커·ETF설명·현재가·1주·1개월·3개월·6개월·1년 수익률(±색)·**추세(1년) 스파크라인**·추세평가. 데이터 `markets.us_etfs`(빌더 `renderUSEtfs`), 1년 주봉은 `nmr_etfseries.json` → `gen_rest_charts.py` 가 `charts/spark_etf_<티커>.png` 생성.
 > - **기존 3.2.2 CAPEX → 3.2.3 으로 이동** (3.2.1 HY 스프레드 → 3.2.2 ETF → 3.2.3 CAPEX 순).
@@ -178,7 +183,7 @@ description: |
 10. **종합 분석 + 포트폴리오** — 매크로 톤·테마·리스크 + 공격형/중립형/안정형 3개 모델 + 액션 아이템 (각 포트폴리오 `basis` 산출근거 포함)
 
 11. **국내 순환매 테마·수급** — 외국인 순매수(코스피/코스닥) + 경기선행지수 순환변동치 + 순환매 테마별 현황(반도체·조선·방산·전력·증권·로봇·우주)
-12. **미국 신용·ETF·CAPEX** — 하이일드(HY) 신용 스프레드(OAS·유효수익률·국채분해) + 주요 미국 ETF(지수·섹터·테마·방어형 29종, 1년 추세) + AI 빅테크 자본지출(CAPEX)
+12. **미국 신용·ETF·리밸런싱·CAPEX** — 하이일드(HY) 신용 스프레드(OAS·유효수익률·국채분해) + 주요 미국 ETF(지수·섹터·테마·방어형 29종, 1년 추세) + 지수 정기 리밸런싱(S&P 500·나스닥 100 편입/편출·일정·룰변경) + AI 빅테크 자본지출(CAPEX)
 13. **전략광물·배터리 금속** — 리튬·니켈·코발트·우라늄·희토류·흑연(ETF 프록시+현물) + 빅테크 신제품·신기술 핵심 이벤트
 
 추가 품질 기준 (v3.3.0 반환각 보완):
@@ -194,7 +199,7 @@ description: |
 [Phase 1: 병렬 수집 — 서브에이전트를 단일 메시지로 동시 발행]
   ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent
   ├─ SecuritiesAgent (한국 5대 — 메인세션 Chrome) / GlobalSecuritiesAgent (해외 IB 5사)
-  ├─ IndexSeries / KoreaTech / CryptoSeries / Theme (시계열) · UsEtf (3.2.2) · AINews · Berkshire
+  ├─ IndexSeries / KoreaTech / CryptoSeries / Theme (시계열) · UsEtf (3.2.2) · IndexRebalance (3.2.3) · AINews · Berkshire
         ↓
 [Phase 1.5: 차트 생성 (v3.6.4 — 분석 전)]  gen_tech_charts.py·gen_rest_charts.py·gen_hy_chart.py → charts/*.png
         ↓
@@ -406,4 +411,20 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 | 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
 | 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
 | 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
-| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시
+| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
+
+복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
+
+## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
+
+| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
+|------|-----------|----------------|-----------|
+| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
+| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
+| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
+| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
+| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
+
+수집 시 주의:
+- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
+- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).

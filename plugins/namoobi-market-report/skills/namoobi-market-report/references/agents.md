@@ -5,8 +5,9 @@
 > - **8 글로벌 IB — 최신만**: 발행일 D-1 이내의 최신 하우스 뷰만 수집. 오래된 코멘트는 배제. 못 구할 때만 뉴스 검색.
 > - **5 환율 USD/EUR**: EUR/USD 대신 **USD/EUR**(=1/EURUSD, 1달러당 유로)를 `markets.fx_usd.usd_eur` 로 저장. 현재치·1주~1년 변화율 모두 역수 시계열(usd_eur_t = 1/eurusd_t) 기준으로 계산. 시계열 차트도 `s2.fx.usd_eur` 로 저장(스파크 spark_usd_eur.png).
 > - **4 원자재 섹션별 추세 코멘트**: 4.1/4.2/4.3 각각에 추세 평가 코멘트 1~2문장을 `commodities.energy_comment`/`metals_comment`/`agri_comment` 로 수집(에너지·금속·농산물 각 군의 단·중·장 추세 해석).
-> - **3.2.2 주요 미국 ETF (신설, v3.6.8)**: `markets.us_etfs` (지수추종·11개 섹터·테마/특화·방어형 29종) + `nmr_etfseries.json` 1년 주봉. 아래 UsEtfAgent 참조. 기존 CAPEX 는 **3.2.3** 으로 이동.
-- **3.2.3 CAPEX 2027·2028 전망**: `markets.bigtech_capex.rows[]` 에 `y2027`·`y2028`(가이던스/컨센서스 전망, 확인된 경우만) 필드 추가.
+> - **3.2.2 주요 미국 ETF (신설, v3.6.8)**: `markets.us_etfs` (지수추종·11개 섹터·테마/특화·방어형 29종) + `nmr_etfseries.json` 1년 주봉. 아래 UsEtfAgent 참조.
+- **3.2.3 미국 지수 정기 리밸런싱 (신설, v3.6.9)**: `markets.index_rebalance` (S&P 500·나스닥 100 편입/편출·일정·기준·룰변경). 아래 IndexRebalanceAgent 참조. 기존 CAPEX 는 **3.2.4** 로 이동.
+- **3.2.4 CAPEX 2027·2028 전망**: `markets.bigtech_capex.rows[]` 에 `y2027`·`y2028`(가이던스/컨센서스 전망, 확인된 경우만) 필드 추가.
 > - **차트는 분석(9~12) 전에 생성** — 시계열 에이전트(IndexSeries/KoreaTech/CryptoSeries/Theme)는 Phase 1 에서 함께 수집하고, 차트 PNG 생성은 AnalysisAgent 호출 전에 끝낸다.
 
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
@@ -315,6 +316,15 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `nmr_etfseries.json` = {SYMBOL:[["YYYY-MM-DD",close]..]} (29종 1년 주봉 종가). `gen_rest_charts.py` 가 `charts/spark_etf_<SYMBOL>.png` 생성 → 빌더 추세(1년) 셀.
 **주의**: 분배금 큰 ETF(SCHD·JEPI·TLT·IEF)는 가격수익률 기준이라 총수익률보다 낮게 나옴 — `comment` 에 명시.
 
+### IndexRebalanceAgent (3.2.3 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100, v3.6.9)
+**임무**: S&P 500·나스닥 100 정기 리밸런싱의 편입/편출 종목·사업내용·사유, 적용 일정, 편입 기준, 나스닥 패스트엔트리 룰 변경을 수집.
+**도구**: WebSearch + web_fetch (먼저 `ToolSearch` 로 `select:WebSearch` 로드). **반드시 1차 출처 우선** — S&P 는 `press.spglobal.com` 보도자료, 나스닥은 `ir.nasdaq.com`·`indexes.nasdaq.com` 방법론 FAQ. 보조로 Reuters·CNBC·Bloomberg. **구성종목을 기억으로 생성 금지** — 확인 안 되면 빈 배열/`미확인`.
+**수집 범위**:
+- S&P 500: 분기 리밸런싱 일정(발표=둘째 금요일경, 발효=셋째 금요일 마감 후 다음 영업일 개장 전), 최근 2개 분기(직전·당분기) 편입/편출 + 그 사이 비정기(M&A) 변경, 편입 기준(시총 ~$20.5B·흑자·유동성·float·12개월 경과·섹터 대표성), 최신 기준 변경(예: MegaCap 컨설팅 결과).
+- 나스닥 100: 연례 재구성(12월)·분기 리뷰·임시 변경의 편입/편출, 2026-05-01 패스트엔트리 룰 변경(상위 ~40위·15거래일 조기편입 / 10% float 폐지→3x cap / 10bp 중간편출 폐지→125위 밖 순위기반 정례편출), 패스트엔트리 후보 대형 IPO(SpaceX·OpenAI·Anthropic 등 시총·상장상태).
+**검색 예**: `"S&P 500 index changes <month> 2026 spglobal"`, `"Nasdaq-100 annual reconstitution December 2025"`, `"Nasdaq 100 quarterly changes June 2026"`, `"Nasdaq 100 fast entry rule 2026"`, `"SpaceX OpenAI Anthropic IPO 2026 valuation"`.
+**저장**: `markets.index_rebalance` = {sp500:{schedule[], events[], criteria[], criteria_note}, nasdaq100:{schedule[], events[], rule_change{rows[]}, candidates[]}, comment, asof}. 각 편입/편출 항목 `{ticker, name, biz(사업 한 줄), reason(편입/편출 사유)}`. 스키마 상세는 `data-schema.md` (v3.6.9) 참조. 별도 `nmr_rebalance.json` 저장 후 Phase 3 병합. 날짜·종목은 1차 출처로 grounding, 미확정은 `미확인` 표기.
+
 ### KoreaTechAgent / 수급 (3.1.1·3.1.2 — 1년 일별)
 - `nmr_kr_ohlcv.json` 의 `kospi_flows_daily`·`kosdaq_flows_daily` 는 **1년치 일별** 투자자 순매수 `[["YYYY-MM-DD", 외국인억원, 기관억원, 개인억원]..]` (1일치만 넣으면 누적순매수 차트가 평평해짐 — 반드시 1년).
   - 네이버금융 레거시 페이지는 SPA 개편으로 404. **다음금융 `finance.daum.net/api/market_index/days`**(market=KOSPI/KOSDAQ, `foreign/institution/individualStraightPurchasePrice` 원→억원 환산)로 1년 일별 수집.
@@ -326,4 +336,19 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 ### 3.1.4 테마 (AI·원자력 포함, 순서 고정)
 - `markets.korea_themes` 순서: **반도체 · AI · 전력기기 · 조선 · 방산 · 원자력 · 증권 · 로봇 · 우주**. 각 `{theme, direction(▲/▼/■), comment}`.
-- 각 테마 대표 ETF 1년 주봉 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py`(데이터 주도)가
+- 각 테마 대표 ETF 1년 주봉 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py`(데이터 주도)가 `charts/theme_<테마명>.png` 자동 생성. `markets.korea_theme_etfs[테마]=ETF명`, `markets.korea_theme_charts[테마]="charts/theme_<테마>.png"` 설정. (AI 예: KODEX AI반도체핵심장비 471990.KS / 원자력 예: ACE 원자력테마딥서치 433500.KS)
+
+### 2.3 빅테크 이벤트 (2.1/2.2 와 중복 금지)
+- `events_calendar`(2.1)·`events_calendar_longterm`(2.2) 에 들어온 **빅테크 신제품·신기술·빅테크 실적** 이벤트(애플·삼성 언팩·엔비디아 실적/GTC·구글 I/O·메타 커넥트·MS·AWS·테슬라·OpenAI·CES·MWC 등)는 **2.3(`bigtech_events`)에만** 싣고 2.1/2.2 에서는 제외한다(매크로·정책·지표·IPO 만 2.1/2.2). 2.3 는 **날짜 오름차순**, 구체 일자가 캘린더에 있으면 그 일자를 사용(예: 애플 2026-09-08).
+
+### 원자재 섹션별 추세평가 코멘트 / 환율 / 부록A
+- `commodities.energy_comment` · `commodities.metals_comment` · `commodities.agri_comment` (4.1/4.2/4.3 각 표 아래 "추세 평가:" 로 렌더). **키명은 `agri_comment`** (agriculture_comment 아님).
+- `markets.fx_usd.usd_eur` = **USD/EUR (=1/EURUSD)** 로 저장(EUR/USD 아님).
+- 부록A 버크셔 13F (`berkshire`) — 빌더 스키마 **정확히**: `{quarter, filing_date, summary, cash, new_buys[], added[], reduced[], exited[] (각 {name,ticker,detail}), top_holdings[] ({name,ticker,weight_or_value,note}), sources[]}`. `recent_buys/recent_sells` 나 `top_holdings.detail` 로 주면 부록A 가 비므로 금지 — `new_buys/exited`·`weight_or_value/note` 사용.
+
+## (v3.6.7) 3.1.4 반도체/AI 상세표·테마 확장
+
+- `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 ETF 는 넣지 말 것. `markets.semi_ai_comment` 는 표 아래 현황·코멘트.
+  - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
+- `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
+- 3.1.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.
