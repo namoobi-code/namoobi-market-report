@@ -12,8 +12,15 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.5)
+# Namoobi Market Report (v3.6.6)
 
+> v3.6.6 (plugin 1.7.6) 변경점 — 2.1/2.2 빅테크 제외·표 가드 (2026-06-14 사용자 피드백):
+> - **2.1/2.2 빅테크 이벤트 자동 제외** — 빌더가 `BIGTECH_EVENT_RE`(언팩·갤럭시·아이폰·WWDC·GTC·CES·MWC·메타 커넥트·구글 I/O·Ignite·re:Invent·키노트·신모델 등)로 `events_calendar`·`events_calendar_longterm` 을 필터링해 **빅테크 신제품·신기술 이벤트는 2.3 에만** 표시(에이전트가 캘린더에 넣어도 자동 제외). 2.1/2.2 는 매크로·정책·지표·IPO 만.
+> - **표 비객체 행 가드** — `renderMarketBlockC` 가 섹션 딕셔너리의 비객체 값(잘못 중첩된 `energy_comment` 문자열 등)을 표 행으로 렌더하지 않도록 가드(빈 "ENERGY_COMMENT" 행 버그 수정). 섹션 코멘트는 top-level `commodities.energy_comment`/`metals_comment`/`agri_comment` 만 사용, 섹션 딕셔너리 안에 넣지 말 것.
+> - **3.1.2 순매도 폴백** — 당일이 외국인·기관 동반 순매수(쌍끌이)면 종목별 순매도 랭킹이 공개 안 되므로, **직전 거래일 기준**(한국투자증권 공개 순위 등)으로 순매도 상위를 대체 표기하고 기준일·사유를 `note` 에 명시.
+> - **원자재 변화율 보완** — 1주·1년만 있고 1·3·6개월이 비면 `nmr_series2.json` 1년 주봉으로 계산해 채움(4.1~4.3·4.5).
+> - **CAPEX 미공개** — `bigtech_capex.rows[].y2027/y2028` 미확인 칸은 "-" 대신 "미공개" 표기.
+>
 > v3.6.5 (plugin 1.7.5) 변경점 — 한국 수급·테마·부록 정밀화 (2026-06-14 사용자 피드백):
 > - **3.1.1/3.1.2 수급 1년 일별화** — 코스피·코스닥 외국인·기관·개인 누적순매수 차트를 1일치→**1년 일별**로(다음금융 `market_index/days`, 네이버 SPA 404 대체). **KOSDAQ 거래량**은 야후 ^KQ11 손상분을 다음금융 `accTradeVolume` 로 교체.
 > - **3.1.2 4리스트** — 코스피/코스닥 **순매수·순매도 주요 종목** 각 ~10 (`kospi_buy/kospi_sell/kosdaq_buy/kosdaq_sell`, 각 {name,detail}). 빌더가 4개 리스트로 렌더(구 외국인순매수/기관강세 폐기). 순매도 비공개 시 빈배열+note.

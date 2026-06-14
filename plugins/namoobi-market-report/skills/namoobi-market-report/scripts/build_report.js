@@ -191,7 +191,7 @@ const children = [];
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:2400,after:240},children:[new TextRun({text:"글로벌 금융시장 종합 시황 보고서",bold:true,size:48,color:"1E3A8A"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:1200},children:[new TextRun({text:"Global Financial Markets Comprehensive Report",italics:true,size:28,color:"475569"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:`기준일: ${reportDate}`,size:26,bold:true})]}));
-children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.6.5",size:22,color:"64748B"})]}));
+children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.6.6",size:22,color:"64748B"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},
   border:{top:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"},bottom:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"}},
   children:[new TextRun({text:"⚠ 본 보고서는 AI가 공개 데이터를 자동 수집·생성한 참고 자료입니다. 투자 자문이 아니며, 자동 생성 특성상 오류·환각이 포함될 수 있으니 중요한 의사결정 전 반드시 원문 출처를 확인하십시오.",size:18,italics:true,color:"B45309"})]}));
@@ -234,17 +234,20 @@ if (data.news && Array.isArray(data.news.top_news)) {
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("2. 글로벌 주요 이벤트 캘린더",1));
+// (v3.6.6) 2.1/2.2 에서 빅테크 신제품·신기술 이벤트 제외 — 2.3 빅테크 표에만 표시
+const BIGTECH_EVENT_RE=/언팩|갤럭시|아이폰|WWDC|GTC|CES\b|MWC|메타 커넥트|구글 I\/O|Ignite|re:Invent|AWS re|키노트|언베일|Advancing AI|MI4\d0|애플[^,\n]*(가을|이벤트|행사|신제품)|OpenAI[^,\n]*(신모델|GPT|공개|플래그십)|엔비디아[^,\n]*(GTC|키노트|언팩)|삼성[^,\n]*언팩|구글[^,\n]*(I\/O|픽셀)|테슬라[^,\n]*(이벤트|데이|로보)/;
+function notBigtechEvent(e){ return !BIGTECH_EVENT_RE.test(String((e&&e.event)||"")); }
 children.push(h("2.1 향후 1개월 (전체 중요도)",2));
 if (data.news && Array.isArray(data.news.events_calendar) && data.news.events_calendar.length) {
   const ew=[1300,1100,2800,1100,3060];
-  const er=[["날짜","지역","이벤트","중요도","예상 영향"],...data.news.events_calendar.map(e=>[e.date??"-",e.region??"-",e.event??"-",e.importance??"-",e.expected_impact??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:ew[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1||j===3)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0,color:(j===3&&i>0&&String(c).includes("★★★"))?"DC2626":undefined}))}));
+  const er=[["날짜","지역","이벤트","중요도","예상 영향"],...data.news.events_calendar.filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.importance??"-",e.expected_impact??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:ew[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1||j===3)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0,color:(j===3&&i>0&&String(c).includes("★★★"))?"DC2626":undefined}))}));
   children.push(makeTable(ew,er));
 } else children.push(p("(1개월 이벤트 없음)"));
 children.push(p(""));
 children.push(h("2.2 중장기 1개월~1년 (★★★만)",2));
 if (data.news && Array.isArray(data.news.events_calendar_longterm) && data.news.events_calendar_longterm.length) {
   const lw=[1500,1200,3000,3660];
-  const lr=[["날짜","지역","이벤트","예상 영향"],...data.news.events_calendar_longterm.map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0}))}));
+  const lr=[["날짜","지역","이벤트","예상 영향"],...data.news.events_calendar_longterm.filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0}))}));
   children.push(makeTable(lw,lr));
   children.push(p("※ 중장기는 ★★★만 수록. 미확정은 (예정) 표기.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(중장기 이벤트 없음)"));
@@ -286,7 +289,7 @@ function trendRowC(name,m,i,chart,changed){ return new TableRow({children:[
   imgCellSpark(chart,tw2[7],i%2===1),
   cell((m&&m.trend)||"-",{width:tw2[8],alt:i%2===1})]}); }
 function renderMarketBlockC(title,obj,labels,prev,comment){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRowC()]; let i=0;
-  for(const [k,v] of Object.entries(obj)){ const ch=prev&&prev[k]!==undefined&&prev[k]!==null&&Number(prev[k])!==Number(v&&v.current); rows.push(trendRowC((labels&&labels[k])||k.toUpperCase(),v,i,"charts/spark_"+k+".png",ch)); i++; } children.push(makeTable(tw2,rows)); if(comment)children.push(p("추세 평가: "+comment,{bold:true,color:"0F766E"})); children.push(p("")); }
+  for(const [k,v] of Object.entries(obj)){ if(v===null||typeof v!=="object")continue; const ch=prev&&prev[k]!==undefined&&prev[k]!==null&&Number(prev[k])!==Number(v&&v.current); rows.push(trendRowC((labels&&labels[k])||k.toUpperCase(),v,i,"charts/spark_"+k+".png",ch)); i++; } children.push(makeTable(tw2,rows)); if(comment)children.push(p("추세 평가: "+comment,{bold:true,color:"0F766E"})); children.push(p("")); }
 function renderBerkshire(){ const b=data.berkshire; if(!b)return;
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록A] 워런 버핏 · 버크셔 해서웨이 보유 종목 변동 (13F)",1));
@@ -465,9 +468,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.5",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.6",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.5 / plugin v1.7.5 (v3.6.4 + 3.1.2 코스피·코스닥 순매수/순매도 4리스트(kospi_buy/sell·kosdaq_buy/sell), 3.1.3 선행지수 설명문+최신상단(desc), 3.1.4 테마 AI·원자력 추가·순서조정, 2.3 빅테크 이벤트 2.1/2.2 중복제거, 3.2/3.3/3.4 지수 1년 스파크라인, 코스피·코스닥 1년 일별수급(다음금융)·코스닥 거래량 정상화, 부록A 13F 정밀, 이미지셀 빈경로/디렉터리 가드, 3.1.1 asof 동적표기)
+// EOF — namoobi-market-report v3.6.6 / plugin v1.7.6 (v3.6.5 + 2.1/2.2 빅테크 신제품·신기술 이벤트 자동 제외 필터(2.3에만 표시), renderMarketBlockC 비객체 값(섹션 코멘트 등) 행 렌더 방지 가드)
