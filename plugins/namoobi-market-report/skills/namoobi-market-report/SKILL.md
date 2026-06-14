@@ -12,8 +12,14 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.6)
+# Namoobi Market Report (v3.6.7)
 
+> v3.6.7 (plugin 1.7.7) 변경점 — 3.1.4 반도체/AI 상세표·테마 확장 (2026-06-14 사용자 피드백):
+> - **3.1.4 반도체/AI 대표 ETF·종목 시총순 상세표(신설)** — `markets.semi_ai_breakdown`: [{name, aum(시총 억원), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] + `markets.semi_ai_comment`(현황·코멘트). 추세(1Y) 셀은 chart 가 비면 "-" 로 표시. 미존재 ETF(예: 삼성+하이닉스 50:50 단일 2배 레버리지)는 수록하지 말 것.
+> - **3.1.4 반도체·AI 테마 통합** — 두 테마를 "반도체/AI" 한 행으로, 대표 ETF 는 **하나만** 표기(`korea_theme_etfs["반도체/AI"]`). 테마는 자유 확장 가능(예: 신재생에너지·K화장품·K-푸드) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py` 가 theme_<테마>.png 자동 생성.
+> - **3.1.2 종목 — 풍부한 형식·정확성 우선** — `kospi_buy/sell` 등 detail 은 "외국인 순매수 X억원(N위, 주가 ±%, 외국인 지분율 Y%)" 형식. 당일 마감 공개 출처에 확정된 종목만 수록(예: 급등일 외국인 순매수 상위 6종만 공개되면 6종만, 7위↓ 보류) — 직전일 등 비교 불가 데이터로 채워 왜곡 금지, `note` 에 사유.
+> - **PDF 는 soffice(LibreOffice) 유지** — 기본 변환은 Phase 4 soffice 그대로. (트러블슈팅에 VM 장애 시 대응 추가.)
+>
 > v3.6.6 (plugin 1.7.6) 변경점 — 2.1/2.2 빅테크 제외·표 가드 (2026-06-14 사용자 피드백):
 > - **2.1/2.2 빅테크 이벤트 자동 제외** — 빌더가 `BIGTECH_EVENT_RE`(언팩·갤럭시·아이폰·WWDC·GTC·CES·MWC·메타 커넥트·구글 I/O·Ignite·re:Invent·키노트·신모델 등)로 `events_calendar`·`events_calendar_longterm` 을 필터링해 **빅테크 신제품·신기술 이벤트는 2.3 에만** 표시(에이전트가 캘린더에 넣어도 자동 제외). 2.1/2.2 는 매크로·정책·지표·IPO 만.
 > - **표 비객체 행 가드** — `renderMarketBlockC` 가 섹션 딕셔너리의 비객체 값(잘못 중첩된 `energy_comment` 문자열 등)을 표 행으로 렌더하지 않도록 가드(빈 "ENERGY_COMMENT" 행 버그 수정). 섹션 코멘트는 top-level `commodities.energy_comment`/`metals_comment`/`agri_comment` 만 사용, 섹션 딕셔너리 안에 넣지 말 것.
@@ -363,6 +369,7 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 | 선물 티커 실패(PL=F 등) | current:null → 빌더가 "-" 렌더 |
 | CoinInfo gainers/losers 간헐 오류 (429 등) | null/빈배열로 두고 진행 |
 | 한글 폰트 깨짐 | 시스템에 맑은 고딕 설치 확인 |
+| soffice 변환이 즉시 강제종료(SIGKILL/exit 137) — `--version` 은 되는데 `--convert-to` 만 죽음 | VM 손상(주로 장애·복구 직후) — 프로필 분리·setsid 로도 회피 불가. ① 새 세션/VM 에서 재시도(연결폴더 docx·JSON 백업으로 이어가기) ② 또는 사용자 PC 의 Word/LibreOffice 로 docx→PDF 내보내기(=soffice 동일 레이아웃). 비상 시에만 pandoc+weasyprint(docx→html→pdf, Noto Sans CJK KR) 폴백 — 기본 워크플로는 soffice 유지 |
 
 ## 플러그인 유지보수·배포 (git push)
 
