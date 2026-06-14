@@ -52,6 +52,18 @@ try:
 except FileNotFoundError:
     print("nmr_indexseries.json 없음 — 지수 스파크라인 생략")
 
+# (v3.6.8) 미국 ETF 1Y 스파크라인 (3.2.2) — nmr_etfseries.json {SYMBOL:[["YYYY-MM-DD",close]..] 또는 [close..]}
+try:
+    et=json.load(open(O+"/nmr_etfseries.json"))
+    netf=0
+    for sym,series in et.items():
+        if not series: continue
+        pairs=series if isinstance(series[0],(list,tuple)) else [[i,v] for i,v in enumerate(series)]
+        if spark(pairs, f"charts/spark_etf_{sym}.png"): netf+=1
+    print("etf sparklines:", netf, "of", len(et))
+except FileNotFoundError:
+    print("nmr_etfseries.json 없음 — ETF 스파크라인 생략")
+
 # crypto coin charts: price + volume (1Y)
 cs=json.load(open(O+"/nmr_crypto_series.json"))
 import matplotlib.dates as mdates

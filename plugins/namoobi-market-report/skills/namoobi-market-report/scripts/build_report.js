@@ -187,9 +187,39 @@ function renderUSExtras(){ const m=data.markets||{};
     if(c.comment)children.push(p(c.comment));
     if(c.asof)children.push(p("기준: "+c.asof,{size:16,color:"94A3B8"}));
     children.push(p("")); }
-  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.2 AI 빅테크 자본지출(CAPEX)",3));
+  renderUSEtfs();
+  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.3 AI 빅테크 자본지출(CAPEX)",3));
     simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cx.rows.map(r=>[r.company??"-",r.y2025??"-",r.y2026??"-",r.y2027??"-",r.y2028??"-",r.comment??"-"]),{left:[5]});
     if(cx.comment)children.push(p(cx.comment)); children.push(p("")); } }
+// (v3.6.8) 3.2.2 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
+function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||typeof e!=="object")return;
+  const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["defensive","④ 방어형 ETF (변동성 완화)"]];
+  if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
+  children.push(h("3.2.2 주요 미국 ETF (지수·섹터·테마·방어형)",3));
+  children.push(p("미국 대표 지수 추종·11개 S&P 500 섹터·테마/특화·방어형 ETF 의 현재가와 1주~1년 수익률, 1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률로, 분배금이 큰 ETF(SCHD·JEPI·채권형 등)는 실제 총수익률이 더 높을 수 있다. 섹터 ETF 옆 [%]는 S&P 500 내 비중.",{italics:true,color:"64748B"}));
+  const ew=[760,2380,980,720,720,720,720,760,1260,1380];
+  const hdr=()=>new TableRow({children:["티커","ETF · 설명","현재가","1주","1개월","3개월","6개월","1년","추세(1년)","추세 평가"].map((x,i)=>cell(x,{width:ew[i],header:true,align:AlignmentType.CENTER}))});
+  const etfRow=(x,i)=>{ const sym=String(x.symbol||x.ticker||"-");
+    const nameLine=(x.name||sym)+(x.weight?("  ["+x.weight+"]"):"");
+    const descRuns=[new TextRun({text:nameLine,bold:true,size:17}),new TextRun({text:String(x.desc||""),size:15,color:"64748B",break:1})];
+    const curTxt=(x.current===null||x.current===undefined||x.current==="")?"-":("$"+fmtNum(x.current));
+    return new TableRow({children:[
+      cell(sym,{width:ew[0],alt:i%2===1,bold:true,align:AlignmentType.CENTER,color:"1D4ED8"}),
+      cell("",{width:ew[1],alt:i%2===1,runs:descRuns}),
+      cell(curTxt,{width:ew[2],alt:i%2===1,align:AlignmentType.RIGHT,bold:true}),
+      cell(fmtPct(x['1w_pct']),{width:ew[3],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['1w_pct'])}),
+      cell(fmtPct(x['1mo_pct']),{width:ew[4],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['1mo_pct'])}),
+      cell(fmtPct(x['3mo_pct']),{width:ew[5],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['3mo_pct'])}),
+      cell(fmtPct(x['6mo_pct']),{width:ew[6],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['6mo_pct'])}),
+      cell(fmtPct(x['1y_pct']),{width:ew[7],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['1y_pct'])}),
+      imgCellSpark("charts/spark_etf_"+sym+".png",ew[8],i%2===1,150,40),
+      cell(String(x.trend||"-"),{width:ew[9],alt:i%2===1,size:18})]}); };
+  groups.forEach(([k,label])=>{ const arr=e[k]; if(!Array.isArray(arr)||!arr.length)return;
+    children.push(p(label,{bold:true,color:"1E40AF",before:120,size:21}));
+    const rows=[hdr()]; arr.forEach((x,i)=>rows.push(etfRow(x,i))); children.push(makeTable(ew,rows)); });
+  if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
+  if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
+  children.push(p("")); }
 function renderStrategicMetals(){ const sm=data.commodities&&data.commodities.strategic_metals; if(!sm)return;
   children.push(h("4.5 전략광물·배터리 금속 (리튬·니켈·코발트·우라늄·희토류·흑연)",2));
   if(Array.isArray(sm.etf)&&sm.etf.length){ children.push(p("① ETF 프록시 가격 추세",{bold:true,color:"1E40AF"}));
@@ -203,7 +233,7 @@ const children = [];
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:2400,after:240},children:[new TextRun({text:"글로벌 금융시장 종합 시황 보고서",bold:true,size:48,color:"1E3A8A"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:1200},children:[new TextRun({text:"Global Financial Markets Comprehensive Report",italics:true,size:28,color:"475569"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:`기준일: ${reportDate}`,size:26,bold:true})]}));
-children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.6.7",size:22,color:"64748B"})]}));
+children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:"작성: AI Research — v3.6.8",size:22,color:"64748B"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},
   border:{top:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"},bottom:{style:BorderStyle.SINGLE,size:4,color:"F59E0B"}},
   children:[new TextRun({text:"⚠ 본 보고서는 AI가 공개 데이터를 자동 수집·생성한 참고 자료입니다. 투자 자문이 아니며, 자동 생성 특성상 오류·환각이 포함될 수 있으니 중요한 의사결정 전 반드시 원문 출처를 확인하십시오.",size:18,italics:true,color:"B45309"})]}));
@@ -480,9 +510,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.7",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.8",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.7 / plugin v1.7.7 (v3.6.6 + 3.1.4 반도체/AI 대표 ETF·종목 시총순 상세표(semi_ai_breakdown: name/aum/note/chart + semi_ai_comment) 렌더, 추세 그래프 셀은 chart 비면 "-")
+// EOF — namoobi-market-report v3.6.8 / plugin v1.7.8 (v3.6.7 + 3.2.2 주요 미국 ETF 섹션 신설(renderUSEtfs: markets.us_etfs 지수·섹터·테마·방어형 29종, charts/spark_etf_<sym>.png 추세), 기존 CAPEX→3.2.3 �

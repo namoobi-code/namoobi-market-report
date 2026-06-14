@@ -5,7 +5,8 @@
 > - **8 글로벌 IB — 최신만**: 발행일 D-1 이내의 최신 하우스 뷰만 수집. 오래된 코멘트는 배제. 못 구할 때만 뉴스 검색.
 > - **5 환율 USD/EUR**: EUR/USD 대신 **USD/EUR**(=1/EURUSD, 1달러당 유로)를 `markets.fx_usd.usd_eur` 로 저장. 현재치·1주~1년 변화율 모두 역수 시계열(usd_eur_t = 1/eurusd_t) 기준으로 계산. 시계열 차트도 `s2.fx.usd_eur` 로 저장(스파크 spark_usd_eur.png).
 > - **4 원자재 섹션별 추세 코멘트**: 4.1/4.2/4.3 각각에 추세 평가 코멘트 1~2문장을 `commodities.energy_comment`/`metals_comment`/`agri_comment` 로 수집(에너지·금속·농산물 각 군의 단·중·장 추세 해석).
-> - **3.2.2 CAPEX 2027·2028 전망**: `markets.bigtech_capex.rows[]` 에 `y2027`·`y2028`(가이던스/컨센서스 전망, 확인된 경우만) 필드 추가.
+> - **3.2.2 주요 미국 ETF (신설, v3.6.8)**: `markets.us_etfs` (지수추종·11개 섹터·테마/특화·방어형 29종) + `nmr_etfseries.json` 1년 주봉. 아래 UsEtfAgent 참조. 기존 CAPEX 는 **3.2.3** 으로 이동.
+- **3.2.3 CAPEX 2027·2028 전망**: `markets.bigtech_capex.rows[]` 에 `y2027`·`y2028`(가이던스/컨센서스 전망, 확인된 경우만) 필드 추가.
 > - **차트는 분석(9~12) 전에 생성** — 시계열 에이전트(IndexSeries/KoreaTech/CryptoSeries/Theme)는 Phase 1 에서 함께 수집하고, 차트 PNG 생성은 AnalysisAgent 호출 전에 끝낸다.
 
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
@@ -300,6 +301,20 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 ### IndexSeriesAgent (지수 1년 시계열 — 3.2/3.3/3.4 추세 스파크라인)
 - `nmr_indexseries.json`: 17개 지수 1년 **주봉 종가** `{kospi,kosdaq,sp500,nasdaq,dow,vix,dxy,us10y,nikkei,shanghai,hsi,taiwan,sensex,vietnam,stoxx50,dax,ftse}` 각 `[["YYYY-MM-DD",close]..]`. `gen_rest_charts.py` 가 이 파일로 `charts/spark_<key>.png` 를 생성해 3.2/3.3/3.4 표 추세열을 채운다. (없으면 추세열 비어 보임 → 반드시 수집)
 
+### UsEtfAgent (3.2.2 주요 미국 ETF — 지수·섹터·테마·방어형, v3.6.8)
+**임무**: 미국 주요 ETF 29종의 현재가·1주~1년 수익률·1년 주봉 시계열 수집.
+**도구**: UsStockInfo MCP `get_historical_stock_prices(period="1y", interval="1wk")` (주봉). **FMP MCP 는 플랜 제한으로 quote-change/chart 가 막힐 수 있으니 Yahoo(UsStockInfo) 를 기본으로 한다.** 먼저 `ToolSearch`(예: `+UsStockInfo historical`)로 도구 로드.
+**대상 (그룹 · 티커 · 설명 · 섹터비중)**:
+- **index**: SPY(SPDR S&P 500 ETF Trust·S&P500 최대 유동성), VOO(Vanguard S&P 500·저비용), SPYM(SPDR Portfolio S&P 500·초저보수), QQQ(Invesco QQQ·나스닥100 대형기술), QQQM(QQQ 저보수판), DIA(다우존스30 우량주)
+- **sector** (11개, S&P500 비중 weight): XLK 기술 27.69%(반도체·SW·AI), XLV 의료 13.48%, XLC 통신 11.22%, XLY 임의소비재 11.81%, XLF 금융 11.32%, XLI 산업 8.41%, XLP 필수소비재 5.87%, XLB 재료 2.60%, XLRE 부동산 2.61%, XLE 에너지 2.44%, XLU 유틸리티 2.55%
+- **theme**: SOXX 반도체(인텔·엔비디아·AMD), SMH 반도체 집적(TSMC·엔비디아·삼성), BOTZ AI/로봇, ARKK 혁신기술(액티브), SCHD 배당성장주, JEPI 커버드콜 현금흐름(월배당), QTUM 양자컴퓨터, NASA 우주항공(Tema Space Innovators·2026 상장 신생), ICLN 글로벌 클린에너지
+- **defensive**: GLD 금(현물·헷지), TLT 미국 장기채(20Y+), IEF 미국 중기채(7-10Y)
+**계산**: MarketsAgent 와 동일 — 현재가=최신 주봉 종가, 1주=직전 주봉, 1개월≈4주 전, 3개월≈13주 전, 6개월≈26주 전, 1년=최초 데이터 대비 변화율(%). 각 ETF `trend` 1줄(한글, 1년/3개월/1개월 모멘텀+가격위치 종합). 신생 ETF(NASA 등)는 이력이 짧아 3·6개월이 비면 null, 미존재 티커는 수록 금지.
+**저장**:
+- `markets.us_etfs` = {index:[], sector:[](각 항목 `weight`), theme:[], defensive:[], comment, asof}. 각 항목 `{symbol, name, desc, current, "1w_pct","1mo_pct","3mo_pct","6mo_pct","1y_pct", trend, weight?}`. 별도 `nmr_usetf.json` 으로 저장 후 Phase 3 병합 시 `markets.us_etfs` 에 넣는다.
+- `nmr_etfseries.json` = {SYMBOL:[["YYYY-MM-DD",close]..]} (29종 1년 주봉 종가). `gen_rest_charts.py` 가 `charts/spark_etf_<SYMBOL>.png` 생성 → 빌더 추세(1년) 셀.
+**주의**: 분배금 큰 ETF(SCHD·JEPI·TLT·IEF)는 가격수익률 기준이라 총수익률보다 낮게 나옴 — `comment` 에 명시.
+
 ### KoreaTechAgent / 수급 (3.1.1·3.1.2 — 1년 일별)
 - `nmr_kr_ohlcv.json` 의 `kospi_flows_daily`·`kosdaq_flows_daily` 는 **1년치 일별** 투자자 순매수 `[["YYYY-MM-DD", 외국인억원, 기관억원, 개인억원]..]` (1일치만 넣으면 누적순매수 차트가 평평해짐 — 반드시 1년).
   - 네이버금융 레거시 페이지는 SPA 개편으로 404. **다음금융 `finance.daum.net/api/market_index/days`**(market=KOSPI/KOSDAQ, `foreign/institution/individualStraightPurchasePrice` 원→억원 환산)로 1년 일별 수집.
@@ -311,19 +326,4 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 ### 3.1.4 테마 (AI·원자력 포함, 순서 고정)
 - `markets.korea_themes` 순서: **반도체 · AI · 전력기기 · 조선 · 방산 · 원자력 · 증권 · 로봇 · 우주**. 각 `{theme, direction(▲/▼/■), comment}`.
-- 각 테마 대표 ETF 1년 주봉 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py`(데이터 주도)가 `charts/theme_<테마명>.png` 자동 생성. `markets.korea_theme_etfs[테마]=ETF명`, `markets.korea_theme_charts[테마]="charts/theme_<테마>.png"` 설정. (AI 예: KODEX AI반도체핵심장비 471990.KS / 원자력 예: ACE 원자력테마딥서치 433500.KS)
-
-### 2.3 빅테크 이벤트 (2.1/2.2 와 중복 금지)
-- `events_calendar`(2.1)·`events_calendar_longterm`(2.2) 에 들어온 **빅테크 신제품·신기술·빅테크 실적** 이벤트(애플·삼성 언팩·엔비디아 실적/GTC·구글 I/O·메타 커넥트·MS·AWS·테슬라·OpenAI·CES·MWC 등)는 **2.3(`bigtech_events`)에만** 싣고 2.1/2.2 에서는 제외한다(매크로·정책·지표·IPO 만 2.1/2.2). 2.3 는 **날짜 오름차순**, 구체 일자가 캘린더에 있으면 그 일자를 사용(예: 애플 2026-09-08).
-
-### 원자재 섹션별 추세평가 코멘트 / 환율 / 부록A
-- `commodities.energy_comment` · `commodities.metals_comment` · `commodities.agri_comment` (4.1/4.2/4.3 각 표 아래 "추세 평가:" 로 렌더). **키명은 `agri_comment`** (agriculture_comment 아님).
-- `markets.fx_usd.usd_eur` = **USD/EUR (=1/EURUSD)** 로 저장(EUR/USD 아님).
-- 부록A 버크셔 13F (`berkshire`) — 빌더 스키마 **정확히**: `{quarter, filing_date, summary, cash, new_buys[], added[], reduced[], exited[] (각 {name,ticker,detail}), top_holdings[] ({name,ticker,weight_or_value,note}), sources[]}`. `recent_buys/recent_sells` 나 `top_holdings.detail` 로 주면 부록A 가 비므로 금지 — `new_buys/exited`·`weight_or_value/note` 사용.
-
-## (v3.6.7) 3.1.4 반도체/AI 상세표·테마 확장
-
-- `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 ETF 는 넣지 말 것. `markets.semi_ai_comment` 는 표 아래 현황·코멘트.
-  - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
-- `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
-- 3.1.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.
+- 각 테마 대표 ETF 1년 주봉 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py`(데이터 주도)가
