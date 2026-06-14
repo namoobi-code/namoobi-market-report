@@ -100,4 +100,21 @@ ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.tick_params(labe
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/fng_1y.png",bbox_inches="tight"); plt.close()
 print("crypto+fng done")
+# (v3.6.10) 반도체/AI 미니차트 charts/semi_<i>.png — nmr_semi_series.json + breakdown 순서(시총순)
+try:
+    ss=json.load(open(O+"/nmr_semi_series.json")); km2=json.load(open(O+"/nmr_koreamacro.json"))
+    order=[x.get("name","") for x in km2.get("semi_ai_breakdown",[])]; keys=list(ss.keys()); ns=0
+    def _fk(nm):
+        for k in keys:
+            if k==nm or k in nm or nm in k: return k
+        for k in keys:
+            if "AI반도체" in nm and "AI반도체" in k: return k
+            if "ETF" in nm and "반도체 ETF" in k and "AI" not in nm and "AI" not in k: return k
+        return None
+    for i,nm in enumerate(order):
+        k=_fk(nm); ser=ss.get(k) if k else None
+        if ser and mini(ser, f"charts/semi_{i}.png"): ns+=1
+    print("semi charts:", ns)
+except FileNotFoundError:
+    print("nmr_semi_series.json 없음 — semi 차트 생략")
 import os; print("total chart files:", len([f for f in os.listdir('charts') if f.endswith('.png')]))

@@ -12,8 +12,18 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.9)
+# Namoobi Market Report (v3.6.10)
 
+> v3.6.10 (plugin 1.7.10) 변경점 — 보고서 정합·견고화 (2026-06-14 사용자 피드백):
+> - **3.2.3 리밸런싱 정상화** — IndexRebalanceAgent 가 빌더 스키마(`events:[{title,effective,add[],remove[]}]`)로 출력하도록 강제(평면 `[{ticker,reason}]` 금지). 빌더도 평면 배열이 와도 add/remove 로 자동 정규화(`renderEvents`). 최근 2~3개 분기/연례+M&A·임시 변경 모두 수집. 사용자 `3.2.3_지수리밸런싱.html` 1차 정합.
+> - **3.1.1/3.1.2 코스닥 수급** — KoreaTechAgent 가 다음금융 REST(`market_index/days`, 헤더 User-Agent·Referer 필수·perPage=250)로 코스피·코스닥 **1년 일별 외국인/기관/개인 순매수**와 **KOSDAQ 거래량(accTradeVolume)**을 수집(누적순매수 차트·거래량 정상화). KoreaMacroAgent 가 `korea_investor_stocks.kosdaq_buy/sell` 도 채움(누락 방지).
+> - **3.1.4 반도체/AI 표** — `semi_ai_breakdown` 각 행 `aum`(시총) 필수 + 1Y series(`nmr_semi_series.json`)로 `charts/semi_<i>.png` 생성(`gen_rest_charts.py` 보강).
+> - **3.2.1 HY 스프레드** — FRED `BAMLH0A0HYM2`/`…EY` 1년 일별 CSV 로 현재·1주~1년 레벨·`hy_oas_chart.png` 채움(현재값만 있던 문제 해결).
+> - **3.2.2 미국 ETF** — 사용자 `3.2.2_미국ETF시황.html` 기준으로 수익률·추세평가 정합.
+> - **3.2.4 CAPEX** — 미확인 칸은 "-" 대신 **"미공개"**(에이전트·빌더 양쪽).
+> - **2.3 빅테크 이벤트** — ★★ 포함 8~12건으로 확대(★★★만 금지).
+> - **5 환율** — CNY/KRW 시계열을 USD/KRW÷USD/CNY 로 도출해 추세차트 생성.
+>
 > v3.6.9 (plugin 1.7.9) 변경점 — 3.2.3 미국 지수 정기 리밸런싱 섹션 신설 (2026-06-14 사용자 피드백):
 > - **3.2.3 미국 지수 정기 리밸런싱(신설)** — S&P 500·나스닥 100 의 **편입/편출 종목(사업 내용·사유 포함)**, 분기/연례 적용 일정, S&P 편입 기준, 나스닥 **2026-05-01 패스트엔트리 룰 변경**(상위 40위·15거래일 조기편입 / 10% float 폐지→3x cap / 10bp 중간편출 폐지), 패스트엔트리 후보 대형 IPO(SpaceX·OpenAI·Anthropic). 데이터 `markets.index_rebalance`(빌더 `renderIndexRebalance`), 편입=초록·편출=빨강. 신규 **IndexRebalanceAgent**(WebSearch·1차 출처 grounding) Phase 1 병렬 수집에 추가.
 > - **기존 3.2.3 CAPEX → 3.2.4 로 이동** (3.2.1 HY → 3.2.2 ETF → 3.2.3 리밸런싱 → 3.2.4 CAPEX 순).

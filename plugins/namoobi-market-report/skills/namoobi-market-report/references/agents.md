@@ -10,6 +10,14 @@
 - **3.2.4 CAPEX 2027·2028 전망**: `markets.bigtech_capex.rows[]` 에 `y2027`·`y2028`(가이던스/컨센서스 전망, 확인된 경우만) 필드 추가.
 > - **차트는 분석(9~12) 전에 생성** — 시계열 에이전트(IndexSeries/KoreaTech/CryptoSeries/Theme)는 Phase 1 에서 함께 수집하고, 차트 PNG 생성은 AnalysisAgent 호출 전에 끝낸다.
 
+> **v3.6.10 변경점 (2026-06-14 사용자 피드백 — 보고서 정합·견고화)**
+> - **IndexRebalanceAgent — 반드시 빌더 스키마**: `markets.index_rebalance.sp500/nasdaq100` 의 `events` 는 **`[{title, effective, note_top?, add:[{ticker,name,biz,reason}], remove:[{...}], note?}]`** 형식이어야 한다(편입=add·편출=remove). **평면 `[{ticker,name,biz,reason}]` 배열 금지** — 그러면 3.2.3 이 빈 표로 렌더된다(실측 버그). `schedule`=[{q 또는 cycle, announce, effective, note}], `criteria`=[{item,detail}], `rule_change`={effective, rows:[{rule,before,after}], note}, `candidates`=[{name,biz,valuation,status}]. **최근 2~3개 분기/연례 재구성 + M&A·임시 변경까지** 모두 수집(직전 분기 1건만 넣지 말 것). 사용자 연결폴더에 `3.2.3_지수리밸런싱.html` 가 있으면 그 내용을 1차 기준으로 정합.
+> - **NewsAgent `bigtech_events` — ★★ 포함 8~12건**: ★★★만 넣지 말 것. 갤럭시 언팩·구글 I/O·메타 커넥트·MS Ignite·AWS re:Invent·테슬라/엔비디아/애플 실적·CES/Computex 등 ★★급도 충분히 포함, 날짜 오름차순.
+> - **KoreaTechAgent — 일별 수급·거래량(다음금융 REST 직접)**: `kospi_flows_daily`·`kosdaq_flows_daily`(최근 ~250영업일)는 `https://finance.daum.net/api/market_index/days?page=N&perPage=250&market=KOSPI(또는 KOSDAQ)&pagination=true` 로 수집. **헤더 `User-Agent`(브라우저)·`Referer: https://finance.daum.net/` 필수** — 없으면 빈 응답(실측: web_fetch 가 헤더 미전송으로 빈값이면 메인 세션이 직접 받아 채운다). `data[].foreignStraightPurchasePrice/institutionStraightPurchasePrice/individualStraightPurchasePrice`(원→억원 ÷1e8), `accTradeVolume`. **KOSDAQ 거래량은 이 accTradeVolume 로 ^KQ11 손상분(중앙값 1000)을 교체**. 1일 기준 투자자 표(외국인/기관/개인)도 최신일 값으로 채운다.
+> - **KoreaMacroAgent — 코스닥 종목·반도체 시총·차트 시리즈**: `korea_investor_stocks` 는 `kospi_buy/sell` **뿐 아니라 `kosdaq_buy/sell` 도 반드시** 채운다(각 6~10종 {name,detail}; 코스닥 일간 랭킹 비공개면 최근 확인일 기준+`note` 명시). `semi_ai_breakdown` 각 행 **`aum`(시총, 억원/조원) 필수**, 1Y 주봉 series 를 `nmr_semi_series.json[종목명]` 으로 저장하면 `gen_rest_charts.py` 가 `charts/semi_<i>.png`(시총순)를 만든다. `bigtech_capex` 미확인 연도칸은 빈칸이 아니라 **"미공개"**(빌더도 v3.6.10부터 빈칸을 "미공개"로 렌더).
+> - **IndexSeriesAgent — CNY/KRW 시계열 도출**: `CNYKRW=X` 가 단일 포인트만 반환하면 `cny_krw` 시계열을 **`usd_krw / usd_cny`(동일자)** 로 계산해 `nmr_series2.json.fx.cny_krw` 에 넣는다(5장 환율 추세차트 누락 방지).
+> - **UsEtfAgent — 사용자 참고 HTML 정합**: 연결폴더에 `3.2.2_미국ETF시황.html` 가 있으면 현재가·수익률·추세평가를 그 값으로 정합(HTML 우선).
+
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
 Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
 Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
