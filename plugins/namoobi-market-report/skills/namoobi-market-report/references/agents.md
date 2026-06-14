@@ -23,6 +23,9 @@
 > - **KoreaMacroAgent — 반도체/AI 표 11행**: `semi_ai_breakdown` 은 **대표 종목 3개(삼성전자·SK하이닉스·삼성전기) + 한국 상장 반도체/AI ETF 중 AUM 상위 8개 = 총 11행, 시총/AUM 내림차순**. 각 행 `aum`(억원/조원) 필수, `note`(1줄 설명). **`semi_ai_comment`(현황 2~3문장: 삼성·SK 시총·HBM·AI 슈퍼사이클·ETF 자금흐름) 필수**. 각 행 1Y 주봉 series 를 `nmr_semi_series.json[종목/ETF명]`(키는 breakdown name 과 정확히 일치)으로 저장 → `charts/semi_<i>.png`(시총순). ETF 2개만 넣지 말 것.
 > - **BerkshireAgent — 상위 보유 최대 20**: `top_holdings` 는 포트폴리오 비중 **상위 최대 20종**(각 {name,ticker,weight_or_value,note}). 5종만 넣지 말 것. `new_buys/added/reduced/exited` 와 별개.
 
+> **v3.6.12 변경점 (2026-06-14 사용자 피드백 — 반도체/AI 종목10+ETF20 2그룹)**
+> - **KoreaMacroAgent — 반도체/AI 2그룹 대폭 확대**: 기존 `semi_ai_breakdown`(단일 11행) 대신 **두 그룹**을 수집한다. ① `markets.semi_ai_stocks` = 국내 반도체/AI 관련 **종목 시총 상위 10개**(삼성전자·SK하이닉스 포함, 한미반도체·삼성전기·주성엔지니어링·원익IPS·리노공업·이오테크닉스·DB하이텍·HPSP 등에서 시총순), 각 {name, aum(시총), note(현황 1줄), }. ② `markets.semi_ai_etfs` = 국내 상장 반도체/AI **ETF AUM 상위 20개**(KODEX/TIGER/SOL/ACE/RISE/PLUS 등), 각 {name, aum(AUM), note}. **그룹별 현황 코멘트** `markets.semi_ai_stocks_comment`·`markets.semi_ai_etfs_comment`(각 2~3문장) 필수. 각 종목·ETF(총 30) 1Y 주봉 series 를 `nmr_semi_series_v3.json[name]` 으로 → 메인세션이 `charts/semi_s_<i>.png`(종목)·`charts/semi_e_<i>.png`(ETF) 생성해 각 행 `chart` 에 매핑. 빌더는 신스키마(stocks/etfs) 우선 렌더, 없으면 구 `semi_ai_breakdown` 폴백. **ETF 2~8개만 넣지 말 것 — 종목 10·ETF 20 채울 것.**
+
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
 Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
 Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.

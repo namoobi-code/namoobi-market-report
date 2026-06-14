@@ -12,8 +12,11 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.11)
+# Namoobi Market Report (v3.6.12)
 
+> v3.6.12 (plugin 1.7.12) 변경점 — 반도체/AI 종목10+ETF20 2그룹 (2026-06-14 사용자 피드백):
+> - **3.1.4 반도체/AI 2그룹 확대** — 국내 **종목 시총 상위 10개**(`markets.semi_ai_stocks`) + **ETF AUM 상위 20개**(`markets.semi_ai_etfs`)를 각각 별도 표로, **그룹별 현황 코멘트**(`semi_ai_stocks_comment`/`semi_ai_etfs_comment`)와 각 행 1Y 추세차트(`charts/semi_s_<i>.png`/`semi_e_<i>.png`)로 렌더. 빌더 `semiTbl` 신스키마 우선·구 `semi_ai_breakdown` 폴백. KoreaMacroAgent 가 30종 시총/AUM·series 수집.
+>
 > v3.6.11 (plugin 1.7.11) 변경점 — 반도체표·원자재추세·버크셔 (2026-06-14 사용자 피드백):
 > - **3.1.4 반도체/AI 표 11행** — `semi_ai_breakdown` = 대표 종목 3(삼성전자·SK하이닉스·삼성전기) + 한국 반도체/AI ETF **AUM 상위 8개**(시총순 11행), 각 `aum`·1Y `charts/semi_<i>.png`, **`semi_ai_comment` 현황 코멘트 필수**(ETF 2개·코멘트 없음 문제 해결).
 > - **4 원자재 추세열 한글화** — 각 행 `trend` 가 "up"/"down" 영문이면 빌더 `koTrend` 가 수익률 기반 한글("1년 +X% 강세, 3개월 -Y% 조정")로 자동 생성. CommoditiesAgent 도 한글 trend 의무화.
