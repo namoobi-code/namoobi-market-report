@@ -12,8 +12,11 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.13)
+# Namoobi Market Report (v3.6.14)
 
+> v3.6.14 (plugin 1.7.14) 변경점 — 신규 상장 ETF 차트 누락 방지 (2026-06-14 사용자 피드백):
+> - **신규 상장 ETF 추세차트** — 야후에 데이터가 없는 최근 상장 ETF(예: 2026.6 상장 단일종목 레버리지)는 **다음금융 charts API**(`finance.daum.net/api/charts/A{코드}/days`, 심볼별 Referer 필수)로 상장 이후 일별 종가를 받아 `charts/semi_e_<i>.png` 생성. 1년 미만은 라벨 `(상장후)`, 한글 라벨용 `fonts/nmr_kr.ttf` matplotlib 등록. (단일종목 레버리지 ETF 차트가 비던 문제 해결.)
+>
 > v3.6.13 (plugin 1.7.13) 변경점 — 단일종목 레버리지 ETF 포함 (2026-06-14 사용자 피드백):
 > - **3.1.4 반도체/AI ETF 유니버스 보강** — AUM 상위 20 선정 시 **삼성전자·SK하이닉스 단일종목 (2배) 레버리지 ETF**(KODEX/TIGER)를 반드시 후보에 포함(2026.6 상장 직후 각 ~2조원대로 AUM 5·6위인데 누락됐던 문제). 2026 신규 상장·레버리지/인버스도 반도체/AI 테마면 배제하지 말 것. 신규 상장 ETF 는 추세차트 미표시(`note` 에 상장월 명시).
 >

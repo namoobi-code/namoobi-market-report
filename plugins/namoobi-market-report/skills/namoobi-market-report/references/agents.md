@@ -29,6 +29,10 @@
 > **v3.6.13 변경점 (2026-06-14 사용자 피드백 — 단일종목 레버리지 ETF 포함)**
 > - **KoreaMacroAgent — `semi_ai_etfs` 에 단일종목 레버리지 ETF 포함**: 반도체/AI ETF AUM 상위 20 선정 시, **삼성전자·SK하이닉스 단일종목 (2배) 레버리지 ETF**(예: `KODEX 삼성전자단일종목레버리지`·`KODEX SK하이닉스단일종목레버리지`·동일 TIGER 시리즈)는 반도체 대형주 추종이며 AUM 이 매우 크므로(2026.6 상장 직후 각 ~2조원대) **반드시 후보에 포함**해 AUM 순위대로 넣는다. 2026년 상장 신규 ETF·레버리지/인버스도 반도체/AI 테마면 배제하지 말 것(누락 실측 — 단일종목 레버리지 2종이 AUM 5·6위인데 빠졌었음). 신규 상장이라 1Y series 가 짧거나 없으면 `note` 에 "20YY.M 상장" 명시하고 추세차트는 비워둔다.
 
+> **v3.6.14 변경점 (2026-06-14 사용자 피드백 — 신규 상장 ETF 차트 누락 방지)**
+> - **신규 상장 ETF 도 추세차트 생성(다음금융 charts API)**: 야후(`get_historical_stock_prices`)에 데이터가 없거나 1~2주뿐인 **최근 상장 ETF**(예: 2026.6 상장 단일종목 레버리지)는 시계열이 비어 차트가 누락된다. 이 경우 **다음금융 일별 차트 API** 로 상장 이후 일별 종가를 받아 시계열을 채운다:
+>   `https://finance.daum.net/api/charts/A{6자리코드}/days?limit=40&adjusted=true` — 헤더 `User-Agent`(브라우저)·**`Referer: https://finance.daum.net/quotes/A{코드}`**(심볼별 Referer 필수, 일반 Referer 는 403)·`Accept: application/json`. 응답 `data[].tradePrice`·`date` 로 `[[date, close]..]` 구성(오름차순). 코드는 WebSearch 로 확인(예: KODEX 삼성전자단일종목레버리지=0193W0, SK하이닉스=0193T0). 이 시계열을 `nmr_semi_series_v3.json[ETF명]` 에 넣으면 메인세션이 `charts/semi_e_<i>.png` 를 생성한다. 상장 1년 미만이면 미니차트 라벨은 `(1Y)` 대신 **`(상장후)`** 로 표기하고, 차트에 한글 라벨을 쓸 땐 `fonts/nmr_kr.ttf` 를 matplotlib `font_manager.addfont` 로 등록(기본폰트는 한글 미렌더).
+
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
 Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
 Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
