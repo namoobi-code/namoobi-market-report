@@ -1,6 +1,6 @@
 {
   "name": "namoobi-market-report",
-  "version": "1.7.12",
+  "version": "1.7.13",
   "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 서브에이전트가 병렬로 자료를 수집해 PDF 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송한다. v1.7.9: 3.2.3 미국 지수 정기 리밸런싱 섹션 신설(S&P 500·나스닥 100 편입/편출·사업내용·사유·일정·편입기준·나스닥 패스트엔트리 룰변경·대형 IPO 후보), 기존 CAPEX 는 3.2.4 로 이동. 상세 변경이력은 SKILL.md 참조.",
   "author": {
     "name": "namoobi (AI Research)"

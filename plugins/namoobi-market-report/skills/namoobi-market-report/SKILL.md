@@ -12,8 +12,11 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.12)
+# Namoobi Market Report (v3.6.13)
 
+> v3.6.13 (plugin 1.7.13) 변경점 — 단일종목 레버리지 ETF 포함 (2026-06-14 사용자 피드백):
+> - **3.1.4 반도체/AI ETF 유니버스 보강** — AUM 상위 20 선정 시 **삼성전자·SK하이닉스 단일종목 (2배) 레버리지 ETF**(KODEX/TIGER)를 반드시 후보에 포함(2026.6 상장 직후 각 ~2조원대로 AUM 5·6위인데 누락됐던 문제). 2026 신규 상장·레버리지/인버스도 반도체/AI 테마면 배제하지 말 것. 신규 상장 ETF 는 추세차트 미표시(`note` 에 상장월 명시).
+>
 > v3.6.12 (plugin 1.7.12) 변경점 — 반도체/AI 종목10+ETF20 2그룹 (2026-06-14 사용자 피드백):
 > - **3.1.4 반도체/AI 2그룹 확대** — 국내 **종목 시총 상위 10개**(`markets.semi_ai_stocks`) + **ETF AUM 상위 20개**(`markets.semi_ai_etfs`)를 각각 별도 표로, **그룹별 현황 코멘트**(`semi_ai_stocks_comment`/`semi_ai_etfs_comment`)와 각 행 1Y 추세차트(`charts/semi_s_<i>.png`/`semi_e_<i>.png`)로 렌더. 빌더 `semiTbl` 신스키마 우선·구 `semi_ai_breakdown` 폴백. KoreaMacroAgent 가 30종 시총/AUM·series 수집.
 >

@@ -26,6 +26,9 @@
 > **v3.6.12 변경점 (2026-06-14 사용자 피드백 — 반도체/AI 종목10+ETF20 2그룹)**
 > - **KoreaMacroAgent — 반도체/AI 2그룹 대폭 확대**: 기존 `semi_ai_breakdown`(단일 11행) 대신 **두 그룹**을 수집한다. ① `markets.semi_ai_stocks` = 국내 반도체/AI 관련 **종목 시총 상위 10개**(삼성전자·SK하이닉스 포함, 한미반도체·삼성전기·주성엔지니어링·원익IPS·리노공업·이오테크닉스·DB하이텍·HPSP 등에서 시총순), 각 {name, aum(시총), note(현황 1줄), }. ② `markets.semi_ai_etfs` = 국내 상장 반도체/AI **ETF AUM 상위 20개**(KODEX/TIGER/SOL/ACE/RISE/PLUS 등), 각 {name, aum(AUM), note}. **그룹별 현황 코멘트** `markets.semi_ai_stocks_comment`·`markets.semi_ai_etfs_comment`(각 2~3문장) 필수. 각 종목·ETF(총 30) 1Y 주봉 series 를 `nmr_semi_series_v3.json[name]` 으로 → 메인세션이 `charts/semi_s_<i>.png`(종목)·`charts/semi_e_<i>.png`(ETF) 생성해 각 행 `chart` 에 매핑. 빌더는 신스키마(stocks/etfs) 우선 렌더, 없으면 구 `semi_ai_breakdown` 폴백. **ETF 2~8개만 넣지 말 것 — 종목 10·ETF 20 채울 것.**
 
+> **v3.6.13 변경점 (2026-06-14 사용자 피드백 — 단일종목 레버리지 ETF 포함)**
+> - **KoreaMacroAgent — `semi_ai_etfs` 에 단일종목 레버리지 ETF 포함**: 반도체/AI ETF AUM 상위 20 선정 시, **삼성전자·SK하이닉스 단일종목 (2배) 레버리지 ETF**(예: `KODEX 삼성전자단일종목레버리지`·`KODEX SK하이닉스단일종목레버리지`·동일 TIGER 시리즈)는 반도체 대형주 추종이며 AUM 이 매우 크므로(2026.6 상장 직후 각 ~2조원대) **반드시 후보에 포함**해 AUM 순위대로 넣는다. 2026년 상장 신규 ETF·레버리지/인버스도 반도체/AI 테마면 배제하지 말 것(누락 실측 — 단일종목 레버리지 2종이 AUM 5·6위인데 빠졌었음). 신규 상장이라 1Y series 가 짧거나 없으면 `note` 에 "20YY.M 상장" 명시하고 추세차트는 비워둔다.
+
 7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
 Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
 Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
