@@ -3,7 +3,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import mplfinance as mpf
-O="/sessions/upbeat-elegant-allen/mnt/outputs"
+import sys, glob, os
+# 출력(nmr_*.json) 디렉터리 자동 탐지 — argv[1] > NMR_OUT 환경변수 > 현재 세션 mnt/outputs (하드코딩 세션경로 금지)
+O = sys.argv[1] if len(sys.argv) > 1 else (os.environ.get("NMR_OUT") or sorted(glob.glob("/sessions/*/mnt/outputs"))[-1])
 kr=json.load(open(O+"/nmr_kr_ohlcv.json"))
 def rsi(close,n=14):
     d=close.diff(); up=d.clip(lower=0); dn=-d.clip(upper=0)
@@ -36,6 +38,6 @@ def tech(ohlcv,flows,out,title):
                             Line2D([0],[0],color="#059669",lw=1.4,label="Individual")],
                    loc="upper left",fontsize=6.5,frameon=False,ncol=3)
     fig.savefig(out,dpi=150,bbox_inches="tight"); plt.close(fig)
-tech(kr["kospi_ohlcv"],kr.get("kospi_flows_daily"),"charts/kospi_tech.png","KOSPI 1Y — Candle+MA(5/20/60/120)+BB / Volume / RSI / Cumulative Net-Buy")
-tech(kr["kosdaq_ohlcv"],kr.get("kosdaq_flows_daily"),"charts/kosdaq_tech.png","KOSDAQ 1Y — Candle+MA(5/20/60/120)+BB / Volume / RSI / Cumulative Net-Buy")
+tech(kr["kospi_ohlcv"],kr.get("kospi_flows_daily"),"charts/kospi_tech.png","KOSPI 1Y - Candle+MA(5/20/60/120)+BB / Volume / RSI / Cumulative Net-Buy")
+tech(kr["kosdaq_ohlcv"],kr.get("kosdaq_flows_daily"),"charts/kosdaq_tech.png","KOSDAQ 1Y - Candle+MA(5/20/60/120)+BB / Volume / RSI / Cumulative Net-Buy")
 print("wide tech charts done")

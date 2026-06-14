@@ -12,7 +12,27 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.3)
+# Namoobi Market Report (v3.6.5)
+
+> v3.6.5 (plugin 1.7.5) 변경점 — 한국 수급·테마·부록 정밀화 (2026-06-14 사용자 피드백):
+> - **3.1.1/3.1.2 수급 1년 일별화** — 코스피·코스닥 외국인·기관·개인 누적순매수 차트를 1일치→**1년 일별**로(다음금융 `market_index/days`, 네이버 SPA 404 대체). **KOSDAQ 거래량**은 야후 ^KQ11 손상분을 다음금융 `accTradeVolume` 로 교체.
+> - **3.1.2 4리스트** — 코스피/코스닥 **순매수·순매도 주요 종목** 각 ~10 (`kospi_buy/kospi_sell/kosdaq_buy/kosdaq_sell`, 각 {name,detail}). 빌더가 4개 리스트로 렌더(구 외국인순매수/기관강세 폐기). 순매도 비공개 시 빈배열+note.
+> - **3.1.3 설명+최신상단** — 빌더가 "선행지수↔KOSPI 정비례·약 2개월 선행", "100 이상=확장/100 이하=침체" 설명을 자동 표기. `korea_leading` 은 통계청(국가데이터처) 확정치, **최신이 맨 위(내림차순)**.
+> - **3.1.4 테마 AI·원자력 추가·순서조정** — 반도체·AI·전력기기·조선·방산·원자력·증권·로봇·우주. `gen_rest_charts.py` 가 `nmr_themeseries1y.json` 의 **모든 테마 키로 theme_<테마>.png 데이터 주도 생성**.
+> - **3.2/3.3/3.4 지수 스파크라인** — `nmr_indexseries.json`(17개 지수 1년 주봉)으로 `gen_rest_charts.py` 가 `spark_<key>.png` 생성, 추세열을 채움.
+> - **2.3 빅테크 이벤트 중복 제거** — 2.1/2.2 의 빅테크 신제품·신기술·실적 이벤트는 2.3 에만 표시(2.1/2.2 는 매크로·정책·IPO 만), 2.3 날짜 오름차순.
+> - **부록A 13F 정밀화** — 빌더 스키마(new_buys/added/reduced/exited/top_holdings.weight_or_value 등)에 정확히 맞춰 수집(필드명 불일치로 비던 문제 해결).
+> - **빌더 안정화** — 이미지셀 빈 경로/디렉터리 readFileSync(EISDIR) 가드, 3.1.1 기준일(asof) 동적 표기.
+>
+> v3.6.4 (plugin 1.7.4) 변경점 — 표지·섹션·수집 품질 개선 (2026-06-14 사용자 피드백):
+> - **표지 배지줄 제거** — 표지의 "Top News · 이벤트 캘린더 · … · 포트폴리오" 한 줄 삭제(build_report.js 표지 영역).
+> - **5 환율 USD/EUR** — 기존 EUR/USD(≈1.16) 대신 **USD/EUR**(=1/EURUSD≈0.86, 1달러당 유로)로 표기. MarketsAgent 가 `markets.fx_usd.usd_eur`(역수 시계열 기준 현재치·1주~1년 변화율) 수집, 시계열 `s2.fx.usd_eur`(spark_usd_eur.png).
+> - **4 원자재 섹션별 추세 코멘트** — 4.1 에너지/4.2 금속/4.3 농산물 각 표 아래 "추세 평가:" 코멘트. CommoditiesAgent 가 `commodities.energy_comment`/`metals_comment`/`agri_comment` 수집.
+> - **3.2.2 CAPEX 2027·2028 전망 열 추가** — `markets.bigtech_capex.rows[].y2027`·`y2028`(확인된 전망만, 출처 필수).
+> - **7 한국 5대 증권사 — 공식 채널 최신 리포트 우선** — 각 사 공식 리서치 목록 URL(신한·미래에셋·삼성·한국·키움; `references/agents.md` SecuritiesAgent 표)에서 **발행일 D-1 이내 최신 리포트** 수집. JS 렌더가 많아 **메인 세션이 Claude in Chrome navigate→get_page_text** 로 직접 읽는다. **최신 공식 리포트를 못 구한 사만** 뉴스 폴백(말미 `(뉴스 기반)`). (기존: 키움만 리포트·나머지는 오래된 뉴스였던 문제 수정.)
+> - **8 글로벌 IB — 최신만** — 발행일 D-1 이내 최신 하우스 뷰만, 오래된 코멘트 배제, 못 구할 때만 뉴스.
+> - **차트 생성을 9~12 분석 전으로 이동** — Phase 1(수집) 직후 **Phase 1.5 차트 생성**, 그 다음 Phase 2 AnalysisAgent(9~12). 분석이 차트·시계열을 근거로 작성되도록.
+> - **차트 스크립트 세션경로 자동탐지(버그픽스)** — `gen_tech_charts.py`·`gen_rest_charts.py` 의 하드코딩 세션경로(`/sessions/upbeat-elegant-allen/...`)를 `argv[1] > NMR_OUT > glob('/sessions/*/mnt/outputs')` 자동탐지로 교체. (구버전은 새 세션에서 nmr_*.json 을 못 찾아 차트가 통째로 누락 — 3.1.1/3.1.4/3.2.1/6.2 그래프 실종의 근본원인.)
 
 > v3.6.3 (plugin 1.7.3) 변경점 — 자동 push 절차 버그픽스 (2026-06-13):
 > - **credential helper 토큰 전달 수정** — helper 는 별도 프로세스로 실행되므로 `GH_TOKEN` 을 반드시 `export` 해야 인식한다 (export 누락 시 빈 값이 전달돼 GitHub 가 "Invalid username or token" 으로 거부 — 실제로 이 버그로 여러 번 실패함). 또한 샌드박스 bash 의 `grep … githubtoken.txt` 는 긴 fine-grained 토큰(약 93자)을 잘라 읽으니, 토큰은 Read 도구(호스트 직접)로 전체값을 확인해 사용한다. 검증된 one-shot 대안(token-in-URL)도 병기. '## 플러그인 유지보수·배포 (git push)' 2번 항목 참조.
@@ -153,11 +173,14 @@ description: |
 ```
 [Phase 0: 사전 점검]  실행 모드 판정(예약/일반) / 날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
         ↓
-[Phase 1: 병렬 수집 — 6개 서브에이전트를 단일 메시지로 동시 발행]
+[Phase 1: 병렬 수집 — 서브에이전트를 단일 메시지로 동시 발행]
   ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent
-  ├─ SecuritiesAgent (한국 5대) / GlobalSecuritiesAgent (해외 IB 5사)
+  ├─ SecuritiesAgent (한국 5대 — 메인세션 Chrome) / GlobalSecuritiesAgent (해외 IB 5사)
+  ├─ IndexSeries / KoreaTech / CryptoSeries / Theme (시계열) · AINews · Berkshire
         ↓
-[Phase 2: AnalysisAgent 단독 호출]  Phase 1 결과를 입력으로 종합·포트폴리오 도출
+[Phase 1.5: 차트 생성 (v3.6.4 — 분석 전)]  gen_tech_charts.py·gen_rest_charts.py·gen_hy_chart.py → charts/*.png
+        ↓
+[Phase 2: AnalysisAgent 단독 호출]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓
 [Phase 3: 데이터 종합 → JSON 저장 + 유효성 검증]
         ↓

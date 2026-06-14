@@ -1,7 +1,9 @@
 import json, numpy as np, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-O="/sessions/upbeat-elegant-allen/mnt/outputs"
+import sys, glob, os
+# 출력(nmr_*.json) 디렉터리 자동 탐지 — argv[1] > NMR_OUT 환경변수 > 현재 세션 mnt/outputs (하드코딩 세션경로 금지)
+O = sys.argv[1] if len(sys.argv) > 1 else (os.environ.get("NMR_OUT") or sorted(glob.glob("/sessions/*/mnt/outputs"))[-1])
 GRN="#059669"; RED="#DC2626"
 def spark(pairs,out):
     ys=[p[1] for p in pairs if p and p[1] is not None]
@@ -24,10 +26,13 @@ def mini(pairs,out):
     ax.set_title(f"{chg:+.0f}% (1Y)",fontsize=8,color=col,fontweight="bold")
     plt.tight_layout(pad=0.2); plt.savefig(out,bbox_inches="tight",transparent=True); plt.close(); return True
 
-# theme 1Y (overwrite)
+# theme 1Y (overwrite) — 데이터 주도: nmr_themeseries1y.json 의 모든 테마 키로 차트 생성 (AI·원자력·전력기기 등 신규 테마 자동 포함)
 ts=json.load(open(O+"/nmr_themeseries1y.json"))
-tmap={"반도체":"반도체","조선":"조선","방산":"방산","전력":"전력","증권":"증권","로봇":"로봇","우주":"방산"}
-for t,k in tmap.items(): mini(ts.get(k,[]), f"charts/theme_{t}.png")
+for t,series in ts.items():
+    if series: mini(series, f"charts/theme_{t}.png")
+# legacy 별칭: 우주 시계열 없으면 방산으로 대체
+if not ts.get("우주") and ts.get("방산"): mini(ts["방산"], "charts/theme_우주.png")
+print("theme charts:", sum(1 for v in ts.values() if v))
 
 # commodities + strat + fx sparklines (1Y)
 s2=json.load(open(O+"/nmr_series2.json"))
@@ -36,6 +41,16 @@ sm={"lit":"lit","remx":"remx","ura":"ura","urnm":"urnm"}
 for k,v in s2["strat_etf"].items(): spark(v, f"charts/spark_{k}.png")
 for k,v in s2["fx"].items(): spark(v, f"charts/spark_{k}.png")
 print("sparklines: commodities",len(s2['commodities']),"strat",len(s2['strat_etf']),"fx",len(s2['fx']))
+
+# 지수 1Y 스파크라인 (3.2 미국·3.3 아시아·3.4 유럽) — nmr_indexseries.json 있으면 (IndexSeriesAgent 수집)
+try:
+    idx=json.load(open(O+"/nmr_indexseries.json"))
+    nidx=0
+    for k,v in idx.items():
+        if v and spark(v, f"charts/spark_{k}.png"): nidx+=1
+    print("index sparklines:", nidx, "of", len(idx))
+except FileNotFoundError:
+    print("nmr_indexseries.json 없음 — 지수 스파크라인 생략")
 
 # crypto coin charts: price + volume (1Y)
 cs=json.load(open(O+"/nmr_crypto_series.json"))

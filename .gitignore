@@ -13,3 +13,4 @@ pack.py
 soffice.py
 unpack.py
 validate.py
+__pycache__/
