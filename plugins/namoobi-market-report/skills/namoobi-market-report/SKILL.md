@@ -12,8 +12,16 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.17)
+# Namoobi Market Report (v3.6.18)
 
+> v3.6.18 (plugin 1.7.18) 변경점 — 2.2/3.1.1/3.1.4/리밸런싱 정밀 (2026-06-15 사용자 피드백):
+> - **2.2 중장기 이벤트** ★★★ 8~10건 필수(1건 금지).
+> - **3.1.1 코스닥 거래량** = 다음 accTradeVolume(Yahoo ^KQ11 손상) — OHLCV volume 컬럼 end-align 치환.
+> - **3.1.4 테마 8개**(반도체/AI·조선·방산·**우주**·전력·원자력·증권·로봇, 우주 분리) 각 대표 ETF 1년 차트 모두 생성.
+> - **3.1.4 반도체/AI ETF 20개(AUM순)** — 다음 quote marketCap + 다음 charts. **KODEX 삼성전자/SK하이닉스 단일종목레버리지(0193W0/0193T0)·TIGER(0195R0/0195S0)** 필수(상장후 라벨).
+> - **3.2.2 ③ 테마 ETF** 확장(WQTM 등). **3.2.3 나스닥100 리밸런싱** 은 연례 재구성만(분기 리뷰 행 제거).
+> - 상세는 `references/agents.md` v3.6.18.
+>
 > v3.6.17 (plugin 1.7.17) 변경점 — 3.1.x/3.2.1/4.x/부록B 정밀 수정 (2026-06-15 사용자 피드백):
 > - **3.1.1 항상 캔들차트** — Yahoo 일봉 OHLC(^KS11/^KQ11 interval=1d) + 다음 일별 수급 → `scripts/gen_kr_candle.py`(mplfinance 캔들+MA+볼린저 / 거래량 / RSI / 누적순매수). 라인차트(gen_kr_tech.py) 폐기.
 > - **3.1.2 순매도 종목** — 다음 위젯 순매도 탭은 MouseEvent 디스패치(pointerdown/mousedown/mouseup/click)로 전환 후 파싱. kospi_sell/kosdaq_sell 각 ~10.

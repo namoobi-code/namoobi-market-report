@@ -1,5 +1,13 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.18 변경점 (2026-06-15 사용자 피드백 — 2.2/3.1.1/3.1.4/리밸런싱 정밀)**
+> - **2.2 중장기 이벤트(★★★ 8~10건 필수)**: events_calendar_longterm 은 1~2건 금지, **8~10건**. FOMC(점도표)·ECB·BOJ·잭슨홀·미 중간선거(2026-11)·MSCI 연례리뷰·대형 IPO·빅테크 플래그십(아이폰·GTC·CES 2027) WebSearch.
+> - **3.1.1 코스닥 거래량 = 다음 accTradeVolume**: Yahoo `^KQ11` 거래량은 손상(중앙값~1000) → 캔들 거래량 패널은 **다음 일별 accTradeVolume** 으로 교체(코스피도 동일). nmr_kr_ohlcv.json 의 OHLCV volume 컬럼을 다음 CSV vol 로 **end-align 치환**(야후 일봉 일수 < 다음 일수라 뒤에서부터 정렬).
+> - **3.1.4 테마 8개 + 전 테마 차트(우주 분리)**: korea_themes = 반도체/AI·조선·**방산·우주(각각 분리)**·전력·원자력·증권·로봇 8행. 각 테마 대표 ETF 1년 주봉(Yahoo .KS, 우주=TIGER 우주방산 463250 등)으로 charts/theme_<테마>.png **모두 생성**. korea_theme_etfs=문자열, korea_theme_charts=경로. (방산/우주 합치지 말 것)
+> - **3.1.4 반도체/AI ETF 20개(AUM순)**: 8개 금지, **20개**. 코드 목록 WebSearch → 다음 quote `https://finance.daum.net/api/quotes/A{code}?summary=false` 의 `marketCap`(AUM, Referer=quote URL) + 다음 charts `https://finance.daum.net/api/charts/A{code}/days?limit=260`(Referer 동일)로 1년 종가·차트. **KODEX 삼성전자단일종목레버리지(0193W0)·KODEX SK하이닉스단일종목레버리지(0193T0)·TIGER 동(0195R0/0195S0)** 반드시 포함(2026.5 상장→차트 라벨 '상장후'). KODEX/TIGER 반도체레버리지·반도체TOP10레버리지·미국필라델피아반도체·AI전력핵심설비·소부장 등.
+> - **3.2.2 ③ 테마/특화 ETF 확장**: 사용자 요청 ETF(예 WQTM=WisdomTree 양자컴퓨팅)를 us_etfs.theme 에 추가(Yahoo 주봉 + charts/spark_etf_<SYM>.png).
+> - **3.2.3 나스닥100 리밸런싱**: schedule 은 **연례 재구성(12월)만**. '분기 리뷰(각 분기 초·중 셋째 금요일 마감 후)' 행은 부정확 → 넣지 말 것.
+>
 > **v3.6.17 변경점 (2026-06-15 사용자 피드백 — 3.1.x/3.2.1/4.x/부록B 정밀 수정)**
 > - **3.1.1 캔들차트(라인 금지)**: 한국 기술차트는 항상 **캔들**. Yahoo `get_historical_stock_prices(period=1y, interval=1d)` 로 ^KS11/^KQ11 **일봉 OHLCV**(야후 '일봉' 최신가는 다음 종가와 일치 — '주봉'만 며칠 stale) + 다음 일별 수급 → `nmr_kr_ohlcv.json`{kospi_ohlcv:[[d,o,h,l,c,v]], kospi_flows_daily:[[d,F억,I억,P억]], kosdaq_*} → `scripts/gen_kr_candle.py`(mplfinance 캔들+MA5/20/60/120+볼린저 / 거래량 / RSI / 외국인·기관·개인 누적순매수, 수급은 nearest-date 정렬). gen_kr_tech.py(종가선)는 폐기.
 > - **3.1.2 코스피·코스닥 순매도 종목**: 다음 메인 '외국인/기관 순매도' 탭은 `.click()`으론 전환 안 됨 → 탭 엘리먼트에 **pointerdown/mousedown/mouseup/click MouseEvent 디스패치** 후 패널 재파싱(코스피|코스닥 교차행). korea_investor_stocks 의 kospi_buy/sell·kosdaq_buy/sell 각 ~10종.
