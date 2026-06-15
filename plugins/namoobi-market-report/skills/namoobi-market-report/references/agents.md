@@ -1,5 +1,11 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.19 변경점 (2026-06-15 — 차트 파이프라인 결정적 재현)**
+> - **Phase 1.5 차트 3종 스크립트 실행**: ① `gen_rest_charts.py`(지수·ETF·환율·원자재 스파크라인 + 테마(`nmr_themeseries1y.json`) + 코인/F&G) ② `gen_kr_candle.py`(코스피·코스닥 1년 일봉 **캔들** — `nmr_kr_ohlcv.json`{kospi_ohlcv:Yahoo 일봉 OHLC, **volume=다음 accTradeVolume end-align**, kospi_flows_daily:다음 일별}) ③ **신규 `gen_kr_extra.py`**(반도체/AI ETF20·종목·테마8(우주 분리)·HY 차트 일괄 + 매니페스트).
+> - **결정적 wire(매니페스트)**: gen_kr_extra.py 가 `nmr_chart_manifest.json`{etf:{code:path}, stock:{name:path}, theme:{name:{chart,etf}}, hy:path} 를 출력. **Phase 3 병합이 이 매니페스트로** semi_ai_etfs[i].chart·semi_ai_stocks[i].chart·korea_theme_charts·korea_theme_etfs·hy_spread.chart 를 결정적으로 채운다(인라인 추측 금지).
+> - **gen_kr_extra 입력 계약**: `nmr_semi_etf20_raw.json`{mc:{code:[name,cap]},series:{code:[[d,c]]}}(다음 quote marketCap + 다음 charts), `nmr_semi_series_v3.json`{name:[[d,c]]}(종목), `nmr_theme_etf.json`{series:{theme},etfs:{theme:{name}}}(테마8), `hy_oas.csv`(FRED 1년 'date,oas;..').
+> - **gen_rest_charts.py 견고화**: 테마명 슬래시(`반도체/AI`) sanitize, `nmr_series2.json`의 commodities/strat_etf·`nmr_crypto_series.json` 가 비어도 KeyError/IndexError 없이 진행(크래시 방지).
+>
 > **v3.6.18 변경점 (2026-06-15 사용자 피드백 — 2.2/3.1.1/3.1.4/리밸런싱 정밀)**
 > - **2.2 중장기 이벤트(★★★ 8~10건 필수)**: events_calendar_longterm 은 1~2건 금지, **8~10건**. FOMC(점도표)·ECB·BOJ·잭슨홀·미 중간선거(2026-11)·MSCI 연례리뷰·대형 IPO·빅테크 플래그십(아이폰·GTC·CES 2027) WebSearch.
 > - **3.1.1 코스닥 거래량 = 다음 accTradeVolume**: Yahoo `^KQ11` 거래량은 손상(중앙값~1000) → 캔들 거래량 패널은 **다음 일별 accTradeVolume** 으로 교체(코스피도 동일). nmr_kr_ohlcv.json 의 OHLCV volume 컬럼을 다음 CSV vol 로 **end-align 치환**(야후 일봉 일수 < 다음 일수라 뒤에서부터 정렬).

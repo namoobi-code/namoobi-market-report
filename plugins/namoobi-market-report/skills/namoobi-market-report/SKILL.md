@@ -12,8 +12,13 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.18)
+# Namoobi Market Report (v3.6.19)
 
+> v3.6.19 (plugin 1.7.19) 변경점 — 차트 파이프라인 결정적 재현 (2026-06-15):
+> - **Phase 1.5 = gen_rest_charts.py + gen_kr_candle.py + gen_kr_extra.py(신규)** 3종 실행. gen_kr_extra.py 가 반도체ETF20·종목·테마8(우주 분리)·HY 차트를 만들고 `nmr_chart_manifest.json` 으로 경로를 내보내, Phase 3 병합이 chart 필드를 결정적으로 wire(인라인 추측 제거).
+> - **gen_rest_charts.py 견고화**: 테마 슬래시 sanitize, 빈 series 가드(크래시 방지). 한국 캔들 거래량은 다음 accTradeVolume.
+> - 상세·입력 계약은 `references/agents.md` v3.6.19.
+>
 > v3.6.18 (plugin 1.7.18) 변경점 — 2.2/3.1.1/3.1.4/리밸런싱 정밀 (2026-06-15 사용자 피드백):
 > - **2.2 중장기 이벤트** ★★★ 8~10건 필수(1건 금지).
 > - **3.1.1 코스닥 거래량** = 다음 accTradeVolume(Yahoo ^KQ11 손상) — OHLCV volume 컬럼 end-align 치환.
@@ -256,7 +261,7 @@ description: |
   ├─ SecuritiesAgent (한국 5대 — 메인세션 Chrome) / GlobalSecuritiesAgent (해외 IB 5사)
   ├─ IndexSeries / KoreaTech / CryptoSeries / Theme (시계열) · UsEtf (3.2.2) · IndexRebalance (3.2.3) · AINews · Berkshire
         ↓
-[Phase 1.5: 차트 생성 (v3.6.4 — 분석 전)]  gen_tech_charts.py·gen_rest_charts.py·gen_hy_chart.py → charts/*.png
+[Phase 1.5: 차트 생성]  gen_rest_charts.py(스파크라인·테마·코인) · gen_kr_candle.py(코스피/코스닥 캔들) · gen_kr_extra.py(반도체ETF20·종목·테마8·HY → nmr_chart_manifest.json) → charts/*.png
         ↓
 [Phase 2: AnalysisAgent 단독 호출]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓

@@ -29,16 +29,17 @@ def mini(pairs,out):
 # theme 1Y (overwrite) — 데이터 주도: nmr_themeseries1y.json 의 모든 테마 키로 차트 생성 (AI·원자력·전력기기 등 신규 테마 자동 포함)
 ts=json.load(open(O+"/nmr_themeseries1y.json"))
 for t,series in ts.items():
-    if series: mini(series, f"charts/theme_{t}.png")
+    if series:
+        t2=t.replace("/","_").replace(" ","_"); mini(series, f"charts/theme_{t2}.png")
 # legacy 별칭: 우주 시계열 없으면 방산으로 대체
 if not ts.get("우주") and ts.get("방산"): mini(ts["방산"], "charts/theme_우주.png")
 print("theme charts:", sum(1 for v in ts.values() if v))
 
 # commodities + strat + fx sparklines (1Y)
 s2=json.load(open(O+"/nmr_series2.json"))
-for k,v in s2["commodities"].items(): spark(v, f"charts/spark_{k}.png")
+for k,v in s2.get("commodities",{}).items(): spark(v, f"charts/spark_{k}.png")
 sm={"lit":"lit","remx":"remx","ura":"ura","urnm":"urnm"}
-for k,v in s2["strat_etf"].items(): spark(v, f"charts/spark_{k}.png")
+for k,v in s2.get("strat_etf",{}).items(): spark(v, f"charts/spark_{k}.png")
 for k,v in s2["fx"].items(): spark(v, f"charts/spark_{k}.png")
 print("sparklines: commodities",len(s2['commodities']),"strat",len(s2['strat_etf']),"fx",len(s2['fx']))
 
@@ -83,22 +84,23 @@ def coin(rows,out,label):
     ax2.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
     for s in ["top","right"]: ax2.spines[s].set_visible(False)
     plt.tight_layout(pad=0.3); plt.savefig(out,bbox_inches="tight"); plt.close(); return True
-coin(cs["btc"],"charts/coin_btc.png","BTC"); coin(cs["eth"],"charts/coin_eth.png","ETH")
-coin(cs["xrp"],"charts/coin_xrp.png","XRP"); coin(cs["sol"],"charts/coin_sol.png","SOL")
+coin(cs.get("btc",[]),"charts/coin_btc.png","BTC"); coin(cs.get("eth",[]),"charts/coin_eth.png","ETH")
+coin(cs.get("xrp",[]),"charts/coin_xrp.png","XRP"); coin(cs.get("sol",[]),"charts/coin_sol.png","SOL")
 
 # fear & greed 1Y
-fng=[r for r in cs["fng"] if r and r[1] is not None]
-xs=[datetime.fromisoformat(r[0]) for r in fng]; ys=[r[1] for r in fng]
-fig,ax=plt.subplots(figsize=(6.6,1.8),dpi=150)
-for lo,hi,c in [(0,25,"#fca5a5"),(25,45,"#fdba74"),(45,55,"#fde68a"),(55,75,"#bbf7d0"),(75,100,"#86efac")]:
-    ax.axhspan(lo,hi,color=c,alpha=0.45)
-ax.plot(xs,ys,color="#111827",linewidth=1.1)
-ax.scatter([xs[-1]],[ys[-1]],color="#dc2626",s=22,zorder=5)
-ax.annotate(f"{ys[-1]}",(xs[-1],ys[-1]),fontsize=8,fontweight="bold",color="#dc2626",textcoords="offset points",xytext=(-22,4))
-ax.set_ylim(0,100); ax.set_title("Crypto Fear & Greed Index (1Y)",fontsize=9,color="#334155")
-ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.tick_params(labelsize=7); ax.grid(alpha=0.15)
-for s in ["top","right"]: ax.spines[s].set_visible(False)
-plt.tight_layout(); plt.savefig("charts/fng_1y.png",bbox_inches="tight"); plt.close()
+fng=[r for r in cs.get("fng",[]) if r and r[1] is not None]
+if fng:
+ xs=[datetime.fromisoformat(r[0]) for r in fng]; ys=[r[1] for r in fng]
+ fig,ax=plt.subplots(figsize=(6.6,1.8),dpi=150)
+ for lo,hi,c in [(0,25,"#fca5a5"),(25,45,"#fdba74"),(45,55,"#fde68a"),(55,75,"#bbf7d0"),(75,100,"#86efac")]:
+     ax.axhspan(lo,hi,color=c,alpha=0.45)
+ ax.plot(xs,ys,color="#111827",linewidth=1.1)
+ ax.scatter([xs[-1]],[ys[-1]],color="#dc2626",s=22,zorder=5)
+ ax.annotate(f"{ys[-1]}",(xs[-1],ys[-1]),fontsize=8,fontweight="bold",color="#dc2626",textcoords="offset points",xytext=(-22,4))
+ ax.set_ylim(0,100); ax.set_title("Crypto Fear & Greed Index (1Y)",fontsize=9,color="#334155")
+ ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.tick_params(labelsize=7); ax.grid(alpha=0.15)
+ for s in ["top","right"]: ax.spines[s].set_visible(False)
+ plt.tight_layout(); plt.savefig("charts/fng_1y.png",bbox_inches="tight"); plt.close()
 print("crypto+fng done")
 # (v3.6.10) 반도체/AI 미니차트 charts/semi_<i>.png — nmr_semi_series.json + breakdown 순서(시총순)
 try:

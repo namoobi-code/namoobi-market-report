@@ -8,7 +8,7 @@
     {
       "name": "namoobi-market-report",
       "source": "./plugins/namoobi-market-report",
-      "version": "1.7.18",
+      "version": "1.7.19",
       "description": "글로벌 금융시장 종합 시황 보고서 자동 생성·발송 (3.2.2 주요 미국 ETF 29종·3.2.3 S&P500/나스닥100 정기 리밸런싱·기술적 차트·투자자수급·1년 추세 스파크라인·코인/환율 확장·부록 버크셔13F/AI트렌드)"
     }
   ]
