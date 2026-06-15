@@ -12,8 +12,14 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.15)
+# Namoobi Market Report (v3.6.16)
 
+> v3.6.16 (plugin 1.7.16) 변경점 — 3.1.x/6.x 1차출처 정밀화 (2026-06-15 사용자 피드백):
+> - **3.1.1 한국 기술차트·수급** — 다음금융 market_index/days(perPage=250) Claude in Chrome 동일출처 fetch 로 1년 일별 종가·거래량·외국인/기관/개인 순매수. 지수 OHLC 캔들 API 403 → 종가선 멀티패널(종가+MA5/20/60/120+볼린저 / 거래량 / RSI / 누적순매수) 신규 scripts/gen_kr_tech.py.
+> - **⚠️ 야후 주봉 current stale** — 한국 지수 current·등락률은 다음 일별 CSV 로 산출(야후 주봉이 며칠 지연).
+> - **3.1.2** 다음 메인 외국인/기관 순매수 위젯 DOM 파싱. **3.1.3** 통계청 보도자료(mods.go.kr 산업활동동향) 직접·WebSearch 금지(전월차). **3.1.4** Yahoo marketCap. **6.2/6.3** CoinDesk fetch_spot_ohlcv·alternative.me·fetch_spot_tick.
+> - 상세는 references/agents.md v3.6.16.
+>
 > v3.6.15 (plugin 1.7.15) 변경점 — 3.1.x 수급/일봉·3.2.x 재발방지 (2026-06-15 사용자 피드백):
 > - **3.1.1 일봉 OHLC 필수** — 코스피·코스닥 기술적 차트는 반드시 **일봉(`interval="1d"`)**. 주봉/월봉처럼 보이던 문제 차단.
 > - **3.1.1 외국인/기관/개인 누적순매수 차트·1일 순매수 표 재발방지** — 다음금융 투자자 API 는 web_fetch 가 `Referer` 헤더를 못 보내 항상 빈 응답 → **Claude in Chrome 동일출처 fetch** 로 1년 일별 수급(`*_flows_daily`)을 받는다(검증된 영구 해법). 투자자별 순매수 표는 `*_flows_daily` 최신일 값으로 항상 채운다(빈 객체 금지). 상세는 `references/agents.md` v3.6.15.

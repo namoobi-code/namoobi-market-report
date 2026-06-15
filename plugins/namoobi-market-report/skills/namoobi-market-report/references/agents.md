@@ -1,5 +1,13 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.16 변경점 (2026-06-15 사용자 피드백 — 3.1.x/6.x 1차출처 정밀화, 반복 누락 근본차단)**
+> 아래 출처·절차를 그대로 따른다(WebSearch 폴백 최소화). 한국 수급/선행지수/코인 시계열이 비거나 부정확했던 문제의 영구 해법이다.
+> - **3.1.1 한국 기술차트·수급 (다음금융 동일출처 fetch)**: Claude in Chrome 로 `navigate https://finance.daum.net/domestic` 후 `javascript_tool` 동일출처 fetch `https://finance.daum.net/api/market_index/days?perPage=250&market=KOSPI&pagination=true`(헤더 Referer:finance.daum.net). `data[]` 의 tradePrice(종가)·accTradeVolume·foreign/institution/individualStraightPurchasePrice(원→억원 ÷1e8) 1년 일별. 반환 잘림은 `<pre>` 덤프 후 get_page_text 로 회수. ⚠️ 지수 OHLC 캔들 API(/api/charts)는 403 → 캔들 대신 종가선 멀티패널: kospi_daily.csv·kosdaq_daily.csv 저장 후 scripts/gen_kr_tech.py → charts/kospi_tech.png·kosdaq_tech.png. markets.korea_investors(level·순매수 3종=최신 마감일 값).
+> - **⚠️ 야후 주봉 current stale**: ^KS11/^KQ11 주봉 current 가 며칠 지연(KOSPI 8123 야후 vs 8546 다음). 한국 지수 current·등락률은 다음 일별 CSV 로 산출.
+> - **3.1.2 종목별 수급**: finance.daum.net/domestic 외국인/기관 순매수 위젯 DOM 파싱(코스피|코스닥 교차행). markets.korea_investor_stocks. 네이버 deal_rank 는 web_fetch blocklist.
+> - **3.1.3 경기선행지수(통계청 보도자료 직접·WebSearch 금지)**: KOSIS/e-나라지표 불안정 → mods.go.kr 산업활동동향(mid=a10301050100&bid=216) 최신 view 에서 `(경기) … 선행종합지수 순환변동치 전월대비 X.Xp` 파싱(최근 3개월). 절대수준은 PDF 전용 → 전월차로 markets.korea_leading.
+> - **3.1.4**: 종목 시총=Yahoo get_stock_info marketCap, ETF AUM=공개보도. **6.2/6.3**: CoinDesk fetch_spot_ohlcv(코인 1년)·alternative.me fng·fetch_spot_tick(김프 4종). crypto.charts={btc,eth,xrp,sol,fng}.
+>
 > **v3.6.15 변경점 (2026-06-15 사용자 피드백 — 3.1.x 수급/일봉·3.2.x 재발방지)**
 > 아래는 "자주 발생하는" 한국 수급/차트 누락을 **근본 차단**하기 위한 필수 규칙이다(반복 위반 금지).
 > - **3.1.1 일봉 OHLC 필수**: KoreaTechAgent 는 코스피·코스닥 차트용 OHLC 를 **반드시 일봉(`interval="1d"`)**으로 받는다(주봉 금지 — 주봉/월봉처럼 보임). `nmr_kr_ohlcv.json` 의 `kospi`/`kosdaq` 와 `kospi_ohlcv`/`kosdaq_ohlcv`(동일값) 둘 다 일봉으로 채운다.
