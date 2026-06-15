@@ -12,8 +12,17 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.16)
+# Namoobi Market Report (v3.6.17)
 
+> v3.6.17 (plugin 1.7.17) 변경점 — 3.1.x/3.2.1/4.x/부록B 정밀 수정 (2026-06-15 사용자 피드백):
+> - **3.1.1 항상 캔들차트** — Yahoo 일봉 OHLC(^KS11/^KQ11 interval=1d) + 다음 일별 수급 → `scripts/gen_kr_candle.py`(mplfinance 캔들+MA+볼린저 / 거래량 / RSI / 누적순매수). 라인차트(gen_kr_tech.py) 폐기.
+> - **3.1.2 순매도 종목** — 다음 위젯 순매도 탭은 MouseEvent 디스패치(pointerdown/mousedown/mouseup/click)로 전환 후 파싱. kospi_sell/kosdaq_sell 각 ~10.
+> - **3.1.3 순환변동치 절대값** — 통계청 보도자료 **PDF**(`mods.go.kr/boardDownload.es?bid=216&list_no=N&seq=1`)를 web_fetch 로 읽어 `선행지수 순환변동치` 절대값 파싱(2026.04=104.1 등). korea_leading.value 채움.
+> - **3.1.4 ETF AUM** — 다음 quote API(`finance.daum.net/api/quotes/A{코드}` marketCap). korea_theme_etfs 는 문자열([object Object] 방지).
+> - **3.2.1 HY 스프레드** — FRED는 Chrome 동일출처 fetch(fredgraph.csv). 빌더는 `markets.hy_spread`{current,w1..y1} 읽음.
+> - **4.x 원자재 정확값 / 부록B** — ai_trends 는 `{items:[...]}` 구조 필수.
+> - 상세는 `references/agents.md` v3.6.17.
+>
 > v3.6.16 (plugin 1.7.16) 변경점 — 3.1.x/6.x 1차출처 정밀화 (2026-06-15 사용자 피드백):
 > - **3.1.1 한국 기술차트·수급** — 다음금융 market_index/days(perPage=250) Claude in Chrome 동일출처 fetch 로 1년 일별 종가·거래량·외국인/기관/개인 순매수. 지수 OHLC 캔들 API 403 → 종가선 멀티패널(종가+MA5/20/60/120+볼린저 / 거래량 / RSI / 누적순매수) 신규 scripts/gen_kr_tech.py.
 > - **⚠️ 야후 주봉 current stale** — 한국 지수 current·등락률은 다음 일별 CSV 로 산출(야후 주봉이 며칠 지연).
