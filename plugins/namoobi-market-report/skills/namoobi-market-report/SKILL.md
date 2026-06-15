@@ -12,8 +12,16 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.14)
+# Namoobi Market Report (v3.6.15)
 
+> v3.6.15 (plugin 1.7.15) 변경점 — 3.1.x 수급/일봉·3.2.x 재발방지 (2026-06-15 사용자 피드백):
+> - **3.1.1 일봉 OHLC 필수** — 코스피·코스닥 기술적 차트는 반드시 **일봉(`interval="1d"`)**. 주봉/월봉처럼 보이던 문제 차단.
+> - **3.1.1 외국인/기관/개인 누적순매수 차트·1일 순매수 표 재발방지** — 다음금융 투자자 API 는 web_fetch 가 `Referer` 헤더를 못 보내 항상 빈 응답 → **Claude in Chrome 동일출처 fetch** 로 1년 일별 수급(`*_flows_daily`)을 받는다(검증된 영구 해법). 투자자별 순매수 표는 `*_flows_daily` 최신일 값으로 항상 채운다(빈 객체 금지). 상세는 `references/agents.md` v3.6.15.
+> - **3.1.2 장중 수집 / 3.1.3 경기선행지수 / 3.1.4 테마·반도체 추세차트** — 누락 시 섹션이 통째로 빠지므로 수집 의무·소스 명시.
+> - **3.2/3.3/3.4 1주 +0.00% 버그** — 야후 '진행중 부분 주봉'이 직전 완성봉과 종가가 같아 1주가 0으로 왜곡됨 → MarketsAgent 가 부분봉 제거 후 1주 계산(UsEtfAgent 와 동일). 빌더는 정상 데이터를 렌더.
+> - **3.2.1 미국 HY 스프레드** — FRED CSV 는 web_fetch 가 binary 로 반환해 실패 → Claude in Chrome 으로 `fredgraph.csv` navigate→get_page_text/fetch.
+> - **3.2.3 분기 미표시** — 빌더가 S&P500 일정의 `s.q` 만 읽던 것을 `s.q??s.cycle??s.quarter` 로 수정(build_report.js).
+>
 > v3.6.14 (plugin 1.7.14) 변경점 — 신규 상장 ETF 차트 누락 방지 (2026-06-14 사용자 피드백):
 > - **신규 상장 ETF 추세차트** — 야후에 데이터가 없는 최근 상장 ETF(예: 2026.6 상장 단일종목 레버리지)는 **다음금융 charts API**(`finance.daum.net/api/charts/A{코드}/days`, 심볼별 Referer 필수)로 상장 이후 일별 종가를 받아 `charts/semi_e_<i>.png` 생성. 1년 미만은 라벨 `(상장후)`, 한글 라벨용 `fonts/nmr_kr.ttf` matplotlib 등록. (단일종목 레버리지 ETF 차트가 비던 문제 해결.)
 >
@@ -434,21 +442,4 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 | 신한투자증권 | 자산배분 통합 (주식·채권·원자재·대안), 매크로 일관성 | 카카오채널 '쏠쏠한 리포트', 신한 알파 앱 | 장기 자산배분형 |
 | 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
 | 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
-| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
-| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
-
-복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
-
-## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
-
-| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
-|------|-----------|----------------|-----------|
-| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
-| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
-| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
-| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
-| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
-
-수집 시 주의:
-- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
-- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
+| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분

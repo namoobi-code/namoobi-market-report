@@ -266,7 +266,7 @@ function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebala
   if(sp){ children.push(p("■ S&P 500 정기 리밸런싱",{bold:true,color:"0F172A",size:21,before:120}));
     if(Array.isArray(sp.schedule)&&sp.schedule.length){ children.push(p("1. 결정 시점 (분기별)",{bold:true,size:18}));
       simpleTable([1500,2800,3200,2700],["분기","발표일","적용일(장 마감 후)","비고"],
-        sp.schedule.map(s=>[s.q??"-",s.announce??"-",s.effective??"-",s.note??"-"]),{left:[3]}); }
+        sp.schedule.map(s=>[s.q??s.cycle??s.quarter??"-",s.announce??"-",s.effective??"-",s.note??"-"]),{left:[3]}); }
     renderEvents(sp.events);
     if(Array.isArray(sp.criteria)&&sp.criteria.length){ children.push(p("편입 기준",{bold:true,size:18,before:80}));
       simpleTable([2400,7800],["항목","요건"],sp.criteria.map(c=>[c.item??"-",c.detail??"-"]),{left:[1]}); }
@@ -590,4 +590,4 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.14 / plugin v1.7.14 (v3.6.8 + 3.2.3 미국 지수 정기 리밸런싱 섹션 신설(renderIndexRebalance: markets.index_rebalance — S&P500·나스닥100 편입/편출 사업내용·사유·일정·기준·패스트엔트리 룰변경), 기존 CAPEX→3.2.4 이동)
+// EOF — namoobi-market-report v3.6.14 / plugin v1.7.14 (v3.6.8 + 3.2.3 미국 지수 정기 리밸런싱 섹션 신설(renderIndexRebalance: markets.index_rebalance — S&P500·나스닥100 편입/편출 사업내용·사유·일정·기준·패스트엔트리 룰변경), 기존 CAP
