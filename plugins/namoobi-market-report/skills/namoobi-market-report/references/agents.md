@@ -1,5 +1,12 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.24 변경점 (2026-06-17). 차트 기울기·폰트·3.2.x·CAPEX·신선도.**
+> - 차트: gen_all2.py/gen_semi_etf.py mini 더 크게(2.5×1.45)+로그축(max/min>3), "·로그축" 라벨 제거. **gen_semi_etf.py 한글폰트 등록 필수**(tofu 방지).
+> - 3.2.x: 빌더 renderUSExtras = 3.2.1 HY→3.2.2 CAPEX→3.2.3 ETF→3.2.4 리밸런싱. CAPEX 항상 렌더. **CapexAgent**(MSFT·Alphabet·Amazon·Meta 연간 capex, 미확인 "미공개") → nmr_capex.json `bigtech_capex`.
+> - SecuritiesAgent/GlobalSecuritiesAgent: **신선도 엄격** — Daily≤D-1·Weekly/Monthly≤D-3·주말 금요일자, 그 밖(3/31·5/11·1/26 등) 인용 금지. 못 구하면 비우고 "최신 미확보". 각 항목 date 필수.
+>
+
+
 > **v3.6.22 변경점 (2026-06-16). 3.1.2 실데이터·차트 로그축·추세 간결·증권사/IB 최신성.**
 > - **3.1.2(메인세션 Chrome)**: `finance.daum.net/domestic/influential_investors` navigate → 코스피/코스닥 × 외국인/기관 매매종목 탭(좌표클릭) × 당일 → get_page_text 파싱 → `markets.korea_investor_stocks` 8리스트(코스피10·코스닥5, {name,detail:"순매수 N억 (±%)"}). 네이버/web_fetch 는 차단.
 > - **차트**: gen_all2.py/gen_semi_etf.py mini/spark 가 max/min>3 시 로그축(기울기 정확). 반도체 종목 series=야후 53주봉, ETF series=다음 charts API(`/api/charts/A{code}/days`, /quotes/ 페이지 동일출처).

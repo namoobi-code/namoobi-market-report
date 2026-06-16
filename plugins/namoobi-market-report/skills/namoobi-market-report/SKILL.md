@@ -12,7 +12,15 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.22)
+# Namoobi Market Report (v3.6.24)
+
+> v3.6.24 (plugin 1.7.24) 변경점 — 차트 기울기·폰트·3.2.x 재배치·CAPEX·신선도 (2026-06-17 사용자 피드백):
+> - **추세 차트 기울기 명확화** — `gen_all2.py`·`gen_semi_etf.py` 의 mini 차트를 **더 크게(figsize 2.5×1.45)** 그리고 max/min>3 시 로그축을 적용해 수배 등락 종목(예 +831%·+1450%)의 우상향 기울기가 평평해 보이던 문제 해결. **"·로그축" 라벨은 제거**(혼동·글자깨짐 유발).
+> - **차트 글자 깨짐(ㅁㅁ) 수정** — `gen_semi_etf.py` 에 한글 폰트(`fonts/nmr_kr.ttf`) `font_manager.addfont` 등록 누락으로 ETF 차트 라벨이 tofu(ㅁㅁ)로 나오던 문제 해결(gen_all2 와 동일하게 폰트 등록).
+> - **3.2.x 순서 재배치 + CAPEX 항상** — 빌더 `renderUSExtras` 순서: 3.2.1 HY → **3.2.2 AI 빅테크 CAPEX** → 3.2.3 주요 미국 ETF → 3.2.4 지수 정기 리밸런싱. CAPEX(`markets.bigtech_capex`)는 데이터 없어도 헤더+안내문 항상 렌더(절대 누락 금지). CapexAgent 가 MSFT·Alphabet·Amazon·Meta 연간 capex(2025 실적·2026 가이던스·2027/28 전망, 미확인은 "미공개") 수집.
+> - **7장 증권사·8장 IB 신선도 엄격** — Daily ≤D-1, Weekly/Monthly ≤D-3, 주말은 금요일자. **윈도우 밖 자료(예: 정기전략 3/31·키움 위클리 5/11·GS Commodity Outlook 1/26)는 인용 금지·표에서 제외.** 못 구하면 key_reports:[] + "최신 미확보(뉴스 기반)" 명시. 각 항목 date 필수.
+>
+
 
 > v3.6.22 (plugin 1.7.22) 변경점 — 3.1.2 실데이터·차트정확도·추세간결·최신성 (2026-06-16 사용자 피드백):
 > - **3.1.2 투자자별 종목 = 다음금융 실데이터(항상)** — 네이버 deal_rank/Chrome 차단·web_fetch blocklist. **다음금융 `finance.daum.net/domestic/influential_investors`** 페이지를 메인세션 Chrome 으로 navigate 후, 탭(코스피/코스닥 × 외국인 매매종목/기관 매매종목, 기간=당일)을 좌표 클릭으로 전환하며 `get_page_text` 로 순매수/순매도 종목·금액(백만원)을 파싱한다. 코스피 각 10·코스닥 각 5 → `markets.korea_investor_stocks.{kospi,kosdaq}_{foreign,inst}_{buy,sell}` 각 {name, detail:"순매수 N억 (±%)"}. (탭 클릭은 ref 보다 좌표가 안정적; 첫 로드는 외국인·코스피·당일.)

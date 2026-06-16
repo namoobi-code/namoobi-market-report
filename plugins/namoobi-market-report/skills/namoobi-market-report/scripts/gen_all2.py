@@ -36,13 +36,13 @@ def spark(pairs, out):
     if len(ys) < 2:
         return False
     col = GRN if ys[-1] >= ys[0] else RED
-    fig, ax = plt.subplots(figsize=(1.6, 0.52), dpi=150)
+    fig, ax = plt.subplots(figsize=(1.7, 0.62), dpi=150)
     if _islog(ys):
         ax.set_yscale("log")
-    ax.plot(range(len(ys)), ys, color=col, linewidth=1.2)
-    ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.10)
-    ax.axis("off"); ax.margins(x=0, y=0.12)
-    ax.scatter([len(ys)-1], [ys[-1]], color=col, s=7, zorder=5)
+    ax.plot(range(len(ys)), ys, color=col, linewidth=1.5)
+    ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.08)
+    ax.axis("off"); ax.margins(x=0.02, y=0.10)
+    ax.scatter([len(ys)-1], [ys[-1]], color=col, s=9, zorder=5)
     plt.tight_layout(pad=0); plt.savefig(out, bbox_inches="tight", transparent=True); plt.close()
     return True
 
@@ -51,15 +51,15 @@ def mini(pairs, out):
     if len(ys) < 2:
         return False
     col = GRN if ys[-1] >= ys[0] else RED
-    fig, ax = plt.subplots(figsize=(2.5, 0.82), dpi=150)
-    logged = _islog(ys)
-    if logged:
+    fig, ax = plt.subplots(figsize=(2.5, 1.45), dpi=150)
+    if _islog(ys):
         ax.set_yscale("log")
-    ax.plot(range(len(ys)), ys, color=col, linewidth=1.3)
-    ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.10)
-    ax.axis("off"); ax.margins(x=0, y=0.12)
+    ax.plot(range(len(ys)), ys, color=col, linewidth=1.9)
+    ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.08)
+    ax.scatter([len(ys)-1], [ys[-1]], color=col, s=16, zorder=5)
+    ax.axis("off"); ax.margins(x=0.02, y=0.10)
     chg = (ys[-1]/ys[0]-1)*100 if ys[0] else 0
-    ax.set_title(f"{chg:+.0f}% (1Y)" + ("  ·로그축" if logged else ""), fontsize=8, color=col, fontweight="bold")
+    ax.set_title(f"{chg:+.0f}% (1Y)", fontsize=9, color=col, fontweight="bold")
     plt.tight_layout(pad=0.2); plt.savefig(out, bbox_inches="tight", transparent=True); plt.close()
     return True
 

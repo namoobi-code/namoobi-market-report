@@ -215,13 +215,15 @@ function renderUSExtras(){ const m=data.markets||{};
     if(c.comment)children.push(p(c.comment));
     if(c.asof)children.push(p("기준: "+c.asof,{size:16,color:"94A3B8"}));
     children.push(p("")); }
+  { const cx=m.bigtech_capex||{}; children.push(h("3.2.2 AI 빅테크 자본지출(CAPEX)",3));
+    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개";
+    const cxr=Array.isArray(cx.rows)?cx.rows:[];
+    if(cxr.length) simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cxr.map(r=>[r.company??"-",capV(r.y2025),capV(r.y2026),capV(r.y2027),capV(r.y2028),r.comment??"-"]),{left:[5]});
+    else children.push(p("(CAPEX 데이터 미수집)",{italics:true,color:"94A3B8"}));
+    if(cx.comment)children.push(p(cx.comment)); children.push(p("")); }
   renderUSEtfs();
-  renderIndexRebalance();
-  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.4 AI 빅테크 자본지출(CAPEX)",3));
-    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개"; // v3.6.10 빈칸은 "-" 대신 "미공개"
-    simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cx.rows.map(r=>[r.company??"-",capV(r.y2025),capV(r.y2026),capV(r.y2027),capV(r.y2028),r.comment??"-"]),{left:[5]});
-    if(cx.comment)children.push(p(cx.comment)); children.push(p("")); } }
-// (v3.6.8) 3.2.2 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
+  renderIndexRebalance(); }
+// (v3.6.8) 3.2.3 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
 function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||typeof e!=="object")return;
   const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["defensive","④ 방어형 ETF (변동성 완화)"]];
   if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
@@ -250,7 +252,7 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
   children.push(p("")); }
-// (v3.6.9) 3.2.3 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
+// (v3.6.9) 3.2.4 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
   if(!r.sp500&&!r.nasdaq100)return;
   children.push(h("3.2.3 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
