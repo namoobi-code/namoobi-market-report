@@ -1,5 +1,14 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.22 변경점 (2026-06-16). 3.1.2 실데이터·차트 로그축·추세 간결·증권사/IB 최신성.**
+> - **3.1.2(메인세션 Chrome)**: `finance.daum.net/domestic/influential_investors` navigate → 코스피/코스닥 × 외국인/기관 매매종목 탭(좌표클릭) × 당일 → get_page_text 파싱 → `markets.korea_investor_stocks` 8리스트(코스피10·코스닥5, {name,detail:"순매수 N억 (±%)"}). 네이버/web_fetch 는 차단.
+> - **차트**: gen_all2.py/gen_semi_etf.py mini/spark 가 max/min>3 시 로그축(기울기 정확). 반도체 종목 series=야후 53주봉, ETF series=다음 charts API(`/api/charts/A{code}/days`, /quotes/ 페이지 동일출처).
+> - **추세평가**: 모든 추세(asia/europe/fx/us_etf/commod)는 짧은 구문(예 "견조한 상승추세·신고가권"). 길게 쓰지 말 것.
+> - **SecuritiesAgent/GlobalSecuritiesAgent 최신성**: Daily≤D-1·Weekly/Monthly≤D-3·주말은 금요일자, published_date 필수. 증권사 공식 URL(신한·미래에셋·삼성·한투·키움) Chrome navigate→get_page_text 우선, 못 구한 사만 WebSearch(뉴스 기반 표기).
+> - **AnalysisAgent**: 1~8장 JSON 수집 완료 후에만 9~12장 작성, 입력에 없는 수치 생성 금지.
+>
+
+
 > **v3.6.20 변경점 (2026-06-16 — 27개 항목 항상 포함). 아래 데이터·시계열을 매 실행 반드시 수집한다.**
 > Phase 1.5 차트는 scripts/gen_all2.py(코스피·코스닥 캔들+거래량+누적순매수, 원자재·전략광물·테마·반도체종목·FX 스파크라인) + scripts/gen_semi_etf.py(반도체 ETF 추세, 다음 charts API series) + scripts/gen_kr_flows.py 로 생성.
 > - **KoreaTechFlowsAgent** → nmr_korea_tech.json: kr_ohlcv(kospi/kosdaq 1년 일봉 OHLCV, 야후 ^KS11/^KQ11 interval=1d), korea_investor_stocks **8리스트**(kospi_foreign_buy/inst_buy/foreign_sell/inst_sell 각10, kosdaq_* 각5; {name,detail}), korea_leading value(숫자)+mom.

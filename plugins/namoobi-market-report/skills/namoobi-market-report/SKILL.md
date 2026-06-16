@@ -12,7 +12,16 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.20)
+# Namoobi Market Report (v3.6.22)
+
+> v3.6.22 (plugin 1.7.22) 변경점 — 3.1.2 실데이터·차트정확도·추세간결·최신성 (2026-06-16 사용자 피드백):
+> - **3.1.2 투자자별 종목 = 다음금융 실데이터(항상)** — 네이버 deal_rank/Chrome 차단·web_fetch blocklist. **다음금융 `finance.daum.net/domestic/influential_investors`** 페이지를 메인세션 Chrome 으로 navigate 후, 탭(코스피/코스닥 × 외국인 매매종목/기관 매매종목, 기간=당일)을 좌표 클릭으로 전환하며 `get_page_text` 로 순매수/순매도 종목·금액(백만원)을 파싱한다. 코스피 각 10·코스닥 각 5 → `markets.korea_investor_stocks.{kospi,kosdaq}_{foreign,inst}_{buy,sell}` 각 {name, detail:"순매수 N억 (±%)"}. (탭 클릭은 ref 보다 좌표가 안정적; 첫 로드는 외국인·코스피·당일.)
+> - **추세 차트 정확도 = 로그축** — `gen_all2.py`·`gen_semi_etf.py` 의 mini/spark 는 시계열 max/min>3(수배 등락)이면 **y축 로그스케일**로 그려 +487%/+831%/+1450% 같은 종목의 기울기가 평평해 보이던 문제를 해결(제목에 `·로그축` 표기). 종목/ETF series 는 53주봉(야후)·다음 charts API.
+> - **추세 평가 간결화** — 3.2/3.3/3.4·미국ETF·4.x·5 의 추세평가는 **짧은 한국어 구문**(예 "견조한 상승추세·신고가권", "강한 상승추세·신고가권 과열"). 2문장·수치나열·미사여구 금지. 에이전트가 간결하게 작성.
+> - **7장 증권사·8장 IB 최신성 규칙** — Daily ≤D-1, Weekly/Monthly ≤D-3, 주말이면 직전 금요일자. 각 항목 발행일 필수. 증권사는 공식 URL(신한 insights/research, 미래에셋 categoryId=1521, 삼성 research_pop, 한국 Strategy.jsp jkGubun=99/34, 키움 VMarket*)을 **메인세션 Chrome navigate→get_page_text** 우선(신한·미래에셋은 SSR 로 추출 양호, 삼성·한투·키움은 JS 렌더라 부분 → 못 구한 사만 WebSearch+`(뉴스 기반)`).
+> - **9~12장은 1~8 수집 완료 후 작성** — AnalysisAgent 가 1~8 수집 JSON 만 근거로 종합분석·자산견해·포트폴리오·액션 작성(입력에 없는 수치 생성 금지).
+>
+
 
 > v3.6.20 (plugin 1.7.20) 변경점 — 27개 항목 품질 보강·항상 표시 (2026-06-16 사용자 피드백):
 > 빌더(build_report.js)·차트(scripts/gen_all2.py·gen_semi_etf.py·gen_kr_flows.py)·에이전트 스키마를 전면 보강해 **아래가 매 실행 항상 포함**되도록 했다. 상세는 references/agents.md v3.6.20.
