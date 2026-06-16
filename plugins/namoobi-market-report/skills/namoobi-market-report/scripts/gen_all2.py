@@ -66,13 +66,27 @@ def sma(vals, n):
             out.append(sum(vals[i+1-n:i+1])/n)
     return out
 
-def candle_chart(name, ohlcv, flows, title, out):
+def candle_chart(name, ohlcv, flows, title, out, vol_override=None):
+    # vol_override: [[YYYY-MM-DD, volume]...] (예: 코스닥은 야후 ^KQ11 거래량 손상 → 다음 accTradeVolume 사용)
     if not ohlcv or len(ohlcv) < 20:
         print("candle skip", name); return False
     import numpy as np
     xs = [datetime.fromisoformat(str(r[0])[:10]) for r in ohlcv]
     o = [r[1] for r in ohlcv]; h = [r[2] for r in ohlcv]; l = [r[3] for r in ohlcv]
-    c = [r[4] for r in ohlcv]; v = [r[5] if len(r) > 5 and r[5] else 0 for r in ohlcv]
+    c = [r[4] for r in ohlcv]
+    if vol_override:
+        vmap = {datetime.fromisoformat(str(d)[:10]): vv for d, vv in vol_override if vv}
+        vk = sorted(vmap.keys())
+        def near_vol(x):
+            best, bd = None, 10**9
+            for k in vk:
+                dd = abs((k - x).days)
+                if dd < bd:
+                    bd, best = dd, k
+            return vmap.get(best, 0) if best is not None and bd <= 4 else 0
+        v = [near_vol(x) for x in xs]
+    else:
+        v = [r[5] if len(r) > 5 and r[5] else 0 for r in ohlcv]
     n = len(xs); xi = np.arange(n); w = 0.7
     fig = plt.figure(figsize=(9.2, 6.9), dpi=150)
     gs = fig.add_gridspec(3, 1, height_ratios=[3.0, 1.0, 1.4], hspace=0.12)
@@ -135,7 +149,8 @@ def load_flows(market):
         blocks[cur].append((datetime.strptime("20"+a[0], "%Y-%m-%d"), float(a[1]), float(a[2]), float(a[3]), float(a[4])))
     return blocks.get(market)
 candle_chart("kospi", ohlcv.get("kospi"), load_flows("KOSPI"), "코스피 일봉 캔들·이동평균 / 거래량 / 투자자별 누적순매수 (1년)", os.path.join(CH, "kospi_candle.png"))
-candle_chart("kosdaq", ohlcv.get("kosdaq"), load_flows("KOSDAQ"), "코스닥 일봉 캔들·이동평균 / 거래량 / 투자자별 누적순매수 (1년)", os.path.join(CH, "kosdaq_candle.png"))
+# 코스닥 거래량은 야후 ^KQ11 손상 → 다음 accTradeVolume(kosdaq_volume) 사용
+candle_chart("kosdaq", ohlcv.get("kosdaq"), load_flows("KOSDAQ"), "코스닥 일봉 캔들·이동평균 / 거래량 / 투자자별 누적순매수 (1년)", os.path.join(CH, "kosdaq_candle.png"), vol_override=ohlcv.get("kosdaq_volume"))
 
 cm = loadj("nmr_commod.json") or {}
 ser = cm.get("series") or {}

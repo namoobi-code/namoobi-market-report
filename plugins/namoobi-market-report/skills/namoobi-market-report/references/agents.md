@@ -1,5 +1,10 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.26 변경점 (2026-06-17). 코스닥 거래량 영구 수정.**
+> - **KoreaTechFlowsAgent**: `nmr_korea_tech.json` 에 `kr_ohlcv.kosdaq_volume = [["YYYY-MM-DD", accTradeVolume]...]`(다음 `market_index/days?market=KOSDAQ&perPage=250`, 동일출처 fetch) **필수**. 야후 ^KQ11 거래량은 손상이라 차트에서 무시되고 이 값으로 그린다. gen_all2.py candle_chart 의 vol_override(날짜 최근접 ±4일) 로 사용.
+>
+
+
 > **v3.6.25 변경점 (2026-06-17). 추세차트 선형축·전략광물 간결.**
 > - 차트: gen_all2.py/gen_semi_etf.py mini/spark **선형축**(로그축·"·로그축" 라벨 제거), figsize 확대·굵은선. 급등 종목은 선형 특성상 초반 완만→최근 급경사가 정상.
 > - CommoditiesAgent: strategic_metals.etf[].trend 는 짧은 구문(예 "1년 +151% 신고가권·변동성 확대"). 장문 금지.

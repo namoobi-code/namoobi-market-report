@@ -12,7 +12,12 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.25)
+# Namoobi Market Report (v3.6.26)
+
+> v3.6.26 (plugin 1.7.26) 변경점 — 코스닥 거래량 영구 수정 (2026-06-17 사용자 피드백):
+> - **3.1.1 코스닥 캔들 거래량 = 다음 accTradeVolume(영구)** — 야후 `^KQ11` 지수 거래량이 손상(대부분 0/스파이크 몇 개)돼 거래량 패널이 비어 보이던 문제. `gen_all2.py` candle_chart 에 **vol_override** 인자를 추가해, 코스닥은 `nmr_korea_tech.json` 의 `kr_ohlcv.kosdaq_volume`(다음금융 `market_index/days` market=KOSDAQ 의 일별 `accTradeVolume`, 1년)을 **날짜 최근접 매칭**으로 사용한다(야후 vs 다음 영업일 셋 불일치도 ±4일 내 매칭으로 흡수). KOSPI 거래량은 야후 정상이라 그대로. **KoreaTechFlowsAgent 가 `kr_ohlcv.kosdaq_volume` 를 반드시 채운다(다음 동일출처 fetch).** 재발 방지.
+>
+
 
 > v3.6.25 (plugin 1.7.25) 변경점 — 추세차트 선형축 통일·전략광물 간결화 (2026-06-17 사용자 선택):
 > - **추세차트 = 선형축(실제 가격경로)으로 통일** — 사용자가 4가지 예시(로그축+채움 / 로그축+그리드 / 선형 / 0%정규화) 중 **선형축(실제 가격경로)**을 선택. `gen_all2.py`·`gen_semi_etf.py` 의 mini/spark 는 **로그축 미사용**(set_yscale 제거), "·로그축" 라벨 제거, figsize 확대(mini 2.5×1.45)·굵은선·끝점 마커. ⚠️ 선형축이므로 +1450% 같은 최근 급등 종목은 초반이 바닥에 눌려 완만→최근 급경사로 보이는 것이 정상(실제 데이터). 향후 실행도 선형 유지.
