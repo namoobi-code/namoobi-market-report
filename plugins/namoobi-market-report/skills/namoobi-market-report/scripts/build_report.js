@@ -111,8 +111,8 @@ function renderKoreaExtras(){ const m=data.markets||{};
   if(m.korea_investors){ const ki=m.korea_investors; children.push(h("3.1.1 외국인 순매수 동향 (일봉·투자자별 수급)",3));
     children.push(p("외국인 순매수 동향: 시장 조정 국면에서 외국인이 매수세를 늘리면 하방 지지선이 구축된다는 강력한 신호입니다.",{italics:true,color:"64748B"}));
     const blk=(label,d,chart)=>{ if(!d)return; children.push(p(label+"   "+(d.level||""),{bold:true,color:"1E40AF",before:80}));
-      const img=imagePara(chart, (ki.tech?520:300), (ki.tech?347:142)); if(img)children.push(img);
-      if(ki.tech)children.push(p("캔들+이동평균(5·20·60·120)·볼린저밴드 / 거래량 / RSI / 누적순매수(빨강=외국인·파랑=기관·초록=개인, 조원)",{size:15,color:"94A3B8"}));
+      const img=imagePara(chart, 648, 486); if(img)children.push(img); else children.push(p("(차트 생성 실패 — OHLCV/수급 데이터 확인 필요)",{italics:true,color:"B45309",size:16}));
+      children.push(p("일봉 캔들(시·고·저·종)+이동평균(5·20·60·120) / 거래량 / 투자자별 누적순매수(빨강=외국인·파랑=기관·초록=개인, 조원)",{size:15,color:"94A3B8"}));
       children.push(p("투자자별 순매수 (기준: 최근 장 마감일 "+(ki.asof||"-")+" · 1일 기준)",{size:17,bold:true,color:"475569"}));
       const iw=[3300,3300,3300];
       const ih=new TableRow({children:["외국인 순매수","기관 순매수","개인 순매수"].map((x,i)=>cell(x,{width:iw[i],header:true,align:AlignmentType.CENTER}))});
@@ -126,51 +126,71 @@ function renderKoreaExtras(){ const m=data.markets||{};
     blk("코스닥",ki.kosdaq,ki.kosdaq_chart);
     children.push(p("기준일: "+(ki.asof||"-")+(ki.source?("   출처: "+ki.source):""),{size:16,color:"94A3B8"}));
     children.push(p("")); }
-  if(m.korea_investor_stocks){ const ks=m.korea_investor_stocks; children.push(h("3.1.2 투자자별 순매수·순매도 주요 종목 (최근 장 마감)",3));
-    children.push(p("기준: "+(ks.asof||"-"),{size:17,color:"94A3B8"}));
-    const lst=(title,arr)=>{ if(Array.isArray(arr)&&arr.length){ children.push(p(title,{bold:true,color:"1E40AF",before:80})); arr.forEach(x=>{ const t=(typeof x==="string")?x:((x.name||"-")+(x.detail?(" — "+x.detail):"")); children.push(bullet(t)); }); } };
-    lst("코스피 순매수 주요 종목",ks.kospi_buy);
-    lst("코스피 순매도 주요 종목",ks.kospi_sell);
-    lst("코스닥 순매수 주요 종목",ks.kosdaq_buy);
-    lst("코스닥 순매도 주요 종목",ks.kosdaq_sell);
-    if(ks.note)children.push(p(ks.note,{italics:true,size:16,color:"94A3B8"})); children.push(p("")); }
+  { const ks=m.korea_investor_stocks||{}; children.push(h("3.1.2 투자자별 순매수·순매도 상위 종목 (최근 장 마감)",3));
+    children.push(p("기준: "+(ks.asof||"-")+(ks.note?("   "+ks.note):""),{size:17,color:"94A3B8"}));
+    const iw2=[820,4400,4140];
+    const invTbl=(title,arr,n)=>{ children.push(p(title,{bold:true,color:"1E40AF",before:100,size:20}));
+      const rows=[new TableRow({children:["순위","종목","순매수 규모·비고"].map((x,i)=>cell(x,{width:iw2[i],header:true,align:i===0?AlignmentType.CENTER:AlignmentType.LEFT}))})];
+      const a=Array.isArray(arr)?arr.slice(0,n):[];
+      if(!a.length){ rows.push(new TableRow({children:[cell("-",{width:iw2[0],align:AlignmentType.CENTER}),cell("(자료 미수집)",{width:iw2[1],color:"94A3B8"}),cell("-",{width:iw2[2]})]})); }
+      else a.forEach((x,i)=>{ const nm=(typeof x==="string")?x:(x.name||x.ticker||"-"); const dt=(typeof x==="string")?"":(x.detail||x.amount||x.value||""); rows.push(new TableRow({children:[cell(String(i+1),{width:iw2[0],alt:i%2===1,align:AlignmentType.CENTER}),cell(nm,{width:iw2[1],alt:i%2===1,bold:true}),cell(String(dt||"-"),{width:iw2[2],alt:i%2===1,size:18})]})); });
+      children.push(makeTable(iw2,rows)); };
+    children.push(p("◆ 코스피",{bold:true,size:22,color:"0F172A",before:120}));
+    invTbl("외국인 순매수 상위 10",ks.kospi_foreign_buy||ks.kospi_buy,10);
+    invTbl("기관 순매수 상위 10",ks.kospi_inst_buy,10);
+    invTbl("외국인 순매도 상위 10",ks.kospi_foreign_sell||ks.kospi_sell,10);
+    invTbl("기관 순매도 상위 10",ks.kospi_inst_sell,10);
+    children.push(p("◆ 코스닥",{bold:true,size:22,color:"0F172A",before:160}));
+    invTbl("외국인 순매수 상위 5",ks.kosdaq_foreign_buy||ks.kosdaq_buy,5);
+    invTbl("기관 순매수 상위 5",ks.kosdaq_inst_buy,5);
+    invTbl("외국인 순매도 상위 5",ks.kosdaq_foreign_sell||ks.kosdaq_sell,5);
+    invTbl("기관 순매도 상위 5",ks.kosdaq_inst_sell,5);
+    children.push(p("")); }
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.3 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); }
-  if(Array.isArray(m.korea_themes)&&m.korea_themes.length){ children.push(h("3.1.4 순환매 대비 테마별 현황 (대표 ETF·추세)",3));
+  { children.push(h("3.1.4 순환매 대비 테마별 현황 (대표 ETF·추세)",3));
     if(m.korea_themes_intro)children.push(p(m.korea_themes_intro,{italics:true,color:"64748B"}));
+    // (요청) 테마 순서 항상 고정 + 8개 테마 항상 표시
+    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주"];
+    const themeArr=Array.isArray(m.korea_themes)?m.korea_themes:[];
+    const byName={}; themeArr.forEach(t=>{ if(t&&t.theme)byName[t.theme]=t; });
     const etfs=m.korea_theme_etfs||{}, tch=m.korea_theme_charts||{};
+    const etfName=(v)=>{ if(!v)return "-"; if(typeof v==="object")return v.name||v.ticker||v.etf||"-"; return String(v); };
+    const sani=(s)=>String(s).replace(/\//g,"_").replace(/\s+/g,"_");
     const cw=[1300,900,3300,2400,2300];
     const th=new TableRow({children:["테마","방향","현황·코멘트","대표 ETF","추세(1Y)"].map((x,i)=>cell(x,{width:cw[i],header:true,align:AlignmentType.CENTER}))});
-    const rows=[th]; m.korea_themes.forEach((t,i)=>{ const nm=t.theme||"-";
+    const rows=[th]; THEME_ORDER.forEach((nm,i)=>{ const t=byName[nm]||{};
+      const chart=tch[nm]||("charts/theme_"+sani(nm)+".png");
       rows.push(new TableRow({children:[
         cell(nm,{width:cw[0],alt:i%2===1,bold:true}),
         cell(t.direction||"-",{width:cw[1],alt:i%2===1,align:AlignmentType.CENTER,bold:true,color:markColor(t.direction)}),
         cell(t.comment||"-",{width:cw[2],alt:i%2===1}),
-        cell(etfs[nm]||"-",{width:cw[3],alt:i%2===1,size:16}),
-        imgCellSpark(tch[nm]||"",cw[4],i%2===1,150,48)]}));
+        cell(etfName(etfs[nm]),{width:cw[3],alt:i%2===1,size:16}),
+        imgCellSpark(chart,cw[4],i%2===1,150,48)]}));
     });
     children.push(makeTable(cw,rows));
     if(m.korea_themes_comment)children.push(p(m.korea_themes_comment)); children.push(p("")); }
   { // (v3.6.12) 반도체/AI: 국내 종목(시총순)·ETF(AUM순) 2그룹 + 그룹별 현황 코멘트. 신스키마 우선, 없으면 구 semi_ai_breakdown.
-    const semiTbl=(title,arr,comment)=>{ if(!Array.isArray(arr)||!arr.length)return;
+    const semiTbl=(title,arr,comment,prefix)=>{ if(!Array.isArray(arr)||!arr.length)return;
       children.push(p(title,{bold:true,color:"1E40AF",before:120}));
       const bw=[3000,1450,3950,1800];
       const bh=new TableRow({children:["종목·ETF","시총/AUM","현황 코멘트","추세(1Y)"].map((x,i)=>cell(x,{width:bw[i],header:true,align:AlignmentType.CENTER}))});
-      const brows=[bh]; arr.forEach((x,i)=>{ brows.push(new TableRow({children:[
+      const brows=[bh]; arr.forEach((x,i)=>{ const chart=x.chart||(prefix?("charts/"+prefix+"_"+i+".png"):"");
+        brows.push(new TableRow({children:[
         cell(x.name||"-",{width:bw[0],alt:i%2===1,bold:true}),
-        cell(x.aum||"-",{width:bw[1],alt:i%2===1,align:AlignmentType.RIGHT}),
+        cell(x.aum||"미확인",{width:bw[1],alt:i%2===1,align:AlignmentType.RIGHT}),
         cell(x.note||"-",{width:bw[2],alt:i%2===1,size:16}),
-        imgCellSpark(x.chart||"",bw[3],i%2===1,150,48)]})); });
+        imgCellSpark(chart,bw[3],i%2===1,150,48)]})); });
       children.push(makeTable(bw,brows));
       if(comment)children.push(p(comment,{size:18,color:"64748B"})); children.push(p("")); };
     if((Array.isArray(m.semi_ai_stocks)&&m.semi_ai_stocks.length)||(Array.isArray(m.semi_ai_etfs)&&m.semi_ai_etfs.length)){
-      semiTbl("■ 반도체/AI 대표 국내 종목 (시총순)",m.semi_ai_stocks,m.semi_ai_stocks_comment);
-      semiTbl("■ 반도체/AI 대표 ETF (AUM순)",m.semi_ai_etfs,m.semi_ai_etfs_comment);
+      semiTbl("■ 반도체/AI 대표 국내 종목 (시총순)",m.semi_ai_stocks,m.semi_ai_stocks_comment,"semi_s");
+      semiTbl("■ 반도체/AI 대표 ETF (AUM순, 상위 20)",m.semi_ai_etfs,m.semi_ai_etfs_comment,"semi_e");
     } else if(Array.isArray(m.semi_ai_breakdown)&&m.semi_ai_breakdown.length){
-      semiTbl("■ 반도체/AI 대표 ETF·종목 (시총순, 단위 억원)",m.semi_ai_breakdown,m.semi_ai_comment); }
+      semiTbl("■ 반도체/AI 대표 ETF·종목 (시총순, 단위 억원)",m.semi_ai_breakdown,m.semi_ai_comment,"semi"); }
   }
  }
 function renderUSExtras(){ const m=data.markets||{};
@@ -413,8 +433,9 @@ function renderBerkshire(){ const b=data.berkshire; if(!b)return;
   children.push(p("공시 분기: "+(b.quarter||"-")+"    |    제출일: "+(b.filing_date||"-"),{bold:true}));
   if(b.summary)children.push(p(b.summary));
   if(b.cash)children.push(p("현금성 관련: "+b.cash,{size:18,color:"64748B"}));
-  const sec=(title,arr)=>{ if(Array.isArray(arr)&&arr.length){ children.push(h(title,2));
-    simpleTable([2400,1700,5900],["종목","티커","내용"],arr.map(x=>[x.name||x.ticker||"-",x.ticker||"-",x.detail||"-"]),{left:[2]}); } };
+  const sec=(title,arr)=>{ children.push(h(title,2));
+    if(Array.isArray(arr)&&arr.length){ simpleTable([2400,1700,5900],["종목","티커","내용"],arr.map(x=>[x.name||x.ticker||"-",x.ticker||"-",x.detail||x.note||x.reason||"-"]),{left:[2]}); }
+    else children.push(p("(이번 분기 해당 종목 없음)",{italics:true,color:"94A3B8",size:18})); };
   sec("A.1 신규 매수 (New)",b.new_buys);
   sec("A.2 비중 확대 (Added)",b.added);
   sec("A.3 비중 축소 (Reduced)",b.reduced);
@@ -561,11 +582,14 @@ const genAt=(data.metadata&&data.metadata.generated_at)?String(data.metadata.gen
 children.push(p(`데이터 기준일: ${reportDate}  |  보고서 생성시각: ${genAt}`,{size:18,color:"64748B"}));
 children.push(p("주요 출처: Yahoo Finance / CoinGecko / 한국경제 / 신한·미래에셋·삼성·한국투자·키움 / UBS·GS·JPM·MS·BlackRock 공개 채널",{size:18,color:"94A3B8"}));
 
-function renderAITrends(){ const a=data.ai_trends; if(!a||!Array.isArray(a.items)||!a.items.length)return;
+function renderAITrends(){ const a=data.ai_trends; if(!a)return;
+  const items=Array.isArray(a)?a:(Array.isArray(a.items)?a.items:[]); if(!items.length)return;
+  const asOf=(!Array.isArray(a)&&a.as_of)||(data.metadata&&data.metadata.report_date)||"-";
+  const srcs=(!Array.isArray(a)&&Array.isArray(a.sources_checked))?a.sources_checked:[];
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록B] 최신 AI Trends",1));
-  children.push(p("기준: "+(a.as_of||"-")+(a.sources_checked&&a.sources_checked.length?("   ·   확인 소스: "+a.sources_checked.join(", ")):""),{size:17,color:"94A3B8"}));
-  a.items.forEach((it,k)=>{ const tag=it.tag?("["+it.tag+"] "):"";
+  children.push(p("기준: "+asOf+(srcs.length?("   ·   확인 소스: "+srcs.join(", ")):""),{size:17,color:"94A3B8"}));
+  items.forEach((it,k)=>{ const tag=it.tag?("["+it.tag+"] "):"";
     children.push(p((k+1)+". "+tag+(it.title||"-"),{bold:true,size:22,before:80}));
     if(it.summary)children.push(p(it.summary,{size:20}));
     const meta=[it.source,it.date].filter(Boolean).join(" · ");

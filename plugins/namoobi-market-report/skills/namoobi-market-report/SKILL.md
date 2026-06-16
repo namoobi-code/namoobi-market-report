@@ -12,7 +12,20 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.19)
+# Namoobi Market Report (v3.6.20)
+
+> v3.6.20 (plugin 1.7.20) 변경점 — 27개 항목 품질 보강·항상 표시 (2026-06-16 사용자 피드백):
+> 빌더(build_report.js)·차트(scripts/gen_all2.py·gen_semi_etf.py·gen_kr_flows.py)·에이전트 스키마를 전면 보강해 **아래가 매 실행 항상 포함**되도록 했다. 상세는 references/agents.md v3.6.20.
+> - **3.1.1 코스피·코스닥 = 대형 일봉 캔들차트** — gen_all2.py 가 일봉 OHLC(야후 ^KS11/^KQ11 interval=1d) 캔들 + MA5/20/60/120 + **거래량 패널** + 투자자별 누적순매수(외국인 빨강·기관 파랑·개인 초록) 3패널을 charts/kospi_candle.png·kosdaq_candle.png 로 생성. 빌더는 항상 폭 648×486(여백최소·최대)로 임베드. markets.korea_investors.tech=true, kospi_chart/kosdaq_chart=candle 경로.
+> - **3.1.2 8개 리스트 항상 표시** — markets.korea_investor_stocks 에 kospi_foreign_buy/inst_buy/foreign_sell/inst_sell(각 10), kosdaq_*(각 5). 빌더가 ◆코스피/◆코스닥별 4표씩, 비어도 헤더+"(자료 미수집)" 행 렌더.
+> - **3.1.3 순환변동치 값** — korea_leading[].value 숫자 채움(통계청).
+> - **3.1.4 테마 순서 고정·항상 8개** — 빌더 THEME_ORDER=[반도체/AI,전력기기,조선,방산,원자력,증권,로봇,우주] 고정. korea_theme_etfs 문자열(객체면 name 추출 → [object Object] 버그 해결). 추세차트 charts/theme_<테마>.png 자동.
+> - **3.1.4 반도체/AI 종목 10·ETF 20** — aum 채움, 추세차트 항상(semi_s_<i>.png/semi_e_<i>.png). ETF 20개·**KODEX 삼성전자/SK하이닉스 단일종목레버리지 포함**. 신규상장 series 는 다음 /api/charts/A{code}/days(반드시 finance.daum.net/quotes/A{code} 에서 동일출처 fetch — Referer 수동설정 불가).
+> - **3.2.2/3.3/3.4/4.x/5 추세평가 상세화(2문장)·추세그래프 항상** — 원자재·전략광물 series→spark_<key>.png, FX usd_jpy/usd_cny series 추가.
+> - **3.2.3 나스닥100** — 분기 "셋째 금요일" 행 제거, 연례만.
+> - **[부록A] 버크셔** — 빈 섹션도 헤더+"(이번 분기 해당 종목 없음)", note 필드 인식, top_holdings 최대 20.
+> - **[부록B] AI Trends** — 빌더가 ai_trends 배열/{items:[]} 모두 렌더(과거 배열이면 미표시 버그 해결).
+
 
 > v3.6.19 (plugin 1.7.19) 변경점 — 차트 파이프라인 결정적 재현 (2026-06-15):
 > - **Phase 1.5 = gen_rest_charts.py + gen_kr_candle.py + gen_kr_extra.py(신규)** 3종 실행. gen_kr_extra.py 가 반도체ETF20·종목·테마8(우주 분리)·HY 차트를 만들고 `nmr_chart_manifest.json` 으로 경로를 내보내, Phase 3 병합이 chart 필드를 결정적으로 wire(인라인 추측 제거).
