@@ -18,6 +18,8 @@ if os.path.exists(fp):
 matplotlib.rcParams["axes.unicode_minus"] = False
 GRN, RED, BLU = "#059669", "#DC2626", "#2563EB"
 
+# 추세차트 = 선형축(실제 가격경로) — 사용자 선택(2026-06-17)
+
 def loadj(name):
     p = os.path.join(O, name)
     if os.path.exists(p):
@@ -27,18 +29,12 @@ def loadj(name):
             print("load fail", name, e)
     return None
 
-def _islog(ys):
-    pos = [y for y in ys if y is not None and y > 0]
-    return len(pos) >= 2 and (max(pos) / min(pos)) > 3
-
 def spark(pairs, out):
     ys = [p[1] for p in pairs if p and len(p) > 1 and p[1] is not None]
     if len(ys) < 2:
         return False
     col = GRN if ys[-1] >= ys[0] else RED
     fig, ax = plt.subplots(figsize=(1.7, 0.62), dpi=150)
-    if _islog(ys):
-        ax.set_yscale("log")
     ax.plot(range(len(ys)), ys, color=col, linewidth=1.5)
     ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.08)
     ax.axis("off"); ax.margins(x=0.02, y=0.10)
@@ -52,10 +48,8 @@ def mini(pairs, out):
         return False
     col = GRN if ys[-1] >= ys[0] else RED
     fig, ax = plt.subplots(figsize=(2.5, 1.45), dpi=150)
-    if _islog(ys):
-        ax.set_yscale("log")
     ax.plot(range(len(ys)), ys, color=col, linewidth=1.9)
-    ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.08)
+    ax.fill_between(range(len(ys)), ys, min(ys), color=col, alpha=0.10)
     ax.scatter([len(ys)-1], [ys[-1]], color=col, s=16, zorder=5)
     ax.axis("off"); ax.margins(x=0.02, y=0.10)
     chg = (ys[-1]/ys[0]-1)*100 if ys[0] else 0

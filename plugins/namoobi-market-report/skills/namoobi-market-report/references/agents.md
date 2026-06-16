@@ -1,5 +1,11 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.25 변경점 (2026-06-17). 추세차트 선형축·전략광물 간결.**
+> - 차트: gen_all2.py/gen_semi_etf.py mini/spark **선형축**(로그축·"·로그축" 라벨 제거), figsize 확대·굵은선. 급등 종목은 선형 특성상 초반 완만→최근 급경사가 정상.
+> - CommoditiesAgent: strategic_metals.etf[].trend 는 짧은 구문(예 "1년 +151% 신고가권·변동성 확대"). 장문 금지.
+>
+
+
 > **v3.6.24 변경점 (2026-06-17). 차트 기울기·폰트·3.2.x·CAPEX·신선도.**
 > - 차트: gen_all2.py/gen_semi_etf.py mini 더 크게(2.5×1.45)+로그축(max/min>3), "·로그축" 라벨 제거. **gen_semi_etf.py 한글폰트 등록 필수**(tofu 방지).
 > - 3.2.x: 빌더 renderUSExtras = 3.2.1 HY→3.2.2 CAPEX→3.2.3 ETF→3.2.4 리밸런싱. CAPEX 항상 렌더. **CapexAgent**(MSFT·Alphabet·Amazon·Meta 연간 capex, 미확인 "미공개") → nmr_capex.json `bigtech_capex`.
