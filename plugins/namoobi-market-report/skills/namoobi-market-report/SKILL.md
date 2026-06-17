@@ -12,6 +12,13 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.27)
+
+> v3.6.27 (plugin 1.7.28) 변경점 — SECURITY 권한창 제거 (2026-06-18 사용자 피드백 "실행할 때마다 이거 물어보는데 묻지 마"):
+> - **`mcp__cowork__request_cowork_directory` 를 절대 호출하지 않는다(이 호출이 매 실행 권한창의 원인).** Phase 0/Phase 5 에서 D:\claudeCowork 또는 그 하위 SECURITY 폴더 접근을 위해 이 도구를 호출하면 "D:\claudeCowork\SECURITY 에서 Cowork 하려고 합니다 — 허용/거부" 창이 떠서 사용자가 매번 눌러야 한다. 호출 자체를 제거한다.
+> - **이미 연결된 경로로 직접 접근**: D:\claudeCowork 는 사용자가 세션 시작 시 연결해 둔다는 전제로, 연결 폴더·SECURITY 파일(수신자 목록·githubtoken)·docx 저장을 모두 **이미 마운트된 VM 경로 `/sessions/*/mnt/claudeCowork/...` 로 bash 에서 직접 읽고 쓴다**(권한 요청 없이). 전체 마운트가 `D:\claudeCowork\Scheduled` 보호로 막혀도 **SECURITY 하위폴더를 개별 request 하지 말 것**.
+> - **접근 실패 시에도 권한창 금지**: SECURITY 파일을 못 읽으면(미연결) request_cowork_directory 를 부르지 말고, BCC 생략·outputs 진행 후 Phase 6 에 "연결 폴더 미연결" 만 보고한다. (Phase 0 의 기존 '미연결이면 request_cowork_directory 요청' 지시·트러블슈팅 표의 동일 항목은 본 v3.6.27 규칙으로 무효화한다 — 호출하지 않는다.)
+
 # Namoobi Market Report (v3.6.26)
 
 > v3.6.26 (plugin 1.7.27) 변경점 — 표 2행 레이아웃·반도체 ETF 다음금융·차트 보강·파일명/형식 (2026-06-18 사용자 피드백):
