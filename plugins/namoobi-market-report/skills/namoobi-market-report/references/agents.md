@@ -1,5 +1,9 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.23 변경점 (2026-06-17)**
+> - **3.1.2 코스닥도 외국인/기관 각 상위 10** 수집(다음 investor_purchase 응답 BUY/SELL 상위 10).
+> - **7 SecuritiesAgent → 메인세션 Chrome 직접 수집**: 5개 증권사 공식 리서치 페이지(신한·미래에셋·삼성·한국투자·키움)는 JS 렌더라 WebSearch/web_fetch 로 목록이 안 보인다. **메인 세션이 Claude in Chrome 으로 직접 navigate→get_page_text(또는 screenshot)** 해 최신(D-1/D-3) 리포트를 읽고 발행일을 명시한다. WebSearch 단독으로 "자료없음" 판정 금지. (네이버 금융만 환경 차단, 이 5사·다음은 접근 가능.)
+
 > **v3.6.22 변경점 (2026-06-17 사용자 피드백)**
 > - **3.1.2 표 병합**: `korea_investor_stocks` 데이터 구조는 동일(8개 리스트). 빌더가 외국인(좌)·기관(우)를 한 표로 병합 렌더하므로 4개 리스트 쌍(코스피 매수/매도, 코스닥 매수/매도)을 모두 채울 것.
 > - **7·8 신선도 = 웹검색에도 적용**: SecuritiesAgent·GlobalSecuritiesAgent 는 WebSearch 결과라도 발행일이 D-1(Daily)/D-3(Weekly·Monthly) 기준을 넘으면 사용 금지(주말이면 금요일 허용). 기준 충족 자료가 없으면 `key_message:"기준일(D-1/D-3) 충족 최신 공개 자료 미확인"` 으로 두고 오래된 자료로 채우지 않는다(빈 stub 허용).

@@ -12,6 +12,12 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.23)
+
+> v3.6.23 (plugin 1.7.23) 변경점 — 코스닥 10·증권사 직접수집 (2026-06-17 사용자 피드백):
+> - **3.1.2 코스닥도 상위 10**: 코스닥 순매수/순매도도 외국인·기관 각 상위 10 으로(코스피와 동일). 빌더 `invMerged(...,10)`.
+> - **7 한국 5대 증권사 = Claude in Chrome 직접 수집(필수)**: 증권사 공식 리서치 페이지는 JS 렌더라 WebSearch/web_fetch 로는 목록이 안 보인다. **메인 세션이 Claude in Chrome 으로 각 사 페이지를 직접 navigate→get_page_text/screenshot** 해서 최신(D-1/D-3) 리포트를 읽는다(WebSearch 단독 금지 — 이래서 과거 "자료없음" 오판 발생). URL: 신한 `shinhansec.com/siw/insights/research/list/view-popup.do`, 미래에셋 `securities.miraeasset.com/bbs/board/message/list.do?categoryId=1521`, 삼성 `samsungpop.com/.../research_pop.jsp`(팝업 자동 로드), 한국투자 `securities.koreainvestment.com/main/research/research/Strategy.jsp?jkGubun=99`(모닝브리프 화면은 screenshot 로 읽기), 키움 `www3.kiwoom.com/h/invest/research/VMarketSDView`(일간증시전망, screenshot). 각 사 발행일 명시. (네이버 금융만 환경 차단이고 이 5개 증권사·다음금융은 모두 접근 가능.)
+
 # Namoobi Market Report (v3.6.22)
 
 > v3.6.22 (plugin 1.7.22) 변경점 — 3.1.2 표 병합·리서치 신선도 강화 (2026-06-17 사용자 피드백):

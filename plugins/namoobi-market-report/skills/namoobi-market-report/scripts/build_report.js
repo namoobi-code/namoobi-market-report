@@ -150,8 +150,8 @@ function renderKoreaExtras(){ const m=data.markets||{};
     invMerged("순매수 상위 10 (좌 외국인 · 우 기관)",ks.kospi_foreign_buy||ks.kospi_buy,ks.kospi_inst_buy,10);
     invMerged("순매도 상위 10 (좌 외국인 · 우 기관)",ks.kospi_foreign_sell||ks.kospi_sell,ks.kospi_inst_sell,10);
     children.push(p("◆ 코스닥",{bold:true,size:22,color:"0F172A",before:160}));
-    invMerged("순매수 상위 5 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_buy||ks.kosdaq_buy,ks.kosdaq_inst_buy,5);
-    invMerged("순매도 상위 5 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_sell||ks.kosdaq_sell,ks.kosdaq_inst_sell,5);
+    invMerged("순매수 상위 10 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_buy||ks.kosdaq_buy,ks.kosdaq_inst_buy,10);
+    invMerged("순매도 상위 10 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_sell||ks.kosdaq_sell,ks.kosdaq_inst_sell,10);
     children.push(p("")); }
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.3 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
