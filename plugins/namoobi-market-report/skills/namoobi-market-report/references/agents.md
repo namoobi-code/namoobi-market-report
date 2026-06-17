@@ -1,72 +1,32 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
-> **v3.6.26 변경점 (2026-06-17). 코스닥 거래량 영구 수정.**
-> - **KoreaTechFlowsAgent**: `nmr_korea_tech.json` 에 `kr_ohlcv.kosdaq_volume = [["YYYY-MM-DD", accTradeVolume]...]`(다음 `market_index/days?market=KOSDAQ&perPage=250`, 동일출처 fetch) **필수**. 야후 ^KQ11 거래량은 손상이라 차트에서 무시되고 이 값으로 그린다. gen_all2.py candle_chart 의 vol_override(날짜 최근접 ±4일) 로 사용.
->
+> **v3.6.20 변경점 (2026-06-17 사용자 피드백 — 매 실행 반드시 적용)**
+> - **3.1.1 KOSDAQ 거래량**: KoreaTechAgent/메인세션이 다음금융 `accTradeVolume`(동일출처 fetch)로 `kosdaq`/`kosdaq_ohlcv` 거래량 컬럼을 교체(야후 ^KQ11 거래량은 손상). 거래량 패널이 항상 정상 표시되어야 한다.
+> - **3.1.2 종목 수급**: `korea_investor_stocks = {asof, note, kospi_foreign_buy[10], kospi_inst_buy[10], kospi_foreign_sell[10], kospi_inst_sell[10], kosdaq_foreign_buy[5], kosdaq_inst_buy[5], kosdaq_foreign_sell[5], kosdaq_inst_sell[5]}` (각 `{name,detail}`). **NaverSearch(PLAY) MCP**·다음금융 우선. 확정 출처 없는 리스트는 빈배열+note(추정 금지).
+> - **3.1.4 수익률**: `markets.korea_theme_rows`(8테마 `{theme,direction,comment,etf,current,"1w_pct".."1y_pct",trend,chart}`)·`markets.semi_ai_stocks`(10)·`markets.semi_ai_etfs`(**정확히 20**, 단일종목 레버리지 포함 AUM순) 각 항목에 current·1주~1년 수익률·trend·chart 채운다. 빌더가 2줄(설명행+수익률행)로 렌더.
+> - **4.5 전략광물 ETF**: LIT·REMX·URA·URNM 1년 주봉 → `nmr_strat_series.json` 으로 `charts/spark_lit|remx|ura|urnm.png` 생성, `commodities.strategic_metals.etf[].{current,1w_pct..1y_pct,trend}`.
+> - **6.2 코인 차트(CryptoSeriesAgent 필수)**: BTC·ETH·XRP·SOL 1년 `[date,price,volume]`(CoinDesk `fetch_spot_ohlcv`, market=binance, 폴백 야후 `*-USD`)+공포탐욕 1년 `[date,value]`(alternative.me `fng/?limit=400`) → `nmr_crypto_series.json` → `charts/coin_*.png`·`fng_1y.png` → `crypto.charts`.
+> - **7 SecuritiesAgent·8 GlobalSecuritiesAgent — 신선도 규칙(엄격)**: Daily 자료는 발행일 **D-1 이내**, Weekly/Monthly 는 **D-3 이내**만 사용. 주말이면 **금요일 자료** 허용. 그 외 오래된 자료는 사용 금지(미확보 시 빈값). 발행일을 `key_reports[].date`·`key_message` 에 명시.
 
-
-> **v3.6.25 변경점 (2026-06-17). 추세차트 선형축·전략광물 간결.**
-> - 차트: gen_all2.py/gen_semi_etf.py mini/spark **선형축**(로그축·"·로그축" 라벨 제거), figsize 확대·굵은선. 급등 종목은 선형 특성상 초반 완만→최근 급경사가 정상.
-> - CommoditiesAgent: strategic_metals.etf[].trend 는 짧은 구문(예 "1년 +151% 신고가권·변동성 확대"). 장문 금지.
->
-
-
-> **v3.6.24 변경점 (2026-06-17). 차트 기울기·폰트·3.2.x·CAPEX·신선도.**
-> - 차트: gen_all2.py/gen_semi_etf.py mini 더 크게(2.5×1.45)+로그축(max/min>3), "·로그축" 라벨 제거. **gen_semi_etf.py 한글폰트 등록 필수**(tofu 방지).
-> - 3.2.x: 빌더 renderUSExtras = 3.2.1 HY→3.2.2 CAPEX→3.2.3 ETF→3.2.4 리밸런싱. CAPEX 항상 렌더. **CapexAgent**(MSFT·Alphabet·Amazon·Meta 연간 capex, 미확인 "미공개") → nmr_capex.json `bigtech_capex`.
-> - SecuritiesAgent/GlobalSecuritiesAgent: **신선도 엄격** — Daily≤D-1·Weekly/Monthly≤D-3·주말 금요일자, 그 밖(3/31·5/11·1/26 등) 인용 금지. 못 구하면 비우고 "최신 미확보". 각 항목 date 필수.
->
-
-
-> **v3.6.22 변경점 (2026-06-16). 3.1.2 실데이터·차트 로그축·추세 간결·증권사/IB 최신성.**
-> - **3.1.2(메인세션 Chrome)**: `finance.daum.net/domestic/influential_investors` navigate → 코스피/코스닥 × 외국인/기관 매매종목 탭(좌표클릭) × 당일 → get_page_text 파싱 → `markets.korea_investor_stocks` 8리스트(코스피10·코스닥5, {name,detail:"순매수 N억 (±%)"}). 네이버/web_fetch 는 차단.
-> - **차트**: gen_all2.py/gen_semi_etf.py mini/spark 가 max/min>3 시 로그축(기울기 정확). 반도체 종목 series=야후 53주봉, ETF series=다음 charts API(`/api/charts/A{code}/days`, /quotes/ 페이지 동일출처).
-> - **추세평가**: 모든 추세(asia/europe/fx/us_etf/commod)는 짧은 구문(예 "견조한 상승추세·신고가권"). 길게 쓰지 말 것.
-> - **SecuritiesAgent/GlobalSecuritiesAgent 최신성**: Daily≤D-1·Weekly/Monthly≤D-3·주말은 금요일자, published_date 필수. 증권사 공식 URL(신한·미래에셋·삼성·한투·키움) Chrome navigate→get_page_text 우선, 못 구한 사만 WebSearch(뉴스 기반 표기).
-> - **AnalysisAgent**: 1~8장 JSON 수집 완료 후에만 9~12장 작성, 입력에 없는 수치 생성 금지.
->
-
-
-> **v3.6.20 변경점 (2026-06-16 — 27개 항목 항상 포함). 아래 데이터·시계열을 매 실행 반드시 수집한다.**
-> Phase 1.5 차트는 scripts/gen_all2.py(코스피·코스닥 캔들+거래량+누적순매수, 원자재·전략광물·테마·반도체종목·FX 스파크라인) + scripts/gen_semi_etf.py(반도체 ETF 추세, 다음 charts API series) + scripts/gen_kr_flows.py 로 생성.
-> - **KoreaTechFlowsAgent** → nmr_korea_tech.json: kr_ohlcv(kospi/kosdaq 1년 일봉 OHLCV, 야후 ^KS11/^KQ11 interval=1d), korea_investor_stocks **8리스트**(kospi_foreign_buy/inst_buy/foreign_sell/inst_sell 각10, kosdaq_* 각5; {name,detail}), korea_leading value(숫자)+mom.
-> - **KoreaSemiThemeAgent** → nmr_semi.json: semi_ai_stocks(시총 상위 10), semi_ai_etfs(**AUM 상위 20, KODEX 삼성전자·SK하이닉스 단일종목레버리지 필수**), stock_series/etf_series/theme_series(8테마) 1년, theme_etfs(문자열). 신규상장 ETF series 는 다음 /api/charts/A{code}/days(finance.daum.net/quotes/A{code} 동일출처 fetch).
-> - **CommoditySeriesAgent** → nmr_commod.json: energy/metals/agriculture/strategic_metals + 각 행 2문장 한글 trend + series(14종) 1년 주봉.
-> - **MarketsTrendAgent** → nmr_trendtext.json: asia/europe/fx 2문장 추세평가 + fx_series{usd_jpy,usd_cny}.
-> - **UsEtfTrendAgent** → nmr_usetf_trends.json: 29 ETF 2문장 추세평가.
-> - **NewsBerkAgent** → nmr_news2.json: events_calendar_longterm ★★★ 8~10건, berkshire(top_holdings 최대 20, note 필드).
-> - 병합: trend 텍스트를 각 항목 .trend 주입, ai_trends 는 {as_of,sources_checked,items} 래핑, 나스닥100 schedule 연례행만, korea_theme_etfs 문자열.
-
-
-> **v3.6.19 변경점 (2026-06-15 — 차트 파이프라인 결정적 재현)**
-> - **Phase 1.5 차트 3종 스크립트 실행**: ① `gen_rest_charts.py`(지수·ETF·환율·원자재 스파크라인 + 테마(`nmr_themeseries1y.json`) + 코인/F&G) ② `gen_kr_candle.py`(코스피·코스닥 1년 일봉 **캔들** — `nmr_kr_ohlcv.json`{kospi_ohlcv:Yahoo 일봉 OHLC, **volume=다음 accTradeVolume end-align**, kospi_flows_daily:다음 일별}) ③ **신규 `gen_kr_extra.py`**(반도체/AI ETF20·종목·테마8(우주 분리)·HY 차트 일괄 + 매니페스트).
-> - **결정적 wire(매니페스트)**: gen_kr_extra.py 가 `nmr_chart_manifest.json`{etf:{code:path}, stock:{name:path}, theme:{name:{chart,etf}}, hy:path} 를 출력. **Phase 3 병합이 이 매니페스트로** semi_ai_etfs[i].chart·semi_ai_stocks[i].chart·korea_theme_charts·korea_theme_etfs·hy_spread.chart 를 결정적으로 채운다(인라인 추측 금지).
-> - **gen_kr_extra 입력 계약**: `nmr_semi_etf20_raw.json`{mc:{code:[name,cap]},series:{code:[[d,c]]}}(다음 quote marketCap + 다음 charts), `nmr_semi_series_v3.json`{name:[[d,c]]}(종목), `nmr_theme_etf.json`{series:{theme},etfs:{theme:{name}}}(테마8), `hy_oas.csv`(FRED 1년 'date,oas;..').
-> - **gen_rest_charts.py 견고화**: 테마명 슬래시(`반도체/AI`) sanitize, `nmr_series2.json`의 commodities/strat_etf·`nmr_crypto_series.json` 가 비어도 KeyError/IndexError 없이 진행(크래시 방지).
->
-> **v3.6.18 변경점 (2026-06-15 사용자 피드백 — 2.2/3.1.1/3.1.4/리밸런싱 정밀)**
-> - **2.2 중장기 이벤트(★★★ 8~10건 필수)**: events_calendar_longterm 은 1~2건 금지, **8~10건**. FOMC(점도표)·ECB·BOJ·잭슨홀·미 중간선거(2026-11)·MSCI 연례리뷰·대형 IPO·빅테크 플래그십(아이폰·GTC·CES 2027) WebSearch.
-> - **3.1.1 코스닥 거래량 = 다음 accTradeVolume**: Yahoo `^KQ11` 거래량은 손상(중앙값~1000) → 캔들 거래량 패널은 **다음 일별 accTradeVolume** 으로 교체(코스피도 동일). nmr_kr_ohlcv.json 의 OHLCV volume 컬럼을 다음 CSV vol 로 **end-align 치환**(야후 일봉 일수 < 다음 일수라 뒤에서부터 정렬).
-> - **3.1.4 테마 8개 + 전 테마 차트(우주 분리)**: korea_themes = 반도체/AI·조선·**방산·우주(각각 분리)**·전력·원자력·증권·로봇 8행. 각 테마 대표 ETF 1년 주봉(Yahoo .KS, 우주=TIGER 우주방산 463250 등)으로 charts/theme_<테마>.png **모두 생성**. korea_theme_etfs=문자열, korea_theme_charts=경로. (방산/우주 합치지 말 것)
-> - **3.1.4 반도체/AI ETF 20개(AUM순)**: 8개 금지, **20개**. 코드 목록 WebSearch → 다음 quote `https://finance.daum.net/api/quotes/A{code}?summary=false` 의 `marketCap`(AUM, Referer=quote URL) + 다음 charts `https://finance.daum.net/api/charts/A{code}/days?limit=260`(Referer 동일)로 1년 종가·차트. **KODEX 삼성전자단일종목레버리지(0193W0)·KODEX SK하이닉스단일종목레버리지(0193T0)·TIGER 동(0195R0/0195S0)** 반드시 포함(2026.5 상장→차트 라벨 '상장후'). KODEX/TIGER 반도체레버리지·반도체TOP10레버리지·미국필라델피아반도체·AI전력핵심설비·소부장 등.
-> - **3.2.2 ③ 테마/특화 ETF 확장**: 사용자 요청 ETF(예 WQTM=WisdomTree 양자컴퓨팅)를 us_etfs.theme 에 추가(Yahoo 주봉 + charts/spark_etf_<SYM>.png).
-> - **3.2.3 나스닥100 리밸런싱**: schedule 은 **연례 재구성(12월)만**. '분기 리뷰(각 분기 초·중 셋째 금요일 마감 후)' 행은 부정확 → 넣지 말 것.
->
-> **v3.6.17 변경점 (2026-06-15 사용자 피드백 — 3.1.x/3.2.1/4.x/부록B 정밀 수정)**
-> - **3.1.1 캔들차트(라인 금지)**: 한국 기술차트는 항상 **캔들**. Yahoo `get_historical_stock_prices(period=1y, interval=1d)` 로 ^KS11/^KQ11 **일봉 OHLCV**(야후 '일봉' 최신가는 다음 종가와 일치 — '주봉'만 며칠 stale) + 다음 일별 수급 → `nmr_kr_ohlcv.json`{kospi_ohlcv:[[d,o,h,l,c,v]], kospi_flows_daily:[[d,F억,I억,P억]], kosdaq_*} → `scripts/gen_kr_candle.py`(mplfinance 캔들+MA5/20/60/120+볼린저 / 거래량 / RSI / 외국인·기관·개인 누적순매수, 수급은 nearest-date 정렬). gen_kr_tech.py(종가선)는 폐기.
-> - **3.1.2 코스피·코스닥 순매도 종목**: 다음 메인 '외국인/기관 순매도' 탭은 `.click()`으론 전환 안 됨 → 탭 엘리먼트에 **pointerdown/mousedown/mouseup/click MouseEvent 디스패치** 후 패널 재파싱(코스피|코스닥 교차행). korea_investor_stocks 의 kospi_buy/sell·kosdaq_buy/sell 각 ~10종.
-> - **3.1.3 순환변동치 절대값 (통계청 보도자료 PDF — web_fetch)**: 보도자료 HTML엔 전월차만 있고 **절대값은 PDF에만** → `web_fetch https://mods.go.kr/boardDownload.es?bid=216&list_no=<최신 list_no>&seq=1` (PDF 텍스트 추출됨)에서 `선행지수 순환변동치` 행을 파싱(예 '25.12~'26.4: 101.6→102.2→102.8→103.5→104.1, 전월차 +0.5·+0.6·+0.6·+0.7·+0.6p). list_no 는 산업활동동향 게시판(bid=216) 최신글. korea_leading=[{period,value,mom,note}].
-> - **3.1.4 ETF AUM (다음 quote 동일출처)**: 한국 ETF 시총(AUM)은 Yahoo 미제공 → **다음 동일출처 fetch** `https://finance.daum.net/api/quotes/A{6자리코드}?summary=false`(Referer=`https://finance.daum.net/quotes/A{코드}`)의 `marketCap`(원). semi_ai_etfs 각 {name,ticker,aum(조원/억원),note(깔끔한 설명·1년 수익률·현재가),chart}. **korea_theme_etfs 값은 반드시 문자열**(객체 주면 [object Object] 로 렌더됨).
-> - **3.2.1 HY 스프레드**: FRED CSV는 web_fetch 빈값(binary) → **Chrome 동일출처**: `navigate https://fred.stlouisfed.org/series/BAMLH0A0HYM2` 후 fetch `https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2&cosd=YYYY-MM-DD&coed=YYYY-MM-DD`. **빌더는 `markets.hy_spread`{current,w1,m1,m3,m6,y1,chart,trend,comment,asof}를 읽음**(us_credit 아님). charts/hy_oas_chart.png 생성.
-> - **4.1~4.5 원자재**: 선물 current=get_stock_info, 변화율=주봉, 전략광물 현물=WebSearch 실제가(미확인만 "미확인"). **부록B ai_trends 는 반드시 `{items:[{tag,title,summary,source,date,url}], as_of, sources_checked}` 구조**(배열만 주면 빌더가 렌더 안 함).
+> **v3.6.17 변경점 (2026-06-16 사용자 피드백 — 27개 항목 항상 포함). 아래 데이터·시계열을 매 실행 반드시 수집한다.**
+> Phase 1.5 차트는 `scripts/gen_all2.py`(코스피·코스닥 캔들+거래량+누적순매수, 원자재·전략광물·테마·반도체종목·FX 스파크라인) + `scripts/gen_semi_etf.py`(반도체 ETF 추세, 다음 charts API series) + `scripts/gen_kr_flows.py` 로 생성.
+> - **KoreaTechFlowsAgent** → `nmr_korea_tech.json`: ① `kr_ohlcv`={kospi,kosdaq:[[date,o,h,l,c,v]…]} **1년 일봉**(야후 `^KS11`/`^KQ11` interval=1d, 캔들용) ② `korea_investor_stocks` **8리스트**(`kospi_foreign_buy/inst_buy/foreign_sell/inst_sell` 각 10, `kosdaq_*` 각 5; 각 {name,detail}; 다음금융+NaverSearch 뉴스, 부분이면 note) ③ `korea_leading` value(숫자)+mom.
+> - **KoreaSemiThemeAgent** → `nmr_semi.json`: `semi_ai_stocks`(시총 상위 10, {name,ticker,aum,note}), `semi_ai_etfs`(**AUM 상위 20, KODEX 삼성전자·SK하이닉스 단일종목레버리지 필수 포함**, {name,ticker,aum,note}), `stock_series`/`etf_series`/`theme_series`(8테마 키=반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주) 1년 series, `theme_etfs`(테마→대표ETF **문자열**). 신규상장 ETF series 는 다음 `/api/charts/A{code}/days`(메인세션이 `finance.daum.net/quotes/A{code}` 페이지에서 동일출처 fetch — Referer 수동설정 불가).
+> - **CommoditySeriesAgent** → `nmr_commod.json`: energy/metals/agriculture/strategic_metals + 각 행 **2문장 한글 trend** + `series`{wti,brent,natgas,gold,silver,copper,platinum,corn,soybean,wheat,lit,remx,ura,urnm} 1년 주봉(추세그래프용).
+> - **MarketsTrendAgent** → `nmr_trendtext.json`: asia(6)/europe(3)/fx(9) **2문장 한글 추세평가** + `fx_series`{usd_jpy,usd_cny} 1년 주봉.
+> - **UsEtfTrendAgent** → `nmr_usetf_trends.json`: 29 ETF별 2문장 한글 추세평가(예 "강한 상승추세·가속 국면…").
+> - **NewsBerkAgent** → `nmr_news2.json`: `events_calendar_longterm` ★★★ **8~10건**(2.2 풍부화), `berkshire`(new_buys/added/reduced/exited + top_holdings **최대 20**, note 필드).
+> - 병합(merge): asia/europe/fx/us_etf trend 텍스트를 각 항목 `.trend`에 주입, `ai_trends`는 `{as_of,sources_checked,items}`로 래핑, 나스닥100 schedule 은 연례행만 남김, korea_theme_etfs 는 nmr_semi 문자열 사용.
 >
 > **v3.6.16 변경점 (2026-06-15 사용자 피드백 — 3.1.x/6.x 1차출처 정밀화, 반복 누락 근본차단)**
 > 아래 출처·절차를 그대로 따른다(WebSearch 폴백 최소화). 한국 수급/선행지수/코인 시계열이 비거나 부정확했던 문제의 영구 해법이다.
-> - **3.1.1 한국 기술차트·수급 (다음금융 동일출처 fetch)**: Claude in Chrome 로 `navigate https://finance.daum.net/domestic` 후 `javascript_tool` 동일출처 fetch `https://finance.daum.net/api/market_index/days?perPage=250&market=KOSPI&pagination=true`(헤더 Referer:finance.daum.net). `data[]` 의 tradePrice(종가)·accTradeVolume·foreign/institution/individualStraightPurchasePrice(원→억원 ÷1e8) 1년 일별. 반환 잘림은 `<pre>` 덤프 후 get_page_text 로 회수. ⚠️ 지수 OHLC 캔들 API(/api/charts)는 403 → 캔들 대신 종가선 멀티패널: kospi_daily.csv·kosdaq_daily.csv 저장 후 scripts/gen_kr_tech.py → charts/kospi_tech.png·kosdaq_tech.png. markets.korea_investors(level·순매수 3종=최신 마감일 값).
-> - **⚠️ 야후 주봉 current stale**: ^KS11/^KQ11 주봉 current 가 며칠 지연(KOSPI 8123 야후 vs 8546 다음). 한국 지수 current·등락률은 다음 일별 CSV 로 산출.
-> - **3.1.2 종목별 수급**: finance.daum.net/domestic 외국인/기관 순매수 위젯 DOM 파싱(코스피|코스닥 교차행). markets.korea_investor_stocks. 네이버 deal_rank 는 web_fetch blocklist.
-> - **3.1.3 경기선행지수(통계청 보도자료 직접·WebSearch 금지)**: KOSIS/e-나라지표 불안정 → mods.go.kr 산업활동동향(mid=a10301050100&bid=216) 최신 view 에서 `(경기) … 선행종합지수 순환변동치 전월대비 X.Xp` 파싱(최근 3개월). 절대수준은 PDF 전용 → 전월차로 markets.korea_leading.
-> - **3.1.4**: 종목 시총=Yahoo get_stock_info marketCap, ETF AUM=공개보도. **6.2/6.3**: CoinDesk fetch_spot_ohlcv(코인 1년)·alternative.me fng·fetch_spot_tick(김프 4종). crypto.charts={btc,eth,xrp,sol,fng}.
+> - **3.1.1 한국 기술차트·수급 (다음금융 동일출처 fetch)**: Claude in Chrome 로 `navigate https://finance.daum.net/domestic` 후 `javascript_tool` 에서 동일출처 fetch:
+>   `fetch('https://finance.daum.net/api/market_index/days?page=1&perPage=250&market=KOSPI&pagination=true',{headers:{Referer:'https://finance.daum.net/',Accept:'application/json'}})` (KOSDAQ 동일). 응답 `data[]` 의 `tradePrice`(종가)·`accTradeVolume`(거래량)·`foreign/institution/individualStraightPurchasePrice`(원→억원 ÷1e8) 를 **오름차순**으로 1년 일별 수집. 반환 잘림 회피: 결과를 `document.body.innerHTML='<pre>...</pre>'` 로 덤프 후 `get_page_text` 로 한 번에 회수(20KB 가능). ⚠️ **지수 OHLC 캔들 API(`/api/charts/...`)는 심볼 Referer 로도 403** 이므로 캔들 대신 **종가선 멀티패널** 차트를 쓴다 → `<O>/kospi_daily.csv`·`kosdaq_daily.csv`(행 `date,close,vol,F억,I억,P억`) 저장 후 `scripts/gen_kr_tech.py` 로 `charts/kospi_tech.png`·`kosdaq_tech.png` 생성(종가+MA5/20/60/120+볼린저 / 거래량 / RSI / 외국인·기관·개인 누적순매수). 빌더 데이터 `markets.korea_investors`={tech:true,asof,source,kospi:{level,foreign,institution,individual,comment},kospi_chart,kosdaq:{...},kosdaq_chart}; level·순매수 3종은 **최신 마감일** 값(예 `"+1.08조"`,`"-1.51조"`).
+> - **⚠️ 야후 주봉 current stale 주의**: `^KS11`/`^KQ11` 주봉 current 가 며칠 지연될 수 있다(실측 KOSPI 8123(야후 06-12 부분주봉) vs 다음 8546(06-15)). **한국 지수 current·1주~1년 등락률은 다음 일별 CSV 로 산출**해 `markets.korea.{kospi,kosdaq}` 에 넣는다.
+> - **3.1.2 종목별 수급 (다음 메인 위젯 DOM)**: `finance.daum.net/domestic` 렌더 후 외국인/기관 **순매수 상위** 위젯의 DOM 텍스트를 파싱(행이 `코스피종목 | 코스닥종목` 교차, 표기 %는 당일 주가등락률·순매수 금액순). `markets.korea_investor_stocks={asof,source,kospi_buy[],kospi_sell[],kosdaq_buy[],kosdaq_sell[],note}`(각 {name,detail}). 순매도 탭은 SPA 동작상 별도(미수집 시 note 명시). 네이버 sise_deal_rank 는 web_fetch 차단(blocklist)·Chrome 차단이라 사용 불가.
+> - **3.1.3 경기선행지수 순환변동치 (통계청 보도자료 직접 — WebSearch 금지)**: KOSIS statHtml·e-나라지표(index.go.kr)는 iframe/AJAX 로 데이터 미노출·렌더 멈춤이 잦다 → **통계청(국가데이터처) 보도자료**로 직접 간다: `navigate https://mods.go.kr/board.es?mid=a10301050100&bid=216&act=list` (산업활동동향 게시판) → 최신 `2026년 N월 산업활동동향` view(`...&act=view&list_no=<번호>`)에서 `□ (경기) 동행종합지수 순환변동치는 전월대비 X.Xp …, 선행종합지수 순환변동치는 전월대비 Y.Yp …` 문장 파싱. 최근 3개월(직전 list_no 들)도 동일 수집. **절대 순환변동치 수준은 보도자료 HTML 엔 없고 PDF 전용** → 공식 헤드라인인 **전월차(±p)** 로 `markets.korea_leading=[{period,value:null,mom:"+0.6p",note:"통계청 산업활동동향 게시 YYYY-MM-DD"}]` 채우고 comment 에 3개월 추세·KOSPI 약 2개월 선행 관계 명시.
+> - **3.1.4 반도체/AI 시총·AUM**: 종목 시총=Yahoo `get_stock_info` marketCap(.KS/.KQ), ETF AUM=공개보도(네이버금융 web_fetch 차단 주의). 표기 시 raw 숫자/괄호주석 제거(예 "약 2,213조원").
+> - **6.2 코인 1년 / 6.3 김프 (CoinDesk MCP + alternative.me)**: `fetch_spot_ohlcv`(market=coinbase, instrument=BTC-USD 등, ~365 일봉)로 BTC/ETH/XRP/SOL 가격·거래량 → `nmr_crypto_series.json={btc,eth,xrp,sol:[[d,close,vol]],fng:[[d,val]]}`; F&G 1년=`api.alternative.me/fng/?limit=400`(web_fetch). 김프 4종=`fetch_spot_tick`(market=upbit BTC-KRW… + market=binance BTC-USDT…), 환율 Yahoo KRW=X. 빌더 `crypto.charts={btc,eth,xrp,sol,fng}` 로 1년 차트(gen_rest_charts.py coin/fng). `nmr_crypto_series.json` 가 비어도 gen_rest_charts.py 는 가드되어 안전.
 >
 > **v3.6.15 변경점 (2026-06-15 사용자 피드백 — 3.1.x 수급/일봉·3.2.x 재발방지)**
 > 아래는 "자주 발생하는" 한국 수급/차트 누락을 **근본 차단**하기 위한 필수 규칙이다(반복 위반 금지).
@@ -433,4 +393,26 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `nmr_kr_ohlcv.json` 의 `kospi_flows_daily`·`kosdaq_flows_daily` 는 **1년치 일별** 투자자 순매수 `[["YYYY-MM-DD", 외국인억원, 기관억원, 개인억원]..]` (1일치만 넣으면 누적순매수 차트가 평평해짐 — 반드시 1년).
   - 네이버금융 레거시 페이지는 SPA 개편으로 404. **다음금융 `finance.daum.net/api/market_index/days`**(market=KOSPI/KOSDAQ, `foreign/institution/individualStraightPurchasePrice` 원→억원 환산)로 1년 일별 수집.
   - **KOSDAQ 거래량**: 야후 `^KQ11` 지수 거래량이 손상(중앙값 1000)되므로 다음금융 `accTradeVolume` 로 교체. KOSPI 거래량은 야후 정상.
-- `markets.korea_investor_stocks` = `{asof, kospi_buy[], kospi_sell[], kosdaq_buy[], kosdaq_sell[], note}` — 각 리스트 `{name, detail}` 약 10종(코스피 순매수/순매도·코스닥 순매수/순매도). 빌더가 **4개 리스트**로 렌�
+- `markets.korea_investor_stocks` = `{asof, kospi_buy[], kospi_sell[], kosdaq_buy[], kosdaq_sell[], note}` — 각 리스트 `{name, detail}` 약 10종(코스피 순매수/순매도·코스닥 순매수/순매도). 빌더가 **4개 리스트**로 렌더. 순매도 일간 종목 랭킹이 비공개/차단이면 빈배열로 두고 `note` 에 사유 명시. (구 `kospi_foreign_buy/kosdaq_strong/aggregate` 폐기)
+
+### 3.1.3 경기선행지수 (markets.korea_leading)
+- 각 항목 `{period(YYYY.MM), value(순환변동치 숫자), mom(+x.xp), note}` — **통계청(국가데이터처) 산업활동동향 확정치**를 직접 확인. 배열은 **최신이 맨 앞(내림차순)**. 빌더가 "선행지수↔KOSPI 정비례·약 2개월 선행", "100 이상=확장 / 100 이하=침체" 설명을 자동 표기.
+
+### 3.1.4 테마 (AI·원자력 포함, 순서 고정)
+- `markets.korea_themes` 순서: **반도체 · AI · 전력기기 · 조선 · 방산 · 원자력 · 증권 · 로봇 · 우주**. 각 `{theme, direction(▲/▼/■), comment}`.
+- 각 테마 대표 ETF 1년 주봉 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py`(데이터 주도)가 `charts/theme_<테마명>.png` 자동 생성. `markets.korea_theme_etfs[테마]=ETF명`, `markets.korea_theme_charts[테마]="charts/theme_<테마>.png"` 설정. (AI 예: KODEX AI반도체핵심장비 471990.KS / 원자력 예: ACE 원자력테마딥서치 433500.KS)
+
+### 2.3 빅테크 이벤트 (2.1/2.2 와 중복 금지)
+- `events_calendar`(2.1)·`events_calendar_longterm`(2.2) 에 들어온 **빅테크 신제품·신기술·빅테크 실적** 이벤트(애플·삼성 언팩·엔비디아 실적/GTC·구글 I/O·메타 커넥트·MS·AWS·테슬라·OpenAI·CES·MWC 등)는 **2.3(`bigtech_events`)에만** 싣고 2.1/2.2 에서는 제외한다(매크로·정책·지표·IPO 만 2.1/2.2). 2.3 는 **날짜 오름차순**, 구체 일자가 캘린더에 있으면 그 일자를 사용(예: 애플 2026-09-08).
+
+### 원자재 섹션별 추세평가 코멘트 / 환율 / 부록A
+- `commodities.energy_comment` · `commodities.metals_comment` · `commodities.agri_comment` (4.1/4.2/4.3 각 표 아래 "추세 평가:" 로 렌더). **키명은 `agri_comment`** (agriculture_comment 아님).
+- `markets.fx_usd.usd_eur` = **USD/EUR (=1/EURUSD)** 로 저장(EUR/USD 아님).
+- 부록A 버크셔 13F (`berkshire`) — 빌더 스키마 **정확히**: `{quarter, filing_date, summary, cash, new_buys[], added[], reduced[], exited[] (각 {name,ticker,detail}), top_holdings[] ({name,ticker,weight_or_value,note}), sources[]}`. `recent_buys/recent_sells` 나 `top_holdings.detail` 로 주면 부록A 가 비므로 금지 — `new_buys/exited`·`weight_or_value/note` 사용.
+
+## (v3.6.7) 3.1.4 반도체/AI 상세표·테마 확장
+
+- `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 ETF 는 넣지 말 것. `markets.semi_ai_comment` 는 표 아래 현황·코멘트.
+  - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
+- `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
+- 3.1.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.

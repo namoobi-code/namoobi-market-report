@@ -151,46 +151,53 @@ function renderKoreaExtras(){ const m=data.markets||{};
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); }
-  { children.push(h("3.1.4 순환매 대비 테마별 현황 (대표 ETF·추세)",3));
+  { children.push(h("3.1.4 순환매 대비 테마별 현황 (대표 ETF·추세·수익률)",3));
     if(m.korea_themes_intro)children.push(p(m.korea_themes_intro,{italics:true,color:"64748B"}));
-    // (요청) 테마 순서 항상 고정 + 8개 테마 항상 표시
+    children.push(p("각 항목은 2줄로 표기: 1행=설명(테마/종목·방향·대표ETF/시총·현황), 2행=현재가·1주·1개월·3개월·6개월·1년 수익률·추세(1Y) 그래프·추세 평가.",{size:16,color:"94A3B8"}));
+    // (요청) 2줄 수익률 블록: 1행=설명(span), 2행=현재가·1주~1년·추세그래프·추세평가
+    const RW=[1500,1050,1050,1050,1050,1050,1750,1850]; const RTOT=RW.reduce((a,b)=>a+b,0);
+    const retHeader=()=>new TableRow({children:["현재가","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:RW[i],header:true,align:AlignmentType.CENTER}))});
+    const retRows=(items,prefix,descFn)=>{ const rows=[retHeader()];
+      items.forEach((x,i)=>{ const alt=i%2===1; const chart=x.chart||(prefix?("charts/"+prefix+"_"+i+".png"):"");
+        rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:8,width:{size:RTOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:descFn(x)})]}) ]}));
+        rows.push(new TableRow({children:[
+          cell((x.current==null||x.current==="")?"-":fmtNum(x.current),{width:RW[0],alt,align:AlignmentType.RIGHT,bold:true}),
+          cell(fmtPct(x['1w_pct']),{width:RW[1],alt,align:AlignmentType.RIGHT,color:pctColor(x['1w_pct'])}),
+          cell(fmtPct(x['1mo_pct']),{width:RW[2],alt,align:AlignmentType.RIGHT,color:pctColor(x['1mo_pct'])}),
+          cell(fmtPct(x['3mo_pct']),{width:RW[3],alt,align:AlignmentType.RIGHT,color:pctColor(x['3mo_pct'])}),
+          cell(fmtPct(x['6mo_pct']),{width:RW[4],alt,align:AlignmentType.RIGHT,color:pctColor(x['6mo_pct'])}),
+          cell(fmtPct(x['1y_pct']),{width:RW[5],alt,align:AlignmentType.RIGHT,color:pctColor(x['1y_pct'])}),
+          imgCellSpark(chart,RW[6],alt,150,48),
+          cell(x.trend||x.trend_eval||"-",{width:RW[7],alt,size:16})]}));
+      });
+      return rows; };
+    // 테마 (8개 고정 순서)
     const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주"];
-    const themeArr=Array.isArray(m.korea_themes)?m.korea_themes:[];
-    const byName={}; themeArr.forEach(t=>{ if(t&&t.theme)byName[t.theme]=t; });
-    const etfs=m.korea_theme_etfs||{}, tch=m.korea_theme_charts||{};
-    const etfName=(v)=>{ if(!v)return "-"; if(typeof v==="object")return v.name||v.ticker||v.etf||"-"; return String(v); };
+    const themeArr=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
+    const tByName={}; themeArr.forEach(t=>{ if(t&&t.theme)tByName[t.theme]=t; });
     const sani=(s)=>String(s).replace(/\//g,"_").replace(/\s+/g,"_");
-    const cw=[1300,900,3300,2400,2300];
-    const th=new TableRow({children:["테마","방향","현황·코멘트","대표 ETF","추세(1Y)"].map((x,i)=>cell(x,{width:cw[i],header:true,align:AlignmentType.CENTER}))});
-    const rows=[th]; THEME_ORDER.forEach((nm,i)=>{ const t=byName[nm]||{};
-      const chart=tch[nm]||("charts/theme_"+sani(nm)+".png");
-      rows.push(new TableRow({children:[
-        cell(nm,{width:cw[0],alt:i%2===1,bold:true}),
-        cell(t.direction||"-",{width:cw[1],alt:i%2===1,align:AlignmentType.CENTER,bold:true,color:markColor(t.direction)}),
-        cell(t.comment||"-",{width:cw[2],alt:i%2===1}),
-        cell(etfName(etfs[nm]),{width:cw[3],alt:i%2===1,size:16}),
-        imgCellSpark(chart,cw[4],i%2===1,150,48)]}));
-    });
-    children.push(makeTable(cw,rows));
-    if(m.korea_themes_comment)children.push(p(m.korea_themes_comment)); children.push(p("")); }
-  { // (v3.6.12) 반도체/AI: 국내 종목(시총순)·ETF(AUM순) 2그룹 + 그룹별 현황 코멘트. 신스키마 우선, 없으면 구 semi_ai_breakdown.
-    const semiTbl=(title,arr,comment,prefix)=>{ if(!Array.isArray(arr)||!arr.length)return;
-      children.push(p(title,{bold:true,color:"1E40AF",before:120}));
-      const bw=[3000,1450,3950,1800];
-      const bh=new TableRow({children:["종목·ETF","시총/AUM","현황 코멘트","추세(1Y)"].map((x,i)=>cell(x,{width:bw[i],header:true,align:AlignmentType.CENTER}))});
-      const brows=[bh]; arr.forEach((x,i)=>{ const chart=x.chart||(prefix?("charts/"+prefix+"_"+i+".png"):"");
-        brows.push(new TableRow({children:[
-        cell(x.name||"-",{width:bw[0],alt:i%2===1,bold:true}),
-        cell(x.aum||"미확인",{width:bw[1],alt:i%2===1,align:AlignmentType.RIGHT}),
-        cell(x.note||"-",{width:bw[2],alt:i%2===1,size:16}),
-        imgCellSpark(chart,bw[3],i%2===1,150,48)]})); });
-      children.push(makeTable(bw,brows));
-      if(comment)children.push(p(comment,{size:18,color:"64748B"})); children.push(p("")); };
-    if((Array.isArray(m.semi_ai_stocks)&&m.semi_ai_stocks.length)||(Array.isArray(m.semi_ai_etfs)&&m.semi_ai_etfs.length)){
-      semiTbl("■ 반도체/AI 대표 국내 종목 (시총순)",m.semi_ai_stocks,m.semi_ai_stocks_comment,"semi_s");
-      semiTbl("■ 반도체/AI 대표 ETF (AUM순, 상위 20)",m.semi_ai_etfs,m.semi_ai_etfs_comment,"semi_e");
-    } else if(Array.isArray(m.semi_ai_breakdown)&&m.semi_ai_breakdown.length){
-      semiTbl("■ 반도체/AI 대표 ETF·종목 (시총순, 단위 억원)",m.semi_ai_breakdown,m.semi_ai_comment,"semi"); }
+    const themeItems=THEME_ORDER.map(nm=>{ const t=Object.assign({theme:nm},tByName[nm]||{}); if(!t.chart)t.chart="charts/theme_"+sani(nm)+".png"; return t; });
+    const themeDesc=(x)=>[ new TextRun({text:(x.theme||"-")+"  ",bold:true,size:20}),
+      new TextRun({text:(x.direction||""),bold:true,size:18,color:markColor(x.direction)}),
+      new TextRun({text:(x.etf?("   대표ETF: "+x.etf):""),size:16,color:"475569"}),
+      new TextRun({text:(x.comment?("   — "+x.comment):""),size:16,color:"64748B"}) ];
+    children.push(makeTable(RW,retRows(themeItems,null,themeDesc)));
+    if(m.korea_themes_comment)children.push(p(m.korea_themes_comment)); children.push(p(""));
+    // 반도체/AI 종목·ETF (시총/AUM순)
+    const semiDesc=(x)=>[ new TextRun({text:(x.name||"-")+"  ",bold:true,size:20}),
+      new TextRun({text:("시총/AUM: "+(x.aum||"미확인")),size:16,color:"475569"}),
+      new TextRun({text:(x.note?("   — "+x.note):""),size:16,color:"64748B"}) ];
+    if(Array.isArray(m.semi_ai_stocks)&&m.semi_ai_stocks.length){
+      children.push(p("■ 반도체/AI 대표 국내 종목 (시총순)",{bold:true,color:"1E40AF",before:120}));
+      children.push(makeTable(RW,retRows(m.semi_ai_stocks,"semi_s",semiDesc)));
+      if(m.semi_ai_stocks_comment)children.push(p(m.semi_ai_stocks_comment,{size:18,color:"64748B"})); children.push(p("")); }
+    if(Array.isArray(m.semi_ai_etfs)&&m.semi_ai_etfs.length){
+      children.push(p("■ 반도체/AI 대표 ETF (AUM순, 상위 20)",{bold:true,color:"1E40AF",before:120}));
+      children.push(makeTable(RW,retRows(m.semi_ai_etfs,"semi_e",semiDesc)));
+      if(m.semi_ai_etfs_comment)children.push(p(m.semi_ai_etfs_comment,{size:18,color:"64748B"})); children.push(p("")); }
+    else if(Array.isArray(m.semi_ai_breakdown)&&m.semi_ai_breakdown.length){
+      children.push(p("■ 반도체/AI 대표 ETF·종목",{bold:true,color:"1E40AF",before:120}));
+      children.push(makeTable(RW,retRows(m.semi_ai_breakdown,"semi",semiDesc))); }
   }
  }
 function renderUSExtras(){ const m=data.markets||{};
@@ -215,15 +222,13 @@ function renderUSExtras(){ const m=data.markets||{};
     if(c.comment)children.push(p(c.comment));
     if(c.asof)children.push(p("기준: "+c.asof,{size:16,color:"94A3B8"}));
     children.push(p("")); }
-  { const cx=m.bigtech_capex||{}; children.push(h("3.2.2 AI 빅테크 자본지출(CAPEX)",3));
-    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개";
-    const cxr=Array.isArray(cx.rows)?cx.rows:[];
-    if(cxr.length) simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cxr.map(r=>[r.company??"-",capV(r.y2025),capV(r.y2026),capV(r.y2027),capV(r.y2028),r.comment??"-"]),{left:[5]});
-    else children.push(p("(CAPEX 데이터 미수집)",{italics:true,color:"94A3B8"}));
-    if(cx.comment)children.push(p(cx.comment)); children.push(p("")); }
   renderUSEtfs();
-  renderIndexRebalance(); }
-// (v3.6.8) 3.2.3 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
+  renderIndexRebalance();
+  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.4 AI 빅테크 자본지출(CAPEX)",3));
+    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개"; // v3.6.10 빈칸은 "-" 대신 "미공개"
+    simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cx.rows.map(r=>[r.company??"-",capV(r.y2025),capV(r.y2026),capV(r.y2027),capV(r.y2028),r.comment??"-"]),{left:[5]});
+    if(cx.comment)children.push(p(cx.comment)); children.push(p("")); } }
+// (v3.6.8) 3.2.2 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
 function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||typeof e!=="object")return;
   const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["defensive","④ 방어형 ETF (변동성 완화)"]];
   if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
@@ -252,7 +257,7 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
   children.push(p("")); }
-// (v3.6.9) 3.2.4 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
+// (v3.6.9) 3.2.3 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
   if(!r.sp500&&!r.nasdaq100)return;
   children.push(h("3.2.3 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
@@ -611,9 +616,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.14",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.20",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.14 / plugin v1.7.14 (v3.6.8 + 3.2.3 미국 지수 정기 리밸런싱 섹션 신설(renderIndexRebalance: markets.index_rebalance — S&P500·나스닥100 편입/편출 사업내용·사유·일정·기준·패스트엔트리 룰변경), 기존 CAP
+// EOF — namoobi-market-report v3.6.20

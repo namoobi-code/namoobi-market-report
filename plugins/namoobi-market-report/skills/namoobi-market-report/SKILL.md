@@ -12,77 +12,37 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.26)
+# Namoobi Market Report (v3.6.20)
 
-> v3.6.26 (plugin 1.7.26) 변경점 — 코스닥 거래량 영구 수정 (2026-06-17 사용자 피드백):
-> - **3.1.1 코스닥 캔들 거래량 = 다음 accTradeVolume(영구)** — 야후 `^KQ11` 지수 거래량이 손상(대부분 0/스파이크 몇 개)돼 거래량 패널이 비어 보이던 문제. `gen_all2.py` candle_chart 에 **vol_override** 인자를 추가해, 코스닥은 `nmr_korea_tech.json` 의 `kr_ohlcv.kosdaq_volume`(다음금융 `market_index/days` market=KOSDAQ 의 일별 `accTradeVolume`, 1년)을 **날짜 최근접 매칭**으로 사용한다(야후 vs 다음 영업일 셋 불일치도 ±4일 내 매칭으로 흡수). KOSPI 거래량은 야후 정상이라 그대로. **KoreaTechFlowsAgent 가 `kr_ohlcv.kosdaq_volume` 를 반드시 채운다(다음 동일출처 fetch).** 재발 방지.
->
+> v3.6.20 (plugin 1.7.20) 변경점 — 3.1.x/4.5/6.2/7·8 보강·항상 표시 (2026-06-17 사용자 피드백):
+> - **3.1.1 KOSDAQ 거래량 항상 정상 표시**: 야후 ^KQ11 거래량 손상분(중앙값~1000)을 다음금융 `accTradeVolume`(Claude in Chrome 동일출처 fetch, `market_index/days`)로 교체해 `nmr_kr_ohlcv.json` 의 `kosdaq`/`kosdaq_ohlcv` 거래량(6번째 컬럼)을 채운다. KOSPI 거래량은 야후 정상.
+> - **3.1.2 외국인/기관 10·10·10·10 + 코스닥 5·5·5·5**: `korea_investor_stocks` 를 `kospi_foreign_buy`/`kospi_inst_buy`/`kospi_foreign_sell`/`kospi_inst_sell`(각 10)·`kosdaq_foreign_buy`/…/`kosdaq_inst_sell`(각 5)로 분리 수집한다. **NaverSearch(PLAY) MCP**·다음금융 우선, 확정 출처 없는 리스트는 빈배열+`note`(추정 금지). 빌더는 8개 리스트를 각각 렌더.
+> - **3.1.4 수익률 2줄 표기**: 테마·반도체 종목·ETF 각 항목을 **2줄**(1행=설명[테마/종목·방향·대표ETF/시총·현황], 2행=현재가·1주·1개월·3개월·6개월·1년 수익률·추세(1Y) 그래프·추세 평가)로 렌더한다(`build_report.js` `retRows`, columnSpan 설명행). 데이터: `markets.korea_theme_rows`(8테마 고정순서)·`markets.semi_ai_stocks`(10)·`markets.semi_ai_etfs`(**항상 20**, 단일종목 레버리지 포함 AUM 상위 20) 각 항목에 `current`,`1w_pct`~`1y_pct`,`trend`,`chart` 포함. 수익률은 1년 주봉 시계열로 계산(부분봉 제거).
+> - **4.5 ① 전략광물 ETF 추세그래프 항상 표시**: LIT·REMX·URA·URNM 1년 주봉 시계열(`nmr_strat_series.json`)로 `charts/spark_lit|remx|ura|urnm.png` 를 항상 생성하고 `commodities.strategic_metals.etf` 에 수익률을 채운다.
+> - **6.2 코인 차트 항상 조사·표시**: CryptoSeriesAgent 가 BTC·ETH·XRP·SOL 1년(가격·거래량, CoinDesk MCP `fetch_spot_ohlcv` 우선)+공포탐욕 1년(alternative.me)을 `nmr_crypto_series.json` 으로 수집 → `charts/coin_*.png`·`fng_1y.png` 생성 후 `crypto.charts={btc,eth,xrp,sol,fng}` 에 매핑(없으면 6.2 누락).
+> - **7 한국 5대 증권사·8 글로벌 IB — 최신자료 신선도 규칙(엄격)**: **Daily 자료는 D-1(전일) 이내, Weekly/Monthly 자료는 D-3 이내**만 사용한다. 주말이라 최신자료가 없으면 **금요일 자료**를 사용. 기준 초과한 오래된 자료(예: 5월·6월초·전년 12월·4월 목표주가)는 **사용 금지** — 미확보 시 빈값(`key_reports:[]`,`key_message:""`). 발행일을 `key_reports[].date` 와 `key_message` 에 명시.
 
+# Namoobi Market Report (v3.6.17)
 
-> v3.6.25 (plugin 1.7.25) 변경점 — 추세차트 선형축 통일·전략광물 간결화 (2026-06-17 사용자 선택):
-> - **추세차트 = 선형축(실제 가격경로)으로 통일** — 사용자가 4가지 예시(로그축+채움 / 로그축+그리드 / 선형 / 0%정규화) 중 **선형축(실제 가격경로)**을 선택. `gen_all2.py`·`gen_semi_etf.py` 의 mini/spark 는 **로그축 미사용**(set_yscale 제거), "·로그축" 라벨 제거, figsize 확대(mini 2.5×1.45)·굵은선·끝점 마커. ⚠️ 선형축이므로 +1450% 같은 최근 급등 종목은 초반이 바닥에 눌려 완만→최근 급경사로 보이는 것이 정상(실제 데이터). 향후 실행도 선형 유지.
-> - **4.5 전략광물 ETF 프록시 추세평가 간결화** — `strategic_metals.etf[].trend` 는 짧은 구문(예 "1년 +151% 신고가권·변동성 확대"). 2~3문장 장문 금지. CommoditiesAgent 가 간결하게 작성.
-> - 3.2.x 순서는 v3.6.24 유지(3.2.1 HY→3.2.2 CAPEX→3.2.3 미국ETF→3.2.4 리밸런싱).
->
-
-
-> v3.6.24 (plugin 1.7.24) 변경점 — 차트 기울기·폰트·3.2.x 재배치·CAPEX·신선도 (2026-06-17 사용자 피드백):
-> - **추세 차트 기울기 명확화** — `gen_all2.py`·`gen_semi_etf.py` 의 mini 차트를 **더 크게(figsize 2.5×1.45)** 그리고 max/min>3 시 로그축을 적용해 수배 등락 종목(예 +831%·+1450%)의 우상향 기울기가 평평해 보이던 문제 해결. **"·로그축" 라벨은 제거**(혼동·글자깨짐 유발).
-> - **차트 글자 깨짐(ㅁㅁ) 수정** — `gen_semi_etf.py` 에 한글 폰트(`fonts/nmr_kr.ttf`) `font_manager.addfont` 등록 누락으로 ETF 차트 라벨이 tofu(ㅁㅁ)로 나오던 문제 해결(gen_all2 와 동일하게 폰트 등록).
-> - **3.2.x 순서 재배치 + CAPEX 항상** — 빌더 `renderUSExtras` 순서: 3.2.1 HY → **3.2.2 AI 빅테크 CAPEX** → 3.2.3 주요 미국 ETF → 3.2.4 지수 정기 리밸런싱. CAPEX(`markets.bigtech_capex`)는 데이터 없어도 헤더+안내문 항상 렌더(절대 누락 금지). CapexAgent 가 MSFT·Alphabet·Amazon·Meta 연간 capex(2025 실적·2026 가이던스·2027/28 전망, 미확인은 "미공개") 수집.
-> - **7장 증권사·8장 IB 신선도 엄격** — Daily ≤D-1, Weekly/Monthly ≤D-3, 주말은 금요일자. **윈도우 밖 자료(예: 정기전략 3/31·키움 위클리 5/11·GS Commodity Outlook 1/26)는 인용 금지·표에서 제외.** 못 구하면 key_reports:[] + "최신 미확보(뉴스 기반)" 명시. 각 항목 date 필수.
->
-
-
-> v3.6.22 (plugin 1.7.22) 변경점 — 3.1.2 실데이터·차트정확도·추세간결·최신성 (2026-06-16 사용자 피드백):
-> - **3.1.2 투자자별 종목 = 다음금융 실데이터(항상)** — 네이버 deal_rank/Chrome 차단·web_fetch blocklist. **다음금융 `finance.daum.net/domestic/influential_investors`** 페이지를 메인세션 Chrome 으로 navigate 후, 탭(코스피/코스닥 × 외국인 매매종목/기관 매매종목, 기간=당일)을 좌표 클릭으로 전환하며 `get_page_text` 로 순매수/순매도 종목·금액(백만원)을 파싱한다. 코스피 각 10·코스닥 각 5 → `markets.korea_investor_stocks.{kospi,kosdaq}_{foreign,inst}_{buy,sell}` 각 {name, detail:"순매수 N억 (±%)"}. (탭 클릭은 ref 보다 좌표가 안정적; 첫 로드는 외국인·코스피·당일.)
-> - **추세 차트 정확도 = 로그축** — `gen_all2.py`·`gen_semi_etf.py` 의 mini/spark 는 시계열 max/min>3(수배 등락)이면 **y축 로그스케일**로 그려 +487%/+831%/+1450% 같은 종목의 기울기가 평평해 보이던 문제를 해결(제목에 `·로그축` 표기). 종목/ETF series 는 53주봉(야후)·다음 charts API.
-> - **추세 평가 간결화** — 3.2/3.3/3.4·미국ETF·4.x·5 의 추세평가는 **짧은 한국어 구문**(예 "견조한 상승추세·신고가권", "강한 상승추세·신고가권 과열"). 2문장·수치나열·미사여구 금지. 에이전트가 간결하게 작성.
-> - **7장 증권사·8장 IB 최신성 규칙** — Daily ≤D-1, Weekly/Monthly ≤D-3, 주말이면 직전 금요일자. 각 항목 발행일 필수. 증권사는 공식 URL(신한 insights/research, 미래에셋 categoryId=1521, 삼성 research_pop, 한국 Strategy.jsp jkGubun=99/34, 키움 VMarket*)을 **메인세션 Chrome navigate→get_page_text** 우선(신한·미래에셋은 SSR 로 추출 양호, 삼성·한투·키움은 JS 렌더라 부분 → 못 구한 사만 WebSearch+`(뉴스 기반)`).
-> - **9~12장은 1~8 수집 완료 후 작성** — AnalysisAgent 가 1~8 수집 JSON 만 근거로 종합분석·자산견해·포트폴리오·액션 작성(입력에 없는 수치 생성 금지).
->
-
-
-> v3.6.20 (plugin 1.7.20) 변경점 — 27개 항목 품질 보강·항상 표시 (2026-06-16 사용자 피드백):
-> 빌더(build_report.js)·차트(scripts/gen_all2.py·gen_semi_etf.py·gen_kr_flows.py)·에이전트 스키마를 전면 보강해 **아래가 매 실행 항상 포함**되도록 했다. 상세는 references/agents.md v3.6.20.
-> - **3.1.1 코스피·코스닥 = 대형 일봉 캔들차트** — gen_all2.py 가 일봉 OHLC(야후 ^KS11/^KQ11 interval=1d) 캔들 + MA5/20/60/120 + **거래량 패널** + 투자자별 누적순매수(외국인 빨강·기관 파랑·개인 초록) 3패널을 charts/kospi_candle.png·kosdaq_candle.png 로 생성. 빌더는 항상 폭 648×486(여백최소·최대)로 임베드. markets.korea_investors.tech=true, kospi_chart/kosdaq_chart=candle 경로.
-> - **3.1.2 8개 리스트 항상 표시** — markets.korea_investor_stocks 에 kospi_foreign_buy/inst_buy/foreign_sell/inst_sell(각 10), kosdaq_*(각 5). 빌더가 ◆코스피/◆코스닥별 4표씩, 비어도 헤더+"(자료 미수집)" 행 렌더.
-> - **3.1.3 순환변동치 값** — korea_leading[].value 숫자 채움(통계청).
-> - **3.1.4 테마 순서 고정·항상 8개** — 빌더 THEME_ORDER=[반도체/AI,전력기기,조선,방산,원자력,증권,로봇,우주] 고정. korea_theme_etfs 문자열(객체면 name 추출 → [object Object] 버그 해결). 추세차트 charts/theme_<테마>.png 자동.
-> - **3.1.4 반도체/AI 종목 10·ETF 20** — aum 채움, 추세차트 항상(semi_s_<i>.png/semi_e_<i>.png). ETF 20개·**KODEX 삼성전자/SK하이닉스 단일종목레버리지 포함**. 신규상장 series 는 다음 /api/charts/A{code}/days(반드시 finance.daum.net/quotes/A{code} 에서 동일출처 fetch — Referer 수동설정 불가).
-> - **3.2.2/3.3/3.4/4.x/5 추세평가 상세화(2문장)·추세그래프 항상** — 원자재·전략광물 series→spark_<key>.png, FX usd_jpy/usd_cny series 추가.
-> - **3.2.3 나스닥100** — 분기 "셋째 금요일" 행 제거, 연례만.
-> - **[부록A] 버크셔** — 빈 섹션도 헤더+"(이번 분기 해당 종목 없음)", note 필드 인식, top_holdings 최대 20.
-> - **[부록B] AI Trends** — 빌더가 ai_trends 배열/{items:[]} 모두 렌더(과거 배열이면 미표시 버그 해결).
-
-
-> v3.6.19 (plugin 1.7.19) 변경점 — 차트 파이프라인 결정적 재현 (2026-06-15):
-> - **Phase 1.5 = gen_rest_charts.py + gen_kr_candle.py + gen_kr_extra.py(신규)** 3종 실행. gen_kr_extra.py 가 반도체ETF20·종목·테마8(우주 분리)·HY 차트를 만들고 `nmr_chart_manifest.json` 으로 경로를 내보내, Phase 3 병합이 chart 필드를 결정적으로 wire(인라인 추측 제거).
-> - **gen_rest_charts.py 견고화**: 테마 슬래시 sanitize, 빈 series 가드(크래시 방지). 한국 캔들 거래량은 다음 accTradeVolume.
-> - 상세·입력 계약은 `references/agents.md` v3.6.19.
->
-> v3.6.18 (plugin 1.7.18) 변경점 — 2.2/3.1.1/3.1.4/리밸런싱 정밀 (2026-06-15 사용자 피드백):
-> - **2.2 중장기 이벤트** ★★★ 8~10건 필수(1건 금지).
-> - **3.1.1 코스닥 거래량** = 다음 accTradeVolume(Yahoo ^KQ11 손상) — OHLCV volume 컬럼 end-align 치환.
-> - **3.1.4 테마 8개**(반도체/AI·조선·방산·**우주**·전력·원자력·증권·로봇, 우주 분리) 각 대표 ETF 1년 차트 모두 생성.
-> - **3.1.4 반도체/AI ETF 20개(AUM순)** — 다음 quote marketCap + 다음 charts. **KODEX 삼성전자/SK하이닉스 단일종목레버리지(0193W0/0193T0)·TIGER(0195R0/0195S0)** 필수(상장후 라벨).
-> - **3.2.2 ③ 테마 ETF** 확장(WQTM 등). **3.2.3 나스닥100 리밸런싱** 은 연례 재구성만(분기 리뷰 행 제거).
-> - 상세는 `references/agents.md` v3.6.18.
->
-> v3.6.17 (plugin 1.7.17) 변경점 — 3.1.x/3.2.1/4.x/부록B 정밀 수정 (2026-06-15 사용자 피드백):
-> - **3.1.1 항상 캔들차트** — Yahoo 일봉 OHLC(^KS11/^KQ11 interval=1d) + 다음 일별 수급 → `scripts/gen_kr_candle.py`(mplfinance 캔들+MA+볼린저 / 거래량 / RSI / 누적순매수). 라인차트(gen_kr_tech.py) 폐기.
-> - **3.1.2 순매도 종목** — 다음 위젯 순매도 탭은 MouseEvent 디스패치(pointerdown/mousedown/mouseup/click)로 전환 후 파싱. kospi_sell/kosdaq_sell 각 ~10.
-> - **3.1.3 순환변동치 절대값** — 통계청 보도자료 **PDF**(`mods.go.kr/boardDownload.es?bid=216&list_no=N&seq=1`)를 web_fetch 로 읽어 `선행지수 순환변동치` 절대값 파싱(2026.04=104.1 등). korea_leading.value 채움.
-> - **3.1.4 ETF AUM** — 다음 quote API(`finance.daum.net/api/quotes/A{코드}` marketCap). korea_theme_etfs 는 문자열([object Object] 방지).
-> - **3.2.1 HY 스프레드** — FRED는 Chrome 동일출처 fetch(fredgraph.csv). 빌더는 `markets.hy_spread`{current,w1..y1} 읽음.
-> - **4.x 원자재 정확값 / 부록B** — ai_trends 는 `{items:[...]}` 구조 필수.
-> - 상세는 `references/agents.md` v3.6.17.
+> v3.6.17 (plugin 1.7.17) 변경점 — 27개 항목 품질 보강·항상 표시 (2026-06-16 사용자 피드백):
+> 빌더(build_report.js)·차트(scripts/gen_all2.py·gen_semi_etf.py·gen_kr_flows.py)·에이전트 스키마를 전면 보강해 **아래가 매 실행 항상 포함**되도록 했다. 상세는 `references/agents.md` v3.6.17.
+> - **3.1.1 코스피·코스닥 = 대형 일봉 캔들차트** — `gen_all2.py`가 일봉 OHLC(야후 ^KS11/^KQ11 `interval=1d`) 캔들 + MA5/20/60/120 + **거래량 패널** + 투자자별 누적순매수(외국인 빨강·기관 파랑·개인 초록) 3패널을 `charts/kospi_candle.png`·`kosdaq_candle.png`로 생성. 빌더는 항상 폭 648×486(여백최소·최대 크기)로 임베드. `markets.korea_investors.tech=true`, `kospi_chart`/`kosdaq_chart`=candle 경로.
+> - **3.1.2 8개 리스트 항상 표시** — `markets.korea_investor_stocks` 에 `kospi_foreign_buy/inst_buy/foreign_sell/inst_sell`(각 10), `kosdaq_*`(각 5). 빌더가 ◆코스피/◆코스닥별 4표씩, 비어도 헤더+"(자료 미수집)" 행 렌더. 수집은 KoreaTechFlowsAgent 가 다음금융+NaverSearch 뉴스로(부분이면 note).
+> - **3.1.3 순환변동치 값** — `korea_leading[].value` 숫자 채움(통계청). 값 없으면 전월차만.
+> - **3.1.4 테마 순서 고정·항상 8개** — 빌더 `THEME_ORDER=[반도체/AI,전력기기,조선,방산,원자력,증권,로봇,우주]` 고정 렌더. `korea_theme_etfs` 는 **문자열**(객체면 name 추출 → [object Object] 버그 해결). 추세차트는 `korea_theme_charts` 없으면 `charts/theme_<테마>.png` 자동(테마 series 로 생성, 항상).
+> - **3.1.4 반도체/AI 종목 10·ETF 20** — 각 `aum`(시총/AUM) 채움, 추세차트 항상(종목 `semi_s_<i>.png`, ETF `semi_e_<i>.png`). ETF 20개·**KODEX 삼성전자/SK하이닉스 단일종목레버리지 포함**. 신규상장 ETF series 는 **다음금융 `/api/charts/A{code}/days`** (반드시 `finance.daum.net/quotes/A{code}` 페이지에서 동일출처 fetch — Referer 헤더 수동설정 불가, `/quotes/` 문서 referer 필요).
+> - **3.2.2 미국ETF·3.3 아시아·3.4 유럽·4.x 원자재·5 환율 추세평가 상세화** — 에이전트가 2문장 한글 평가(예 "강한 상승추세 · 가속 국면, 3개월 +35%로 신고가 경신했으나 RSI 과열"). 4.1~4.5·5 추세 그래프 항상(원자재·전략광물 1년 series→`spark_<key>.png`, FX `usd_jpy`/`usd_cny` series 추가).
+> - **3.2.3 나스닥100 리밸런싱** — 분기 "셋째 금요일" 행 제거, 연례 재구성만(결정시점 매년).
+> - **[부록A] 버크셔** — 빈 섹션도 헤더+"(이번 분기 해당 종목 없음)" 항상 표시, `note` 필드 인식, top_holdings 최대 20.
+> - **[부록B] AI Trends** — 빌더가 `ai_trends` 가 **배열이든 {items:[]}든** 렌더(과거 배열이면 미표시되던 버그 해결). 병합 시 `{as_of,sources_checked,items}`로 래핑.
 >
 > v3.6.16 (plugin 1.7.16) 변경점 — 3.1.x/6.x 1차출처 정밀화 (2026-06-15 사용자 피드백):
-> - **3.1.1 한국 기술차트·수급** — 다음금융 market_index/days(perPage=250) Claude in Chrome 동일출처 fetch 로 1년 일별 종가·거래량·외국인/기관/개인 순매수. 지수 OHLC 캔들 API 403 → 종가선 멀티패널(종가+MA5/20/60/120+볼린저 / 거래량 / RSI / 누적순매수) 신규 scripts/gen_kr_tech.py.
-> - **⚠️ 야후 주봉 current stale** — 한국 지수 current·등락률은 다음 일별 CSV 로 산출(야후 주봉이 며칠 지연).
-> - **3.1.2** 다음 메인 외국인/기관 순매수 위젯 DOM 파싱. **3.1.3** 통계청 보도자료(mods.go.kr 산업활동동향) 직접·WebSearch 금지(전월차). **3.1.4** Yahoo marketCap. **6.2/6.3** CoinDesk fetch_spot_ohlcv·alternative.me·fetch_spot_tick.
-> - 상세는 references/agents.md v3.6.16.
+> - **3.1.1 한국 기술차트·수급** — 다음금융 `market_index/days`(perPage=250) **Claude in Chrome 동일출처 fetch**로 1년 일별 종가·거래량·외국인/기관/개인 순매수 수집. 지수 OHLC 캔들 API(`/api/charts/...`)는 403 → 캔들 대신 **종가선 멀티패널**(종가+MA5/20/60/120+볼린저 / 거래량 / RSI / 누적순매수)을 신규 `scripts/gen_kr_tech.py`로 생성(`charts/kospi_tech.png`·`kosdaq_tech.png`). `markets.korea_investors.level/순매수`는 최신 마감일 값.
+> - **⚠️ 야후 주봉 current stale** — `^KS11`/`^KQ11` 주봉 current가 며칠 지연(예 8123 vs 다음 8546). 한국 지수 current·등락률은 **다음 일별 CSV로 산출**.
+> - **3.1.2 종목별 수급** — 다음 메인(`finance.daum.net/domestic`) 외국인/기관 순매수 위젯 DOM 파싱(코스피/코스닥 교차행). 네이버 deal_rank는 web_fetch blocklist.
+> - **3.1.3 경기선행지수 — 통계청 보도자료 직접(WebSearch 금지)** — KOSIS/e-나라지표 불안정 → `mods.go.kr` 산업활동동향 게시판(mid=a10301050100&bid=216) 최신 view에서 `(경기) … 선행종합지수 순환변동치 전월대비 X.Xp` 파싱(최근 3개월). 절대수준은 PDF 전용이라 전월차로 표기.
+> - **3.1.4** Yahoo `get_stock_info` marketCap(시총)·공개보도 AUM. **6.2/6.3** CoinDesk `fetch_spot_ohlcv`(코인 1년 OHLCV)·`api.alternative.me/fng`(F&G 1년)·`fetch_spot_tick`(김프 4종).
+> - 상세 절차·스키마는 `references/agents.md` v3.6.16 참조.
 >
 > v3.6.15 (plugin 1.7.15) 변경점 — 3.1.x 수급/일봉·3.2.x 재발방지 (2026-06-15 사용자 피드백):
 > - **3.1.1 일봉 OHLC 필수** — 코스피·코스닥 기술적 차트는 반드시 **일봉(`interval="1d"`)**. 주봉/월봉처럼 보이던 문제 차단.
@@ -303,7 +263,7 @@ description: |
   ├─ SecuritiesAgent (한국 5대 — 메인세션 Chrome) / GlobalSecuritiesAgent (해외 IB 5사)
   ├─ IndexSeries / KoreaTech / CryptoSeries / Theme (시계열) · UsEtf (3.2.2) · IndexRebalance (3.2.3) · AINews · Berkshire
         ↓
-[Phase 1.5: 차트 생성]  gen_rest_charts.py(스파크라인·테마·코인) · gen_kr_candle.py(코스피/코스닥 캔들) · gen_kr_extra.py(반도체ETF20·종목·테마8·HY → nmr_chart_manifest.json) → charts/*.png
+[Phase 1.5: 차트 생성 (v3.6.4 — 분석 전)]  gen_tech_charts.py·gen_rest_charts.py·gen_hy_chart.py → charts/*.png
         ↓
 [Phase 2: AnalysisAgent 단독 호출]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓
@@ -512,4 +472,21 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 | 신한투자증권 | 자산배분 통합 (주식·채권·원자재·대안), 매크로 일관성 | 카카오채널 '쏠쏠한 리포트', 신한 알파 앱 | 장기 자산배분형 |
 | 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
 | 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
-| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분
+| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
+| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
+
+복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
+
+## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
+
+| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
+|------|-----------|----------------|-----------|
+| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
+| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
+| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
+| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
+| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
+
+수집 시 주의:
+- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
+- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
