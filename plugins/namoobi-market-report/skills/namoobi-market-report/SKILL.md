@@ -12,6 +12,18 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.25)
+
+> v3.6.25 (plugin 1.7.26) 변경점 — 반복 드리프트 근본차단·결정적 경로 고정 (2026-06-17 사용자 피드백 "며칠째 같은 게 깨진다"):
+> 아래는 **매 실행 반드시 이 경로로만** 수행한다(다른 생성기/소스 선택 금지). "지시는 프롬프트에 있는데 코드로 강제 안 돼서" 매번 다르게 깨지던 문제의 해결책이다.
+> - **3.1.1 차트 = 반드시 일봉 캔들(`gen_kr_candle.py`)**: `gen_kr_tech.py`(선차트·주봉)·`gen_kr_extra.py` 등 **다른 한국 지수 차트 생성기 사용 금지**. 입력 `nmr_kr_ohlcv.json` 의 `kospi_ohlcv`/`kosdaq_ohlcv` 는 **야후 `^KS11`/`^KQ11` interval="1d" 일봉 OHLC**(주봉·종가선 금지), 거래량은 **다음금융 `accTradeVolume`(야후 ^KQ11 거래량 손상)** 으로 ±1일 매칭 교체, `kospi_flows_daily`/`kosdaq_flows_daily` 는 다음금융 일별 순매수(`market_index/days`, Chrome 동일출처 fetch). 생성 후 PNG 를 **반드시 열어 캔들·일봉·거래량 정상인지 눈으로 확인**(연결폴더 복사 후 Read).
+> - **3.1.3 경기선행지수 = WebSearch 절대 금지, indexergo 직접**: Claude in Chrome 으로 `https://www.indexergo.com/series/?detailId=11601&frq=M`(국가데이터처 선행종합지수 순환변동치) 를 `get_page_text` 해 **순환변동치 절대값(예 104.10)+전월차(+0.60p)+전년차**를 읽는다. `markets.korea_leading=[{period,value(숫자),mom,note}]` 의 value 를 비우지 말 것(잠정치면 note 명시). 비로그인은 최신월만 노출되므로 최신 1행+코멘트로 충분.
+> - **3.2.1 HY 스프레드 = FRED 직접(null 금지)**: Chrome 으로 `https://fred.stlouisfed.org/series/BAMLH0A0HYM2` 진입 후 **동일출처** fetch `graph/fredgraph.csv?id=BAMLH0A0HYM2&cosd=...`(OAS)·`id=BAMLH0A0HYM2EY`(유효수익률). `markets.us_credit={hy_oas,hy_yield,implied_ust(=유효수익률-OAS),comment}` + 1주~1년 레벨. (CORS 때문에 반드시 fred.stlouisfed.org 도메인 위에서 fetch — 타 도메인에서 fetch 하면 Failed to fetch.)
+> - **5 환율 HKD/KRW 항상 채움**: `HKD/KRW = USD/KRW ÷ USD/HKD`(HKD 는 USD 페그 7.75~7.85, 야후 `HKD=X`). null 금지.
+> - **3.1.4 테마 수익률 = 시계열에서 계산**: `markets.korea_theme_rows` 각 테마 `current`/`1w_pct`~`1y_pct`/`trend` 를 `nmr_themeseries1y.json` 대표 ETF 1년 시계열로 계산해 채운다(빈칸"-" 금지). 빌더는 차트만 있고 값이 없으면 전부 "-" 로 렌더됨.
+> - **7·8 신선도 게이트 = 코드로 강제**: 발행일 D-1(Daily)/D-3(Weekly·Monthly) 초과 자료는 **병합 단계 코드로 제거**(주말이면 금요일 허용). 프롬프트 지시만 믿지 말고 merge 스크립트에서 `key_reports` 날짜를 필터링한다.
+> - **⚠️ PDF 변환 = 항상 새 파일명으로(절대 덮어쓰기 금지) — 이번 며칠째 PDF 깨짐의 근본원인**: 직전에 `present_files`/메일로 공유했거나 이미 존재하는 PDF 파일명으로 `soffice --convert-to` 하면 **하니스 file-lock 때문에 덮어쓰기가 `Io Abort(Error Area:Io Class:Abort Code:27)` 로 실패**하고, **깨진 옛 PDF(잘린 페이지·텍스트 추출 0)** 가 그대로 남아 "수정이 반영 안 됐다"고 오판하게 된다. → 변환 출력은 **반드시 한 번도 공유 안 한 새 파일명**(예 `rpt_build_HHMMSS.pdf`)으로 만들고, 그 다음 연결폴더의 최종 파일명으로 복사한다. soffice 는 **기본 프로파일**로 `setsid` detached 실행(`-env:UserInstallation` 새 프로파일은 느리거나 행). 변환 후 `pdftotext`로 텍스트 추출·`pdfinfo` 페이지수·`pdffonts` nanum 임베드를 **반드시 검증**(텍스트 0 또는 페이지 급감이면 깨진 것 → 새 파일명으로 재변환). soffice 좀비는 `pkill -9 -f soffice` 로 정리(메모리 OOM 유발). **soffice 가 변환을 시작은 하는데 PDF 가 안 나오고 무한 대기(hang)하면, 기본 프로파일 락(`~/.config/libreoffice/.lock`)을 좀비가 쥐고 있는 경우가 많다 → `pkill -9 -f soffice; sleep 3; rm -rf ~/.config/libreoffice` 로 프로파일을 완전 초기화한 뒤 단일 변환하면 정상 동작**(이번 PDF hang 의 재현 원인·해결). 큰 캔들 PNG(>200KB)는 `convert <png> -resize 58% -strip <png>` 로 줄이면 변환이 빨라진다.
+
 # Namoobi Market Report (v3.6.23)
 
 > v3.6.23 (plugin 1.7.23) 변경점 — 코스닥 10·증권사 직접수집 (2026-06-17 사용자 피드백):
