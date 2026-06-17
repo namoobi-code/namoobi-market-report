@@ -1,7 +1,7 @@
 {
   "name": "namoobi-market-report",
-  "version": "1.7.23",
-  "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 서브에이전트가 병렬로 자료를 수집해 PDF 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송한다. v1.7.23: 3.1.2 코스닥도 외국인/기관 각 상위 10 병합·7 한국 5대 증권사 리서치는 메인세션이 Claude in Chrome 으로 각 사 공식 페이지(신한·미래에셋·삼성·한국투자·키움) 직접 navigate 해 최신(D-1/D-3) 리포트 수집(WebSearch 단독 금지). v1.7.22: 3.1.2 외국인/기관 한 표 병합. 상세 변경이력은 SKILL.md 참조.",
+  "version": "1.7.24",
+  "description": "v1.7.24: build_report.js normalize 레이어 추가 — 증권사/IB가 firms{} 중첩으로 와도 평탄화(7·8장 누락 방지), us_credit→hy_spread 매핑(3.2.1), crypto.charts 자동매핑(6.2). 깊은 검증으로 경기선행지수·환율 스파크라인·ETF 20종 결손을 경고로 표면화. 글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 서브에이전트가 병렬로 자료를 수집해 PDF 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송한다. v1.7.23: 3.1.2 코스닥도 외국인/기관 각 상위 10 병합·7 한국 5대 증권사 리서치는 메인세션이 Claude in Chrome 으로 각 사 공식 페이지(신한·미래에셋·삼성·한국투자·키움) 직접 navigate 해 최신(D-1/D-3) 리포트 수집(WebSearch 단독 금지). v1.7.22: 3.1.2 외국인/기관 한 표 병합. 상세 변경이력은 SKILL.md 참조.",
   "author": {
     "name": "namoobi (AI Research)"
   },

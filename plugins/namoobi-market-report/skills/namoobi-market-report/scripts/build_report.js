@@ -11,6 +11,29 @@ let data;
 try { data = JSON.parse(fs.readFileSync(inputPath, 'utf-8')); }
 catch (e) { console.error(`JSON parse fail: ${inputPath}\n${e.message}`); process.exit(1); }
 
+// ── v3.6.24 스키마 정규화: 에이전트 출력 드리프트를 흡수해 '조용한 누락' 방지 ──
+function normalizeData(d){
+  for (const sec of ['securities','global_securities']){
+    const o=d[sec];
+    if (o && o.firms && typeof o.firms==='object'){
+      for (const k of Object.keys(o.firms)) if (o[k]===undefined) o[k]=o.firms[k];
+    }
+  }
+  if (d.markets && d.markets.us_credit && !d.markets.hy_spread){
+    const u=d.markets.us_credit;
+    const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n;};
+    d.markets.hy_spread={current:num(u.hy_oas),w1:null,m1:null,m3:null,m6:null,y1:null,
+      trend:u.trend||"",comment:u.comment||"",asof:u.asof||(d.metadata&&d.metadata.report_date)||""};
+  }
+  if (d.crypto && !d.crypto.charts){
+    const m={},map={btc:'coin_btc.png',eth:'coin_eth.png',xrp:'coin_xrp.png',sol:'coin_sol.png',fng:'fng_1y.png'};
+    for (const [k,f] of Object.entries(map)){ try{ if(fs.existsSync('charts/'+f)) m[k]='charts/'+f; }catch(e){} }
+    if (Object.keys(m).length) d.crypto.charts=m;
+  }
+  return d;
+}
+try { normalizeData(data); } catch(e){ console.error('normalizeData 경고:', e.message); }
+
 function validate(d) {
   const issues = [], warn = [];
   const has = (o, k) => o && o[k] !== undefined && o[k] !== null;
@@ -34,6 +57,19 @@ function validate(d) {
   else { if(!d.analysis.portfolios) issues.push("portfolios 누락");
     else ['aggressive','balanced','conservative'].forEach(k=>{const pf=d.analysis.portfolios[k]; if(pf&&!pf.basis) warn.push(`portfolios.${k}.basis 누락`);});
     if(!d.analysis.summary) warn.push("summary 누락"); }
+  // ── v3.6.24 깊은 검증: 조용히 비거나 깨진 섹션을 명시적으로 보고 ──
+  const M=d.markets||{};
+  const secK=['shinhan','miraeasset','samsung','korea_inv','kiwoom'];
+  if (d.securities && !secK.some(k=>d.securities[k])) issues.push("securities 5사 평탄 키 없음(firms 정규화 실패?) → 7장 전체 누락");
+  const gsK=['ubs','goldman','jpmorgan','morgan_stanley','blackrock'];
+  if (d.global_securities && !gsK.some(k=>d.global_securities[k])) issues.push("global_securities 5사 평탄 키 없음 → 8장 전체 누락");
+  if (d.crypto && !d.crypto.charts) warn.push("crypto.charts 없음 → 6.2 코인차트 섹션 생략됨 (coin_*.png 생성 확인)");
+  if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.2.1 HY 표/그래프 비거나 누락"); }
+  if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.3 경기선행지수 누락(통계청 KOSIS 수집 필요)");
+  if (M.fx_markets){ const need=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'];
+    const miss=need.filter(k=>{try{return !fs.existsSync('charts/spark_'+k+'.png');}catch(e){return true;}});
+    if(miss.length===need.length) warn.push("환율 추세 스파크라인 전무 → 5장 추세열 빈칸(nmr_series2.fx 시계열 수집 필요)"); }
+  const etfN=(M.semi_ai_etfs||[]).length; if(M.semi_ai_etfs && etfN<20) warn.push("반도체/AI ETF "+etfN+"종(<20) → 3.1.4 ETF 표 부족");
   return { issues, warn };
 }
 const { issues, warn } = validate(data);
@@ -629,4 +665,4 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.22
+// EOF — namoobi-market-report v3.6.24
