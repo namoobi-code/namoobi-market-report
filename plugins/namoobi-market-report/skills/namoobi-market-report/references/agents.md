@@ -59,7 +59,7 @@
 > - **8 글로벌 IB — 최신만**: 발행일 D-1 이내의 최신 하우스 뷰만 수집. 오래된 코멘트는 배제. 못 구할 때만 뉴스 검색.
 > - **5 환율 USD/EUR**: EUR/USD 대신 **USD/EUR**(=1/EURUSD, 1달러당 유로)를 `markets.fx_usd.usd_eur` 로 저장. 현재치·1주~1년 변화율 모두 역수 시계열(usd_eur_t = 1/eurusd_t) 기준으로 계산. 시계열 차트도 `s2.fx.usd_eur` 로 저장(스파크 spark_usd_eur.png).
 > - **4 원자재 섹션별 추세 코멘트**: 4.1/4.2/4.3 각각에 추세 평가 코멘트 1~2문장을 `commodities.energy_comment`/`metals_comment`/`agri_comment` 로 수집(에너지·금속·농산물 각 군의 단·중·장 추세 해석).
-> - **3.2.2 주요 미국 ETF (신설, v3.6.8)**: `markets.us_etfs` (지수추종·11개 섹터·테마/특화·방어형 29종) + `nmr_etfseries.json` 1년 주봉. 아래 UsEtfAgent 참조.
+> - **3.2.2 주요 미국 ETF (신설, v3.6.8)**: `markets.us_etfs` (지수추종·11개 섹터·테마/특화·방어형 32종) + `nmr_etfseries.json` 1년 주봉. 아래 UsEtfAgent 참조.
 - **3.2.3 미국 지수 정기 리밸런싱 (신설, v3.6.9)**: `markets.index_rebalance` (S&P 500·나스닥 100 편입/편출·일정·기준·룰변경). 아래 IndexRebalanceAgent 참조. 기존 CAPEX 는 **3.2.4** 로 이동.
 - **3.2.4 CAPEX 2027·2028 전망**: `markets.bigtech_capex.rows[]` 에 `y2027`·`y2028`(가이던스/컨센서스 전망, 확인된 경우만) 필드 추가.
 > - **차트는 분석(9~12) 전에 생성** — 시계열 에이전트(IndexSeries/KoreaTech/CryptoSeries/Theme)는 Phase 1 에서 함께 수집하고, 차트 PNG 생성은 AnalysisAgent 호출 전에 끝낸다.
@@ -385,7 +385,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 **대상 (그룹 · 티커 · 설명 · 섹터비중)**:
 - **index**: SPY(SPDR S&P 500 ETF Trust·S&P500 최대 유동성), VOO(Vanguard S&P 500·저비용), SPYM(SPDR Portfolio S&P 500·초저보수), QQQ(Invesco QQQ·나스닥100 대형기술), QQQM(QQQ 저보수판), DIA(다우존스30 우량주)
 - **sector** (11개, S&P500 비중 weight): XLK 기술 27.69%(반도체·SW·AI), XLV 의료 13.48%, XLC 통신 11.22%, XLY 임의소비재 11.81%, XLF 금융 11.32%, XLI 산업 8.41%, XLP 필수소비재 5.87%, XLB 재료 2.60%, XLRE 부동산 2.61%, XLE 에너지 2.44%, XLU 유틸리티 2.55%
-- **theme**: SOXX 반도체(인텔·엔비디아·AMD), SMH 반도체 집적(TSMC·엔비디아·삼성), BOTZ AI/로봇, ARKK 혁신기술(액티브), SCHD 배당성장주, JEPI 커버드콜 현금흐름(월배당), QTUM 양자컴퓨터, NASA 우주항공(Tema Space Innovators·2026 상장 신생), ICLN 글로벌 클린에너지
+- **theme**: SOXX 반도체(인텔·엔비디아·AMD), SMH 반도체 집적(TSMC·엔비디아·삼성), BOTZ AI/로봇, ARKK 혁신기술(액티브), SCHD 배당성장주, JEPI 커버드콜 현금흐름(월배당), QTUM 양자컴퓨터, NASA 우주항공(Tema Space Innovators·2026 상장 신생), ICLN 글로벌 클린에너지, ROBO 로보틱스·자동화(ROBO Global Robotics & Automation), AIQ AI·기술 전반(Global X Artificial Intelligence & Technology), MAGS 매그니피센트7 동일가중(Roundhill Magnificent Seven)
 - **defensive**: GLD 금(현물·헷지), TLT 미국 장기채(20Y+), IEF 미국 중기채(7-10Y)
 **계산**: MarketsAgent 와 동일 — 현재가=최신 주봉 종가, 1주=직전 주봉, 1개월≈4주 전, 3개월≈13주 전, 6개월≈26주 전, 1년=최초 데이터 대비 변화율(%). 각 ETF `trend` 1줄(한글, 1년/3개월/1개월 모멘텀+가격위치 종합). 신생 ETF(NASA 등)는 이력이 짧아 3·6개월이 비면 null, 미존재 티커는 수록 금지.
 **저장**:

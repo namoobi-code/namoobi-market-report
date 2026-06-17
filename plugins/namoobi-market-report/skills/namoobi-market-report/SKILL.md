@@ -101,7 +101,7 @@ description: |
 > - `references/agents.md` IndexRebalanceAgent·`data-schema.md` index_rebalance 참조. 구성종목·일정은 press.spglobal.com / ir.nasdaq.com 1차 출처로만 확인(기억 생성 금지, 미확정은 `미확인`).
 >
 > v3.6.8 (plugin 1.7.8) 변경점 — 3.2.2 주요 미국 ETF 섹션 신설 (2026-06-14 사용자 피드백):
-> - **3.2.2 주요 미국 ETF(신설)** — 미국 대표 지수추종(SPY·VOO·SPYM·QQQ·QQQM·DIA), 11개 S&P 500 섹터(XLK~XLU, S&P500 비중 표기), 테마/특화(SOXX·SMH·BOTZ·ARKK·SCHD·JEPI·QTUM·NASA·ICLN), 방어형(GLD·TLT·IEF) **29종**을 4개 그룹 표로. 각 행: 티커·ETF설명·현재가·1주·1개월·3개월·6개월·1년 수익률(±색)·**추세(1년) 스파크라인**·추세평가. 데이터 `markets.us_etfs`(빌더 `renderUSEtfs`), 1년 주봉은 `nmr_etfseries.json` → `gen_rest_charts.py` 가 `charts/spark_etf_<티커>.png` 생성.
+> - **3.2.2 주요 미국 ETF(신설)** — 미국 대표 지수추종(SPY·VOO·SPYM·QQQ·QQQM·DIA), 11개 S&P 500 섹터(XLK~XLU, S&P500 비중 표기), 테마/특화(SOXX·SMH·BOTZ·ARKK·SCHD·JEPI·QTUM·NASA·ICLN·ROBO·AIQ·MAGS), 방어형(GLD·TLT·IEF) **32종**을 4개 그룹 표로. 각 행: 티커·ETF설명·현재가·1주·1개월·3개월·6개월·1년 수익률(±색)·**추세(1년) 스파크라인**·추세평가. 데이터 `markets.us_etfs`(빌더 `renderUSEtfs`), 1년 주봉은 `nmr_etfseries.json` → `gen_rest_charts.py` 가 `charts/spark_etf_<티커>.png` 생성.
 > - **기존 3.2.2 CAPEX → 3.2.3 으로 이동** (3.2.1 HY 스프레드 → 3.2.2 ETF → 3.2.3 CAPEX 순).
 > - **신규 UsEtfAgent** — Phase 1 병렬 배치에 추가(Yahoo `get_historical_stock_prices` 주봉 기본, FMP 는 플랜 제한 시 폴백). 수익률은 주봉 가격수익률이라 분배금 큰 ETF(SCHD·JEPI·채권형)는 총수익률보다 낮게 표기됨을 그룹 코멘트에 명시. 신생 ETF(NASA)는 3·6개월 null 허용. `references/agents.md` UsEtfAgent·`data-schema.md` us_etfs 참조.
 >
