@@ -1,5 +1,10 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.21 변경점 (2026-06-17 사용자 피드백)**
+> - **3.1.2 종목 수급 = 다음금융 investor_purchase API (네이버는 차단)**: finance.naver.com 은 실행 환경에서 web_fetch·Chrome 모두 플랫폼 차단이므로 사용 불가. 메인세션이 Claude in Chrome 으로 `https://finance.daum.net/domestic/influential_investors` 진입 후 동일출처 fetch `https://finance.daum.net/api/trend/investor_purchase/?market={KOSPI|KOSDAQ}&investorType={FOREIGN|INSTITUTION}&...`(나머지 buyFieldName/buyOrder/sellFieldName/sellOrder/limit 파라미터는 페이지가 보낸 값 그대로 재사용). 응답 `data.BUY`/`data.SELL` 각 `{name, straightPurchasePrice(원), changeRate}`. 4조합으로 `korea_investor_stocks`(코스피 10·코스닥 5, detail="순매수/순매도 X억원") 채운다.
+> - **3.2.0 CAPEX**: `bigtech_capex` 는 미국 증시 섹션 맨 앞(3.2.0)에 렌더(빌더 `renderUSExtras` 최상단).
+> - **7·8 항상 채움**: SecuritiesAgent·GlobalSecuritiesAgent 는 D-1/D-3 신선자료 1순위, 없으면 **WebSearch 로 최신 공개 시각을 찾아 반드시 채운다**(빈값 금지, 발행일 명시).
+
 > **v3.6.20 변경점 (2026-06-17 사용자 피드백 — 매 실행 반드시 적용)**
 > - **3.1.1 KOSDAQ 거래량**: KoreaTechAgent/메인세션이 다음금융 `accTradeVolume`(동일출처 fetch)로 `kosdaq`/`kosdaq_ohlcv` 거래량 컬럼을 교체(야후 ^KQ11 거래량은 손상). 거래량 패널이 항상 정상 표시되어야 한다.
 > - **3.1.2 종목 수급**: `korea_investor_stocks = {asof, note, kospi_foreign_buy[10], kospi_inst_buy[10], kospi_foreign_sell[10], kospi_inst_sell[10], kosdaq_foreign_buy[5], kosdaq_inst_buy[5], kosdaq_foreign_sell[5], kosdaq_inst_sell[5]}` (각 `{name,detail}`). **NaverSearch(PLAY) MCP**·다음금융 우선. 확정 출처 없는 리스트는 빈배열+note(추정 금지).

@@ -12,6 +12,13 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.21)
+
+> v3.6.21 (plugin 1.7.21) 변경점 — 3.1.2 실수집·3.2.0 이동·리서치 항상 채움 (2026-06-17 사용자 피드백):
+> - **3.1.2 종목별 수급 — 다음금융 investor_purchase API 로 실수집**: 네이버 금융(finance.naver.com)은 본 실행 환경에서 web_fetch·Claude in Chrome 모두 **플랫폼 차단(blocklist)** 이라 접근 불가. 동일 데이터를 **다음금융**에서 받는다: Claude in Chrome 으로 `https://finance.daum.net/domestic/influential_investors` 진입 후 동일출처 fetch `https://finance.daum.net/api/trend/investor_purchase/?...&market={KOSPI|KOSDAQ}&investorType={FOREIGN|INSTITUTION}` (응답 `data.BUY[30]`·`data.SELL[30]`, 각 `{rank,name,straightPurchasePrice(원),changeRate}`). 4개 조합으로 코스피 외국인/기관 순매수·순매도 상위 10, 코스닥 상위 5 를 채워 `korea_investor_stocks.{kospi_foreign_buy,kospi_inst_buy,kospi_foreign_sell,kospi_inst_sell,kosdaq_*}`(각 `{name,detail}`, detail="순매수/순매도 X억원", `straightPurchasePrice/1e8`)로 저장. 기준일은 `toDate`.
+> - **3.2.0 AI 빅테크 CAPEX 위치 이동**: 기존 3.2.4 → **3.2.0**(미국 증시 섹션 맨 앞, 3.2.1 HY 스프레드 앞)으로 이동. `renderUSExtras` 가 `bigtech_capex` 를 가장 먼저 렌더.
+> - **7·8 리서치 — 신선자료 없으면 웹검색으로 항상 채움**: D-1(Daily)/D-3(Weekly·Monthly) 최신을 1순위로 하되, 기준 충족 자료가 없으면 **빈값으로 두지 말고 WebSearch 로 각 사/IB 의 가장 최근 공개 시각을 찾아** 핵심 메시지를 채운다(발행일 명시, 뉴스 기반이면 `(뉴스 기반)`). 5사·5IB 모두 `key_message` 비우지 않는다.
+
 # Namoobi Market Report (v3.6.20)
 
 > v3.6.20 (plugin 1.7.20) 변경점 — 3.1.x/4.5/6.2/7·8 보강·항상 표시 (2026-06-17 사용자 피드백):

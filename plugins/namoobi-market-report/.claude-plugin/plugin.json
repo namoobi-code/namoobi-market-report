@@ -1,8 +1,5 @@
 {
   "name": "namoobi-market-report",
-  "version": "1.7.20",
-  "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 서브에이전트가 병렬로 자료를 수집해 PDF 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송한다. v1.7.20: 3.1.1 KOSDAQ 거래량 정상화·3.1.2 외국인/기관 10·10·10·10/5·5·5·5·3.1.4 테마/반도체 종목·ETF20 수익률 2줄 표기·4.5 전략광물 ETF 추세그래프·6.2 코인차트 항상 표시·7·8 리서치 신선도 규칙(Daily D-1·Weekly/Monthly D-3). 상세 변경이력은 SKILL.md 참조.",
-  "author": {
-    "name": "namoobi (AI Research)"
-  },
-  "k
+  "version": "1.7.21",
+  "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 서브에이전트가 병렬로 자료를 수집해 PDF 보고서를 만들고 Claude in Chrome 가 로그인된 Gmail 에서 직접 발송한다. v1.7.21: 3.1.2 종목 수급을 다음금융 investor_purchase API(외국인/기관 순매수·순매도 상위)로 실수집·3.2.0 CAPEX 위치 이동(3.2.4→3.2.0)·7·8 리서치 신선자료 없으면 웹검색으로 항상 채움. v1.7.20: 3.1.1 KOSDAQ 거래량·3.1.4 수익률 2줄·4.5 전략광물 추세·6.2 코인차트. 상세 변경이력은 SKILL.md 참조.",
+  "author"
