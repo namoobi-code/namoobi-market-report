@@ -1,5 +1,9 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+> **v3.6.22 변경점 (2026-06-17 사용자 피드백)**
+> - **3.1.2 표 병합**: `korea_investor_stocks` 데이터 구조는 동일(8개 리스트). 빌더가 외국인(좌)·기관(우)를 한 표로 병합 렌더하므로 4개 리스트 쌍(코스피 매수/매도, 코스닥 매수/매도)을 모두 채울 것.
+> - **7·8 신선도 = 웹검색에도 적용**: SecuritiesAgent·GlobalSecuritiesAgent 는 WebSearch 결과라도 발행일이 D-1(Daily)/D-3(Weekly·Monthly) 기준을 넘으면 사용 금지(주말이면 금요일 허용). 기준 충족 자료가 없으면 `key_message:"기준일(D-1/D-3) 충족 최신 공개 자료 미확인"` 으로 두고 오래된 자료로 채우지 않는다(빈 stub 허용).
+
 > **v3.6.21 변경점 (2026-06-17 사용자 피드백)**
 > - **3.1.2 종목 수급 = 다음금융 investor_purchase API (네이버는 차단)**: finance.naver.com 은 실행 환경에서 web_fetch·Chrome 모두 플랫폼 차단이므로 사용 불가. 메인세션이 Claude in Chrome 으로 `https://finance.daum.net/domestic/influential_investors` 진입 후 동일출처 fetch `https://finance.daum.net/api/trend/investor_purchase/?market={KOSPI|KOSDAQ}&investorType={FOREIGN|INSTITUTION}&...`(나머지 buyFieldName/buyOrder/sellFieldName/sellOrder/limit 파라미터는 페이지가 보낸 값 그대로 재사용). 응답 `data.BUY`/`data.SELL` 각 `{name, straightPurchasePrice(원), changeRate}`. 4조합으로 `korea_investor_stocks`(코스피 10·코스닥 5, detail="순매수/순매도 X억원") 채운다.
 > - **3.2.0 CAPEX**: `bigtech_capex` 는 미국 증시 섹션 맨 앞(3.2.0)에 렌더(빌더 `renderUSExtras` 최상단).

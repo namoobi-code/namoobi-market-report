@@ -128,23 +128,30 @@ function renderKoreaExtras(){ const m=data.markets||{};
     children.push(p("")); }
   { const ks=m.korea_investor_stocks||{}; children.push(h("3.1.2 투자자별 순매수·순매도 상위 종목 (최근 장 마감)",3));
     children.push(p("기준: "+(ks.asof||"-")+(ks.note?("   "+ks.note):""),{size:17,color:"94A3B8"}));
-    const iw2=[820,4400,4140];
-    const invTbl=(title,arr,n)=>{ children.push(p(title,{bold:true,color:"1E40AF",before:100,size:20}));
-      const rows=[new TableRow({children:["순위","종목","순매수 규모·비고"].map((x,i)=>cell(x,{width:iw2[i],header:true,align:i===0?AlignmentType.CENTER:AlignmentType.LEFT}))})];
-      const a=Array.isArray(arr)?arr.slice(0,n):[];
-      if(!a.length){ rows.push(new TableRow({children:[cell("-",{width:iw2[0],align:AlignmentType.CENTER}),cell("(자료 미수집)",{width:iw2[1],color:"94A3B8"}),cell("-",{width:iw2[2]})]})); }
-      else a.forEach((x,i)=>{ const nm=(typeof x==="string")?x:(x.name||x.ticker||"-"); const dt=(typeof x==="string")?"":(x.detail||x.amount||x.value||""); rows.push(new TableRow({children:[cell(String(i+1),{width:iw2[0],alt:i%2===1,align:AlignmentType.CENTER}),cell(nm,{width:iw2[1],alt:i%2===1,bold:true}),cell(String(dt||"-"),{width:iw2[2],alt:i%2===1,size:18})]})); });
-      children.push(makeTable(iw2,rows)); };
+    const mw=[620,2950,1750,2950,1750];
+    const nmOf=(x)=>(typeof x==="string")?x:((x&&(x.name||x.ticker))||"-");
+    const dtOf=(x)=>(typeof x==="string")?"":((x&&(x.detail||x.amount||x.value))||"");
+    const spanHdr=(t)=>new TableCell({borders,columnSpan:2,shading:headerShading,margins:{top:60,bottom:60,left:80,right:80},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[cellRun(t,{header:true})]})]});
+    // (요청) 외국인(좌)·기관(우) 한 표로 병합
+    const invMerged=(title,fArr,iArr,n)=>{ children.push(p(title,{bold:true,color:"1E40AF",before:120,size:20}));
+      const fa=Array.isArray(fArr)?fArr.slice(0,n):[], ia=Array.isArray(iArr)?iArr.slice(0,n):[];
+      const grp=new TableRow({children:[cell("순위",{width:mw[0],header:true,align:AlignmentType.CENTER}),spanHdr("외국인"),spanHdr("기관")]});
+      const sub=new TableRow({children:["순위","종목","순매매 규모","종목","순매매 규모"].map((x,i)=>cell(x,{width:mw[i],header:true,align:i===0?AlignmentType.CENTER:AlignmentType.LEFT}))});
+      const rows=[grp,sub]; const rn=Math.max(fa.length,ia.length,1);
+      for(let i=0;i<rn;i++){ const f=fa[i],iv=ia[i],alt=i%2===1;
+        rows.push(new TableRow({children:[
+          cell(String(i+1),{width:mw[0],alt,align:AlignmentType.CENTER}),
+          cell(f?nmOf(f):"-",{width:mw[1],alt,bold:true}),
+          cell(f?String(dtOf(f)||"-"):"-",{width:mw[2],alt,size:18}),
+          cell(iv?nmOf(iv):"-",{width:mw[3],alt,bold:true}),
+          cell(iv?String(dtOf(iv)||"-"):"-",{width:mw[4],alt,size:18})]})); }
+      children.push(makeTable(mw,rows)); };
     children.push(p("◆ 코스피",{bold:true,size:22,color:"0F172A",before:120}));
-    invTbl("외국인 순매수 상위 10",ks.kospi_foreign_buy||ks.kospi_buy,10);
-    invTbl("기관 순매수 상위 10",ks.kospi_inst_buy,10);
-    invTbl("외국인 순매도 상위 10",ks.kospi_foreign_sell||ks.kospi_sell,10);
-    invTbl("기관 순매도 상위 10",ks.kospi_inst_sell,10);
+    invMerged("순매수 상위 10 (좌 외국인 · 우 기관)",ks.kospi_foreign_buy||ks.kospi_buy,ks.kospi_inst_buy,10);
+    invMerged("순매도 상위 10 (좌 외국인 · 우 기관)",ks.kospi_foreign_sell||ks.kospi_sell,ks.kospi_inst_sell,10);
     children.push(p("◆ 코스닥",{bold:true,size:22,color:"0F172A",before:160}));
-    invTbl("외국인 순매수 상위 5",ks.kosdaq_foreign_buy||ks.kosdaq_buy,5);
-    invTbl("기관 순매수 상위 5",ks.kosdaq_inst_buy,5);
-    invTbl("외국인 순매도 상위 5",ks.kosdaq_foreign_sell||ks.kosdaq_sell,5);
-    invTbl("기관 순매도 상위 5",ks.kosdaq_inst_sell,5);
+    invMerged("순매수 상위 5 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_buy||ks.kosdaq_buy,ks.kosdaq_inst_buy,5);
+    invMerged("순매도 상위 5 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_sell||ks.kosdaq_sell,ks.kosdaq_inst_sell,5);
     children.push(p("")); }
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.3 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
@@ -617,9 +624,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.21",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.22",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
   console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
 }).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.21
+// EOF — namoobi-market-report v3.6.22
