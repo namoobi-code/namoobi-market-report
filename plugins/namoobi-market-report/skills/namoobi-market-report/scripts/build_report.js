@@ -193,6 +193,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
+    { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); }
   { children.push(h("3.1.4 순환매 대비 테마별 현황 (대표 ETF·추세·수익률)",3));
     if(m.korea_themes_intro)children.push(p(m.korea_themes_intro,{italics:true,color:"64748B"}));
@@ -278,26 +279,12 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
   if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
   children.push(h("3.2.2 주요 미국 ETF (지수·섹터·테마·방어형)",3));
   children.push(p("미국 대표 지수 추종·11개 S&P 500 섹터·테마/특화·방어형 ETF 의 현재가와 1주~1년 수익률, 1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률로, 분배금이 큰 ETF(SCHD·JEPI·채권형 등)는 실제 총수익률이 더 높을 수 있다. 섹터 ETF 옆 [%]는 S&P 500 내 비중.",{italics:true,color:"64748B"}));
-  const ew=[760,2380,980,720,720,720,720,760,1260,1380];
-  const hdr=()=>new TableRow({children:["티커","ETF · 설명","현재가","1주","1개월","3개월","6개월","1년","추세(1년)","추세 평가"].map((x,i)=>cell(x,{width:ew[i],header:true,align:AlignmentType.CENTER}))});
-  const etfRow=(x,i)=>{ const sym=String(x.symbol||x.ticker||"-");
-    const nameLine=(x.name||sym)+(x.weight?("  ["+x.weight+"]"):"");
-    const descRuns=[new TextRun({text:nameLine,bold:true,size:17}),new TextRun({text:String(x.desc||""),size:15,color:"64748B",break:1})];
-    const curTxt=(x.current===null||x.current===undefined||x.current==="")?"-":("$"+fmtNum(x.current));
-    return new TableRow({children:[
-      cell(sym,{width:ew[0],alt:i%2===1,bold:true,align:AlignmentType.CENTER,color:"1D4ED8"}),
-      cell("",{width:ew[1],alt:i%2===1,runs:descRuns}),
-      cell(curTxt,{width:ew[2],alt:i%2===1,align:AlignmentType.RIGHT,bold:true}),
-      cell(fmtPct(x['1w_pct']),{width:ew[3],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['1w_pct'])}),
-      cell(fmtPct(x['1mo_pct']),{width:ew[4],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['1mo_pct'])}),
-      cell(fmtPct(x['3mo_pct']),{width:ew[5],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['3mo_pct'])}),
-      cell(fmtPct(x['6mo_pct']),{width:ew[6],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['6mo_pct'])}),
-      cell(fmtPct(x['1y_pct']),{width:ew[7],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(x['1y_pct'])}),
-      imgCellSpark("charts/spark_etf_"+sym+".png",ew[8],i%2===1,150,40),
-      cell(String(x.trend||"-"),{width:ew[9],alt:i%2===1,size:18})]}); };
   groups.forEach(([k,label])=>{ const arr=e[k]; if(!Array.isArray(arr)||!arr.length)return;
     children.push(p(label,{bold:true,color:"1E40AF",before:120,size:21}));
-    const rows=[hdr()]; arr.forEach((x,i)=>rows.push(etfRow(x,i))); children.push(makeTable(ew,rows)); });
+    const items=arr.map(x=>{ const sym=String(x.symbol||x.ticker||"-"); const nameLine=sym+" · "+(x.name||sym)+(x.weight?("  ["+x.weight+"]"):"");
+      return {desc:[new TextRun({text:nameLine,bold:true,size:18,color:"1D4ED8"}),new TextRun({text:(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
+        m:x,current:x.current,curText:((x.current===null||x.current===undefined||x.current==="")?"-":("$"+fmtNum(x.current))),trend:String(x.trend||"-"),chart:"charts/spark_etf_"+sym+".png"}; });
+    children.push(makeTable(TR2,trend2Rows(items))); });
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
   children.push(p("")); }
@@ -363,7 +350,7 @@ function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebala
 function renderStrategicMetals(){ const sm=data.commodities&&data.commodities.strategic_metals; if(!sm)return;
   children.push(h("4.5 전략광물·배터리 금속 (리튬·니켈·코발트·우라늄·희토류·흑연)",2));
   if(Array.isArray(sm.etf)&&sm.etf.length){ children.push(p("① ETF 프록시 가격 추세",{bold:true,color:"1E40AF"}));
-    const etfKeys=["lit","remx","ura","urnm"]; const rows=[trendHeaderRowC()]; sm.etf.forEach((e,i)=>rows.push(trendRowC(e.name||e.symbol||"-",e,i,"charts/spark_"+(etfKeys[i]||"")+".png"))); children.push(makeTable(tw2,rows));
+    const etfKeys=["lit","remx","ura","urnm"]; const its=sm.etf.map((e,i)=>({desc:[new TextRun({text:(e.name||e.symbol||"-"),bold:true,size:20})],m:e,current:e.current,chart:"charts/spark_"+(etfKeys[i]||"")+".png"})); children.push(makeTable(TR2,trend2Rows(its)));
     if(sm.etf_comment)children.push(p(sm.etf_comment)); }
   if(Array.isArray(sm.spot)&&sm.spot.length){ children.push(p("② 주요 현물·실물 가격 현황",{bold:true,color:"1E40AF"}));
     simpleTable([1800,2400,5880],["품목","최근 가격","추세·코멘트"],sm.spot.map(s=>[s.item??"-",s.price??"-",s.comment??"-"]),{left:[2]}); }
@@ -466,6 +453,22 @@ function koTrend(m){ if(!m)return "-"; const t=String(m.trend||"").trim(); if(t&
   if(m3!==undefined&&m3!==null)parts.push("3개월 "+(m3>=0?"+":"")+Math.round(m3)+"% "+(m3>=0?"상승":"조정"));
   else if(m1!==undefined&&m1!==null)parts.push("1개월 "+(m1>=0?"+":"")+Math.round(m1)+"% "+(m1>=0?"반등":"조정"));
   return parts.length?parts.join(", "):(t||"-"); }
+const TR2=[1500,1050,1050,1050,1050,1050,1750,1850]; const TR2TOT=TR2.reduce((a,b)=>a+b,0);
+function trend2Header(){ return new TableRow({children:["현재가","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:TR2[i],header:true,align:AlignmentType.CENTER}))}); }
+function trend2Rows(items){ const rows=[trend2Header()];
+  items.forEach((it,i)=>{ const alt=i%2===1; const m=it.m||{};
+    rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:8,width:{size:TR2TOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:it.desc})]}) ]}));
+    rows.push(new TableRow({children:[
+      cell((it.current==null||it.current==="")?"-":(it.curText||fmtNum(it.current)),{width:TR2[0],alt,align:AlignmentType.RIGHT,bold:true,color:it.changed?negativeColor:undefined}),
+      cell(fmtPct(m['1w_pct']),{width:TR2[1],alt,align:AlignmentType.RIGHT,color:pctColor(m['1w_pct'])}),
+      cell(fmtPct(m['1mo_pct']),{width:TR2[2],alt,align:AlignmentType.RIGHT,color:pctColor(m['1mo_pct'])}),
+      cell(fmtPct(m['3mo_pct']),{width:TR2[3],alt,align:AlignmentType.RIGHT,color:pctColor(m['3mo_pct'])}),
+      cell(fmtPct(m['6mo_pct']),{width:TR2[4],alt,align:AlignmentType.RIGHT,color:pctColor(m['6mo_pct'])}),
+      cell(fmtPct(m['1y_pct']),{width:TR2[5],alt,align:AlignmentType.RIGHT,color:pctColor(m['1y_pct'])}),
+      imgCellSpark(it.chart,TR2[6],alt,150,46),
+      cell(it.trend||koTrend(m),{width:TR2[7],alt,size:16}) ]}));
+  });
+  return rows; }
 function trendRowC(name,m,i,chart,changed){ return new TableRow({children:[
   cell(name,{width:tw2[0],alt:i%2===1,bold:true}),
   cell(fmtNum(m&&m.current),{width:tw2[1],alt:i%2===1,align:AlignmentType.RIGHT,bold:changed===true,color:changed===true?negativeColor:undefined}),
@@ -476,8 +479,10 @@ function trendRowC(name,m,i,chart,changed){ return new TableRow({children:[
   cell(fmtPct(m&&m['1y_pct']),{width:tw2[6],alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['1y_pct'])}),
   imgCellSpark(chart,tw2[7],i%2===1),
   cell(koTrend(m),{width:tw2[8],alt:i%2===1})]}); }
-function renderMarketBlockC(title,obj,labels,prev,comment){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRowC()]; let i=0;
-  for(const [k,v] of Object.entries(obj)){ if(v===null||typeof v!=="object")continue; const ch=prev&&prev[k]!==undefined&&prev[k]!==null&&Number(prev[k])!==Number(v&&v.current); rows.push(trendRowC((labels&&labels[k])||k.toUpperCase(),v,i,"charts/spark_"+k+".png",ch)); i++; } children.push(makeTable(tw2,rows)); if(comment)children.push(p("추세 평가: "+comment,{bold:true,color:"0F766E"})); children.push(p("")); }
+function renderMarketBlockC(title,obj,labels,prev,comment){ if(!obj)return; children.push(h(title,2)); const items=[];
+  for(const [k,v] of Object.entries(obj)){ if(v===null||typeof v!=="object")continue; const ch=prev&&prev[k]!==undefined&&prev[k]!==null&&Number(prev[k])!==Number(v&&v.current);
+    items.push({desc:[new TextRun({text:((labels&&labels[k])||k.toUpperCase()),bold:true,size:20})],m:v,current:v&&v.current,chart:"charts/spark_"+k+".png",changed:ch}); }
+  children.push(makeTable(TR2,trend2Rows(items))); if(comment)children.push(p("추세 평가: "+comment,{bold:true,color:"0F766E"})); children.push(p("")); }
 function renderBerkshire(){ const b=data.berkshire; if(!b)return;
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록A] 워런 버핏 · 버크셔 해서웨이 보유 종목 변동 (13F)",1));
@@ -521,12 +526,12 @@ children.push(h("5. 주요 환율 단·중·장기 추세",1));
 if (data.markets && data.markets.fx_markets) {
   children.push(p("환율 상승 = 원화 약세. DXY는 6개 주요통화 대비 달러 가치.",{italics:true,color:"64748B"}));
   const fl={usd_krw:"USD/KRW",eur_krw:"EUR/KRW",jpy_krw:"JPY/KRW (100엔)",cny_krw:"CNY/KRW",hkd_krw:"HKD/KRW"};
-  const fr=[trendHeaderRowC()]; let fi=0;
-  for(const [k,v] of Object.entries(data.markets.fx_markets)){ fr.push(trendRowC(fl[k]||k.toUpperCase(),v,fi,"charts/spark_"+k+".png")); fi++; }
-  if(data.markets.us_markets&&data.markets.us_markets.dxy){ fr.push(trendRowC("달러인덱스 (DXY)",data.markets.us_markets.dxy,fi,"charts/spark_dxy.png")); fi++; }
+  const fitems=[];
+  for(const [k,v] of Object.entries(data.markets.fx_markets)){ if(v&&typeof v==="object") fitems.push({desc:[new TextRun({text:(fl[k]||k.toUpperCase()),bold:true,size:20})],m:v,current:v.current,chart:"charts/spark_"+k+".png"}); }
+  if(data.markets.us_markets&&data.markets.us_markets.dxy){ fitems.push({desc:[new TextRun({text:"달러인덱스 (DXY)",bold:true,size:20})],m:data.markets.us_markets.dxy,current:data.markets.us_markets.dxy.current,chart:"charts/spark_dxy.png"}); }
   if(data.markets.fx_usd){ const fu=data.markets.fx_usd; const um={usd_jpy:["USD/JPY","spark_usd_jpy"],usd_cny:["USD/CNY","spark_usd_cny"],usd_eur:["USD/EUR","spark_usd_eur"]};
-    for(const k of Object.keys(um)){ if(fu[k]){ fr.push(trendRowC(um[k][0],fu[k],fi,"charts/"+um[k][1]+".png")); fi++; } } }
-  children.push(makeTable(tw2,fr));
+    for(const k of Object.keys(um)){ if(fu[k]){ fitems.push({desc:[new TextRun({text:um[k][0],bold:true,size:20})],m:fu[k],current:fu[k].current,chart:"charts/"+um[k][1]+".png"}); } } }
+  children.push(makeTable(TR2,trend2Rows(fitems)));
   children.push(p("USD/KRW~HKD/KRW는 원화 기준(상승=원화 약세), USD/JPY·USD/CNY·USD/EUR는 미국달러 기준 국제 환율. USD/EUR은 1달러당 유로(EUR/USD의 역수)로 표기.",{size:16,italics:true,color:"94A3B8"}));
 }
 if (data.news && data.news.fx_snapshot && (data.news.fx_snapshot.krw_trend||data.news.fx_snapshot.krw_comment)) {
@@ -660,9 +665,9 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
   sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
-    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.22",size:18,color:"64748B"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.26",size:18,color:"64748B"})]})]})},
     children }] });
 Packer.toBuffer(doc).then(buffer=>{ fs.mkdirSync(path.dirname(outPath),{recursive:true}); fs.writeFileSync(outPath,buffer);
-  console.log(`✅ 보고서 생성 완료: ${outPath}`); console.log(`   크기: ${(buffer.length/1024).toFixed(1)} KB / 표 ${tableCount}개`);
-}).catch(e=>{ console.error("❌ DOCX 생성 실패: "+e.message); process.exit(1); });
-// EOF — namoobi-market-report v3.6.24
+  console.log("OK "+(buffer.length/1024).toFixed(1)+"KB tbl "+tableCount);
+}).catch(e=>{ console.error("FAIL "+e.message); process.exit(1); });
+// EOF — namoobi-market-report v3.6.26

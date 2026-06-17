@@ -12,6 +12,19 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.26)
+
+> v3.6.26 (plugin 1.7.27) 변경점 — 표 2행 레이아웃·반도체 ETF 다음금융·차트 보강·파일명/형식 (2026-06-18 사용자 피드백):
+> - **최종 산출물 = docx (PDF 변환 폐지)**: soffice 변환이 이 환경에서 자주 hang/실패하므로 **docx 를 그대로 메일 첨부·공유**한다. Phase 4 의 docx→PDF(soffice) 변환 단계는 생략(원하면 사용자 PC 에서 변환).
+> - **파일명 = `global_market_report_YYYYMMDD_HHMM.docx`** (영문, 연월일=기준일·시분=생성시각 KST). 기존 한글 파일명 폐기.
+> - **표 전부 2행 레이아웃 통일**: 3.2 미국 ETF(①②③④)·3.3 아시아·3.4 유럽·4.1 에너지·4.2 금속·4.3 농산물·4.5① 전략광물 ETF·5 환율 을 3.1.4식 **2행**(1행=이름·설명 span / 2행=현재가·1주~1년·추세그래프·추세평가)으로 렌더. 빌더 신규 공통 함수 `trend2Rows`+`TR2`(renderMarketBlockC·5장 FX 블록·renderUSEtfs·renderStrategicMetals 모두 이걸 호출). 세로 길이 압축 목적.
+> - **3.1.4 반도체/AI ETF = 다음금융 AUM 상위 20종(필수, 야후 금지)**: 야후엔 한국 ETF 가 없어 '상장전'/누락 발생했었다. **다음금융 API 직접 수집**(메인세션 Claude in Chrome, finance.daum.net/quotes/A091160 등에서 동일출처 fetch): ① 검색 `api/search/quotes?q=반도체|AI반도체|시스템반도체|반도체소부장|단일종목레버리지&limit=30` → ETF 후보 symbolCode 수집 ② 각 `api/quotes/{sym}?summary=false` 의 `marketCap`(AUM 프록시)로 내림차순 정렬해 상위 20 ③ 각 `api/charts/{sym}/days?limit=300&adjusted=false`(헤더 Referer=`finance.daum.net/quotes/{sym}`) — **응답은 오름차순(data[0]=과거, 마지막=현재, 마지막 tradePrice 가 실시세와 일치)**, 절대 reverse 금지, adjusted=true 금지(현재가 불일치). 현재가=마지막, 1주=−5·1개월=−21·3개월=−63·6개월=−126·1년=−248 영업일 종가 대비 수익률. 상장 1년 미만이라 없는 기간은 문자열 `"상장전"`(빌더 fmtPct 가 숫자 아니면 그대로 출력), trend=`"상장 N주"`. series(주봉 다운샘플)로 `charts/semi_e_<i>.png` 미니차트.
+> - **3.1.3 경기선행지수 시계열 차트**: indexergo(`indexergo.com/series/?detailId=11601&frq=M`)의 **echarts 인스턴스**에서 전체 시계열 추출(`window.echarts.getInstanceByDom(node)`→`getOption().series` 중 name '선행종합지수 순환변동치'의 data = [[YYYY.MM,값]…] 2016~현재). 날짜 정규화 후 `nmr_leading_series.json` 저장 → `scripts/gen_leading_chart.py`(빨강 라인+100 기준선+최신값 라벨, `charts/leading_cycle.png`). 빌더가 `markets.korea_leading_chart` 로 3.1.3 표 아래 `imagePara` 임베드.
+> - **3.2.1 HY 차트**: FRED `BAMLH0A0HYM2` 1년 일별 OAS(`nmr_hy_series.json`)로 `charts/hy_oas.png` 생성, `markets.hy_spread.chart` 임베드. `hy_spread` 에 current + w1/m1/m3/m6/y1(1주~1년 OAS 레벨) 모두 채워 표 '-' 방지(빌더 us_credit→hy_spread 정규화는 current 만 채우므로 hy_spread 를 직접 세팅).
+> - **6.3 김치프리미엄 SOL**: CoinDesk MCP `fetch_spot_tick`(market=upbit SOL-KRW + market=binance SOL-USDT)로 김프=(업비트KRW/(바이낸스USD×환율)−1)×100. BTC·ETH·XRP·SOL 4종 모두 채움.
+> - **7 키움 = `?dummyVal=0`**: 일간증시전망 목록은 `www3.kiwoom.com/h/invest/research/VMarketSDView?dummyVal=0`(모닝 `VMarketMLView?dummyVal=0`·종목 `VAnalTPView?dummyVal=0`)로 접근하면 **본문 DOM 에 목록(제목·작성일)이 렌더**된다. dummyVal 없으면 koscom iframe 위젯이라 텍스트가 안 보임(과거 '미확인' 오판 원인). screenshot 불필요.
+> - **8 JPM 빈칸 정책**: jpmorgan.com·privatebank.jpmorgan.com 은 Claude in Chrome 안전정책 차단, web_fetch 는 JS 셸, WebSearch 는 연간 전망만 노출 → **D-1/D-3 충족 공개자료 확보 불가 시 다른 IB 와 동일 기준으로 "기준일(D-1/D-3) 충족 최신 공개 자료 미확인" 으로 비워둔다**(연간 전망 등 stale 로 채우지 말 것).
+
 # Namoobi Market Report (v3.6.25)
 
 > v3.6.25 (plugin 1.7.26) 변경점 — 반복 드리프트 근본차단·결정적 경로 고정 (2026-06-17 사용자 피드백 "며칠째 같은 게 깨진다"):
