@@ -12,6 +12,19 @@ try { data = JSON.parse(fs.readFileSync(inputPath, 'utf-8')); }
 catch (e) { console.error(`JSON parse fail: ${inputPath}\n${e.message}`); process.exit(1); }
 
 // ── v3.6.24 스키마 정규화: 에이전트 출력 드리프트를 흡수해 '조용한 누락' 방지 ──
+// ── 구조적 정규화 (v3.6.29): 수익률 변화율 키 별칭 흡수 ──
+// 에이전트가 1m_pct/3m_pct/6m_pct·1mo/3mo/6mo 등으로 키를 내보내도 표준키(1w_pct/1mo_pct/3mo_pct/6mo_pct/1y_pct)로 통일.
+// 표준키가 비었을 때만 복사(실데이터 보존), 데이터 전체 재귀. → 3.1.4 등 1·3·6개월 '-' 키드리프트 버그를 코드로 영구 차단.
+function normalizePctKeys(root){
+  const ALIAS={"1w":"1w_pct","1week_pct":"1w_pct","1m":"1mo_pct","1m_pct":"1mo_pct","1mo":"1mo_pct","1month_pct":"1mo_pct","3m":"3mo_pct","3m_pct":"3mo_pct","3mo":"3mo_pct","3month_pct":"3mo_pct","6m":"6mo_pct","6m_pct":"6mo_pct","6mo":"6mo_pct","6month_pct":"6mo_pct","1y":"1y_pct","12m_pct":"1y_pct","1yr_pct":"1y_pct"};
+  const seen=new WeakSet();
+  (function walk(o){ if(!o||typeof o!=="object"||seen.has(o))return; seen.add(o);
+    if(Array.isArray(o)){ for(const it of o) walk(it); return; }
+    for(const k of Object.keys(o)){ const c=ALIAS[k]; if(c&&c!==k&&(o[c]===undefined||o[c]===null||o[c]==="")) o[c]=o[k]; }
+    for(const k of Object.keys(o)){ const v=o[k]; if(v&&typeof v==="object") walk(v); } })(root);
+  return root;
+}
+
 function normalizeData(d){
   for (const sec of ['securities','global_securities']){
     const o=d[sec];
@@ -30,6 +43,7 @@ function normalizeData(d){
     for (const [k,f] of Object.entries(map)){ try{ if(fs.existsSync('charts/'+f)) m[k]='charts/'+f; }catch(e){} }
     if (Object.keys(m).length) d.crypto.charts=m;
   }
+  try { normalizePctKeys(d); } catch(e){ console.error('normalizePctKeys 경고:', e.message); }
   return d;
 }
 try { normalizeData(data); } catch(e){ console.error('normalizeData 경고:', e.message); }
