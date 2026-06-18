@@ -12,6 +12,21 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.31)
+
+> v3.6.31 (plugin 1.7.30) 변경점 — 7개 재발 이슈 근본수정 (2026-06-19 사용자 피드백: 3.1.1 수급차트·3.1.3 선행지수·3.2.1 CAPEX·3.2.2 점도표·3.2.3 HY그래프·6.3 SOL·8 IB최신성이 새 세션마다 깨짐):
+> 근본원인 = **빌더는 정상이나 데이터/차트 입력이 불안정하면 빌더가 해당 섹션을 조용히 생략**(빈 데이터=미표시). 차트는 스크립트 폴백, 데이터는 수집 강제+carry-forward 로 항상 채워 영구 차단한다.
+> - **차트 스크립트 robust화 (입력 불안정해도 항상 생성) — Phase 1.5 에서 셋을 반드시 실행하고 인자로 report_data 경로를 넘긴다**:
+>   - `gen_hy_chart.py` (3.2.3): **출력 파일명을 `charts/hy_oas.png` 로 수정**(구버전은 `hy_oas_chart.png` 로 저장 → 빌더(charts/hy_oas.png)와 불일치 → 그래프 미표시가 근본원인). FRED 1년 series(`nmr_hy_series.json`) 없으면 **report_data `markets.hy_spread` 6레벨(current/w1/m1/m3/m6/y1)로 추이선** 폴백.
+>   - `gen_leading_chart.py` (3.1.3): 장기 series(`nmr_leading_series.json`) 없으면 **`markets.korea_leading[].value` 월별 점으로** 폴백(구버전은 파일 없으면 FileNotFoundError 크래시 → 그래프 없음/이상).
+>   - `gen_kr_candle.py` (3.1.1): 일봉 OHLCV(`nmr_kr_ohlcv.json`)를 **검증·세정**(0/음수/High<Low/±40% 급변/중복일/NaN 제거)해 깨진 캔들('차트 이상') 차단. 일봉 없거나 유효행<30이면 **`nmr_indexseries.json` 주봉 종가로 종가선+이동평균** 폴백(크래시 금지).
+>   - 실행: `python3 <script> <report_data.json>`(또는 NMR_OUT 자동탐색). 입력 미수집이어도 폴백으로 그래프 생성.
+> - **3.2.1 CAPEX·3.2.2 FOMC 점도표 — Phase 1 에 USMacroExtras 수집 추가**: `markets.bigtech_capex`(MSFT/GOOGL/AMZN/META 연간 CAPEX) + `markets.fomc_dotplot`(최신 점도표). 미수집 시 빌더가 섹션 생략하므로 매 실행 WebSearch 수집(`references/agents.md` USMacroExtrasAgent). 저장 `nmr_usmacro.json` → 병합 시 주입.
+> - **병합 carry-forward (slow-change last-known-good)**: 이번 런에서 `markets.bigtech_capex`·`markets.fomc_dotplot`·`markets.us_credit`/`markets.hy_spread` 가 비면 **직전 `_market_report_data/report_data_*.json` 에서 가져와 채운다**(분기/월 단위로만 변함). 병합 node 스크립트에 포함.
+> - **6.3 김프 SOL 항상 채움**: CryptoAgent 가 SOL 포함 4종을 CoinInfo→실패 시 CoinDesk(upbit/binance)로 반드시 계산(`references/agents.md`).
+> - **8 IB 최신성 엄격**: D-1/D-3 초과 자료 사용 금지, 미충족이면 "기준일(D-1/D-3) 충족 최신 공개 자료 미확인"으로 정직하게 비움.
+
+
 # Namoobi Market Report (v3.6.28)
 
 > v3.6.28 (plugin 1.7.29) 변경점 — 부록B 한/영·5장 환율 스파크라인·이미지 복구버그 (2026-06-18 사용자 피드백):

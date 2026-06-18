@@ -1,6 +1,18 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
 
+> **v3.6.31 변경점 (2026-06-19 사용자 피드백 — 7개 재발 이슈 근본수정)**
+> "cowork 새 작업마다 같은 섹션이 깨진다"의 영구 수정. 근본원인 = **빌더는 정상이나 데이터/차트 입력이 불안정하면 빌더가 해당 섹션을 조용히 생략**한다는 것 → 차트는 스크립트 폴백, 데이터는 수집 강제+직전값 carry-forward 로 항상 채운다.
+> - **6.3 김치프리미엄 SOL 항상 채움 (CryptoAgent 필수)**: `get_kimchi_premium` 결과의 BTC/ETH/XRP/SOL 중 **하나라도 null/"데이터 부족"이면 즉시 CoinDesk MCP `fetch_spot_tick`(market=upbit `<SYM>-KRW` + market=binance `<SYM>-USDT`)로 직접 계산**해 채운다(특히 SOL 이 자주 빔). 김프=(업비트KRW/(바이낸스USD×환율)−1)×100, 환율=Yahoo `KRW=X`. 4종 모두 `premium_pct`/`upbit_krw`/`binance_usd`/`status` 비우지 말 것. 그래도 못 구한 코인만 null+`note`.
+> - **8 글로벌 IB 최신성 엄격 (GlobalSecuritiesAgent)**: UBS·GS·JPM·MS·BlackRock 각각 **발행일 D-1(Daily)/D-3(Weekly·Monthly) 이내 공개 자료만** 사용. 연간 전망·수주 지난 하우스뷰로 채우지 말 것. 기준 충족 자료가 없으면 `key_reports:[]`, `key_message:"기준일(D-1/D-3) 충족 최신 공개 자료 미확인"`. 검색에 주·날짜를 넣어 최신만 찾는다("UBS CIO house view June 2026 week", "<IB> outlook FOMC June 2026"). 각 항목 발행일(YYYY-MM-DD) 명시.
+> - **3.2.1 CAPEX · 3.2.2 FOMC 점도표 신규 수집 (USMacroExtrasAgent — Phase 1 추가)**: 매 실행 WebSearch 로 수집해 빌더가 두 섹션을 항상 렌더하게 한다(미수집=빌더 자동생략=과거 "표시안됨"의 원인).
+>   - `markets.bigtech_capex={rows:[{company,y2025,y2026,y2027,y2028,comment}],comment}` — MSFT·Alphabet·Amazon·Meta 연간 CAPEX(실적+가이던스). 미확인 칸은 ""(빌더가 "미공개").
+>   - `markets.fomc_dotplot={summary,rows:[{item,jun,mar,change}],distribution:[{label,count}],policy_rate,next_meeting,background:[],market_impact,sources:[]}` — 최신 FOMC 점도표(직전 대비). 최소 summary·policy_rate·rows(2026/2027/2028말·장기중립 중간값)는 채울 것.
+>   - 저장 `nmr_usmacro.json` → 병합 시 `markets.bigtech_capex`/`markets.fomc_dotplot` 로 주입.
+> - **carry-forward (병합 단계 — slow-change last-known-good)**: 이번 런에서 `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 비면 연결폴더 `_market_report_data/` 의 **직전 report_data_*.json 에서 가져와 채운다**(분기/월 단위로만 바뀌므로 직전값이 정확). 그래도 없으면 섹션 생략.
+> - **3.1.1/3.1.3/3.2.3 차트는 스크립트 폴백으로 항상 생성** (scripts 변경 — SKILL Phase 1.5): gen_kr_candle.py(일봉 없으면 주봉 폴백)·gen_leading_chart.py(장기 series 없으면 korea_leading 값)·gen_hy_chart.py(FRED series 없으면 hy_spread 6레벨, **출력 charts/hy_oas.png**). 입력이 불안정해도 표에 있는 값으로 그래프를 만든다.
+
+
 > **v3.6.28 변경점 (2026-06-18 사용자 피드백 — 부록B 한/영·5장 환율 스파크라인·이미지 복구버그)**
 > - **[부록B] AI Trends 한/영 2종 병기**: AINews+Berkshire 에이전트의 `ai_trends.items[]` 각 항목은 **기본=한글**(`title`/`summary` 한국어) + **영어 번역본**(`title_en`/`summary_en`)을 함께 담는다. 원문이 영어라도 title/summary 는 반드시 한국어로 번역해 넣고, 영어 원문은 title_en/summary_en 에 둔다(영어 공부용). 빌더 renderAITrends 가 한글 본문 아래 "EN ▸ ..." 로 영문본을 렌더한다.
 > - **5장 환율 스파크라인 항상**: IndexSeriesAgent(또는 MarketsAgent)가 `nmr_series2.json.fx` 에 **원화 5쌍** `usd_krw,eur_krw,jpy_krw,cny_krw,hkd_krw` 1년 주봉 시계열을 반드시 포함한다(야후 `KRW=X`/`EURKRW=X`/`JPYKRW=X`/`CNYKRW=X`, hkd_krw=usd_krw÷`HKD=X`; cny_krw 희박 시 usd_krw÷`CNY=X`). gen_rest_charts.py 가 s2.fx 키로 `charts/spark_<key>.png` 를 생성하므로 이 5쌍이 있어야 5장 추세열 "-" 가 사라진다. usd_jpy/usd_cny/usd_eur 도 함께.
