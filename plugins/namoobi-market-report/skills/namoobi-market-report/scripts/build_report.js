@@ -78,7 +78,7 @@ function validate(d) {
   const gsK=['ubs','goldman','jpmorgan','morgan_stanley','blackrock'];
   if (d.global_securities && !gsK.some(k=>d.global_securities[k])) issues.push("global_securities 5사 평탄 키 없음 → 8장 전체 누락");
   if (d.crypto && !d.crypto.charts) warn.push("crypto.charts 없음 → 6.2 코인차트 섹션 생략됨 (coin_*.png 생성 확인)");
-  if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.2.1 HY 표/그래프 비거나 누락"); }
+  if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.2.3 HY 표/그래프 비거나 누락"); }
   if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.3 경기선행지수 누락(통계청 KOSIS 수집 필요)");
   if (M.fx_markets){ const need=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'];
     const miss=need.filter(k=>{try{return !fs.existsSync('charts/spark_'+k+'.png');}catch(e){return true;}});
@@ -258,12 +258,30 @@ function renderKoreaExtras(){ const m=data.markets||{};
       children.push(makeTable(RW,retRows(m.semi_ai_breakdown,"semi",semiDesc))); }
   }
  }
+// (v3.6.30) 3.2.2 FOMC 점도표(dot plot) — 데이터(markets.fomc_dotplot) 없으면 자동 생략.
+function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; if(!f||typeof f!=="object")return;
+  if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
+  children.push(h("3.2.2 FOMC 점도표 (dot plot)",3));
+  children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
+  if(f.summary)children.push(p(f.summary,{bold:true}));
+  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[r.item!=null?r.item:"-",r.jun!=null?r.jun:"-",r.mar!=null?r.mar:"-",r.change!=null?r.change:"-"]),{left:[0]});
+  if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
+    f.distribution.forEach(x=>children.push(p("• "+(x.label||"")+": "+(x.count||""),{size:19}))); }
+  if(f.policy_rate)children.push(p("현 정책금리: "+f.policy_rate,{bold:true,before:60}));
+  if(f.next_meeting)children.push(p("다음 점도표 발표: "+f.next_meeting,{size:18,color:"475569"}));
+  if(Array.isArray(f.background)&&f.background.length){ children.push(p("배경 및 시장 영향",{bold:true,color:"1E40AF",before:100,size:20}));
+    f.background.forEach(b=>children.push(p("• "+b,{size:19}))); }
+  if(f.market_impact)children.push(p("시장 영향: "+f.market_impact,{color:"0F766E"}));
+  if(Array.isArray(f.sources)&&f.sources.length)children.push(p("출처: "+f.sources.join(" · "),{size:14,color:"94A3B8"}));
+  children.push(p("")); }
+
 function renderUSExtras(){ const m=data.markets||{};
-  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.0 AI 빅테크 자본지출(CAPEX)",3));
+  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.1 AI 빅테크 자본지출(CAPEX)",3));
     const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개"; // v3.6.10 빈칸은 "-" 대신 "미공개"
     simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cx.rows.map(r=>[r.company??"-",capV(r.y2025),capV(r.y2026),capV(r.y2027),capV(r.y2028),r.comment??"-"]),{left:[5]});
     if(cx.comment)children.push(p(cx.comment)); children.push(p("")); }
-  if(m.hy_spread){ const c=m.hy_spread; children.push(h("3.2.1 하이일드 스프레드 (HY Spread)",3));
+  renderFomcDotplot();
+  if(m.hy_spread){ const c=m.hy_spread; children.push(h("3.2.3 하이일드 스프레드 (HY Spread)",3));
     children.push(p("하이일드 스프레드(HY Spread): 하이일드 채권 수익률에서 미국 국채 수익률을 뺀 스프레드가 확대되면 신용시장 위험이 높아지지만, 반대로 안정되거나 좁혀지면 신용시장이 정상화되며 주식시장이 회복되는 경향을 보입니다.",{italics:true,color:"64748B"}));
     const cols=[2200,1300,1200,1200,1200,1200,1700];
     const hdr=new TableRow({children:["지표 (OAS %)","현재","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
@@ -291,7 +309,7 @@ function renderUSExtras(){ const m=data.markets||{};
 function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||typeof e!=="object")return;
   const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["defensive","④ 방어형 ETF (변동성 완화)"]];
   if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
-  children.push(h("3.2.2 주요 미국 ETF (지수·섹터·테마·방어형)",3));
+  children.push(h("3.2.4 주요 미국 ETF (지수·섹터·테마·방어형)",3));
   children.push(p("미국 대표 지수 추종·11개 S&P 500 섹터·테마/특화·방어형 ETF 의 현재가와 1주~1년 수익률, 1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률로, 분배금이 큰 ETF(SCHD·JEPI·채권형 등)는 실제 총수익률이 더 높을 수 있다. 섹터 ETF 옆 [%]는 S&P 500 내 비중.",{italics:true,color:"64748B"}));
   groups.forEach(([k,label])=>{ const arr=e[k]; if(!Array.isArray(arr)||!arr.length)return;
     children.push(p(label,{bold:true,color:"1E40AF",before:120,size:21}));
@@ -305,7 +323,7 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
 // (v3.6.9) 3.2.3 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
   if(!r.sp500&&!r.nasdaq100)return;
-  children.push(h("3.2.3 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
+  children.push(h("3.2.5 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
   children.push(p("S&P 500·나스닥 100 정기 리밸런싱의 편입·편출 종목(사업 내용·사유)·적용 시점, 편입 기준, 나스닥 패스트엔트리 룰 변경을 정리한다. 편입=초록, 편출=빨강.",{italics:true,color:"64748B"}));
   const cw=[820,780,1820,3300,3480]; // 구분/티커/회사명/사업내용/사유
   const chHdr=()=>new TableRow({children:["구분","티커","회사명","사업 내용","사유"].map((x,i)=>cell(x,{width:cw[i],header:true,align:i<2?AlignmentType.CENTER:AlignmentType.LEFT}))});
