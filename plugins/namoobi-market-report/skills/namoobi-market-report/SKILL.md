@@ -12,6 +12,13 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.28)
+
+> v3.6.28 (plugin 1.7.29) 변경점 — 부록B 한/영·5장 환율 스파크라인·이미지 복구버그 (2026-06-18 사용자 피드백):
+> - **이미지 type:"png" (Word 복구창 해결)**: build_report.js `imagePara`/`imgCellSpark` 의 `ImageRun` 에 `type:"png"` 추가. docx 라이브러리 9.x 는 type 미지정 시 이미지 파트를 `.undefined` 확장자로 저장 → `[Content_Types].xml` 에 png 만 있어 Word 가 "일부 콘텐츠를 읽을 수 없습니다(복구)" 를 띄운다(XML·폰트·링크는 정상이라 [예] 누르면 열림).
+> - **[부록B] AI Trends 국문·영문 병기**: 기본=한글 본문, 그 아래 영어 번역본("EN ▸ ...") 2종. ai_trends.items[] 에 title/summary(한글) + title_en/summary_en(영어). 빌더 renderAITrends 가 한/영 렌더, 헤더 "(국문·영문 병기)".
+> - **5장 환율 추세 스파크라인 항상**: USD/EUR/JPY/CNY/HKD 대 원화 5행의 추세(1년) 그래프가 "-" 로 비던 문제 — nmr_series2.json.fx 에 usd_krw/eur_krw/jpy_krw/cny_krw/hkd_krw 1년 주봉을 채워 gen_rest_charts.py 가 spark_*_krw.png 를 생성하도록 했다.
+
 # Namoobi Market Report (v3.6.27)
 
 > v3.6.27 (plugin 1.7.28) 변경점 — SECURITY 권한창 제거 (2026-06-18 사용자 피드백 "실행할 때마다 이거 물어보는데 묻지 마"):

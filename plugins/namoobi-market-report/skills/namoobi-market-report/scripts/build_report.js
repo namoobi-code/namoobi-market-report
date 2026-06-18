@@ -89,7 +89,7 @@ function imagePara(relOrAbs, w, hgt){ try{
   const cands=[relOrAbs, path.join(__dirname,relOrAbs), path.join(process.cwd(),relOrAbs)];
   for(const fp of cands){ if(fp && relOrAbs && fs.existsSync(fp) && fs.statSync(fp).isFile() && HAS_IMG){
     return new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:60,after:120},
-      children:[new ImageRun({data:fs.readFileSync(fp), transformation:{width:w,height:hgt}})]}); } }
+      children:[new ImageRun({type:"png",data:fs.readFileSync(fp), transformation:{width:w,height:hgt}})]}); } }
 }catch(e){} return null; }
 const HAS_LINK = typeof ExternalHyperlink !== 'undefined' && !!ExternalHyperlink;
 // (v3.4.2) 한글 폰트 임베드 — 미리보기 뷰어에 한글 폰트가 없어 깨지는 문제 방지. scripts/fonts/nmr_kr.ttf (나눔바른고딕 서브셋, OFL) 있으면 docx 에 임베드.
@@ -443,7 +443,7 @@ function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=nul
   for(const c of cands){ try{ if(c&&relPath&&fs.existsSync(c)&&fs.statSync(c).isFile()){fp=c;break;} }catch(e){} }
   if(fp&&HAS_IMG){ return new TableCell({borders,width:{size:width,type:WidthType.DXA},
     shading:alt?altShading:undefined, margins:{top:40,bottom:40,left:60,right:60},
-    children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new ImageRun({data:fs.readFileSync(fp),transformation:{width:iw,height:ih}})]})]}); }
+    children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new ImageRun({type:"png",data:fs.readFileSync(fp),transformation:{width:iw,height:ih}})]})]}); }
   return cell("-",{width:width,alt:alt,align:AlignmentType.CENTER}); }
 const tw2=[1450,1150,930,930,930,930,930,1400,1550];
 function trendHeaderRowC(){ return new TableRow({children:["지수","현재치","1주","1개월","3개월","6개월","1년","추세(1년)","추세 평가"].map((x,i)=>cell(x,{width:tw2[i],header:true,align:AlignmentType.CENTER}))}); }
@@ -643,11 +643,13 @@ function renderAITrends(){ const a=data.ai_trends; if(!a)return;
   const asOf=(!Array.isArray(a)&&a.as_of)||(data.metadata&&data.metadata.report_date)||"-";
   const srcs=(!Array.isArray(a)&&Array.isArray(a.sources_checked))?a.sources_checked:[];
   children.push(new Paragraph({children:[new PageBreak()]}));
-  children.push(h("[부록B] 최신 AI Trends",1));
+  children.push(h("[부록B] 최신 AI Trends (국문·영문 병기)",1));
   children.push(p("기준: "+asOf+(srcs.length?("   ·   확인 소스: "+srcs.join(", ")):""),{size:17,color:"94A3B8"}));
   items.forEach((it,k)=>{ const tag=it.tag?("["+it.tag+"] "):"";
     children.push(p((k+1)+". "+tag+(it.title||"-"),{bold:true,size:22,before:80}));
     if(it.summary)children.push(p(it.summary,{size:20}));
+    if(it.title_en)children.push(p("EN ▸ "+it.title_en,{bold:true,size:19,color:"1E40AF",before:40}));
+    if(it.summary_en)children.push(p(it.summary_en,{size:18,color:"475569"}));
     const meta=[it.source,it.date].filter(Boolean).join(" · ");
     if(it.url&&HAS_LINK){ children.push(new Paragraph({spacing:{after:80},children:[ new TextRun({text:(meta?meta+"   ":""),size:16,color:"64748B"}), new ExternalHyperlink({link:String(it.url),children:[new TextRun({text:"[원문 링크]",size:16,color:"1D4ED8",underline:{}})]}) ]})); }
     else if(meta){ children.push(p(meta,{size:16,color:"64748B"})); }

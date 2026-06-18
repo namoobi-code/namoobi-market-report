@@ -1,5 +1,11 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
 
+
+> **v3.6.28 변경점 (2026-06-18 사용자 피드백 — 부록B 한/영·5장 환율 스파크라인·이미지 복구버그)**
+> - **[부록B] AI Trends 한/영 2종 병기**: AINews+Berkshire 에이전트의 `ai_trends.items[]` 각 항목은 **기본=한글**(`title`/`summary` 한국어) + **영어 번역본**(`title_en`/`summary_en`)을 함께 담는다. 원문이 영어라도 title/summary 는 반드시 한국어로 번역해 넣고, 영어 원문은 title_en/summary_en 에 둔다(영어 공부용). 빌더 renderAITrends 가 한글 본문 아래 "EN ▸ ..." 로 영문본을 렌더한다.
+> - **5장 환율 스파크라인 항상**: IndexSeriesAgent(또는 MarketsAgent)가 `nmr_series2.json.fx` 에 **원화 5쌍** `usd_krw,eur_krw,jpy_krw,cny_krw,hkd_krw` 1년 주봉 시계열을 반드시 포함한다(야후 `KRW=X`/`EURKRW=X`/`JPYKRW=X`/`CNYKRW=X`, hkd_krw=usd_krw÷`HKD=X`; cny_krw 희박 시 usd_krw÷`CNY=X`). gen_rest_charts.py 가 s2.fx 키로 `charts/spark_<key>.png` 를 생성하므로 이 5쌍이 있어야 5장 추세열 "-" 가 사라진다. usd_jpy/usd_cny/usd_eur 도 함께.
+> - **이미지 .undefined 복구버그**: build_report.js 의 `ImageRun` 2곳에 `type:"png"` 명시(docx 9.x 필수). 누락 시 이미지 파트가 `.undefined` 로 저장돼 Word "일부 콘텐츠를 읽을 수 없습니다" 복구창이 뜬다.
+
 > **v3.6.23 변경점 (2026-06-17)**
 > - **3.1.2 코스닥도 외국인/기관 각 상위 10** 수집(다음 investor_purchase 응답 BUY/SELL 상위 10).
 > - **7 SecuritiesAgent → 메인세션 Chrome 직접 수집**: 5개 증권사 공식 리서치 페이지(신한·미래에셋·삼성·한국투자·키움)는 JS 렌더라 WebSearch/web_fetch 로 목록이 안 보인다. **메인 세션이 Claude in Chrome 으로 직접 navigate→get_page_text(또는 screenshot)** 해 최신(D-1/D-3) 리포트를 읽고 발행일을 명시한다. WebSearch 단독으로 "자료없음" 판정 금지. (네이버 금융만 환경 차단, 이 5사·다음은 접근 가능.)
