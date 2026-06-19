@@ -23,7 +23,9 @@ def mini(pairs,out):
     ax.fill_between(range(len(ys)),ys,min(ys),color=col,alpha=0.10)
     ax.axis("off"); ax.margins(x=0,y=0.12)
     chg=(ys[-1]/ys[0]-1)*100
-    ax.set_title(f"{chg:+.0f}% (1Y)",fontsize=8,color=col,fontweight="bold")
+    yrs=len(ys)/12.0  # nmr_themeseries1y/semi series 는 v3.6.33부터 10년 월별 → 실제 보유기간으로 라벨
+    span=(f"{yrs:.0f}Y" if yrs>=1.2 else f"{len(ys)}M")
+    ax.set_title(f"{chg:+.0f}% ({span})",fontsize=8,color=col,fontweight="bold")
     plt.tight_layout(pad=0.2); plt.savefig(out,bbox_inches="tight",transparent=True); plt.close(); return True
 
 # theme 1Y (overwrite) — 데이터 주도: nmr_themeseries1y.json 의 모든 테마 키로 차트 생성 (AI·원자력·전력기기 등 신규 테마 자동 포함)
@@ -102,21 +104,34 @@ if fng:
  for s in ["top","right"]: ax.spines[s].set_visible(False)
  plt.tight_layout(); plt.savefig("charts/fng_1y.png",bbox_inches="tight"); plt.close()
 print("crypto+fng done")
-# (v3.6.10) 반도체/AI 미니차트 charts/semi_<i>.png — nmr_semi_series.json + breakdown 순서(시총순)
+# (v3.6.33) 반도체/AI 종목·ETF 추세차트(semi_s_<i>/semi_e_<i>) + 테마 10년 — 신스키마(semi_ai_stocks/etfs) 기반.
+#   [근본원인] 구버전은 nmr_semi_series.json + nmr_koreamacro.semi_ai_breakdown(구스키마)로 charts/semi_<i>.png 를 만들었으나,
+#   빌더는 신스키마 semi_ai_stocks/etfs 와 charts/semi_s_<i>.png·semi_e_<i>.png 를 참조 → 항상 불일치로 추세열이 "-" 였다.
+#   [데이터 소스] 한국 종목/ETF 10년 월별 종가 = Yahoo .KS/.KQ (Daum charts API /charts/A{code}/days 는 현재 403).
+#                 신규상장 종목은 가용 최대기간(라벨에 N년/N개월 표기), 수집 실패(소스 버그)는 아래 경고로 표면화한다.
+import glob as _g
+def _sani(s): return str(s).replace("/","_").replace(" ","_")
 try:
-    ss=json.load(open(O+"/nmr_semi_series.json")); km2=json.load(open(O+"/nmr_koreamacro.json"))
-    order=[x.get("name","") for x in km2.get("semi_ai_breakdown",[])]; keys=list(ss.keys()); ns=0
-    def _fk(nm):
-        for k in keys:
-            if k==nm or k in nm or nm in k: return k
-        for k in keys:
-            if "AI반도체" in nm and "AI반도체" in k: return k
-            if "ETF" in nm and "반도체 ETF" in k and "AI" not in nm and "AI" not in k: return k
-        return None
-    for i,nm in enumerate(order):
-        k=_fk(nm); ser=ss.get(k) if k else None
-        if ser and mini(ser, f"charts/semi_{i}.png"): ns+=1
-    print("semi charts:", ns)
-except FileNotFoundError:
-    print("nmr_semi_series.json 없음 — semi 차트 생략")
+    krs=json.load(open(O+"/nmr_kr_series.json"))
+    rdc=sorted(_g.glob(O+"/_market_report_data/report_data_*.json"))
+    M=(json.load(open(rdc[-1])).get("markets") if rdc else {}) or {}
+    THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주"]
+    th=krs.get("themes") or {}; nt=0
+    for t in THEME_ORDER:
+        s=th.get(t)
+        if s and mini(s, "charts/theme_"+_sani(t)+".png"): nt+=1
+    print("theme charts(10y):", nt, "of", len(THEME_ORDER))
+    miss=[]; ns=0; ne=0
+    for i,x in enumerate(M.get("semi_ai_stocks",[])):
+        s=(krs.get("stocks") or {}).get(x.get("name"))
+        if s and mini(s, f"charts/semi_s_{i}.png"): ns+=1
+        else: miss.append("stock:"+str(x.get("name")))
+    for i,x in enumerate(M.get("semi_ai_etfs",[])):
+        s=(krs.get("etfs") or {}).get(x.get("name"))
+        if s and mini(s, f"charts/semi_e_{i}.png"): ne+=1
+        else: miss.append("etf:"+str(x.get("name")))
+    print("semi_s:", ns, "of", len(M.get("semi_ai_stocks",[])), "| semi_e:", ne, "of", len(M.get("semi_ai_etfs",[])))
+    if miss: print("⚠️ NMR_BLOCK 추세차트 미생성(데이터 확인 필요 — '-' 무단표시 금지 정책):", miss)
+except FileNotFoundError as e:
+    print("⚠️ NMR_BLOCK nmr_kr_series.json/report_data 없음 — 반도체/테마 추세차트 생략(수집 필요):", e)
 import os; print("total chart files:", len([f for f in os.listdir('charts') if f.endswith('.png')]))

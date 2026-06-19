@@ -83,7 +83,16 @@ function validate(d) {
   if (M.fx_markets){ const need=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'];
     const miss=need.filter(k=>{try{return !fs.existsSync('charts/spark_'+k+'.png');}catch(e){return true;}});
     if(miss.length===need.length) warn.push("환율 추세 스파크라인 전무 → 5장 추세열 빈칸(nmr_series2.fx 시계열 수집 필요)"); }
-  const etfN=(M.semi_ai_etfs||[]).length; if(M.semi_ai_etfs && etfN<20) warn.push("반도체/AI ETF "+etfN+"종(<20) → 3.1.4 ETF 표 부족");
+  // (v3.6.33) ask-don't-degrade 차단 게이트 — 데이터는 있는데 차트가 없으면 조용히 "-"로 넘기지 말고 blocking 처리.
+  //   --validate 가 issues 가 있으면 exit 1 → 워크플로(SKILL Phase 3.6)가 멈추고 사용자에게 어찌할지 묻는다.
+  const needChart=(cond,file,msg)=>{ if(cond){ try{ if(!fs.existsSync(file)) issues.push("[차트누락] "+msg+" → "+file+" 없음 (데이터는 있으나 차트 미생성 — 사용자 확인 필요)"); }catch(e){ issues.push("[차트누락] "+msg);} } };
+  needChart(M.korea_investors&&M.korea_investors.kospi, "charts/kospi_tech.png","3.1.1 코스피 일봉 캔들");
+  needChart(M.korea_investors&&M.korea_investors.kosdaq, "charts/kosdaq_tech.png","3.1.1 코스닥 일봉 캔들");
+  needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.1.3 경기선행지수 차트");
+  needChart(M.hy_spread, "charts/hy_oas.png","3.2.3 HY 스프레드 차트");
+  (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.1.4 반도체 종목 추세("+((x&&x.name)||i)+")"));
+  (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.1.4 반도체 ETF 추세("+((x&&x.name)||i)+")"));
+  const etfN=(M.semi_ai_etfs||[]).length; if(M.semi_ai_etfs && etfN<20) issues.push("[부족] 반도체/AI ETF "+etfN+"종(<20) → 항상 상위 20 필요(수집 보강 후 재생성)");
   return { issues, warn };
 }
 const { issues, warn } = validate(data);
@@ -280,10 +289,12 @@ function renderUSExtras(){ const m=data.markets||{};
     const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개"; // v3.6.10 빈칸은 "-" 대신 "미공개"
     // (v3.6.32 req6) 연도 열은 값이 하나라도 있을 때만 표시 — 전부 미공개면 그 열을 통째로 제거
     const yrHas=(k)=>cx.rows.some(r=>r[k]!==null&&r[k]!==undefined&&String(r[k]).trim()!=="");
-    const ccols=[["company","기업",1700,1],["y2025","2025(실적)",1250,0],["y2026","2026(E)",1250,0]];
-    if(yrHas("y2027"))ccols.push(["y2027","2027(E)",1250,0]);
-    if(yrHas("y2028"))ccols.push(["y2028","2028(E)",1250,0]);
-    ccols.push(["comment","코멘트",2260,1]);
+    // (v3.6.34) 표 전체폭 사용 — 연도 열 수에 맞춰 코멘트 열이 남는 폭을 흡수(오른쪽 끝까지).
+    const years=[["y2025","2025(실적)"],["y2026","2026(E)"]];
+    if(yrHas("y2027"))years.push(["y2027","2027(E)"]);
+    if(yrHas("y2028"))years.push(["y2028","2028(E)"]);
+    const Wt=9740, comp=1600, yw=1300, cmt=Math.max(2200, Wt-comp-yw*years.length);
+    const ccols=[["company","기업",comp,1]].concat(years.map(y=>[y[0],y[1],yw,0])).concat([["comment","코멘트",cmt,1]]);
     const cwid=ccols.map(c=>c[2]),chead=ccols.map(c=>c[1]),cleft=ccols.map((c,i)=>c[3]?i:-1).filter(i=>i>=0);
     simpleTable(cwid,chead,cx.rows.map(r=>ccols.map(c=>(c[0]==="company")?(r.company??"-"):(c[0]==="comment")?(r.comment??"-"):capV(r[c[0]]))),{left:cleft});
     if(cx.comment)children.push(p(cx.comment)); children.push(p("")); }

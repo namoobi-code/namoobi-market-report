@@ -12,7 +12,28 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.32)
+# Namoobi Market Report (v3.6.34)
+
+> v3.6.34 (2026-06-19 사용자 추가 피드백 — KOSDAQ 거래량·CAPEX 2027·DRAM ETF):
+> - **3.1.1 KOSDAQ(·KOSPI) 일봉 거래량 (반복 이슈)**: 야후 `^KQ11` 거래량은 ① 값 자체가 손상(중앙값~1000)되고 ② **비거래일 유령행**(일요일 등, vol≈1000)이 섞여 있다. → 캔들 입력(`nmr_kr_ohlcv.json`) 구성 시 **다음 `market_index/days` accTradeVolume 으로 거래량을 교체하고, 다음(KRX 거래일)에 없는 날짜(유령행)는 제거**한다(거래일 캘린더=다음 기준). KOSPI 도 동일 적용해 일관화. (이 단계 누락이 '거래량 이상' 반복의 원인.)
+> - **3.2.1 CAPEX 2027(E) 항상 수집·표 전체폭 (req)**: `bigtech_capex.rows[].y2027` 을 매 실행 웹조사로 채운다(개별 2027 공식 가이던스 미제시 시 컨센서스/하우스 추정·정성 표기, 출처 명시 — 예 알파벳 모건스탠리 ~$250B, 4사 합산 RBC $637B~Evercore/BofA $1T+). 빈칸 금지(채우면 yrHas 로 열 표시). 표는 연도 열 수에 맞춰 **코멘트 열이 남는 폭을 흡수해 오른쪽 끝까지**(`build_report.js` v3.6.34, Wt≈9740 twips). 2028(E) 는 전부 미공개면 자동 제거 유지.
+> - **3.2.4 ③ 테마/특화 ETF 에 DRAM 포함**: `markets.us_etfs.theme` 에 **DRAM(Roundhill Memory ETF — D램·HBM 메모리)** 항상 포함(신생 ETF 라 6개월·1년은 null, 상장후 기간 표기). UsEtfAgent 대상에 DRAM 추가됨.
+
+
+
+> v3.6.33 (2026-06-19 사용자 피드백 — req1~7 차트 근본수정 + "조용히 미표시 금지" 정책 + GOODREPORT 비교 게이트):
+> **반복 원인 2가지: ① 설치본이 repo 보다 구버전(수정이 production 에 반영 안 됨) ② 데이터 미수집 시 스크립트가 조용히 열화(주봉선 폴백)하거나 빌더가 "-"로 넘김.** 아래로 영구 차단한다.
+> - **데이터 소스 교체 (가장 중요 — req3/4/5 근본원인)**: 다음금융 차트 API `finance.daum.net/api/charts/A{code}/days` 는 현재 **403**(한국 ETF/종목 시계열 수집 불가의 진짜 원인). → **Yahoo `<code>.KS`/`.KQ` 로 교체**(확인됨: 091160.KS=121개월, 신규상장 ETF 도 상장이후 가용분 반환). 코드 해석은 다음 검색 API `api/search/quotes?q=<이름>`(정상 작동)로, 시계열은 Yahoo(UsStockInfo MCP `get_historical_stock_prices(period="10y",interval="1mo")` 또는 메인세션 Chrome `query1.finance.yahoo.com/v8/finance/chart`)로 받는다. **수집 결과 `_failed` 배열로 실패 티커를 명시**해 "신규상장이라 짧은 것"과 "수집 버그로 빈 것"을 구분한다(빈 것은 사용자에게 보고).
+> - **3.1.1 코스피/코스닥 일봉 캔들 (req1)**: `nmr_kr_ohlcv.json` 에 **일봉 OHLCV**(Yahoo `^KS11`/`^KQ11` interval=1d, ~245행)+**일별 수급**(`kospi_flows_daily`/`kosdaq_flows_daily`=[date,F,I,P] 다음 `market_index/days` perPage=250, 오름차순)을 채운다 → `gen_kr_candle.py`(mplfinance 필요)가 캔들+MA(5/20/60/120)+볼린저/거래량/RSI/누적순매수 4패널 생성. **주봉선 폴백은 데이터 미수집 시에만**(정상 경로 아님).
+> - **3.1.3 경기선행지수 10년 (req2)**: `nmr_leading_series.json` 에 INDEXerGO echarts 전체 시계열([["YYYY-MM",값]] 2016~현재, 119점). 메인세션 Chrome `navigate indexergo.com/series/?detailId=11601&frq=M` → `window.echarts.getInstanceByDom(node).getOption().series` 에서 name='선행종합지수 순환변동치' data 추출(날짜 구분자 정규화). `gen_leading_chart.py` 가 연축 10년 라인.
+> - **3.1.4 테마 10년 월별 (req3) + 반도체 종목/ETF 추세 (req4/5)**: `nmr_kr_series.json={stocks,themes,etfs}`(각 10년 월별 종가, Yahoo). `gen_rest_charts.py` v3.6.33 가 **신스키마**(report_data `markets.semi_ai_stocks`/`semi_ai_etfs` 순서)로 `charts/semi_s_<i>.png`·`semi_e_<i>.png` 와 `theme_<sani>.png`(10년) 생성 — **구버전은 nmr_semi_series.json+semi_ai_breakdown(구스키마)라 신스키마와 불일치→항상 "-" 였음(수정)**. 추세 라벨은 실제 보유기간(N Y/N M). ETF 는 **항상 상위 20**(미달이면 빌더가 blocking).
+> - **3.2.1 CAPEX 2028 (req6)**: `build_report.js` `yrHas()` 가 전부 빈 연도 열을 제거(이미 적용). 2027·2028 전부 미공개면 그 열 통째 삭제.
+> - **3.2.3 HY 월별 (req7)**: `nmr_hy_series.json` 에 FRED `BAMLH0A0HYM2` **월별** 시계열(메인세션 Chrome `fred.stlouisfed.org` 동일출처 `graph/fredgraph.csv?id=...`; **무료 CSV 는 약 3년 상한** — 그 이상은 FRED API 키 필요, 미보유 시 가용 최대(약 3년)로 월별 렌더하고 보고에 한계 명시). `gen_hy_chart.py` v3.6.33 가 월별(연/반기 눈금) 라인.
+> - **(정책) 조용히 미표시·"-" 금지 → 차단형 게이트 + 사용자 질문**: `build_report.js` validate() v3.6.33 가 **데이터는 있는데 차트 파일이 없으면 issues(blocking)** 로 처리(kospi/kosdaq_tech, leading_cycle, hy_oas, semi_s/semi_e 전수, ETF<20). **Phase 3.6**(아래)에서 `--validate` 가 exit≠0 이면 워크플로를 멈추고 **사용자에게 어찌할지 묻는다**(임의로 비우거나 진행 금지).
+> - **(정책) GOODREPORT 비교 게이트 (Phase 4.5)**: 최종 docx 를 연결폴더 `GOODREPORT` 기준본과 `scripts/gen_goodreport_compare.py` 로 비교(이미지/표/용량/섹션). 이상부(이미지·용량 부족, 섹션 누락) 검출 시 보고서 발송/공유 전에 **사용자에게 보고**하고 보완한다.
+> - **반복 방지(설치본 stale)**: repo 를 고친 뒤 **반드시 재설치**해야 production(설치본)에 반영된다. 수정 후 Phase 0 에서 설치본 build_report.js footer 버전이 repo 와 다르면 경고.
+
+
 
 > v3.6.32 (2026-06-19 사용자 피드백 — 반복 결함 근본차단) — **이 블록은 이전 모든 규칙에 우선한다.**
 >
@@ -20,20 +41,29 @@ description: |
 > v3.6.31 까지의 "폴백으로 항상 채운다"는 접근이 오히려 *열등한 차트·빈칸·낡은 자료*를 조용히 통과시켜 매 회차 같은 섹션이 깨졌다. 이제는 폴백으로 때우지 말고, **정상 예제(`D:\claudeCowork\GOODREPORT`) 수준을 못 맞추면 멈추고 묻는다.**
 >
 > ## 1. 발송 전 품질 게이트 = Phase 4.5 (필수·차단)
-> docx 빌드 직후 **반드시** `node scripts/verify_report.js <report_data.json> <WORK>` 를 실행한다. problems 가 하나라도 있으면 **exit 1** 이며 다음을 코드로 검사한다(req1 일봉캔들·req2 선행지수 장기series·req3 테마8 추세차트·req4 반도체종목10·req5 반도체ETF20·req7 점도표 빈칸금지·req8 증권사/IB 신선도). **게이트 실패 시 절대 자동 발송 금지** — problems 를 사용자에게 보고하고 어떻게 할지 묻는다(재수집/그대로발송/보류). 예약 실행도 동일(낡은·깨진 보고서 무인 자동발송 금지).
+> docx 빌드 직후 **반드시** `node scripts/verify_report.js <report_data.json> <WORK>` 를 실행한다. problems 가 하나라도 있으면 **exit 1** 이며 다음을 코드로 검사한다:
+> - req1) 3.1.1 코스피·코스닥 차트 = **일봉 캔들**(`charts/kospi_tech.png`·`kosdaq_tech.png`) 존재 — `*_flows.png` 폴백이면 실패.
+> - req2) 3.1.3 경기선행지수 **장기 series(`nmr_leading_series.json` ≥12개월)** + 차트 존재.
+> - req3) 3.1.4 테마 8종 추세차트(`charts/theme_*.png`) 모두 존재.
+> - req4) 반도체/AI 종목 ≥10 + 각 추세차트(`semi_s_*.png`).
+> - req5) 반도체/AI ETF **정확히 20종** + 각 추세차트(`semi_e_*.png`).
+> - req7) FOMC 점도표 rows 의 jun·mar 값에 **빈칸 없음**.
+> - req8) 증권사·IB `key_reports` 날짜 **신선도(Daily≤1·Weekly/Monthly≤3일; 월요일·주말은 금요일까지)** 이내 — stale 이면 실패.
+>
+> **게이트 실패 시 절대 자동 발송 금지.** problems 목록을 사용자에게 그대로 보고하고 어떻게 할지 물어라(해당 섹션 재수집 / 그대로 발송 / 보류). **예약(scheduled) 실행도 동일** — 결함이 있으면 발송을 보류하고 결함 목록을 결과 보고에 남긴 뒤 사용자 확인을 기다린다(낡은·깨진 보고서를 자동 발송하지 않는다).
 >
 > ## 2. GOODREPORT 최종 비교 (Phase 4.5)
-> `D:\claudeCowork\GOODREPORT\` 골든 리포트와 새 docx 의 임베드 미디어(차트) 개수를 비교 — 골든의 90% 미만이면 결함으로 보고 사용자에게 묻는다. (골든이 비었거나 깨진 회차 파일이면 기준 파일을 먼저 확인 — 임의 진행 금지.)
+> `D:\claudeCowork\GOODREPORT\` 골든 리포트와 새 docx 를 비교: `unzip -l` 임베드 미디어(차트) 개수가 골든의 90% 미만이거나 핵심 섹션 머리말이 누락되면 결함으로 보고 위와 동일하게 사용자에게 묻는다. (골든 폴더가 비었거나 깨진 회차 파일이 들어 있으면 사용자에게 기준 파일을 확인 요청 — 임의 진행 금지.)
 >
 > ## 3. 수집 강제 (carry-forward·열등 폴백 금지 — 게이트가 잡는다)
-> - **3.1.1 일봉 OHLC**: 야후 `^KS11`/`^KQ11` `interval=1d`(Chrome 동일출처 fetch) → `nmr_kr_ohlcv.json`, 거래량=다음 `accTradeVolume`, 수급=다음 일별 → `gen_kr_candle.py` 캔들(`kospi_tech.png`/`kosdaq_tech.png`). flows 라인차트 대체 금지.
-> - **3.1.3 선행지수 장기 series**: INDEXerGO echarts 에서 2016~현재 월별 → `nmr_leading_series.json`(≥12) → `gen_leading_chart.py`.
-> - **3.1.4 테마·반도체 series**: 8테마 대표 ETF + 종목10·ETF20(다음 검색+marketCap 정렬, 단일종목 레버리지 포함)의 1년 series → `nmr_themeseries1y.json`/`nmr_semitheme.json` → theme_*/semi_s_*/semi_e_* 차트.
-> - **3.2.2 점도표**: 2026·2027·2028말·장기중립 jun·mar 중간값 모두(빈칸 금지).
-> - **7 증권사 = Chrome-first**: 5사 공식 페이지 직접 수집, 신선도 충족 최신만. 못 구하면 빈값(stale 금지). 키움 `?dummyVal=0`.
+> - **3.1.1 일봉 OHLC**: 야후 `^KS11`/`^KQ11` `interval=1d`(Chrome 동일출처 fetch) → `nmr_kr_ohlcv.json`(`kospi_ohlcv`/`kosdaq_ohlcv`=[[date,o,h,l,c,v]]), 거래량=다음 `accTradeVolume`, 수급=다음 일별 → **`gen_kr_candle.py` 로 `kospi_tech.png`·`kosdaq_tech.png` 생성**(flows 차트로 대체 금지).
+> - **3.1.3 선행지수 장기 series**: INDEXerGO `series/?detailId=11601&frq=M` echarts 에서 2016~현재 월별 순환변동치 추출 → `nmr_leading_series.json`(≥12) → `gen_leading_chart.py`.
+> - **3.1.4 테마·반도체 series**: 8테마 대표 ETF + 종목10·ETF20 의 1년 주봉을 `nmr_themeseries1y.json`·`nmr_semi_series_v3.json` 에 채워 `gen_rest_charts.py`(theme_*/semi_s_*/semi_e_*). **ETF 는 항상 AUM 상위 20**(다음금융 검색+marketCap 정렬, 단일종목 레버리지 포함).
+> - **3.2.2 점도표**: 2026·2027·2028말·장기중립 **jun·mar 중간값 모두** 확보(빈칸이면 게이트가 막음 → 추가 검색).
+> - **7 증권사 = Chrome-first**: 신한·미래에셋·삼성·한국투자·키움 공식 페이지를 **메인세션 Claude in Chrome navigate→get_page_text/screenshot** 로 직접 읽어 신선도 충족 최신만 수집. 못 구하면 빈값으로 두되 **stale 로 채우지 말 것**. 키움은 `?dummyVal=0`.
 >
 > ## 4. 빌더(이미 반영)
-> - req6) 3.2.1 CAPEX: 2027(E)·2028(E) 열은 값이 하나라도 있을 때만 표시(전부 미공개면 열 제거).
+> - req6) 3.2.1 CAPEX: 2027(E)·2028(E) 열은 **값이 하나라도 있을 때만** 표시(전부 미공개면 열 통째 제거) — `build_report.js` 적용 완료.
 
 # Namoobi Market Report (v3.6.31)
 
@@ -481,12 +511,30 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
 
 ## Phase 4.5: 품질 게이트 + GOODREPORT 비교 (v3.6.32 — 필수·차단)
 
-> **이 단계를 통과하지 못하면 Phase 5(발송)로 절대 진행하지 않는다.** 결함을 조용히 미표시(-)·carry-forward·stale 로 통과시키지 말고 사용자에게 보고·질문한다.
+> **이 단계를 통과하지 못하면 Phase 5(발송)로 절대 진행하지 않는다.** 목적: 결함을 조용히 미표시(-)·carry-forward·stale 로 통과시키지 않고, 사용자에게 보고·질문한다.
 
-1. **코드 게이트**: `cd "$WORK" && node verify_report.js <report_data.json> "$WORK"` → `{ok,problems[],warnings[]}`. problems 가 곧 "정상 예제 수준 미달 항목"(예: `3.1.1 코스피 차트가 캔들이 아님(flows 폴백)`, `반도체 ETF 17<20`, `증권사 신한 리포트 stale`).
-2. **GOODREPORT 비교**: `GOLD=$(ls -t /sessions/*/mnt/claudeCowork/GOODREPORT/*.docx|head -1)`; 새 docx 의 `word/media/` 개수가 골든의 90% 미만이면 결함. (골든이 비었거나 깨진 회차면 기준 파일 먼저 확인.)
-3. **결함이 있으면(필수)**: 발송하지 말고 problems 를 사용자에게 제시하고 (a)재수집 (b)그대로 발송(명시 승인 시) (c)보류 중 무엇을 할지 **묻는다**. 예약 실행도 동일(자동 발송 금지, Phase 6 에 결함 목록·사용자 확인 대기 기록).
-4. 게이트 ok:true + 미디어 정상이면 Phase 5 로 진행.
+1. **코드 게이트 실행**:
+```bash
+cd "$WORK" && node verify_report.js <outputs>/_market_report_data/report_data_YYYYMMDD.json "$WORK"
+echo "verify exit=$?"   # 0=통과, 1=결함
+```
+   `{ok,problems[],warnings[]}` 가 출력된다. `problems` 가 있으면 그 목록이 곧 "정상 예제 수준 미달 항목"이다(예: `3.1.1 코스피 차트가 캔들이 아님(flows 폴백)`, `반도체 ETF 17<20`, `증권사 신한 리포트 stale: 2026-05-11`).
+
+2. **GOODREPORT 비교**:
+```bash
+GOLD="$(ls -t /sessions/*/mnt/claudeCowork/GOODREPORT/*.docx 2>/dev/null | head -1)"
+gn=$(unzip -l "$GOLD" 2>/dev/null | grep -c 'word/media/'); nn=$(unzip -l "<새 docx>" | grep -c 'word/media/')
+echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
+```
+   (GOODREPORT 가 비었거나 '깨진 회차' 파일만 있으면 사용자에게 어떤 파일을 기준으로 쓸지 먼저 확인한다 — 임의 진행 금지.)
+
+3. **결함이 있으면(필수)**: **발송하지 말고**, problems 와 미디어 개수 차이를 사용자에게 그대로 제시하고 다음 중 무엇을 할지 **묻는다**:
+   - (a) 해당 섹션을 재수집·재생성한 뒤 다시 게이트 → 통과하면 발송,
+   - (b) 결함을 안고 그대로 발송(사용자가 명시 승인 시에만),
+   - (c) 이번 회차 발송 보류.
+   **예약(scheduled) 실행도 동일** — 자동 발송하지 말고, Phase 6 결과 보고에 결함 목록과 "사용자 확인 대기"를 남긴다. (낡은·깨진 보고서를 무인 자동 발송하는 것이 그동안의 반복 문제였다.)
+
+4. 게이트 `ok:true` + 미디어 개수 정상이면 Phase 5 로 진행한다.
 
 ## Phase 5: 이메일 발송
 

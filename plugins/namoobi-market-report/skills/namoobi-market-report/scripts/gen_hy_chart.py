@@ -54,9 +54,13 @@ ax.plot(xs,ys,color="#1E40AF",linewidth=1.8,marker=mk,ms=4)
 ax.fill_between(xs,ys,min(ys)-0.1,color="#1E40AF",alpha=0.07)
 ax.scatter([cur[0]],[cur[1]],color="#DC2626",zorder=5,s=28)
 ax.annotate(f"{cur[1]:.2f}%",(cur[0],cur[1]),textcoords="offset points",xytext=(-30,7),color="#DC2626",fontsize=9,fontweight="bold")
-tag="일별 1년" if len(xs)>8 else "레벨 추이(1년·1주~현재)"
-ax.set_title(f"美 하이일드 OAS — ICE BofA US HY (FRED BAMLH0A0HYM2, {tag})",fontsize=9.5,color="#334155")
-ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
+# (v3.6.33 req7) 월별 장기 추이 — nmr_hy_series.json 에 FRED BAMLH0A0HYM2 월별 시계열(가능한 최장; 무료 CSV 는 약 3년 상한)을 넣는다.
+span=f"{xs[0].strftime('%Y.%m')}~{xs[-1].strftime('%Y.%m')}"
+ax.set_title(f"美 하이일드 OAS — ICE BofA US HY (FRED BAMLH0A0HYM2, 월별 {span})",fontsize=9.5,color="#334155")
+if (xs[-1]-xs[0]).days>900:
+    ax.xaxis.set_major_locator(mdates.YearLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+else:
+    ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=[1,7])); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
 ax.grid(True,alpha=0.25); ax.set_ylabel("OAS (%)",fontsize=8,color="#64748B")
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig(OUT,bbox_inches="tight"); print("hy chart ->",OUT,"(pts",len(series),")")

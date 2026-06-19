@@ -1,6 +1,10 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
-> **v3.6.32 (2026-06-19) — 수집 강제(게이트 통과 필수). `scripts/verify_report.js` 가 코드로 검사하며, 미달이면 발송 차단·사용자 질문. carry-forward·열등 폴백·stale 금지.** 점도표 jun·mar 전 시점 채움(req7) / 반도체 ETF 항상 AUM 상위 20+series(req3-5) / 3.1.1 일봉 OHLC→gen_kr_candle 캔들(req1) / 증권사·IB 신선도(KR Daily≤1·Weekly≤3, IB≤7) Chrome-first(req8).
 
+> **v3.6.32 (2026-06-19) — 수집 강제(게이트 통과 필수). `scripts/verify_report.js` 가 아래를 코드로 검사하며, 미달이면 발송이 차단되고 사용자에게 질문한다. carry-forward·열등 폴백·stale 로 때우지 말 것.**
+> - **USMacroExtrasAgent — 점도표 완전수집(req7)**: `fomc_dotplot.rows` 의 2026·2027·2028말·장기중립 각 행에 **`jun` 과 `mar` 중간값을 모두** 채운다(빈칸·"-" 금지). FOMC SEP(연준/언론 표)에서 6월·3월 중간값 직접 확인.
+> - **KoreaSemiThemeAgent — ETF 20 + series(req3-5)**: `semi_ai_etfs` 는 **항상 AUM 상위 20**(다음금융 `api/search/quotes`+`marketCap` 정렬, 단일종목 레버리지 포함). 8테마 대표 ETF·종목10·ETF20 의 1년 주봉 series 를 `nmr_themeseries1y.json`/`nmr_semi_series_v3.json` 에 채워야 `theme_*`·`semi_s_*`·`semi_e_*` 차트가 생성(빈 series=추세 '-'=게이트 실패).
+> - **3.1.1 일봉 OHLC(req1)**: 메인세션이 야후 `^KS11`/`^KQ11` `interval=1d` 로 `nmr_kr_ohlcv.json` 일봉 OHLC 를 채워 `gen_kr_candle.py` 캔들(`kospi_tech.png`/`kosdaq_tech.png`) 생성. flows 라인차트 대체 금지.
+> - **SecuritiesAgent·GlobalSecuritiesAgent — 신선도 코드강제(req8)**: `key_reports[].date` 가 Daily≤1·Weekly/Monthly≤3일(월요일·주말은 금요일까지) 초과면 게이트가 stale 로 막는다. **메인세션 Chrome 공식 페이지 직접 수집** 1순위, 못 구하면 빈값(stale 금지).
 
 
 > **v3.6.31 변경점 (2026-06-19 사용자 피드백 — 7개 재발 이슈 근본수정)**
