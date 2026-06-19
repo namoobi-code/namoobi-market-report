@@ -278,7 +278,14 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
 function renderUSExtras(){ const m=data.markets||{};
   if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.2.1 AI 빅테크 자본지출(CAPEX)",3));
     const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개"; // v3.6.10 빈칸은 "-" 대신 "미공개"
-    simpleTable([1700,1250,1250,1250,1250,2260],["기업","2025(실적)","2026(E)","2027(E)","2028(E)","코멘트"],cx.rows.map(r=>[r.company??"-",capV(r.y2025),capV(r.y2026),capV(r.y2027),capV(r.y2028),r.comment??"-"]),{left:[5]});
+    // (v3.6.32 req6) 연도 열은 값이 하나라도 있을 때만 표시 — 전부 미공개면 그 열을 통째로 제거
+    const yrHas=(k)=>cx.rows.some(r=>r[k]!==null&&r[k]!==undefined&&String(r[k]).trim()!=="");
+    const ccols=[["company","기업",1700,1],["y2025","2025(실적)",1250,0],["y2026","2026(E)",1250,0]];
+    if(yrHas("y2027"))ccols.push(["y2027","2027(E)",1250,0]);
+    if(yrHas("y2028"))ccols.push(["y2028","2028(E)",1250,0]);
+    ccols.push(["comment","코멘트",2260,1]);
+    const cwid=ccols.map(c=>c[2]),chead=ccols.map(c=>c[1]),cleft=ccols.map((c,i)=>c[3]?i:-1).filter(i=>i>=0);
+    simpleTable(cwid,chead,cx.rows.map(r=>ccols.map(c=>(c[0]==="company")?(r.company??"-"):(c[0]==="comment")?(r.comment??"-"):capV(r[c[0]]))),{left:cleft});
     if(cx.comment)children.push(p(cx.comment)); children.push(p("")); }
   renderFomcDotplot();
   if(m.hy_spread){ const c=m.hy_spread; children.push(h("3.2.3 하이일드 스프레드 (HY Spread)",3));

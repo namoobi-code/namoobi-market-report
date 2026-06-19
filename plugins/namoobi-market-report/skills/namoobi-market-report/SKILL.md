@@ -12,6 +12,29 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
+# Namoobi Market Report (v3.6.32)
+
+> v3.6.32 (2026-06-19 사용자 피드백 — 반복 결함 근본차단) — **이 블록은 이전 모든 규칙에 우선한다.**
+>
+> **핵심 원칙: "조용히 미표시(-)·carry-forward·stale 로 넘어가지 말 것. 결함이 있으면 발송하지 말고 사용자에게 물어라."**
+> v3.6.31 까지의 "폴백으로 항상 채운다"는 접근이 오히려 *열등한 차트·빈칸·낡은 자료*를 조용히 통과시켜 매 회차 같은 섹션이 깨졌다. 이제는 폴백으로 때우지 말고, **정상 예제(`D:\claudeCowork\GOODREPORT`) 수준을 못 맞추면 멈추고 묻는다.**
+>
+> ## 1. 발송 전 품질 게이트 = Phase 4.5 (필수·차단)
+> docx 빌드 직후 **반드시** `node scripts/verify_report.js <report_data.json> <WORK>` 를 실행한다. problems 가 하나라도 있으면 **exit 1** 이며 다음을 코드로 검사한다(req1 일봉캔들·req2 선행지수 장기series·req3 테마8 추세차트·req4 반도체종목10·req5 반도체ETF20·req7 점도표 빈칸금지·req8 증권사/IB 신선도). **게이트 실패 시 절대 자동 발송 금지** — problems 를 사용자에게 보고하고 어떻게 할지 묻는다(재수집/그대로발송/보류). 예약 실행도 동일(낡은·깨진 보고서 무인 자동발송 금지).
+>
+> ## 2. GOODREPORT 최종 비교 (Phase 4.5)
+> `D:\claudeCowork\GOODREPORT\` 골든 리포트와 새 docx 의 임베드 미디어(차트) 개수를 비교 — 골든의 90% 미만이면 결함으로 보고 사용자에게 묻는다. (골든이 비었거나 깨진 회차 파일이면 기준 파일을 먼저 확인 — 임의 진행 금지.)
+>
+> ## 3. 수집 강제 (carry-forward·열등 폴백 금지 — 게이트가 잡는다)
+> - **3.1.1 일봉 OHLC**: 야후 `^KS11`/`^KQ11` `interval=1d`(Chrome 동일출처 fetch) → `nmr_kr_ohlcv.json`, 거래량=다음 `accTradeVolume`, 수급=다음 일별 → `gen_kr_candle.py` 캔들(`kospi_tech.png`/`kosdaq_tech.png`). flows 라인차트 대체 금지.
+> - **3.1.3 선행지수 장기 series**: INDEXerGO echarts 에서 2016~현재 월별 → `nmr_leading_series.json`(≥12) → `gen_leading_chart.py`.
+> - **3.1.4 테마·반도체 series**: 8테마 대표 ETF + 종목10·ETF20(다음 검색+marketCap 정렬, 단일종목 레버리지 포함)의 1년 series → `nmr_themeseries1y.json`/`nmr_semitheme.json` → theme_*/semi_s_*/semi_e_* 차트.
+> - **3.2.2 점도표**: 2026·2027·2028말·장기중립 jun·mar 중간값 모두(빈칸 금지).
+> - **7 증권사 = Chrome-first**: 5사 공식 페이지 직접 수집, 신선도 충족 최신만. 못 구하면 빈값(stale 금지). 키움 `?dummyVal=0`.
+>
+> ## 4. 빌더(이미 반영)
+> - req6) 3.2.1 CAPEX: 2027(E)·2028(E) 열은 값이 하나라도 있을 때만 표시(전부 미공개면 열 제거).
+
 # Namoobi Market Report (v3.6.31)
 
 > v3.6.31 (plugin 1.7.30) 변경점 — 7개 재발 이슈 근본수정 (2026-06-19 사용자 피드백: 3.1.1 수급차트·3.1.3 선행지수·3.2.1 CAPEX·3.2.2 점도표·3.2.3 HY그래프·6.3 SOL·8 IB최신성이 새 세션마다 깨짐):
@@ -344,9 +367,11 @@ description: |
         ↓
 [Phase 3.5: 반환각 교차검증]  서브에이전트 1개로 출처 누락·수치 모순·환각 점검 (v3.3.0)
         ↓
-[Phase 4: 보고서 생성]  node build_report.js <json> <out.docx>(중간) → soffice 로 PDF 변환 → 연결 폴더에 PDF 저장
+[Phase 4: 보고서 생성]  node build_report.js <json> <out.docx> → 연결 폴더에 저장
         ↓
-[Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송(PDF 첨부) + 모드별 수신자 파일 (references/email-sending.md)
+[Phase 4.5: 품질 게이트 + GOODREPORT 비교 (v3.6.32 — 차단)]  node verify_report.js → problems 있으면 발송 보류·사용자에 질문(조용히 -/stale 통과 금지)
+        ↓
+[Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송(docx 첨부) + 모드별 수신자 파일 (references/email-sending.md)
         ↓
 [Phase 6: 결과 보고]  헤드라인 3개 + 포트폴리오 톤 + 시작/완료/소요시간
 ```
@@ -453,6 +478,15 @@ pdffonts "<outputs>/글로벌금융시장_종합시황보고서_YYYYMMDD.pdf" | 
    연결 폴더는 기존 파일 덮어쓰기가 차단될 수 있으므로, 동일 파일명이 이미 있으면 `글로벌금융시장_종합시황보고서_YYYYMMDD_HHMM.pdf` 처럼 실행 시각 접미사를 붙여 **새 파일**로 저장하고, 그 실제 파일명을 Phase 5 첨부에 사용한다.
    복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). 연결 폴더가 없으면 첨부가 불가하므로 Phase 6 에 "연결 폴더 미연결 — PDF 첨부 불가"를 명시한다.
    (docx 중간 파일은 연결 폴더로 복사하지 않는다.)
+
+## Phase 4.5: 품질 게이트 + GOODREPORT 비교 (v3.6.32 — 필수·차단)
+
+> **이 단계를 통과하지 못하면 Phase 5(발송)로 절대 진행하지 않는다.** 결함을 조용히 미표시(-)·carry-forward·stale 로 통과시키지 말고 사용자에게 보고·질문한다.
+
+1. **코드 게이트**: `cd "$WORK" && node verify_report.js <report_data.json> "$WORK"` → `{ok,problems[],warnings[]}`. problems 가 곧 "정상 예제 수준 미달 항목"(예: `3.1.1 코스피 차트가 캔들이 아님(flows 폴백)`, `반도체 ETF 17<20`, `증권사 신한 리포트 stale`).
+2. **GOODREPORT 비교**: `GOLD=$(ls -t /sessions/*/mnt/claudeCowork/GOODREPORT/*.docx|head -1)`; 새 docx 의 `word/media/` 개수가 골든의 90% 미만이면 결함. (골든이 비었거나 깨진 회차면 기준 파일 먼저 확인.)
+3. **결함이 있으면(필수)**: 발송하지 말고 problems 를 사용자에게 제시하고 (a)재수집 (b)그대로 발송(명시 승인 시) (c)보류 중 무엇을 할지 **묻는다**. 예약 실행도 동일(자동 발송 금지, Phase 6 에 결함 목록·사용자 확인 대기 기록).
+4. 게이트 ok:true + 미디어 정상이면 Phase 5 로 진행.
 
 ## Phase 5: 이메일 발송
 

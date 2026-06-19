@@ -1,4 +1,6 @@
 # 서브에이전트 상세 프롬프트 및 반환 스키마 (v3.3.0)
+> **v3.6.32 (2026-06-19) — 수집 강제(게이트 통과 필수). `scripts/verify_report.js` 가 코드로 검사하며, 미달이면 발송 차단·사용자 질문. carry-forward·열등 폴백·stale 금지.** 점도표 jun·mar 전 시점 채움(req7) / 반도체 ETF 항상 AUM 상위 20+series(req3-5) / 3.1.1 일봉 OHLC→gen_kr_candle 캔들(req1) / 증권사·IB 신선도(KR Daily≤1·Weekly≤3, IB≤7) Chrome-first(req8).
+
 
 
 > **v3.6.31 변경점 (2026-06-19 사용자 피드백 — 7개 재발 이슈 근본수정)**
