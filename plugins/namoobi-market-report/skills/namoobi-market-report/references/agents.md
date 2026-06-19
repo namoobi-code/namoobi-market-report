@@ -400,12 +400,12 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `nmr_indexseries.json`: 17개 지수 1년 **주봉 종가** `{kospi,kosdaq,sp500,nasdaq,dow,vix,dxy,us10y,nikkei,shanghai,hsi,taiwan,sensex,vietnam,stoxx50,dax,ftse}` 각 `[["YYYY-MM-DD",close]..]`. `gen_rest_charts.py` 가 이 파일로 `charts/spark_<key>.png` 를 생성해 3.2/3.3/3.4 표 추세열을 채운다. (없으면 추세열 비어 보임 → 반드시 수집)
 
 ### UsEtfAgent (3.2.2 주요 미국 ETF — 지수·섹터·테마·방어형, v3.6.8)
-**임무**: 미국 주요 ETF 29종의 현재가·1주~1년 수익률·1년 주봉 시계열 수집.
+**임무**: 미국 주요 ETF 30종(③ 테마·특화에 메모리 **DRAM**(Roundhill Memory ETF) 항상 포함)의 현재가·1주~1년 수익률·1년 주봉 시계열 수집.
 **도구**: UsStockInfo MCP `get_historical_stock_prices(period="1y", interval="1wk")` (주봉). **FMP MCP 는 플랜 제한으로 quote-change/chart 가 막힐 수 있으니 Yahoo(UsStockInfo) 를 기본으로 한다.** 먼저 `ToolSearch`(예: `+UsStockInfo historical`)로 도구 로드.
 **대상 (그룹 · 티커 · 설명 · 섹터비중)**:
 - **index**: SPY(SPDR S&P 500 ETF Trust·S&P500 최대 유동성), VOO(Vanguard S&P 500·저비용), SPYM(SPDR Portfolio S&P 500·초저보수), QQQ(Invesco QQQ·나스닥100 대형기술), QQQM(QQQ 저보수판), DIA(다우존스30 우량주)
 - **sector** (11개, S&P500 비중 weight): XLK 기술 27.69%(반도체·SW·AI), XLV 의료 13.48%, XLC 통신 11.22%, XLY 임의소비재 11.81%, XLF 금융 11.32%, XLI 산업 8.41%, XLP 필수소비재 5.87%, XLB 재료 2.60%, XLRE 부동산 2.61%, XLE 에너지 2.44%, XLU 유틸리티 2.55%
-- **theme**: SOXX 반도체(인텔·엔비디아·AMD), SMH 반도체 집적(TSMC·엔비디아·삼성), BOTZ AI/로봇, ARKK 혁신기술(액티브), SCHD 배당성장주, JEPI 커버드콜 현금흐름(월배당), QTUM 양자컴퓨터, NASA 우주항공(Tema Space Innovators·2026 상장 신생), ICLN 글로벌 클린에너지, ROBO 로보틱스·자동화(ROBO Global Robotics & Automation), AIQ AI·기술 전반(Global X Artificial Intelligence & Technology), MAGS 매그니피센트7 동일가중(Roundhill Magnificent Seven)
+- **theme**: SOXX 반도체(인텔·엔비디아·AMD), SMH 반도체 집적(TSMC·엔비디아·삼성), **DRAM 메모리/스토리지(Roundhill Memory ETF·DRAM/HBM/NAND/SSD, 삼성전자·SK하이닉스·마이크론 집중, 2026-04-02 상장 — 메모리 슈퍼사이클 대표, ③ 테마·특화에 항상 포함)**, BOTZ AI/로봇, ARKK 혁신기술(액티브), SCHD 배당성장주, JEPI 커버드콜 현금흐름(월배당), QTUM 양자컴퓨터, NASA 우주항공(Tema Space Innovators·2026 상장 신생), ICLN 글로벌 클린에너지, ROBO 로보틱스·자동화(ROBO Global Robotics & Automation), AIQ AI·기술 전반(Global X Artificial Intelligence & Technology), MAGS 매그니피센트7 동일가중(Roundhill Magnificent Seven)
 - **defensive**: GLD 금(현물·헷지), TLT 미국 장기채(20Y+), IEF 미국 중기채(7-10Y)
 **계산**: MarketsAgent 와 동일 — 현재가=최신 주봉 종가, 1주=직전 주봉, 1개월≈4주 전, 3개월≈13주 전, 6개월≈26주 전, 1년=최초 데이터 대비 변화율(%). 각 ETF `trend` 1줄(한글, 1년/3개월/1개월 모멘텀+가격위치 종합). 신생 ETF(NASA 등)는 이력이 짧아 3·6개월이 비면 null, 미존재 티커는 수록 금지.
 **저장**:
