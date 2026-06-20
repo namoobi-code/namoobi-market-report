@@ -12,7 +12,11 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.6.34)
+# Namoobi Market Report (v3.6.35)
+
+> v3.6.35 (2026-06-20 운영 학습 — 12장 액션아이템 렌더·증권사 수집방식): **이 블록은 이전 모든 규칙에 우선한다.**
+> - **12장 액션아이템 [object Object] 근본수정**: `build_report.js` 가 `action_items.forEach(it=>children.push(bullet(it)))` 로 각 항목을 **문자열로** 출력하는데, AnalysisAgent 가 `{horizon,item}` **객체**로 주면 "[object Object]" 로 렌더됐다(실측). 빌더가 항목이 객체(`{horizon, item|text|action}`)이든 문자열이든 모두 `"[horizon] item"` 문자열로 정규화해 출력하도록 수정 — 스키마 불문 안전. 병합 단계에서도 동일 정규화를 권장(`action_items=action_items.map(it=>typeof it==='object'?('['+(it.horizon||'')+'] '+(it.item||'')):String(it))`).
+> - **7 한국 5대 증권사 = 메인세션 Claude in Chrome 직접 navigate 필수(재강조)**: 키움이 koscom iframe 이라 본문이 안 보인다고 **5개사를 전부 WebSearch 로 일괄 우회하면 안 된다.** 미래에셋·삼성 등은 JS 렌더 리서치 목록이라 WebSearch 에 안 잡혀, **접근 가능한데도 "기준일 미확인" 으로 잘못 비는 사고**가 난다(실측: `securities.miraeasset.com/bbs/board/message/list.do?categoryId=1521` 정상 접근·6/19자 '한국&중국 마켓 클로징'·'월스트리트파인더' 등 노출). 각 사 공식 목록을 **개별로 navigate→get_page_text** 하고, 키움만 iframe 이면 키움만 보조수단(텔레그램 t.me/s/KiwoomResearch)을 쓴다. WebSearch 일괄 우회 금지.
 
 > v3.6.34 (2026-06-19 사용자 추가 피드백 — KOSDAQ 거래량·CAPEX 2027·DRAM ETF):
 > - **3.1.1 KOSDAQ(·KOSPI) 일봉 거래량 (반복 이슈)**: 야후 `^KQ11` 거래량은 ① 값 자체가 손상(중앙값~1000)되고 ② **비거래일 유령행**(일요일 등, vol≈1000)이 섞여 있다. → 캔들 입력(`nmr_kr_ohlcv.json`) 구성 시 **다음 `market_index/days` accTradeVolume 으로 거래량을 교체하고, 다음(KRX 거래일)에 없는 날짜(유령행)는 제거**한다(거래일 캘린더=다음 기준). KOSPI 도 동일 적용해 일관화. (이 단계 누락이 '거래량 이상' 반복의 원인.)

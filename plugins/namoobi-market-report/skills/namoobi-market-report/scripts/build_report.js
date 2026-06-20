@@ -676,7 +676,7 @@ if (data.analysis && data.analysis.portfolios) {
 }
 if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.action_items.length) {
   children.push(new Paragraph({children:[new PageBreak()]})); children.push(h("12. 액션 아이템 - 단기·중기·장기 체크리스트",1));
-  data.analysis.action_items.forEach(it=>children.push(bullet(it)));
+  data.analysis.action_items.forEach(it=>children.push(bullet((it&&typeof it==="object")?((it.horizon?("["+it.horizon+"] "):"")+(it.item||it.text||it.action||"")):String(it))));
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("13. 주의 사항 및 출처",1));
