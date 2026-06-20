@@ -75,7 +75,8 @@ description: |
         ↓
 [Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합)]
   ├─ News / Markets(지수 현재가+시계열+추세 통합) / Commodities(통합) / Crypto(통합) / UsEtf(통합)
-  ├─ KoreaTechFlows / KoreaSemiTheme / GlobalSecurities  + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk
+  ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk
+  ├─ [bash 병렬 tool-call] scripts/fetch_kr.py + scripts/fetch_semi.py  (한국 시장데이터·시계열, Chrome 불필요)
   └─ SecuritiesAgent(한국 5대)=메인세션 Chrome — 배치 발행 직후 동시 진행(대기 겹침). 구 IndexSeries·MarketsTrend·CommoditySeries·UsEtfTrend·CryptoSeries 흡수
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py → charts/*.png
@@ -136,7 +137,7 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 상세 프롬프트와 각 에이전트의 반환 JSON 스키마는 **`references/agents.md`** 를 읽고 그대로 사용한다.
 
 핵심 규칙:
-- Phase 1의 **모든 수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Markets(지수+시계열+추세 통합)·Commodities(통합)·Crypto(통합)·UsEtf(통합)·KoreaTechFlows·KoreaSemiTheme·GlobalSecurities + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk. **SecuritiesAgent(한국 5대)는 메인세션 Chrome 전용** — 배치 발행 직후 동시 수집해 대기를 겹친다. (구 IndexSeries·MarketsTrend·CommoditySeries·UsEtfTrend·CryptoSeries 도메인 흡수.)
+- Phase 1의 **모든 수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Markets(지수+시계열+추세 통합)·Commodities(통합)·Crypto(통합)·UsEtf(통합)·KoreaSemiTheme(선정·AUM·노트만)·GlobalSecurities + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk. **한국 시장데이터·시계열은 같은 메시지에서 `scripts/fetch_kr.py`·`scripts/fetch_semi.py` 를 bash 병렬 tool-call 로 실행**(스레드 병렬, 각 ~1~10초; 에이전트 아님). **SecuritiesAgent(한국 5대)는 메인세션 Chrome 전용** — 배치 발행 직후 동시 수집해 대기를 겹친다. (구 IndexSeries·MarketsTrend·CommoditySeries·UsEtfTrend·CryptoSeries 도메인 흡수.)
 - AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**. 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
@@ -146,8 +147,8 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 
 ## Phase 3: 데이터 종합 및 저장
 
-에이전트들이 저장해 둔 `nmr_*.json` 파일을 **node 스크립트로 병합**해 (메인 세션 재타이핑 금지)
-outputs 하위 `_market_report_data/report_data_YYYYMMDD.json` 으로 저장한다. metadata 는 병합 시 추가.
+에이전트·스크립트가 저장한 `nmr_*.json` 을 **`python3 scripts/merge.py $WORK YYYYMMDD` 로 병합**해 (메인 세션 재타이핑 금지)
+outputs 하위 `_market_report_data/report_data_YYYYMMDD.json` 으로 저장한다(merge.py 가 수익률·추세·경기선행 코멘트 계산, longterm 빈event 필터, metadata 추가).
 
 > ⚠️ 직접 heredoc 작성이 불가피한 경우: 한글 JSON 은 단일 인용 heredoc(`<<'JSONEOF'`)으로 변수확장을 막을 것.
 > 병합 후 JSON 사본을 연결 폴더 `D:\claudeCowork\_market_report_data\` 에도 복사한다 (새 파일 생성은 허용됨).

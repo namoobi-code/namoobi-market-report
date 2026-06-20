@@ -10,7 +10,7 @@
 #   nmr_cache.py due   <YYYY-MM-DD> [cache.json]              -> calendar hint (when to expect next)
 #   nmr_cache.py get   <item> [cache.json]                   -> cached value JSON to stdout
 #   nmr_cache.py set   <item> <as_of> <event_marker> [cache.json]   (value JSON on stdin)
-# Items: dot_plot, berkshire, index_rebalance, hy_spread, cautions
+# Items: dot_plot, berkshire, index_rebalance, hy_spread, cautions, leading
 # Marker examples: 13F filing date, FOMC SEP meeting date, latest S&P/Nasdaq change date,
 #   FRED HY latest data month (YYYY-MM); cautions -> "static".
 import sys, json, os, glob, datetime as dt
@@ -48,7 +48,7 @@ def due(today, cache):
     h={'dot_plot':(cache.get('dot_plot') or {}).get('next_refresh') or 'check each run (FOMC SEP date)',
        'berkshire':'next 13F deadline ~ '+str(last_13f_deadline(t)),
        'index_rebalance':'last quarterly effective ~ '+str(last_quarter_effective(t)),
-       'hy_spread':'monthly (current '+ym(t)+')','cautions':'static'}
+       'hy_spread':'monthly (current '+ym(t)+')','leading':'monthly 통계청 경기선행 (current '+ym(t)+')','cautions':'static'}
     for k,vv in h.items(): out[k]={'hint':vv}
     return out
 

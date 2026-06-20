@@ -5,9 +5,9 @@
 ## 추가 수집 에이전트·시계열 사양 (현행 — Phase 1 병렬, 결과는 `nmr_*.json` 저장·1줄 요약만 반환)
 
 - **시계열·추세 통합(P3)**: MarketsAgent(본문 2)가 17개 지수 1년 주봉을 **1회** 수집해 현재가·등락률 + `nmr_indexseries.json`(17지수 시계열) + `nmr_series2.json.fx`(원화 5쌍 usd/eur/jpy/cny/hkd_krw + usd_jpy/usd_cny) + `nmr_trendtext.json`(asia/europe/fx 2문장 한글 추세)까지 동시 산출. (구 IndexSeriesAgent·MarketsTrendAgent 흡수 — 중복 야후 호출 제거.)
-- **KoreaTechFlowsAgent → `nmr_kr_ohlcv.json`**: ① `kospi_ohlcv`/`kosdaq_ohlcv` = 야후 `^KS11`/`^KQ11` `interval=1d` 일봉 OHLC(거래량은 다음 `accTradeVolume` 로 교체, 비거래일 유령행 제거) ② `kospi_flows_daily`/`kosdaq_flows_daily` = 다음 `market_index/days` 1년 일별 외국인·기관·개인 순매수(Chrome 동일출처 fetch, 오름차순) → `gen_kr_candle.py`. `korea_investor_stocks`(다음 `investor_purchase`, 코스피·코스닥 외국인·기관 순매수/순매도 상위)·`korea_leading`(indexergo/통계청) 포함. 한국 종목/ETF 시계열은 야후 `.KS`/`.KQ`(다음 charts API 403).
-- **KoreaSemiThemeAgent → `nmr_kr_series.json`**: 테마 8종(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주) 10년 월별 + 반도체/AI 종목 10 + ETF **정확히 20**(다음 AUM 상위, 단일종목 레버리지 포함) series → `gen_rest_charts.py`(theme_*/semi_s_*/semi_e_*).
-- **경기선행지수**: `indexergo.com/series/?detailId=11601&frq=M` echarts 순환변동치 시계열 → `nmr_leading_series.json` → `gen_leading_chart.py`.
+- **한국 시장데이터 = `scripts/fetch_kr.py` (sandbox·stdlib, Chrome/에이전트 불필요)**: 야후 `^KS11`/`^KQ11` 일봉 OHLC + 다음 `market_index/days` 거래량·1년 일별 수급 → `nmr_kr_ohlcv.json`(`kospi_ohlcv`/`kosdaq_ohlcv`/`kospi_flows_daily`/`kosdaq_flows_daily`); 다음 `investor_purchase` 외국인·기관 순매수/순매도 상위 → `nmr_kr_invest.json`; FRED HY OAS(비차단·빠른실패) → `nmr_hy_series.json`. **스레드 병렬 단독 ~10초**, Phase 1 단일 메시지에서 Agent 발행과 함께 **bash 병렬 tool-call** 로 실행. → `gen_kr_candle.py`. (구 KoreaTechFlowsAgent 폐지.)
+- **반도체/테마 시계열 = `scripts/fetch_semi.py` (sandbox·stdlib)** → `nmr_kr_series.json`(테마 8·종목 10·ETF 20 시계열, 스레드 병렬 **~1초**). **선정·AUM·노트·테마 방향/코멘트는 KoreaSemiThemeAgent 가 `nmr_semi.json` 으로 계속 제공**(fetch_semi.py 와 **정확히 같은 이름** — merge.py 가 이름으로 join; AUM 상위 20 멤버십 변동 시 에이전트가 플래그→fetch_semi.py 목록 갱신). → `gen_rest_charts.py`(theme_*/semi_s_*/semi_e_*).
+- **경기선행지수(월간) = P2 캐시 `leading`**: 통계청/INDEXerGO 순환변동치는 월 1회 갱신 → 매 실행 마커(최신 release 月 `YYYY-MM`)로 `check leading` → reuse 면 스킵. due/미스 시에만 Chrome 으로 `indexergo.com/series/?detailId=11601&frq=M` echarts 수집(curl 403 — Chrome 필요) → `nmr_leading_series.json`·`nmr_leading.json` → `gen_leading_chart.py`.
 - **CryptoAgent(본문 4) 통합(P3)**: 시장개요·공포탐욕·김프 + **1년 시계열** `nmr_crypto_series.json`(BTC·ETH·XRP·SOL 가격·거래량 + 공포탐욕 1년)을 한 에이전트가 산출 → `gen_rest_charts.py`(coin_*/fng). (구 CryptoSeriesAgent 흡수.)
 - **UsEtfAgent → `nmr_usetf.json`/`nmr_etfseries.json`**: 미국 ETF 30종(③ 테마에 **DRAM**=Roundhill Memory 항상) 현재가·1주~1년·1년 주봉 **+ 각 ETF 2문장 한글 추세평가(`nmr_usetf_trends.json`)** 를 1회에 산출. (구 UsEtfTrendAgent 흡수.)
 - **IndexRebalanceAgent → `nmr_rebalance.json`**: S&P500·나스닥100 편입/편출·일정·기준·룰변경(1차 출처 press.spglobal.com·ir.nasdaq.com). **[P2 캐시] 매 실행 S&P/나스닥 최신 구성변경일을 마커로 `check index_rebalance <변경일>` → reuse 면 스킵·캐시; due/확인불가 면 조사 후 `set`.**
@@ -20,7 +20,7 @@
 - **품질 게이트(Phase 4.5)**: `scripts/verify_report.js` 가 위 항목을 코드로 검사. 미달이면 발송 차단·사용자 질문(조용히 "-"/stale 통과 금지).
 
 수집 에이전트는 전부 **general-purpose** 타입으로 호출한다.
-Phase 1 = **모든 수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Markets(지수+시계열+추세 통합)·Commodities(통합)·Crypto(통합)·UsEtf(통합)·KoreaTechFlows·KoreaSemiTheme·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 배치 발행 직후 동시 진행(대기 겹침).
+Phase 1 = **모든 수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Markets(지수+시계열+추세 통합)·Commodities(통합)·Crypto(통합)·UsEtf(통합)·KoreaSemiTheme(선정·AUM·노트만)·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **한국 시장데이터·시계열은 같은 메시지에서 `scripts/fetch_kr.py`·`scripts/fetch_semi.py` 를 bash 병렬 tool-call 로 실행**(에이전트 아님). **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 배치 발행 직후 동시 진행(대기 겹침).
 Phase 2 = AnalysisAgent 를 Phase 1 수집 결과와 함께 **단독 호출**(차트 생성 후).
 
 ## 공통 반환각(Hallucination) 방지 규칙 — 모든 에이전트 프롬프트에 그대로 포함 (v3.3.0)
@@ -208,7 +208,7 @@ gainers/losers/dominance 는 간헐 오류(429 등) → null/빈배열로 두고
 | 한국투자증권 | https://securities.koreainvestment.com/main/research/research/Strategy.jsp?jkGubun=99 (지수종합 시황) · …?jkGubun=34 (AIR) | **날짜별 단일 모닝브리프 뷰어**(목록 아님). 기본값이 당일이라 **주말·휴장일엔 "조회된 자료가 없습니다"** → `button.btn-prev`(이전) 1회 클릭 또는 URL 에 `&fromDate=YYYY-MM-DD` 로 **직전 거래일**로 이동해 본문(예: "한눈에 투데이")을 `get_page_text` 로 읽는다. |
 | 키움증권 | https://www3.kiwoom.com/h/invest/research/VMarketSDView · …/VMarketMLView · …/VAnalTPView | 시황·모닝·종목 |
 
-**수집 방법 (v3.6.4)**: 위 페이지들은 대부분 **JS 렌더**라 서브에이전트의 web_fetch 로는 본문이 안 나온다. 따라서 **메인 세션이 Claude in Chrome 으로** 각 URL 을 `navigate` → `get_page_text` 해서 **목록에서 발행일이 가장 최신(오늘/전일)인 리포트의 제목·발행일·핵심 요약**을 뽑는다. 발행일이 D-1 보다 오래된 것만 있으면 그중 최신 1~2건을 쓰되 `key_message` 에 발행일을 명시한다.
+**수집 방법 (v3.6.4)**: 위 페이지들은 대부분 **JS 렌더**라 서브에이전트의 web_fetch 로는 본문이 안 나온다. 따라서 **메인 세션이 Claude in Chrome 으로** 각 URL 을 `navigate` → `get_page_text` 해서 **목록에서 발행일이 가장 최신(오늘/전일)인 리포트의 제목·발행일·핵심 요약**을 뽑는다. **토큰 절감**: 가능하면 `get_page_text` 전체 덤프 대신 `javascript_tool` 로 제목·발행일·요약만 타깃 추출한다. 발행일이 D-1 보다 오래된 것만 있으면 그중 최신 1~2건을 쓰되 `key_message` 에 발행일을 명시한다.
 - **뉴스는 폴백**: 공식 페이지에서 최신 리포트를 끝내 못 구한 사(社)에 한해서만 WebSearch/네이버 뉴스로 보강하고, 그 항목 `key_message` 말미에 `(뉴스 기반)` 을 붙인다. (구버전처럼 모든 사를 뉴스로 채우지 말 것.)
 - 키움 텔레그램(https://t.me/s/KiwoomResearch)은 web_fetch 로도 직접 읽을 수 있어 보조로 활용 가능.
 - 접속 실패 사이트는 `key_reports: []`, `key_message: ""` 로 둘 것 — 빌더가 "(리포트 수집 실패)" 로 렌더링.
