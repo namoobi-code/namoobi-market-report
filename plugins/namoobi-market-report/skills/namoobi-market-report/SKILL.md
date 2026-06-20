@@ -321,4 +321,4 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 
 수집 시 주의:
 - **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
-- 보조
+- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
