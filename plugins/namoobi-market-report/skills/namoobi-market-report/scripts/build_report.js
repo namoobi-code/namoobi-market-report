@@ -466,7 +466,7 @@ children.push(p(""));
 children.push(h("2.2 중장기 1개월~1년 (★★★만)",2));
 if (data.news && Array.isArray(data.news.events_calendar_longterm) && data.news.events_calendar_longterm.length) {
   const lw=[1500,1200,3000,3660];
-  const lr=[["날짜","지역","이벤트","예상 영향"],...data.news.events_calendar_longterm.filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0}))}));
+  const lr=[["날짜","지역","이벤트","예상 영향"],...data.news.events_calendar_longterm.filter(function(e){return e&&e.event;}).filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0}))}));
   children.push(makeTable(lw,lr));
   children.push(p("※ 중장기는 ★★★만 수록. 미확정은 (예정) 표기.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(중장기 이벤트 없음)"));
@@ -645,7 +645,7 @@ if (data.global_securities) { let gi=0;
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 발간물:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
     else children.push(p("(수집 실패 또는 비공개)",{italics:true,color:"94A3B8"})); }
   if(Array.isArray(data.global_securities.common_themes)&&data.global_securities.common_themes.length){ children.push(h("8.6 글로벌 IB 공통 핵심 주제",2)); data.global_securities.common_themes.forEach(t=>children.push(bullet(t))); }
-  if(data.global_securities.wall_street_consensus){ children.push(h("8.7 월가 컨센서스",2)); children.push(p(data.global_securities.wall_street_consensus)); }
+  if(data.global_securities.wall_street_consensus){ var _w=data.global_securities.wall_street_consensus; var _ws=(_w&&typeof _w==="object")?Object.keys(_w).map(function(k){var v=_w[k];return k+": "+((v&&typeof v==="object")?Object.keys(v).map(function(a){return a+" "+v[a];}).join(", "):String(v));}).join("  /  "):String(_w); children.push(h("8.7 월가 컨센서스",2)); children.push(p(_ws)); }
   children.push(p("※ 해외 IB 원문은 고객 전용 — 공개 Insights·언론 보도 기반 요약입니다.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(글로벌 IB 데이터 없음)"));
 children.push(new Paragraph({children:[new PageBreak()]}));
