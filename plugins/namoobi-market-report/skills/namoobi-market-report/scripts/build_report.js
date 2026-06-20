@@ -426,7 +426,7 @@ if (data.analysis && data.analysis.summary) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("목   차",1));
-["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 5대 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends"].forEach(t=>children.push(p(t,{size:22,after:40})));
+["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends"].forEach(t=>children.push(p(t,{size:22,after:40})));
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("1. 글로벌 Top News 10",1));
@@ -614,11 +614,12 @@ if (data.crypto) {
 
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
-children.push(h("7. 한국 5대 증권사 리서치",1));
-const secLabels={shinhan:"신한투자증권",miraeasset:"미래에셋증권",samsung:"삼성증권",korea_inv:"한국투자증권",kiwoom:"키움증권"};
-const secVF={shinhan:["asset_allocation_view","자산배분 시각"],miraeasset:["etf_emerging_view","ETF·신흥국 시각"],samsung:["derivatives_view","파생·선물 시각"],korea_inv:["ib_china_view","IB·중국 시각"],kiwoom:["global_etf_view","글로벌 ETF·신흥국 시각"]};
+children.push(h("7. 한국 주요 증권사 리서치",1));
+const secLabels={samsung:"삼성증권",miraeasset:"미래에셋증권",korea_inv:"한국투자증권",shinhan:"신한투자증권",kiwoom:"키움증권",meritz:"메리츠증권",hana:"하나증권",kyobo:"교보증권",yuanta:"유안타증권",hyundai:"현대차증권"};
+const secVF={shinhan:["asset_allocation_view","자산배분 시각"],miraeasset:["etf_emerging_view","ETF·신흥국 시각"],samsung:["derivatives_view","파생·선물 시각"],korea_inv:["ib_china_view","IB·중국 시각"],kiwoom:["global_etf_view","글로벌 ETF·신흥국 시각"],meritz:["sector_view","섹터·반도체 시각"],hana:["china_view","중국·글로벌 시각"],kyobo:["bond_view","채권·매크로 시각"],yuanta:["daily_view","데일리 섹터 시각"],hyundai:["industrial_view","산업·방산 시각"]};
+const coreSet=new Set(["samsung","miraeasset","korea_inv","shinhan","kiwoom","meritz"]);
 if (data.securities) { let idx=0;
-  for(const key of Object.keys(secLabels)){ const sec=data.securities[key]; if(!sec)continue; idx++;
+  for(const key of Object.keys(secLabels)){ const sec=data.securities[key]; if(!sec||!coreSet.has(key))continue; idx++;
     children.push(h(`7.${idx} ${secLabels[key]}`,2));
     if(sec.strength) children.push(p(`핵심 강점: ${sec.strength}`,{bold:true,color:"1E40AF"}));
     if(Array.isArray(sec.channels)&&sec.channels.length) children.push(p(`주요 채널: ${sec.channels.join(' / ')}`,{italics:true,color:"475569"}));
@@ -626,8 +627,10 @@ if (data.securities) { let idx=0;
     const vf=secVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${sec[vf[0]]}`,{color:"0F766E"}));
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 리포트:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
     else children.push(p("(리포트 수집 실패 - 사이트 접근 제한)",{italics:true,color:"94A3B8"})); }
-  if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ children.push(h("7.6 5사 공통 핵심 주제",2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
-  if(data.securities.investor_type_recommendation){ children.push(h("7.7 투자자 유형별 추천 조합",2)); const rec=data.securities.investor_type_recommendation;
+  const others=Object.keys(secLabels).filter(k=>!coreSet.has(k)&&data.securities[k]);
+  if(others.length){ idx++; children.push(h(`7.${idx} 기타 증권사 (핵심 메시지 요약)`,2)); others.forEach(key=>{ const sec=data.securities[key]; const km=sec.key_message||"(수집)"; children.push(p(`${secLabels[key]}: ${km}`)); }); }
+  if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ idx++; children.push(h(`7.${idx} 공통 핵심 주제`,2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
+  if(data.securities.investor_type_recommendation){ idx++; children.push(h(`7.${idx} 투자자 유형별 추천 조합`,2)); const rec=data.securities.investor_type_recommendation;
     const rm=[["장기 자산배분형",rec.long_term_allocator],["해외주식 종목 픽킹",rec.overseas_stock_picker],["단기 트레이더",rec.short_term_trader],["ETF·패시브 투자자",rec.etf_passive],["중국 집중 투자자",rec.china_focused]];
     children.push(makeTable([2800,6560],[["유형","추천 조합"],...rm].map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc||"-",{width:[2800,6560][j],header:i===0,alt:i>0&&i%2===0,bold:j===0&&i>0}))})))); }
 }
@@ -680,7 +683,7 @@ if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("13. 주의 사항 및 출처",1));
-children.push(p("본 보고서는 AI가 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 5대 증권사·글로벌 IB 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다.",{italics:true}));
+children.push(p("본 보고서는 AI가 공개 데이터(Yahoo Finance, CoinGecko, 한국경제, 주요 증권사·글로벌 IB 공개 리서치 등)를 자동 수집·종합해 생성한 참고용 자료입니다.",{italics:true}));
 children.push(p("자동 생성(AI) 특성상 오류·환각이 포함될 수 있습니다. 1~8장은 출처 링크로 검증 가능하며, 9~12장은 AI 의견입니다.",{italics:true,color:"B45309"}));
 children.push(p("어떤 내용도 매수·매도 권유나 보장 수익을 약속하지 않으며, 투자 판단의 최종 책임은 이용자에게 있습니다.",{italics:true,color:"64748B"}));
 children.push(p(""));
