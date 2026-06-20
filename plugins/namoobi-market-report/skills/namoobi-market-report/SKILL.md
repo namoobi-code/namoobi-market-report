@@ -21,7 +21,7 @@ description: |
 > **원칙: "조용히 미표시(-)·carry-forward·stale 로 넘기지 말 것. 결함이 있으면 발송하지 말고 사용자에게 물어라."** 정상 예제(`D:\claudeCowork\GOODREPORT`) 수준을 못 맞추면 Phase 4.5 게이트에서 멈춘다. 아래는 그동안 반복적으로 깨지던 지점의 확정 규칙이다(상세·스키마는 `references/agents.md`).
 
 **공통 소스·폴백**
-- 증시·지수·환율·원자재: UsStockInfo MCP `get_historical_stock_prices(period="1y", interval="1wk")` **주봉**(일봉 금지 — 토큰·시간 낭비). 1주=직전 주봉. MCP 부재 시 **Claude in Chrome → Yahoo chart API**(`query1.finance.yahoo.com/v8/finance/chart/<TICKER>?range=1y&interval=1wk`, async IIFE·CORS). `web_fetch`·stooq 금지. `JPYKRW=X` 는 100엔 환산(current 보존·pct만). CNY/KRW = USD/KRW ÷ USD/CNY.
+- 증시·지수·환율·원자재·美ETF·크립토시계열: **`scripts/fetch_us.py`**(sandbox·stdlib·스레드 병렬, Yahoo+alternative.me, ~4초). 美10년=^TNX, 전체 국채커브·CAPEX·점도표는 USMacroExtras(FMP). 한국 지수/수급/시계열은 fetch_kr.py·fetch_semi.py.
 - 암호화폐: CoinInfo MCP 우선. `get_kimchi_premium` 이 null/부족이면 **CoinDesk MCP `fetch_spot_tick`**(upbit `<SYM>-KRW` + binance `<SYM>-USDT`)로 직접 계산. 공포·탐욕 = `api.alternative.me/fng`. 한국 거래소(업비트·빗썸) API 는 Chrome 차단 → CoinDesk MCP 로만.
 - 모든 trend/추세 텍스트는 **한글**. **추정 금지** — 도구·검색으로 확인된 값만, 없으면 null(기억으로 채우지 말 것).
 - **(FMP 무료 = 미국만 활용)** 美 국채금리/커브는 `economics treasury-rates`, 미국 대형주 월가 컨센서스·목표주가는 `analyst price-target-consensus`/`grades`, 빅테크 capex 는 `statements cashflow` 로 보강. 13F·indexes·news·**한국 데이터**는 FMP 상위플랜 필요(미보유 시 기존 Yahoo/Chrome 유지). **Bigdata MCP 는 구독 만료로 사용 불가.**
@@ -74,9 +74,9 @@ description: |
 [Phase 1.0: 캐시 체크 — 매 실행]  각 항목 최신 이벤트 마커를 싸게 1회 조회 → `nmr_cache.py check <item> <마커>` → reuse(캐시 주입·조사 스킵)/due(조사). 일정 변동 대비 매번 실제 확인
         ↓
 [Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합)]
-  ├─ News / Markets(지수 현재가+시계열+추세 통합) / Commodities(통합) / Crypto(통합) / UsEtf(통합)
+  ├─ News / Crypto(정성: CoinInfo)
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk
-  ├─ [bash 병렬 tool-call] scripts/fetch_kr.py + scripts/fetch_semi.py  (한국 시장데이터·시계열, Chrome 불필요)
+  ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py  (美/글로벌·한국 시세·시계열, Chrome 불필요)
   └─ SecuritiesAgent(한국 5대)=메인세션 Chrome — 배치 발행 직후 동시 진행(대기 겹침). 구 IndexSeries·MarketsTrend·CommoditySeries·UsEtfTrend·CryptoSeries 흡수
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py → charts/*.png
@@ -137,7 +137,7 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 상세 프롬프트와 각 에이전트의 반환 JSON 스키마는 **`references/agents.md`** 를 읽고 그대로 사용한다.
 
 핵심 규칙:
-- Phase 1의 **모든 수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Markets(지수+시계열+추세 통합)·Commodities(통합)·Crypto(통합)·UsEtf(통합)·KoreaSemiTheme(선정·AUM·노트만)·GlobalSecurities + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk. **한국 시장데이터·시계열은 같은 메시지에서 `scripts/fetch_kr.py`·`scripts/fetch_semi.py` 를 bash 병렬 tool-call 로 실행**(스레드 병렬, 각 ~1~10초; 에이전트 아님). **SecuritiesAgent(한국 5대)는 메인세션 Chrome 전용** — 배치 발행 직후 동시 수집해 대기를 겹친다. (구 IndexSeries·MarketsTrend·CommoditySeries·UsEtfTrend·CryptoSeries 도메인 흡수.)
+- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2) USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent(한국 5대)는 메인세션 Chrome 전용.**
 - AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**. 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
