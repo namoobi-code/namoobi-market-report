@@ -28,13 +28,13 @@
 2. 해당 브라우저에 발송 계정 로그인 (https://mail.google.com/mail/u/0/)
    — 로그인 안 돼 있으면 비밀번호 입력은 정책상 Claude 가 대신 못 함 → 사용자에게 요청
    — **Gmail 이 아직 안 켜져 있어도 됨**: Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 바로 `navigate` 하면 받은편지함이 열린다. **로그인은 항상 유지돼 있으므로** 별도 로그인 절차 없이 그대로 작성·발송하면 된다.
-3. **첨부할 PDF** 가 **연결 폴더(D:\claudeCowork)** 에 있을 것. ⚠️ file_upload 는 사용자 PC 경로만 받는다 — outputs 의 VM 경로(`/sessions/...`)는 거부되므로, 첨부는 반드시 **연결 폴더의 Windows 경로**(예: `D:\claudeCowork\글로벌금융시장_종합시황보고서_YYYYMMDD.pdf`)로 지정한다. (v3.4.3 실측: outputs 경로·VM 경로 모두 업로드 거부, `D:\claudeCowork\...` 만 성공)
+3. **첨부할 docx** 가 **연결 폴더(D:\claudeCowork)** 에 있을 것. ⚠️ file_upload 는 사용자 PC 경로만 받는다 — outputs 의 VM 경로(`/sessions/...`)는 거부되므로, 첨부는 반드시 **연결 폴더의 Windows 경로**(예: `D:\claudeCowork\global_market_report_YYYYMMDD_HHMM.docx`)로 지정한다. (v3.4.3 실측: outputs 경로·VM 경로 모두 업로드 거부, `D:\claudeCowork\...` 만 성공)
 
-## 발송 절차 (PDF 생성 후 추가 입력 없이 자동 수행)
+## 발송 절차 (docx 생성 후 추가 입력 없이 자동 수행)
 
 사용자가 자동발송을 승인한 세션에서는 발송 직전 재확인도 생략한다.
 
-1. **PDF 절대경로 확보** — **연결 폴더 Windows 경로** 기준 (예: `D:\claudeCowork\글로벌금융시장_종합시황보고서_YYYYMMDD.pdf`). 같은 날짜 파일이 있어 `_HHMM` 접미사로 저장됐다면 그 실제 파일명을 사용.
+1. **docx 절대경로 확보** — **연결 폴더 Windows 경로** 기준 (예: `D:\claudeCowork\global_market_report_YYYYMMDD_HHMM.docx`). 같은 날짜 파일이 있어 `_HHMM` 접미사로 저장됐다면 그 실제 파일명을 사용.
 2. **탭 준비** — `tabs_context_mcp(createIfEmpty=true)`
    - "Tabs can only be moved to and from normal windows" 오류 → 일반 크롬 창 없음.
      사용자에게 일반 창을 열어달라 요청 후 **재시도** (열리면 보통 즉시 성공)
@@ -48,11 +48,11 @@
    파일이 비어 있거나 유효 주소가 0개(전부 `//` 주석)이면 이 단계를 건너뛴다.
 5. **제목 입력** — 반드시 **제목 칸을 새로 클릭한 뒤** 입력.
    형식: `[글로벌 시황 보고서] {YYYY년 M월 D일} 종합 보고서 송부`
-6. **본문 입력** — 본문 영역 클릭 후: 핵심 헤드라인 3개 + 포트폴리오 톤 1줄 + "자세한 내용은 첨부 PDF 참고"
-7. **PDF 첨부** — 첨부 버튼 클릭 금지(네이티브 파일창은 제어 불가).
+6. **본문 입력** — 본문 영역 클릭 후: 핵심 헤드라인 3개 + 포트폴리오 톤 1줄 + "자세한 내용은 첨부 docx 참고"
+7. **docx 첨부** — 첨부 버튼 클릭 금지(네이티브 파일창은 제어 불가).
    `find("file attachment input (type=file)")` 로 숨은 input 의 ref 획득 →
-   `file_upload(paths=["D:\\claudeCowork\\...pdf"], ref=..., tabId=...)` 로 직접 첨부 (연결 폴더 Windows 경로 사용 — outputs/VM 경로는 거부됨).
-8. **검증** — **screenshot/zoom 으로만** 받는사람(To)·숨은참조(BCC) 칩 개수·제목·본문·첨부(PDF 파일명/용량) 확인
+   `file_upload(paths=["D:\\claudeCowork\\...docx"], ref=..., tabId=...)` 로 직접 첨부 (연결 폴더 Windows 경로 사용 — outputs/VM 경로는 거부됨).
+8. **검증** — **screenshot/zoom 으로만** 받는사람(To)·숨은참조(BCC) 칩 개수·제목·본문·첨부(docx 파일명/용량) 확인
 9. **발송** — `보내기` 클릭 → "메시지 전송됨" 토스트 확인 (#sent URL 전환, 임시보관함 비워짐도 신호)
 
 ## ⚠️ 흔한 함정 (반드시 회피)
@@ -78,7 +78,7 @@
 | Gmail 미로그인 (드묾) | 보통은 로그인 상시 유지. 그래도 로그인 화면이면 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
 | 작성창 닫힘/초안만 남음 | #drafts 에서 초안 재개 |
 | 칩이 사람 이름으로 표시 | 주소록 매칭 — 도메인/주소로 확인, 정상일 수 있음 |
-| 첨부 실패 / "only files the user has shared" | PDF 를 **연결 폴더(D:\claudeCowork) Windows 경로**로 첨부 (outputs·`/sessions/...` VM 경로는 업로드 거부됨) |
+| 첨부 실패 / "only files the user has shared" | docx 를 **연결 폴더(D:\claudeCowork) Windows 경로**로 첨부 (outputs·`/sessions/...` VM 경로는 업로드 거부됨) |
 | 숨은참조 칸이 안 보임 | 받는사람 칸 우측 `숨은참조` 링크 클릭해 BCC 칸 펼치기 |
 | 수신자 파일 없음 | 예약 모드는 예약메일수신자.txt, 일반 모드는 메일수신자.txt. 해당 파일 없으면 BCC 없이 To(namoobi)만 발송 + 결과 보고에 "BCC 파일 없음" 명시 |
 | 특정 수신자만 일시 제외하고 싶음 | 해당 줄 맨 앞에 `//` 추가 (주소 보존). 빌더가 `//` 라인을 BCC 대상에서 제외 |
