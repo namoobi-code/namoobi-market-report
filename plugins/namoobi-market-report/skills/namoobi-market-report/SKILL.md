@@ -24,6 +24,7 @@ description: |
 - 증시·지수·환율·원자재: UsStockInfo MCP `get_historical_stock_prices(period="1y", interval="1wk")` **주봉**(일봉 금지 — 토큰·시간 낭비). 1주=직전 주봉. MCP 부재 시 **Claude in Chrome → Yahoo chart API**(`query1.finance.yahoo.com/v8/finance/chart/<TICKER>?range=1y&interval=1wk`, async IIFE·CORS). `web_fetch`·stooq 금지. `JPYKRW=X` 는 100엔 환산(current 보존·pct만). CNY/KRW = USD/KRW ÷ USD/CNY.
 - 암호화폐: CoinInfo MCP 우선. `get_kimchi_premium` 이 null/부족이면 **CoinDesk MCP `fetch_spot_tick`**(upbit `<SYM>-KRW` + binance `<SYM>-USDT`)로 직접 계산. 공포·탐욕 = `api.alternative.me/fng`. 한국 거래소(업비트·빗썸) API 는 Chrome 차단 → CoinDesk MCP 로만.
 - 모든 trend/추세 텍스트는 **한글**. **추정 금지** — 도구·검색으로 확인된 값만, 없으면 null(기억으로 채우지 말 것).
+- **(FMP 무료 = 미국만 활용)** 美 국채금리/커브는 `economics treasury-rates`, 미국 대형주 월가 컨센서스·목표주가는 `analyst price-target-consensus`/`grades`, 빅테크 capex 는 `statements cashflow` 로 보강. 13F·indexes·news·**한국 데이터**는 FMP 상위플랜 필요(미보유 시 기존 Yahoo/Chrome 유지). **Bigdata MCP 는 구독 만료로 사용 불가.**
 
 **3.1.1 한국 지수 일봉 캔들** — 차트는 반드시 `scripts/gen_kr_candle.py`(다른 한국지수 생성기 금지). 입력 `nmr_kr_ohlcv.json` 의 OHLC = 야후 `^KS11`/`^KQ11` `interval=1d` **일봉**. 거래량은 다음금융 `accTradeVolume` 로 교체(야후 ^KQ11 손상)하고 비거래일 유령행 제거(KRX 거래일 기준). 일별 수급(`*_flows_daily`)=다음금융 `market_index/days`(Chrome 동일출처 fetch, 1년 오름차순). ⚠️ 다음 charts API `/charts/A{code}/days` 는 403 → 한국 종목/ETF 시계열은 **야후 `.KS`/`.KQ`**.
 **3.1.2 종목 수급** — 다음금융 `investor_purchase` API(네이버 차단). 코스피·코스닥 외국인·기관 순매수/순매도 상위 종목 → 빌더가 외국인·기관 병합표로 렌더.
