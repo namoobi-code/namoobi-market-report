@@ -4,6 +4,8 @@
 
 ## 추가 수집 에이전트·시계열 사양 (현행 — Phase 1 병렬, 결과는 `nmr_*.json` 저장·1줄 요약만 반환)
 
+> ℹ️ `references/data-schema.md` 는 **온디맨드 참조**다 — 스키마 분쟁/신규 필드 설계 때만 열고, 매 실행 로딩하지 않는다(스키마는 본 파일 반환예시 + merge.py/build_report.js 에 내장).
+
 - **美/글로벌 시세(지수·환율·원자재·美ETF·크립토시계열) = `scripts/fetch_us.py`** (sandbox·스레드 병렬 ~4초) → nmr_markets/indexseries/series2/commod/usetf/etfseries/crypto_series.json. (구 MarketsAgent·CommoditiesAgent·UsEtfAgent 폐지·흡수.)
 - **한국 시장데이터 = `scripts/fetch_kr.py` (sandbox·stdlib, Chrome/에이전트 불필요)**: 야후 `^KS11`/`^KQ11` 일봉 OHLC + 다음 `market_index/days` 거래량·1년 일별 수급 → `nmr_kr_ohlcv.json`(`kospi_ohlcv`/`kosdaq_ohlcv`/`kospi_flows_daily`/`kosdaq_flows_daily`); 다음 `investor_purchase` 외국인·기관 순매수/순매도 상위 → `nmr_kr_invest.json`; FRED HY OAS(비차단·빠른실패) → `nmr_hy_series.json`. **스레드 병렬 단독 ~10초**, Phase 1 단일 메시지에서 Agent 발행과 함께 **bash 병렬 tool-call** 로 실행. → `gen_kr_candle.py`. (구 KoreaTechFlowsAgent 폐지.)
 - **반도체/테마 시계열 = `scripts/fetch_semi.py` (sandbox·stdlib)** → `nmr_kr_series.json`(테마 8·종목 10·ETF 20 시계열, 스레드 병렬 **~1초**). **선정·AUM·노트·테마 방향/코멘트는 KoreaSemiThemeAgent 가 `nmr_semi.json` 으로 계속 제공**(fetch_semi.py 와 **정확히 같은 이름** — merge.py 가 이름으로 join; AUM 상위 20 멤버십 변동 시 에이전트가 플래그→fetch_semi.py 목록 갱신). → `gen_rest_charts.py`(theme_*/semi_s_*/semi_e_*).
@@ -205,9 +207,10 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
     ② **시나리오 라벨**: 계산이 어려우면 구체 %대신 **범위 + 가정**으로만 표기하고(예: "연 +8~14% (강세 지속 가정)"), `basis` 에 "정성 시나리오 가정치 — 과거 수익률이며 미래 보장 아님" 을 적는다.
     - 어느 경우든 false precision(예: "연 13.7%") 금지. `basis` 필드는 **필수**.
 - `action_items`: 단기·중기·장기 체크리스트 5~8개
+- **(P3 출력 길이 상한 — 출력 토큰 절감)** macro_view ≤4문장, 각 `key_theme.comment` ≤2문장, 각 `key_risk`·`action_item` 1줄, `asset_view` 항목당 1줄. **분석 깊이·근거·수치는 유지**하되 반복·군더더기 수식어만 줄인다.
 - 저장 후 node 로 JSON.parse 검증까지 수행하도록 지시.
 
-**반환 JSON**: `data-schema.md` 의 analysis 섹션과 동일.
+**반환 JSON**: 위 필드 구조대로 작성(상세 스키마는 **필요시에만** `data-schema.md` 참조 — 매 실행 로딩 불필요).
 
 
 ## (v3.5.0) 신규 섹션 데이터 수집 — 추가 필드
@@ -245,7 +248,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - S&P 500: 분기 리밸런싱 일정(발표=둘째 금요일경, 발효=셋째 금요일 마감 후 다음 영업일 개장 전), 최근 2개 분기(직전·당분기) 편입/편출 + 그 사이 비정기(M&A) 변경, 편입 기준(시총 ~$20.5B·흑자·유동성·float·12개월 경과·섹터 대표성), 최신 기준 변경(예: MegaCap 컨설팅 결과).
 - 나스닥 100: 연례 재구성(12월)·분기 리뷰·임시 변경의 편입/편출, 2026-05-01 패스트엔트리 룰 변경(상위 ~40위·15거래일 조기편입 / 10% float 폐지→3x cap / 10bp 중간편출 폐지→125위 밖 순위기반 정례편출), 패스트엔트리 후보 대형 IPO(SpaceX·OpenAI·Anthropic 등 시총·상장상태).
 **검색 예**: `"S&P 500 index changes <month> 2026 spglobal"`, `"Nasdaq-100 annual reconstitution December 2025"`, `"Nasdaq 100 quarterly changes June 2026"`, `"Nasdaq 100 fast entry rule 2026"`, `"SpaceX OpenAI Anthropic IPO 2026 valuation"`.
-**저장**: `markets.index_rebalance` = {sp500:{schedule[], events[], criteria[], criteria_note}, nasdaq100:{schedule[], events[], rule_change{rows[]}, candidates[]}, comment, asof}. 각 편입/편출 항목 `{ticker, name, biz(사업 한 줄), reason(편입/편출 사유)}`. 스키마 상세는 `data-schema.md` (v3.6.9) 참조. 별도 `nmr_rebalance.json` 저장 후 Phase 3 병합. 날짜·종목은 1차 출처로 grounding, 미확정은 `미확인` 표기.
+**저장**: `markets.index_rebalance` = {sp500:{schedule[], events[], criteria[], criteria_note}, nasdaq100:{schedule[], events[], rule_change{rows[]}, candidates[]}, comment, asof}. 각 편입/편출 항목 `{ticker, name, biz(사업 한 줄), reason(편입/편출 사유)}`. 스키마 상세는 **필요시** `data-schema.md` 참조(매 실행 로딩 불필요). 별도 `nmr_rebalance.json` 저장 후 Phase 3 병합. 날짜·종목은 1차 출처로 grounding, 미확정은 `미확인` 표기.
 
 ### KoreaTechAgent / 수급 (3.1.1·3.1.2 — 1년 일별)
 - `nmr_kr_ohlcv.json` 의 `kospi_flows_daily`·`kosdaq_flows_daily` 는 **1년치 일별** 투자자 순매수 `[["YYYY-MM-DD", 외국인억원, 기관억원, 개인억원]..]` (1일치만 넣으면 누적순매수 차트가 평평해짐 — 반드시 1년).
