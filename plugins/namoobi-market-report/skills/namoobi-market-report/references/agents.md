@@ -4,24 +4,24 @@
 
 ## 추가 수집 에이전트·시계열 사양 (현행 — Phase 1 병렬, 결과는 `nmr_*.json` 저장·1줄 요약만 반환)
 
-- **IndexSeriesAgent → `nmr_indexseries.json`**: 17개 지수 1년 주봉 종가(kospi,kosdaq,sp500,nasdaq,dow,vix,dxy,us10y,nikkei,shanghai,hsi,taiwan,sensex,vietnam,stoxx50,dax,ftse) → `gen_rest_charts.py` 스파크라인. 원화 5쌍(usd/eur/jpy/cny/hkd_krw) 1년 주봉은 `nmr_series2.json.fx`.
+- **시계열·추세 통합(P3)**: MarketsAgent(본문 2)가 17개 지수 1년 주봉을 **1회** 수집해 현재가·등락률 + `nmr_indexseries.json`(17지수 시계열) + `nmr_series2.json.fx`(원화 5쌍 usd/eur/jpy/cny/hkd_krw + usd_jpy/usd_cny) + `nmr_trendtext.json`(asia/europe/fx 2문장 한글 추세)까지 동시 산출. (구 IndexSeriesAgent·MarketsTrendAgent 흡수 — 중복 야후 호출 제거.)
 - **KoreaTechFlowsAgent → `nmr_kr_ohlcv.json`**: ① `kospi_ohlcv`/`kosdaq_ohlcv` = 야후 `^KS11`/`^KQ11` `interval=1d` 일봉 OHLC(거래량은 다음 `accTradeVolume` 로 교체, 비거래일 유령행 제거) ② `kospi_flows_daily`/`kosdaq_flows_daily` = 다음 `market_index/days` 1년 일별 외국인·기관·개인 순매수(Chrome 동일출처 fetch, 오름차순) → `gen_kr_candle.py`. `korea_investor_stocks`(다음 `investor_purchase`, 코스피·코스닥 외국인·기관 순매수/순매도 상위)·`korea_leading`(indexergo/통계청) 포함. 한국 종목/ETF 시계열은 야후 `.KS`/`.KQ`(다음 charts API 403).
 - **KoreaSemiThemeAgent → `nmr_kr_series.json`**: 테마 8종(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주) 10년 월별 + 반도체/AI 종목 10 + ETF **정확히 20**(다음 AUM 상위, 단일종목 레버리지 포함) series → `gen_rest_charts.py`(theme_*/semi_s_*/semi_e_*).
 - **경기선행지수**: `indexergo.com/series/?detailId=11601&frq=M` echarts 순환변동치 시계열 → `nmr_leading_series.json` → `gen_leading_chart.py`.
-- **CryptoSeriesAgent → `nmr_crypto_series.json`**: BTC·ETH·XRP·SOL 1년(가격·거래량) + 공포·탐욕 1년 → `gen_rest_charts.py`(coin_*/fng).
-- **UsEtfAgent → `nmr_usetf.json`/`nmr_etfseries.json`**: 미국 ETF 30종(③ 테마에 **DRAM**=Roundhill Memory 항상) 현재가·1주~1년·1년 주봉. 추세평가는 **UsEtfTrendAgent → `nmr_usetf_trends.json`**.
+- **CryptoAgent(본문 4) 통합(P3)**: 시장개요·공포탐욕·김프 + **1년 시계열** `nmr_crypto_series.json`(BTC·ETH·XRP·SOL 가격·거래량 + 공포탐욕 1년)을 한 에이전트가 산출 → `gen_rest_charts.py`(coin_*/fng). (구 CryptoSeriesAgent 흡수.)
+- **UsEtfAgent → `nmr_usetf.json`/`nmr_etfseries.json`**: 미국 ETF 30종(③ 테마에 **DRAM**=Roundhill Memory 항상) 현재가·1주~1년·1년 주봉 **+ 각 ETF 2문장 한글 추세평가(`nmr_usetf_trends.json`)** 를 1회에 산출. (구 UsEtfTrendAgent 흡수.)
 - **IndexRebalanceAgent → `nmr_rebalance.json`**: S&P500·나스닥100 편입/편출·일정·기준·룰변경(1차 출처 press.spglobal.com·ir.nasdaq.com). **[P2 캐시] 매 실행 S&P/나스닥 최신 구성변경일을 마커로 `check index_rebalance <변경일>` → reuse 면 스킵·캐시; due/확인불가 면 조사 후 `set`.**
 - **USMacroExtrasAgent → `nmr_usmacro.json`**: `bigtech_capex`(MSFT·Alphabet·Amazon·Meta 연간) — **실적연도 capex 는 FMP `statements`(`endpoint=cashflow-statement`, period=annual)의 `capitalExpenditure`(음수→절대값)로 정확 수집**(ToolSearch `+statements cashflow` 로 로드 — 현 플랜에서 statements 가용 확인됨, WebSearch 추정 대체). 차기연도 추정(**2027(E) 항상 채움**)·가이던스만 WebSearch. + `fomc_dotplot`(2026·2027·2028말·장기중립 각 행 **jun·mar 중간값 모두**, 빈칸 금지 — 점도표는 API 없음·WebSearch). **병합 carry-forward**: 이번 런에 `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 비면 직전 `_market_report_data/report_data_*.json` 에서 가져와 채움. **[P2 캐시] 매 실행 최신 FOMC SEP 발표일을 마커로 `nmr_cache.py check dot_plot <SEP일>` → reuse 면 점도표 조사 스킵·`get`; due/확인불가 면 조사 후 `set dot_plot <as_of> <SEP일>`.**
-- **CommoditySeriesAgent → `nmr_commod.json`**: energy/metals/agriculture/strategic_metals 1년 주봉 + 각 행 2문장 한글 trend. **MarketsTrendAgent → `nmr_trendtext.json`**: asia/europe/fx 2문장 한글 추세평가 + fx_series.
+- **CommoditiesAgent(본문 3) 통합(P3)**: 에너지·금속·농산물·전략광물 현재가·등락률 + **1년 주봉 `nmr_commod.json`** + 각 행 2문장 한글 trend 를 1회 수집으로 산출. (구 CommoditySeriesAgent 흡수.)
 - **NewsBerkAgent(AINews+Berkshire) → `nmr_news2.json`**: `events_calendar_longterm` ★★★ 8~10건, `berkshire` 13F(new_buys/added/reduced/exited/top_holdings≤20, 스키마 정확히), `ai_trends` 한/영 병기. **[P2 캐시] 매 실행 Berkshire 최신 13F-HR 제출일(EDGAR)을 마커로 `check berkshire <제출일>` → reuse 면 13F 조사 스킵·캐시; due/확인불가 면 조사 후 `set berkshire`.**
 - **HY 스프레드**: FRED `BAMLH0A0HYM2` **월별** series → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한). **[P2 캐시] 매 실행 FRED 최신 데이터일(월)을 마커로 `check hy_spread <YYYY-MM>` → reuse 면 히스토리 재사용; due(새 달) 면 최신 점 추가 후 `set`.**
 - **차트 생성(Phase 1.5)** = `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` **4종만** (`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 폐기).
 - **7 한국 5대 증권사** = 메인세션 Chrome 개별 `navigate→get_page_text`(WebSearch 일괄 우회 금지), 키움 `?dummyVal=0`(iframe 이면 텔레그램 t.me/s/KiwoomResearch 보조). **7·8 신선도** = Daily≤D-1·Weekly/Monthly≤D-3(주말은 금요일까지), 미충족이면 stale 금지·빈값.
 - **품질 게이트(Phase 4.5)**: `scripts/verify_report.js` 가 위 항목을 코드로 검사. 미달이면 발송 차단·사용자 질문(조용히 "-"/stale 통과 금지).
 
-7개 에이전트 전부 **general-purpose** 타입으로 호출한다.
-Phase 1 = News/Markets/Commodities/Crypto/Securities/GlobalSecurities 6개를 **단일 메시지에 동시 발행**.
-Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
+수집 에이전트는 전부 **general-purpose** 타입으로 호출한다.
+Phase 1 = **모든 수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Markets(지수+시계열+추세 통합)·Commodities(통합)·Crypto(통합)·UsEtf(통합)·KoreaTechFlows·KoreaSemiTheme·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 배치 발행 직후 동시 진행(대기 겹침).
+Phase 2 = AnalysisAgent 를 Phase 1 수집 결과와 함께 **단독 호출**(차트 생성 후).
 
 ## 공통 반환각(Hallucination) 방지 규칙 — 모든 에이전트 프롬프트에 그대로 포함 (v3.3.0)
 
