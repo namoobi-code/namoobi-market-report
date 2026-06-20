@@ -76,8 +76,8 @@ description: |
 [Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합)]
   ├─ News / Crypto(정성: CoinInfo)
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk
-  ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py  (美/글로벌·한국 시세·시계열, Chrome 불필요)
-  └─ SecuritiesAgent(한국 5대)=메인세션 Chrome — 배치 발행 직후 동시 진행(대기 겹침). 구 IndexSeries·MarketsTrend·CommoditySeries·UsEtfTrend·CryptoSeries 흡수
+  ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_kiwoom_tele.py  (美/글로벌·한국 시세·시계열·키움 텔레그램, Chrome 불필요)
+  └─ SecuritiesAgent=신한·미래에셋·삼성·한투 4사만 메인세션 Chrome(4탭 동시 navigate·JS 타깃추출); 키움은 fetch_kiwoom_tele.py. 배치 발행 직후 동시 진행
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py → charts/*.png
         ↓
@@ -137,7 +137,7 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 상세 프롬프트와 각 에이전트의 반환 JSON 스키마는 **`references/agents.md`** 를 읽고 그대로 사용한다.
 
 핵심 규칙:
-- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2) USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent(한국 5대)는 메인세션 Chrome 전용.**
+- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2) USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=신한·미래에셋·삼성·한투 4사만 메인세션 Chrome(4탭 동시 navigate + `javascript_tool` 타깃추출, get_page_text 덤프 금지); 키움은 `fetch_kiwoom_tele.py`.**
 - AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**. 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
