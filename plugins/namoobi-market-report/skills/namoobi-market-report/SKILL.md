@@ -38,7 +38,7 @@ description: |
 **6.2/6.3 코인** — BTC·ETH·XRP·SOL 1년 + 공포·탐욕 1년 차트. 김프 4종(특히 SOL) 항상 채움.
 **7 한국 5대 증권사 = Chrome-first(필수)** — 신한·미래에셋·삼성·한국투자·키움 공식 리서치 페이지를 **메인세션 Claude in Chrome 으로 개별 navigate→get_page_text**(JS 렌더라 WebSearch 일괄 우회 금지 — 접근 가능한데 "미확인" 오판 사고 방지). 키움은 `?dummyVal=0`, iframe 이면 키움만 텔레그램(`t.me/s/KiwoomResearch`) 보조.
 **7·8 신선도** — Daily≤D-1, Weekly/Monthly≤D-3(주말은 금요일까지). 미충족이면 **stale 로 채우지 말고 빈값**("기준일 충족 최신 공개 자료 미확인"). 글로벌 IB(UBS·GS·JPM·MS·BlackRock)는 WebSearch+Bigdata MCP(Chrome 금지=메인세션과 충돌).
-**병합 carry-forward** — `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 이번 런에 비면 직전 `_market_report_data/report_data_*.json` 에서 가져와 채운다(분기/월 단위로만 변함).
+**슬로우체인지 캐시(P2) + carry-forward** — Phase 1 전 `python3 scripts/nmr_cache.py due <오늘>` 로 **점도표·버핏13F·지수리밸런싱·HY히스토리·주의사항/출처**의 갱신요부 판단. `reuse` 면 해당 조사 스킵하고 `nmr_cache.py get <item>` 캐시값 주입, `due`(또는 캐시없음) 면 평소대로 조사 후 `nmr_cache.py set <item> <as_of> [next_refresh]` 갱신. 트리거 동적계산(13F=분기말+45일, 리밸런싱=3·6·9·12월 셋째 금요일, HY=월 변경, FOMC=기록된 next_refresh=다음 SEP 회의일). **불확실/미확인이면 조사(stale 금지)**, 캐시값도 보고서에 as_of 명시. 캐시=`_market_report_data/nmr_cache.json`. (백업: 위 실패 시 직전 report_data 폴백.)
 **차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` **4종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기).
 **작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
 
@@ -70,6 +70,8 @@ description: |
 
 ```
 [Phase 0: 사전 점검]  실행 모드 판정(예약/일반) / 날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
+        ↓
+[Phase 1.0: 캐시 체크]  python3 scripts/nmr_cache.py due <오늘> → 점도표·13F·리밸런싱·HY·주의사항 reuse(조사 스킵·캐시 주입) / due(조사) 결정
         ↓
 [Phase 1: 병렬 수집 — 서브에이전트를 단일 메시지로 동시 발행]
   ├─ NewsAgent / MarketsAgent / CommoditiesAgent / CryptoAgent
