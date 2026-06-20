@@ -11,7 +11,7 @@
 - **CryptoSeriesAgent → `nmr_crypto_series.json`**: BTC·ETH·XRP·SOL 1년(가격·거래량) + 공포·탐욕 1년 → `gen_rest_charts.py`(coin_*/fng).
 - **UsEtfAgent → `nmr_usetf.json`/`nmr_etfseries.json`**: 미국 ETF 30종(③ 테마에 **DRAM**=Roundhill Memory 항상) 현재가·1주~1년·1년 주봉. 추세평가는 **UsEtfTrendAgent → `nmr_usetf_trends.json`**.
 - **IndexRebalanceAgent → `nmr_rebalance.json`**: S&P500·나스닥100 편입/편출·일정·기준·룰변경(1차 출처 press.spglobal.com·ir.nasdaq.com).
-- **USMacroExtrasAgent → `nmr_usmacro.json`**: `bigtech_capex`(MSFT·Alphabet·Amazon·Meta 연간, **2027(E) 항상 채움**) + `fomc_dotplot`(2026·2027·2028말·장기중립 각 행 **jun·mar 중간값 모두**, 빈칸 금지). **병합 carry-forward**: 이번 런에 `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 비면 직전 `_market_report_data/report_data_*.json` 에서 가져와 채움.
+- **USMacroExtrasAgent → `nmr_usmacro.json`**: `bigtech_capex`(MSFT·Alphabet·Amazon·Meta 연간) — **실적연도 capex 는 FMP `statements`(`endpoint=cashflow-statement`, period=annual)의 `capitalExpenditure`(음수→절대값)로 정확 수집**(ToolSearch `+statements cashflow` 로 로드 — 현 플랜에서 statements 가용 확인됨, WebSearch 추정 대체). 차기연도 추정(**2027(E) 항상 채움**)·가이던스만 WebSearch. + `fomc_dotplot`(2026·2027·2028말·장기중립 각 행 **jun·mar 중간값 모두**, 빈칸 금지 — 점도표는 API 없음·WebSearch). **병합 carry-forward**: 이번 런에 `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 비면 직전 `_market_report_data/report_data_*.json` 에서 가져와 채움.
 - **CommoditySeriesAgent → `nmr_commod.json`**: energy/metals/agriculture/strategic_metals 1년 주봉 + 각 행 2문장 한글 trend. **MarketsTrendAgent → `nmr_trendtext.json`**: asia/europe/fx 2문장 한글 추세평가 + fx_series.
 - **NewsBerkAgent(AINews+Berkshire) → `nmr_news2.json`**: `events_calendar_longterm` ★★★ 8~10건, `berkshire` 13F(new_buys/added/reduced/exited/top_holdings≤20, 스키마 정확히), `ai_trends` 한/영 병기.
 - **HY 스프레드**: FRED `BAMLH0A0HYM2` **월별** series → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한).
@@ -58,7 +58,7 @@ Phase 2 = AnalysisAgent 를 6개 결과와 함께 **단독 호출**.
 
 **임무**: 글로벌 금융시장 Top News 10 + 향후 2주 주요 이벤트 캘린더 + 원화 톤 코멘트.
 
-**도구**: NaverSearch MCP(있으면), web_fetch(한국경제 등), WebSearch, Claude in Chrome(가능하면 한국경제 https://www.hankyung.com/finance).
+**도구 (커넥터 우선 · WebSearch 는 보조)**: ① **NaverSearch MCP `search_news`** — 국내·한국어 시황/속보 1순위 ② **UsStockInfo MCP `get_finance_news`(ticker)** — 미국 종목/지수 뉴스(예 NVDA·AAPL·TSLA) ③ web_fetch(한국경제 등 1차 매체 본문) ④ WebSearch — 위 커넥터로 안 잡히는 글로벌·이벤트 보강용. ToolSearch 로 `+NaverSearch news`·`+UsStockInfo news` 로드 후 사용.
 naver.com 도메인은 Chrome 에서 차단될 수 있음 → NaverSearch MCP 또는 web_fetch 로 대체.
 
 **프롬프트 골자**:
@@ -238,7 +238,7 @@ gainers/losers/dominance 는 간헐 오류(429 등) → null/빈배열로 두고
 
 **임무**: 해외 주요 IB 5사(UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock)의 최신 하우스 뷰 수집. SKILL.md 부록 B 의 강점표를 프롬프트에 포함해 각 사의 강점 영역 시각을 우선 수집한다.
 
-**도구**: WebSearch 주력 (예: "UBS CIO daily view", "Goldman Sachs S&P 500 target", "Morgan Stanley Mike Wilson outlook", "BlackRock weekly commentary"), mcp__workspace__web_fetch 로 공개 Insights 페이지 보강. Bigdata.com MCP `bigdata_search` 가 있으면 활용.
+**도구**: WebSearch 주력 (예: "UBS CIO daily view", "Goldman Sachs S&P 500 target", "Morgan Stanley Mike Wilson outlook", "BlackRock weekly commentary"), mcp__workspace__web_fetch 로 공개 Insights 페이지 보강. UsStockInfo MCP `get_recommendations` 로 월가 컨센서스 보조 가능. (⚠️ Bigdata.com MCP 는 구독 종료로 **사용 불가** — 호출 금지.)
 Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgent 와 충돌).
 
 **주의**:
@@ -298,7 +298,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `markets.korea_leading`: [{period(YYYY.MM), mom(전월비 +x.xp), note}] — 통계청 산업활동동향 경기선행지수 순환변동치 최근 3~4개월(기준선 100 상회=확장). `markets.korea_leading_comment` 선택.
 - `markets.korea_themes`: [{theme, direction(▲ 강세/▼ 부정/■ 양면), comment}] — 순환매 관점 주요 테마(반도체·조선·방산·전력[전력기기·송배전·ESS·원전]·증권·로봇[피지컬AI]·우주). 방향은 정성 평가. `markets.korea_themes_intro`/`korea_themes_comment` 선택.
 - `markets.us_credit`: {hy_oas, hy_yield, implied_ust, comment} — 美 하이일드. FRED ICE BofA OAS=`BAMLH0A0HYM2`, 유효수익률=`BAMLH0A0HYM2EY` (fred.stlouisfed.org/series/... 를 Chrome get_page_text 로 현재값 확인). 내재국채=유효수익률−OAS. ICE 저작권상 **현재값·요약통계만** 표기.
-- `markets.bigtech_capex`: {rows:[{company, y2025, y2026, **y2027, y2028**, comment}], comment} — MSFT·Alphabet·Amazon·Meta 연간 CAPEX(전년 실적 + 당해 가이던스). **(v3.6.4)** `y2027`·`y2028` 은 가이던스·증권가 컨센서스 전망치를 **확인된 경우에만** 채우고(출처 필수), 미확인은 빈 문자열. 출처: 실적발표/언론/IB 전망.
+- `markets.bigtech_capex`: {rows:[{company, y2025, y2026, **y2027, y2028**, comment}], comment} — MSFT·Alphabet·Amazon·Meta 연간 CAPEX. **실적값(과거·당해 FY)은 FMP `statements` `cashflow-statement` 의 `capitalExpenditure`(절대값) 로 정확 수집**(회계연도 기준 — MSFT 6월 결산 명시). `y2027`·`y2028`(전망)은 가이던스·컨센서스를 **확인된 경우에만** 채우고(출처 필수), 미확인은 빈 문자열. 추정 출처: 실적발표/언론/IB.
 
 ### CommoditiesAgent 추가
 - `commodities.strategic_metals`: {etf:[{name, current, "1w_pct".."1y_pct", trend}], etf_comment, spot:[{item, price, comment}], comment} — ETF 프록시 LIT(리튬)·REMX(희토류)·URA·URNM(우라늄) 주봉 변화율(MarketsAgent 방식) + 현물(탄산리튬·니켈 LME·코발트 LME·우라늄 U3O8·흑연)은 WebSearch.
@@ -357,7 +357,4 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 ## (v3.6.7) 3.1.4 반도체/AI 상세표·테마 확장
 
-- `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 ETF 는 넣지 말 것. `markets.semi_ai_comment` 는 표 아래 현황·코멘트.
-  - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
-- `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
-- 3.1.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.
+- `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 

@@ -29,7 +29,7 @@ description: |
 **3.1.2 종목 수급** — 다음금융 `investor_purchase` API(네이버 차단). 코스피·코스닥 외국인·기관 순매수/순매도 상위 종목 → 빌더가 외국인·기관 병합표로 렌더.
 **3.1.3 경기선행지수** — `indexergo.com/series/?detailId=11601&frq=M` echarts 에서 순환변동치 시계열 추출 → `nmr_leading_series.json` → `gen_leading_chart.py`. WebSearch 금지.
 **3.1.4 테마·반도체** — 테마 8종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주) 10년 월별 series → `gen_rest_charts.py`. 반도체/AI **종목 10 + ETF 정확히 20**(다음금융 AUM 상위, 단일종목 레버리지 포함) 추세차트.
-**3.2.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간, **2027(E) 항상 채움**, 표 전체폭, 미확인 칸은 "미공개".
+**3.2.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간. 실적값은 **FMP `statements` cashflow 의 `capitalExpenditure`**(절대값)로 정확 수집, 추정연도(**2027(E) 항상 채움**)만 WebSearch. 표 전체폭, 미확인 칸은 "미공개".
 **3.2.2 FOMC 점도표** — 2026·2027·2028말·장기중립 각 행에 **jun·mar 중간값 모두**(빈칸 금지).
 **3.2.3 HY 스프레드** — FRED `BAMLH0A0HYM2` **월별** series(Chrome 동일출처 `fredgraph.csv`) → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한, 초과 시 한계 명시).
 **3.2.x 미국 ETF·리밸런싱** — `us_etfs` 30종(③ 테마에 **DRAM=Roundhill Memory ETF** 항상 포함). S&P500·나스닥100 정기 리밸런싱(편입/편출·일정·룰변경).
@@ -321,4 +321,4 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 
 수집 시 주의:
 - **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
-- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
+- 보조
