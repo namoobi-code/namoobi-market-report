@@ -265,3 +265,16 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - **추정 명시 규칙(필수)**: 모든 값은 추정. **확인 불가 분기는 빈값(미표기)**, 절대 기억·임의값으로 패딩하지 말 것. `source`·`asof` 명시. 확신 없으면 해당 키 생략(생성기가 내장값 사용).
 - **반환 스키마** = `references/data-schema.md` 의 `markets.hbm`(= `nmr_hbm.json`). 키: `spot_index, ddr5_16gb, ddr4_8gb, nand_mlc_64gb, hbm_shipment, hbm_market, hbm3e_price, hbm4_price, share[](samsung/sk_hynix/micron/others 합계 100%·예상 E), gap_ratio, eps_per[], year_cur, year_next, asof, source`.
 - **점유율 others**: 삼성·SK하이닉스·마이크론 외 잔여분(중국 CXMT 등)을 `others` 로 채워 **합계 100%**.
+
+
+## MacroAgent (3.1 주요지표) — v3.11.0
+
+Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구 로드 후 수집 → outputs `nmr_macro.json` 저장, **경로+1줄 요약만** 반환(긴 JSON 재타이핑 금지). UUID 하드코딩 금지.
+
+**수집**
+- **FMP `economics-indicators`**(name=): `federalFunds`(현재 기준금리)·`CPI`(지수→YoY/MoM)·`unemploymentRate`·`totalNonfarmPayroll`(전월차→신규고용)·`retailSales`(MoM)·`realGDP`(전기比 연율)·(보너스 `consumerSentiment`). **FMP `treasury-rates`** 최근일 `year2`·`year10` → `yield_curve`(10Y-2Y)·`us10y`.
+- **FRED CSV**(Chrome 동일출처 `fredgraph.csv` — 3.3.3 HY OAS 와 동일 패턴): Core CPI=`CPILFESL`·PCE=`PCEPI`·Core PCE=`PCEPILFE`·PPI=`PPIFIS`·10Y 기대인플레=`T10YIE`(월별 12개+YoY/현재값).
+- **추정**(무료 실시간 API 없음): ISM 제조/서비스 PMI·VKOSPI·S&P500/KOSPI 12M 선행 EPS·선행PER·한·중 정책금리 → WebSearch/뉴스(TrendForce·LSEG·연합인포맥스·각국 중앙은행) 분기·월 추정, **'추정' 표기**. 확인 불가 시 빈값.
+- **재사용(수집 금지)**: VIX·DXY·원/달러·WTI·美10년물 = `fetch_us.py` 산출 → `merge.py` 가 주입.
+
+**반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment·spx_eps·spx_idx·kospi_eps·kospi_idx) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).

@@ -118,6 +118,84 @@ m['semi_ai_stocks'] = ss; m['semi_ai_stocks_comment'] = semi.get('semi_ai_stocks
 m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comment', '')
 m['hbm'] = L('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
 
+# 3.1 주요지표(매크로 대시보드) — nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 오버라이드, 없으면 내장 예시·추정값
+MACRO_DEFAULT = json.loads(r'''{
+  "rates": {
+    "fed_funds": {"current": 3.63, "decision": "동결", "bias": "중립", "meaning": "연준 기준금리", "freq": "연 8회 회의", "impact": "금리↑ → 주식↓·달러↑·채권↓"},
+    "policy_rates": [
+      {"country": "미국", "rate": 3.63, "asof": "2026-05", "note": "FMP 실측(FedFunds)"},
+      {"country": "한국", "rate": 2.50, "asof": "2026-05", "note": "BOK 기준금리(추정)"},
+      {"country": "일본", "rate": 0.50, "asof": "2026-05", "note": "BOJ(추정)"},
+      {"country": "중국", "rate": 3.00, "asof": "2026-05", "note": "1년 LPR(추정)"},
+      {"country": "유로존", "rate": 2.15, "asof": "2026-05", "note": "ECB 예금금리(추정)"},
+      {"country": "영국", "rate": 4.00, "asof": "2026-05", "note": "BOE(추정)"}
+    ],
+    "policy_rates_chart": "charts/macro_policy_rates.png",
+    "fomc_meetings": [
+      {"date": "2025-07-30", "stance": "동결(중립)", "note": "고금리 유지·인하 신중(추정)"},
+      {"date": "2025-09-17", "stance": "인하(비둘기)", "note": "-25bp, 고용 둔화 반영(추정)"},
+      {"date": "2025-10-29", "stance": "인하(비둘기)", "note": "-25bp 연속 인하(추정)"},
+      {"date": "2025-12-10", "stance": "동결(중립)", "note": "인하 속도 조절 시사(추정)"},
+      {"date": "2026-01-28", "stance": "동결(매파)", "note": "인플레 재반등 경계(추정)"},
+      {"date": "2026-03-18", "stance": "동결(매파)", "note": "점도표 상향·인하 지연(추정)"},
+      {"date": "2026-04-29", "stance": "동결(중립)", "note": "데이터 관망(추정)"},
+      {"date": "2026-06-17", "stance": "동결(매파)", "note": "끈적한 물가에 매파 톤(추정)"}
+    ],
+    "fomc_market_impact": "매파(긴축)↑ → 금리↑ → 주식↓·달러↑   |   비둘기(완화)↑ → 금리↓ → 주식↑",
+    "us10y": {"current": 4.46, "1w_pct": -0.7, "1mo_pct": 1.1, "3mo_pct": 2.0, "6mo_pct": -3.0, "1y_pct": 5.5, "trend": "고착·박스권", "spark": "charts/spark_us10y.png"},
+    "yield_curve": {"label": "미국 장단기 금리차(수익률곡선)(10Y-2Y)", "spread": 0.27, "status": "정상(비역전)", "note": "2Y 4.19·10Y 4.46", "meaning": "단기-장기 금리차", "impact": "역전(단기>장기) → 경기침체 신호·주식↓", "chart": "charts/macro_curve.png"}
+  },
+  "inflation": {
+    "chart": "charts/macro_inflation.png",
+    "rows": [
+      {"name": "CPI (소비자물가)", "yoy": 4.17, "mom": 0.47, "asof": "2026-05", "meaning": "일반 소비자 체감 물가", "impact": "CPI↑ → 금리↑ 기대 → 주식↓·달러↑·채권↓"},
+      {"name": "Core CPI (식·에너지 제외)", "yoy": 3.1, "mom": 0.3, "asof": "2026-05", "meaning": "식·에너지 제외 물가(연준 가장 중시)", "impact": "Core CPI↑ → 금리↑ 방향 직접 결정"},
+      {"name": "PCE (개인소비물가)", "yoy": 2.6, "mom": 0.2, "asof": "2026-04", "meaning": "연준 공식 인플레이션 목표 지표", "impact": "PCE↑ → 금리↑ 압력"},
+      {"name": "Core PCE", "yoy": 2.8, "mom": 0.2, "asof": "2026-04", "meaning": "식·에너지 제외(연준 최우선)", "impact": "Core PCE↑ → 금리↑ 방향 직접 결정"},
+      {"name": "PPI (생산자물가)", "yoy": 2.9, "mom": 0.1, "asof": "2026-05", "meaning": "기업 원가 변화", "impact": "PPI↑ → 금리↑ → 기업마진 압박·주식↓"}
+    ],
+    "infl_exp_10y": {"current": 2.35, "trend": "완만한 상승(추정)", "chart": "charts/macro_infl_exp.png", "meaning": "미래 인플레 기대수치", "freq": "매일", "impact": "10년 기대↑(2%대) + 실업률 4%대 → 테이퍼링·금리인상 언급"}
+  },
+  "employment": {
+    "chart": "charts/macro_employment.png",
+    "rows": [
+      {"name": "NFP (비농업 신규고용)", "value": "+172K", "asof": "2026-05", "meaning": "신규 일자리 수", "freq": "매월 첫째 금요일", "impact": "NFP↑(강세) → 금리↑ → 주식↓·달러↑"},
+      {"name": "실업률", "value": "4.3%", "asof": "2026-05", "meaning": "실직자 비율", "freq": "매월 첫째 금요일", "impact": "실업률↑ → 금리↓ 기대 → 주가↑"},
+      {"name": "GDP (전기比 연율)", "value": "+1.6%", "asof": "26Q1", "meaning": "경제 전체 성장률", "freq": "분기별", "impact": "GDP↑ → 경기성장·실적 개선 가능성"},
+      {"name": "ISM 제조업 PMI", "value": "48.7", "asof": "2026-05", "meaning": "기업 체감경기(제조)", "freq": "매월", "impact": "50↑ 경기확장 → 금리↑ 혼조"},
+      {"name": "ISM 서비스 PMI", "value": "51.6", "asof": "2026-05", "meaning": "기업 체감경기(서비스)", "freq": "매월", "impact": "50↑ 경기확장 → 금리↑ 혼조"},
+      {"name": "소매판매 (MoM)", "value": "+1.0%", "asof": "2026-05", "meaning": "소비 지표", "freq": "매월", "impact": "소매판매↑ → 경기과열 → 금리↑"}
+    ]
+  },
+  "sentiment": {
+    "rows": [
+      {"name": "VIX (공포지수)", "current": 17.2, "1w_pct": -5.0, "1mo_pct": -8.0, "3mo_pct": -12.0, "6mo_pct": -6.0, "1y_pct": -10.0, "trend": "안정(추정)", "spark": "charts/spark_vix.png", "meaning": "변동성 예측", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
+      {"name": "VKOSPI", "current": 18.0, "1w_pct": -3.0, "1mo_pct": -6.0, "3mo_pct": -9.0, "6mo_pct": -4.0, "1y_pct": -8.0, "trend": "안정(추정)", "spark": "charts/spark_vkospi.png", "meaning": "변동성 예측(코스피)", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
+      {"name": "달러인덱스 DXY", "current": 98.1, "1w_pct": 0.3, "1mo_pct": -0.5, "3mo_pct": -1.8, "6mo_pct": -3.0, "1y_pct": -4.0, "trend": "약보합(추정)", "spark": "charts/spark_dxy.png", "meaning": "달러 가치", "use": "달러 강세 → 코스피 조정 역사"},
+      {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usdkrw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
+      {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}
+    ],
+    "spx_fwd": {"fwd_eps": 330, "fwd_per": 22.7, "asof": "2026-06", "chart": "charts/macro_spx_fwd.png", "note": "출처: LSEG/Yardeni 공개치(월간 캐시) — 추정. 지수 7,500 / EPS 330 → 선행PER 22.7배로 정합"},
+    "kospi_fwd": {"fwd_eps": 918, "fwd_per": 9.8, "asof": "2026-06", "chart": "charts/macro_kospi_fwd.png", "note": "출처: 연합인포맥스/WISEfn(월간 캐시) — 추정. 지수 9,000 / EPS 918 → 선행PER 9.8배로 정합"}
+  }
+}
+''')
+_mac = L('nmr_macro.json')
+_macro = _mac.get('macro') if (isinstance(_mac, dict) and _mac.get('macro')) else (_mac if (isinstance(_mac, dict) and _mac) else None)
+macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
+# 이미 수집된 시세 재사용(중복 fetch 금지): VIX·DXY·원/달러·WTI·美10년물
+_us = m.get('us_markets') or {}; _fx = m.get('fx_markets') or {}; _en = (com.get('energy') if isinstance(com, dict) else {}) or {}
+_RK = ('current', '1w_pct', '1mo_pct', '3mo_pct', '6mo_pct', '1y_pct', 'trend')
+def _reuse(dst, srcv):
+    if isinstance(dst, dict) and isinstance(srcv, dict):
+        for _k in _RK:
+            if srcv.get(_k) is not None: dst[_k] = srcv[_k]
+_byname = {'VIX (공포지수)': _us.get('vix'), '달러인덱스 DXY': _us.get('dxy'), '원/달러 환율': _fx.get('usd_krw'), 'WTI 유가': _en.get('wti')}
+for _r in ((macro.get('sentiment') or {}).get('rows') or []):
+    if isinstance(_r, dict) and _byname.get(_r.get('name')): _reuse(_r, _byname[_r['name']])
+_reuse((macro.get('rates') or {}).get('us10y'), _us.get('us10y'))
+m['macro'] = macro
+
 m['us_etfs'] = ue
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})
 # (fix) FOMC 점도표 '변화' 열 = jun - mar (build_report r.change 비어 '-' 표시되던 문제)

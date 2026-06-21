@@ -1,5 +1,13 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.11.0 (2026-06-21)
+- **3장 맨 앞에 「3.1 주요지표」(매크로 대시보드) 신설** — `renderMacroIndicators`: 3.1.1 금리·통화정책(기준금리·6개국 정책금리·FOMC 회의 1년 리스트[최신순]·美10년물·장단기 금리차 10Y-2Y), 3.1.2 물가(CPI~PPI 의미/시장영향 + 통합 YoY 그래프 + 기대인플레 10Y), 3.1.3 고용(NFP·실업·GDP·ISM·소매 + 통합 6패널), 3.1.4 심리(VIX·VKOSPI·DXY·원달러·WTI + 의미/활용 + S&P500/KOSPI 선행EPS·PER).
+- **3장 번호 재배치**: 한국 3.1→3.2(하위 3.1.1~3.1.5→3.2.1~3.2.5), 미국 3.2→3.3(하위 3.2.1~3.2.5→3.3.1~3.3.5), 아시아 3.3→3.4, 유럽 3.4→3.5.
+- **3.3 미국 증시 표에서 VIX·DXY·美10년물 제거**(3.1 주요지표와 중복 → 일원화).
+- 신규 `scripts/gen_macro_charts.py`(차트 13종) — Phase 1.5 차트 6종→7종.
+- 신규 **MacroAgent**(FMP economics/treasury + FRED CSV) → `nmr_macro.json`, `merge.py` 가 `markets.macro` 전달(없으면 내장 `MACRO_DEFAULT`). VIX·DXY·원달러·WTI·美10년물은 `fetch_us.py` 시세 재사용. Core CPI·PCE·PPI·ISM·VKOSPI·선행EPS·한중정책금리는 '추정' 표기.
+
+
 > 이 파일은 과거 운영 학습·변경 내역의 **보관용 기록**이다. 런타임(스킬 실행)에는 로딩되지 않는다.
 > 현행 규칙은 `SKILL.md` 의 '핵심 수집 규칙' 및 각 Phase 본문을 따른다. (v3.7.0, 2026-06-20 에 SKILL.md 에서 분리)
 
