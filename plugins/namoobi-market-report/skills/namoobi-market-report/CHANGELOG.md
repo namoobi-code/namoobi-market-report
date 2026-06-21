@@ -5,6 +5,10 @@
 
 ---
 
+# Namoobi Market Report (v3.9.0)
+
+> v3.9.0 (2026-06-21 — 3.2.1 빅테크 CAPEX 차트 2종 추가): 신규 `scripts/gen_capex_chart.py` 가 5개사(MS·아마존·알파벳·메타·오라클) **CAPEX 스택바+Capex/매출 비율선**(`charts/capex_stack_ratio.png`)·**FCF 추이선**(`charts/capex_fcf.png`)을 생성(2023~2025 실적[각사 10-K/FMP]·2026 가이던스·2027~2029 전망E). `build_report.js` 가 3.2.1 표 맨 아래에 `imagePara` 로 임베드(없으면 비차단 생략). Phase 1.5 차트 생성기 4종→5종. 데이터 내장 기본값 + `markets.bigtech_capex.{capex,rev,fcf}_series` 라이브 오버라이드.
+
 # Namoobi Market Report (v3.6.35)
 
 > v3.6.35 (2026-06-20 운영 학습 — 12장 액션아이템 렌더·증권사 수집방식): **이 블록은 이전 모든 규칙에 우선한다.**

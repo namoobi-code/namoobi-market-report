@@ -298,7 +298,14 @@ function renderUSExtras(){ const m=data.markets||{};
     const ccols=[["company","기업",comp,1]].concat(years.map(y=>[y[0],y[1],yw,0])).concat([["comment","코멘트",cmt,1]]);
     const cwid=ccols.map(c=>c[2]),chead=ccols.map(c=>c[1]),cleft=ccols.map((c,i)=>c[3]?i:-1).filter(i=>i>=0);
     simpleTable(cwid,chead,cx.rows.map(r=>ccols.map(c=>(c[0]==="company")?(r.company??"-"):(c[0]==="comment")?(r.comment??"-"):capV(r[c[0]]))),{left:cleft});
-    if(cx.comment)children.push(p(cx.comment)); children.push(p("")); }
+    if(cx.comment)children.push(p(cx.comment));
+    // (v3.9.0) 3.2.1 맨 아래 CAPEX 차트 2종 임베드 — Phase 1.5 gen_capex_chart.py 산출(charts/capex_*.png).
+    // 파일이 없으면 imagePara 가 null 을 돌려주므로 조용히 생략(보고서 깨지지 않음).
+    { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",520,228);
+      if(c1){ children.push(c1); children.push(p("빅테크 CAPEX 합계(스택)와 매출 대비 비율 추이 — 2023~2025 실적 · 2026 가이던스 · 2027~2029 전망(E)",{size:15,color:"94A3B8"})); }
+      const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",520,210);
+      if(c2){ children.push(c2); children.push(p("주요 빅테크 잉여현금흐름(FCF) 추이 — 일부 기업 마이너스 전환 · 자료: 각사 SEC 보고서/FMP, AI Research",{size:15,color:"94A3B8"})); } }
+    children.push(p("")); }
   renderFomcDotplot();
   if(m.hy_spread){ const c=m.hy_spread; children.push(h("3.2.3 하이일드 스프레드 (HY Spread)",3));
     children.push(p("하이일드 스프레드(HY Spread): 하이일드 채권 수익률에서 미국 국채 수익률을 뺀 스프레드가 확대되면 신용시장 위험이 높아지지만, 반대로 안정되거나 좁혀지면 신용시장이 정상화되며 주식시장이 회복되는 경향을 보입니다.",{italics:true,color:"64748B"}));

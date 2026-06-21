@@ -12,8 +12,10 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.7.0)
+# Namoobi Market Report (v3.9.0)
 
+> **v3.9.0 (2026-06-21) — 3.2.1 빅테크 CAPEX 차트 2종 추가.** 신문형 시각자료 요청 반영: (1) 신규 `scripts/gen_capex_chart.py` 가 5개사(MS·아마존·알파벳·메타·오라클) **CAPEX 스택바 + Capex/매출 비율선**(`charts/capex_stack_ratio.png`)과 **FCF 추이선**(`charts/capex_fcf.png`)을 생성 — 2023~2025 실적(각사 10-K/FMP)·2026 가이던스·2027~2029 전망(E). (2) `build_report.js` 가 **3.2.1 표 맨 아래**에 두 차트를 `imagePara` 로 임베드(파일 없으면 자동 생략 — 비차단). (3) **Phase 1.5 차트 생성기 4종→5종**. 데이터는 내장 기본값 우선, `markets.bigtech_capex.{capex,rev,fcf}_series` 가 있으면 라이브 오버라이드.
+>
 > **v3.8.0 (2026-06-21) — 보고서 "-"/누락 근본 수정.** 사용자 피드백(대량 "-")에 따라: (1) `fetch_us.py` 가 아시아·유럽 지수(3.3/3.4)·금속/농산물(4.2/4.3) 시계열을 `nmr_indexseries`/`series2` 에 포함해 추세 스파크라인 생성, CNY/KRW 크로스(=USD_KRW/USD_CNY) 폴백으로 5장 환율 채움. (2) `merge.py` 가 HY 1주~1년 OAS 히스토리(3.2.3)·FOMC 점도표 "변화" 열(3.2.2, jun−mar)·김치프리미엄 `coins[]`(6.3, upbit_krw/binance_usd/premium_pct) 를 구성. (3) `build_report.js` 에서 7.9 투자자 유형별 추천 조합 **삭제**, 글로벌 IB(8장) "수집 실패" 문구는 key_message/뷰가 없을 때만 표기. (4) `agents.md` — CryptoAgent 김프 coins[] 스키마·SecuritiesAgent 삼성/미래에셋/한투 정확 URL·NewsBerk `ai_trends.items[]`(summary/title_en/summary_en) 명시. **빌더·merge 스키마 일부 확장.**
 >
 > **v3.7.0 (2026-06-20) — 문서 구조 개편(동작 불변).** 과거 변경이력(v3.0~v3.6.35)은 `CHANGELOG.md` 로 분리(런타임 미로딩)하고, 거기 흩어져 있던 현행 규칙은 아래 **핵심 수집 규칙**과 각 Phase 본문으로 통합했다. **데이터 스키마·서브에이전트·빌더(build_report.js) 로직은 그대로다 — 문서 정리만.** 모순 일원화: 최종 산출물 = **docx 전용**(soffice/PDF 변환 폐지), `request_cowork_directory` **호출 안 함**, 차트 생성기 = 현행 4종만. 에이전트별 상세 프롬프트·반환 스키마는 `references/agents.md`, 발송 절차는 `references/email-sending.md`.
@@ -32,7 +34,7 @@ description: |
 **3.1.2 종목 수급** — 다음금융 `investor_purchase` API(네이버 차단). 코스피·코스닥 외국인·기관 순매수/순매도 상위 종목 → 빌더가 외국인·기관 병합표로 렌더.
 **3.1.3 경기선행지수** — `indexergo.com/series/?detailId=11601&frq=M` echarts 에서 순환변동치 시계열 추출 → `nmr_leading_series.json` → `gen_leading_chart.py`. WebSearch 금지.
 **3.1.4 테마·반도체** — 테마 8종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주) 10년 월별 series → `gen_rest_charts.py`. 반도체/AI **종목 10 + ETF 정확히 20**(다음금융 AUM 상위, 단일종목 레버리지 포함) 추세차트.
-**3.2.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간. 실적값은 **FMP `statements` cashflow 의 `capitalExpenditure`**(절대값)로 정확 수집, 추정연도(**2027(E) 항상 채움**)만 WebSearch. 표 전체폭, 미확인 칸은 "미공개".
+**3.2.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간. 실적값은 **FMP `statements` cashflow 의 `capitalExpenditure`**(절대값)로 정확 수집, 추정연도(**2027(E) 항상 채움**)만 WebSearch. 표 전체폭, 미확인 칸은 "미공개". **(v3.9.0) 표 맨 아래 차트 2종(`gen_capex_chart.py`): 5개사(+오라클) CAPEX 스택바+Capex/매출 비율선, FCF 추이선 — 2023~2025 실적·2026 가이던스·2027~2029 전망(E). 차트는 내장 기본 데이터로 항상 생성되며, `bigtech_capex.{capex,rev,fcf}_series` 제공 시 라이브 오버라이드.**
 **3.2.2 FOMC 점도표** — 2026·2027·2028말·장기중립 각 행에 **jun·mar 중간값 모두**(빈칸 금지).
 **3.2.3 HY 스프레드** — FRED `BAMLH0A0HYM2` **월별** series(Chrome 동일출처 `fredgraph.csv`) → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한, 초과 시 한계 명시).
 **3.2.x 미국 ETF·리밸런싱** — `us_etfs` 30종(③ 테마에 **DRAM=Roundhill Memory ETF** 항상 포함). S&P500·나스닥100 정기 리밸런싱(편입/편출·일정·룰변경).
@@ -41,7 +43,7 @@ description: |
 **7 한국 주요 증권사(10) = 텔레그램 7 + Chrome 3** — 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램** `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요). 삼성·미래에셋·한투는 **메인세션 Claude in Chrome 3탭 navigate + `javascript_tool` 타깃추출**(공개 리서치 페이지 정상 접속됨 — 삼성=`samsungpop … research_pop.jsp#bm`(팝업'확인'), 미래에셋=`miraeasset … list.do?categoryId=1521`, 한투=`koreainvestment … Strategy.jsp?jkGubun=99`·`34`; 상세 URL `references/agents.md`. get_page_text 덤프 금지; "미확인/로그인전용" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
 **7·8 신선도** — Daily≤D-1, Weekly/Monthly≤D-3(주말은 금요일까지). 미충족이면 **stale 로 채우지 말고 빈값**("기준일 충족 최신 공개 자료 미확인"). 글로벌 IB(UBS·GS·JPM·MS·BlackRock)는 WebSearch+Bigdata MCP(Chrome 금지=메인세션과 충돌).
 **슬로우체인지 캐시(P2) + carry-forward** — 점도표·버핏13F·지수리밸런싱·HY히스토리·주의사항/출처는 캐시(`_market_report_data/nmr_cache.json`). **일정은 바뀔 수 있으므로 날짜계산만 믿지 말고, 매 실행 "이벤트 마커"를 싸게 1회 확인**: 13F=Berkshire 최신 13F-HR 제출일(EDGAR/Massive `/stocks/filings`), 점도표=최신 FOMC SEP 발표일(federalreserve.gov 캘린더), 리밸런싱=S&P/나스닥 최신 구성변경 발표·효력일, HY=FRED 최신 데이터일. 그 마커로 `python3 scripts/nmr_cache.py check <item> <관측마커>` → `reuse` 면 `get <item>` 캐시값 주입(조사 스킵), `due`(마커 변동·캐시없음·**확인 불가**) 면 평소대로 조사 후 `set <item> <as_of> <마커>`. **확인 불가/불확실이면 무조건 조사(stale 금지)**, 캐시값도 as_of 명시. (백업: 실패 시 직전 report_data 폴백.)
-**차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` **4종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기).
+**차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` **5종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기). `gen_capex_chart.py` → `charts/capex_stack_ratio.png`·`charts/capex_fcf.png`(3.2.1 빅테크 CAPEX 차트, cwd 상대 출력).
 **작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
 
 ## 보고서 품질 기준 (반드시 충족)
@@ -81,7 +83,7 @@ description: |
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·증권사 텔레그램 7사, Chrome 불필요)
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate·JS 타깃추출); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
-[Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py → charts/*.png
+[Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py → charts/*.png
         ↓
 [Phase 2: AnalysisAgent 단독 호출]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓
