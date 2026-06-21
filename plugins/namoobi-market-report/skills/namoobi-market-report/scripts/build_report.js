@@ -267,26 +267,26 @@ function renderKoreaExtras(){ const m=data.markets||{};
       children.push(p("■ 반도체/AI 대표 ETF·종목",{bold:true,color:"1E40AF",before:120}));
       children.push(makeTable(RW,retRows(m.semi_ai_breakdown,"semi",semiDesc))); }
   }
-  // (v3.10.0) 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드 — charts/hbm_dashboard.png 있으면 렌더(파일 없으면 자동 생략·비차단)
-  { const hbm=(m.hbm)||{}; const hbmImg=imagePara((hbm.chart)||"charts/hbm_dashboard.png",624,695);
-    if(hbmImg){ children.push(h("3.2.5 반도체 주가 체크용 메모리+HBM 지표",3));
-      children.push(p("메모리 가격·HBM 출하/시장규모·가격(ASP)·점유율·HBM:DDR5 격차를 한 화면에 모은 대시보드. 모든 수치는 추정치이며, 확인 불가 항목은 미표기.",{italics:true,color:"64748B"}));
-      children.push(hbmImg);
-      children.push(p("[해설]",{bold:true,color:"1E40AF",before:80,size:20}));
-      ["메모리 가격 추이: 어느 제품이 먼저 강해지는지 보면 업황 주도 섹터를 가늠할 수 있습니다.",
-       "종합 스팟 지수: 지수가 오르면 메모리 전반의 가격 모멘텀이 강해졌다는 의미입니다.",
-       "HBM 출하량 / 시장규모: 출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다.",
-       "HBM 가격: HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다.",
-       "HBM 점유율: 점유율이 높아지는 회사가 업황 호황의 이익을 더 많이 가져갈 가능성이 큽니다.",
-       "HBM:DDR5 격차: 격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다."
-      ].forEach(t=>children.push(p("• "+t,{size:18,color:"475569"})));
-      children.push(p("기준: "+(hbm.asof||"최신 공개 자료")+" · 수치는 추정치 — 자료: "+(hbm.source||"TrendForce·실적 컨센서스·언론 종합, AI Research"),{size:15,color:"94A3B8"}));
-      children.push(p("")); } }
  }
+// (v3.12.0) 3.1.6 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
+function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{}; const hbmImg=imagePara((hbm.chart)||"charts/hbm_dashboard.png",660,735);
+  if(hbmImg){ children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
+    children.push(p("메모리 가격·HBM 출하/시장규모·가격(ASP)·점유율·HBM:DDR5 격차를 한 화면에 모은 대시보드. 모든 수치는 추정치이며, 확인 불가 항목은 미표기.",{italics:true,color:"64748B"}));
+    children.push(hbmImg);
+    children.push(p("[해설]",{bold:true,color:"1E40AF",before:80,size:20}));
+    ["메모리 가격 추이: 어느 제품이 먼저 강해지는지 보면 업황 주도 섹터를 가늠할 수 있습니다.",
+     "종합 스팟 지수: 지수가 오르면 메모리 전반의 가격 모멘텀이 강해졌다는 의미입니다.",
+     "HBM 출하량 / 시장규모: 출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다.",
+     "HBM 가격: HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다.",
+     "HBM 점유율: 점유율이 높아지는 회사가 업황 호황의 이익을 더 많이 가져갈 가능성이 큽니다.",
+     "HBM:DDR5 격차: 격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다."
+    ].forEach(t=>children.push(p("• "+t,{size:18,color:"475569"})));
+    children.push(p("기준: "+(hbm.asof||"최신 공개 자료")+" · 수치는 추정치 — 자료: "+(hbm.source||"TrendForce·실적 컨센서스·언론 종합, AI Research"),{size:15,color:"94A3B8"}));
+    children.push(p("")); } }
 // (v3.6.30) 3.2.2 FOMC 점도표(dot plot) — 데이터(markets.fomc_dotplot) 없으면 자동 생략.
 function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; if(!f||typeof f!=="object")return;
   if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
-  children.push(h("3.3.2 FOMC 점도표 (dot plot)",3));
+  children.push(p("■ FOMC 점도표 (dot plot)",{bold:true,color:"1E40AF",before:140,size:22}));
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
   if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[r.item!=null?r.item:"-",r.jun!=null?r.jun:"-",r.mar!=null?r.mar:"-",r.change!=null?r.change:"-"]),{left:[0]});
@@ -300,12 +300,11 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   if(Array.isArray(f.sources)&&f.sources.length)children.push(p("출처: "+f.sources.join(" · "),{size:14,color:"94A3B8"}));
   children.push(p("")); }
 
-function renderUSExtras(){ const m=data.markets||{};
-  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.3.1 AI 빅테크 자본지출(CAPEX)",3));
-    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개"; // v3.6.10 빈칸은 "-" 대신 "미공개"
-    // (v3.6.32 req6) 연도 열은 값이 하나라도 있을 때만 표시 — 전부 미공개면 그 열을 통째로 제거
+// (v3.12.0) 3.1.5 AI 빅테크 CAPEX — 3.1(매크로 대시보드)로 이동, 차트 풀폭(좌우 여백 제거).
+function renderCapex(){ const m=data.markets||{};
+  if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.1.6 AI 빅테크 자본지출(CAPEX)",3));
+    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?v:"미공개";
     const yrHas=(k)=>cx.rows.some(r=>r[k]!==null&&r[k]!==undefined&&String(r[k]).trim()!=="");
-    // (v3.6.34) 표 전체폭 사용 — 연도 열 수에 맞춰 코멘트 열이 남는 폭을 흡수(오른쪽 끝까지).
     const years=[["y2025","2025(실적)"],["y2026","2026(E)"]];
     if(yrHas("y2027"))years.push(["y2027","2027(E)"]);
     if(yrHas("y2028"))years.push(["y2028","2028(E)"]);
@@ -314,15 +313,15 @@ function renderUSExtras(){ const m=data.markets||{};
     const cwid=ccols.map(c=>c[2]),chead=ccols.map(c=>c[1]),cleft=ccols.map((c,i)=>c[3]?i:-1).filter(i=>i>=0);
     simpleTable(cwid,chead,cx.rows.map(r=>ccols.map(c=>(c[0]==="company")?(r.company??"-"):(c[0]==="comment")?(r.comment??"-"):capV(r[c[0]]))),{left:cleft});
     if(cx.comment)children.push(p(cx.comment));
-    // (v3.9.0) 3.2.1 맨 아래 CAPEX 차트 2종 임베드 — Phase 1.5 gen_capex_chart.py 산출(charts/capex_*.png).
-    // 파일이 없으면 imagePara 가 null 을 돌려주므로 조용히 생략(보고서 깨지지 않음).
-    { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",520,228);
+    // 차트 풀폭(660): 좌우 여백 없이 최대 크기로 표시.
+    { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",660,289);
       if(c1){ children.push(c1); children.push(p("빅테크 CAPEX 합계(스택)와 매출 대비 비율 추이 — 2023~2025 실적 · 2026 가이던스 · 2027~2029 전망(E)",{size:15,color:"94A3B8"})); }
-      const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",520,210);
+      const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",660,266);
       if(c2){ children.push(c2); children.push(p("주요 빅테크 잉여현금흐름(FCF) 추이 — 일부 기업 마이너스 전환 · 자료: 각사 SEC 보고서/FMP, AI Research",{size:15,color:"94A3B8"})); } }
-    children.push(p("")); }
-  renderFomcDotplot();
-  if(m.hy_spread){ const c=m.hy_spread; children.push(h("3.3.3 하이일드 스프레드 (HY Spread)",3));
+    children.push(p("")); } }
+// (v3.12.0) HY 스프레드 — 3.1.1 금리·통화정책에 통합(하위 블록).
+function renderHY(){ const m=data.markets||{};
+  if(m.hy_spread){ const c=m.hy_spread; children.push(p("■ 하이일드(HY) 스프레드",{bold:true,color:"1E40AF",before:140,size:22}));
     children.push(p("하이일드 스프레드(HY Spread): 하이일드 채권 수익률에서 미국 국채 수익률을 뺀 스프레드가 확대되면 신용시장 위험이 높아지지만, 반대로 안정되거나 좁혀지면 신용시장이 정상화되며 주식시장이 회복되는 경향을 보입니다.",{italics:true,color:"64748B"}));
     const cols=[2200,1300,1200,1200,1200,1200,1700];
     const hdr=new TableRow({children:["지표 (OAS %)","현재","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
@@ -338,19 +337,17 @@ function renderUSExtras(){ const m=data.markets||{};
       cell(lv(c.y1),{width:cols[6],align:AlignmentType.RIGHT,color:col(c.y1)})]});
     children.push(makeTable(cols,[hdr,row]));
     children.push(p("표는 각 시점의 OAS 레벨(%). 과거치가 현재보다 높으면(초록) 그동안 스프레드가 축소(신용 개선)된 것.",{size:18,color:"64748B"}));
-    const img=imagePara(c.chart||"hy_oas_chart.png",480,173); if(img)children.push(img);
+    const img=imagePara(c.chart||"charts/hy_oas.png",480,173); if(img)children.push(img);
     if(c.trend)children.push(p("추세 평가: "+c.trend,{bold:true}));
     if(c.comment)children.push(p(c.comment));
     if(c.asof)children.push(p("기준: "+c.asof,{size:16,color:"94A3B8"}));
-    children.push(p("")); }
-  renderUSEtfs();
-  renderIndexRebalance();
- }
+    children.push(p("")); } }
+function renderUSExtras(){ renderUSEtfs(); renderIndexRebalance(); }
 // (v3.6.8) 3.2.2 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
 function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||typeof e!=="object")return;
   const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["defensive","④ 방어형 ETF (변동성 완화)"]];
   if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
-  children.push(h("3.3.4 주요 미국 ETF (지수·섹터·테마·방어형)",3));
+  children.push(h("3.3.1 주요 미국 ETF (지수·섹터·테마·방어형)",3));
   children.push(p("미국 대표 지수 추종·11개 S&P 500 섹터·테마/특화·방어형 ETF 의 현재가와 1주~1년 수익률, 1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률로, 분배금이 큰 ETF(SCHD·JEPI·채권형 등)는 실제 총수익률이 더 높을 수 있다. 섹터 ETF 옆 [%]는 S&P 500 내 비중.",{italics:true,color:"64748B"}));
   groups.forEach(([k,label])=>{ const arr=e[k]; if(!Array.isArray(arr)||!arr.length)return;
     children.push(p(label,{bold:true,color:"1E40AF",before:120,size:21}));
@@ -364,7 +361,7 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
 // (v3.6.9) 3.2.3 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
   if(!r.sp500&&!r.nasdaq100)return;
-  children.push(h("3.3.5 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
+  children.push(h("3.3.2 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
   children.push(p("S&P 500·나스닥 100 정기 리밸런싱의 편입·편출 종목(사업 내용·사유)·적용 시점, 편입 기준, 나스닥 패스트엔트리 룰 변경을 정리한다. 편입=초록, 편출=빨강.",{italics:true,color:"64748B"}));
   const cw=[820,780,1820,3300,3480]; // 구분/티커/회사명/사업내용/사유
   const chHdr=()=>new TableRow({children:["구분","티커","회사명","사업 내용","사유"].map((x,i)=>cell(x,{width:cw[i],header:true,align:i<2?AlignmentType.CENTER:AlignmentType.LEFT}))});
@@ -593,7 +590,7 @@ function renderMacroIndicators(){
   const r=x.rates||{};
   children.push(h("3.1.1 금리·통화정책 (가장 직접적 영향)",3));
   if(r.fed_funds){ const f=r.fed_funds;
-    children.push(p("● FOMC 기준금리(현재): "+f.current+"%   ("+f.decision+" / "+f.bias+")",{bold:true,size:23}));
+    children.push(p("■ FOMC 기준금리(현재): "+f.current+"%   ("+f.decision+" / "+f.bias+")",{bold:true,size:23,color:"1E40AF"}));
     children.push(p("의미: "+f.meaning+" · 발표: "+f.freq+" · 시장영향: "+f.impact,{size:17,color:"64748B"})); }
   if(Array.isArray(r.policy_rates)){
     const w=[2000,2000,1500,4580]; const rows=[hdrRow(["국가","현재 정책금리","기준","비고"],w)];
@@ -623,9 +620,12 @@ function renderMacroIndicators(){
     children.push(p("의미: 장기 금리·기준이자율 역할 · 발표: 매일 · 시장영향: 10년물↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"})); }
   // 미국 장단기 금리차
   if(r.yield_curve){ const yc=r.yield_curve; const inv=String(yc.status||"").includes("역전");
-    children.push(p("● "+yc.label+": "+(yc.spread>=0?"+":"")+yc.spread+"%p → "+yc.status+"  ("+yc.note+")",{bold:true,size:22,color:inv?negativeColor:positiveColor}));
+    children.push(p("■ "+yc.label,{bold:true,size:22,color:"1E40AF"}));
+    children.push(p((yc.spread>=0?"+":"")+yc.spread+"%p → "+yc.status+"  ("+yc.note+")",{bold:true,size:22,color:"1E40AF"}));
     children.push(p("의미: "+yc.meaning+" · 발표: 매일 · 시장영향: "+yc.impact,{size:16,color:"64748B"}));
     const cc=imagePara(yc.chart,648,176); if(cc)children.push(cc); }
+  renderFomcDotplot();
+  renderHY();
   children.push(p(""));
 
   // 3.1.2 물가 — 추세1Y 제거, 통합 그래프 하나
@@ -641,7 +641,7 @@ function renderMacroIndicators(){
   { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); children.push(p("CPI·Core CPI·PCE·Core PCE·PPI 최근 12개월 YoY 통합 추이",{size:15,color:"94A3B8"})); } }
   if(inf.infl_exp_10y){ const e=inf.infl_exp_10y;
     children.push(p("■ 기대인플레이션 (10년 BEI)",{bold:true,color:"1E40AF",before:120}));
-    children.push(p("● 현재값: "+e.current+"%   "+(e.trend||""),{bold:true,size:22}));
+    children.push(p("현재값: "+e.current+"%   "+(e.trend||""),{bold:true,size:22,color:"1E40AF"}));
     const ic2=imagePara(e.chart,648,176); if(ic2){ children.push(ic2); children.push(p("기대인플레이션 10년(BEI) 최근 1년 추이 · 점선=2%",{size:15,color:"94A3B8"})); }
     children.push(p("의미: "+e.meaning+" · 발표주기: "+e.freq+" · 시장영향: "+e.impact,{size:16,color:"64748B"})); }
   children.push(p(""));
@@ -671,6 +671,9 @@ function renderMacroIndicators(){
     (s.rows||[]).forEach((o,i)=>rows.push(new TableRow({children:[cell(o.name,{width:w[0],alt:i%2===1,bold:true}),
       cell(o.meaning,{width:w[1],alt:i%2===1,size:17}),cell(o.use,{width:w[2],alt:i%2===1,size:17})]})));
     children.push(makeTable(w,rows)); }
+  children.push(p(""));
+  children.push(h("3.1.5 지수·Forward EPS·PER (실적 vs 밸류에이션)",3));
+  children.push(p("선행 EPS(향후 12개월 예상 이익)와 지수·선행 PER 의 관계로 '실적장세 vs 밸류 부담'을 점검한다. 지수는 실측, 선행 EPS 는 컨센서스 기반 추정.",{italics:true,color:"64748B"}));
   if(s.spx_fwd){ const e=s.spx_fwd;
     children.push(p("■ S&P500 12M Forward EPS: $"+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 7,500 / "+e.asof+")",{bold:true,color:"1E40AF",before:100}));
     const c=imagePara(e.chart,660,241); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
@@ -679,6 +682,8 @@ function renderMacroIndicators(){
     const c=imagePara(e.chart,660,241); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
   children.push(p("선행EPS 해석: EPS↑+지수↑=실적장세 · EPS↑인데 지수 정체=밸류부담 점검 · EPS 꺾이면 성장주 탄력 둔화",{size:16,color:"64748B"}));
   children.push(p(""));
+  renderCapex();
+  renderHBM();
 }
 
 if (data.markets) {

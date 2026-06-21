@@ -61,5 +61,5 @@ else:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%y.%m"))
 ax.tick_params(labelsize=7); ax.grid(alpha=0.18)
 for sp in ["top","right"]: ax.spines[sp].set_visible(False)
-ax.text(0.012,0.06,"출처: 국가데이터처 / INDEXerGO",transform=ax.transAxes,fontsize=7,color="#94a3b8")
+ax.text(0.012,0.06,"출처: 국가데이터처 「산업활동동향」 (e-나라지표, 2020=100)",transform=ax.transAxes,fontsize=7,color="#94a3b8")
 plt.tight_layout(pad=0.4); fig.savefig("charts/leading_cycle.png",dpi=150,bbox_inches="tight"); print("leading chart done (pts",len(pts),")")
