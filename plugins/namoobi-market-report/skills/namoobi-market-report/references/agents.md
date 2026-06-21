@@ -9,7 +9,7 @@
 - **美/글로벌 시세(지수·환율·원자재·美ETF·크립토시계열) = `scripts/fetch_us.py`** (sandbox·스레드 병렬 ~4초) → nmr_markets/indexseries/series2/commod/usetf/etfseries/crypto_series.json. (구 MarketsAgent·CommoditiesAgent·UsEtfAgent 폐지·흡수.)
 - **한국 시장데이터 = `scripts/fetch_kr.py` (sandbox·stdlib, Chrome/에이전트 불필요)**: 야후 `^KS11`/`^KQ11` 일봉 OHLC + 다음 `market_index/days` 거래량·1년 일별 수급 → `nmr_kr_ohlcv.json`(`kospi_ohlcv`/`kosdaq_ohlcv`/`kospi_flows_daily`/`kosdaq_flows_daily`); 다음 `investor_purchase` 외국인·기관 순매수/순매도 상위 → `nmr_kr_invest.json`; FRED HY OAS(비차단·빠른실패) → `nmr_hy_series.json`. **스레드 병렬 단독 ~10초**, Phase 1 단일 메시지에서 Agent 발행과 함께 **bash 병렬 tool-call** 로 실행. → `gen_kr_candle.py`. (구 KoreaTechFlowsAgent 폐지.)
 - **반도체/테마 시계열 = `scripts/fetch_semi.py` (sandbox·stdlib)** → `nmr_kr_series.json`(테마 8·종목 10·ETF 20 시계열, 스레드 병렬 **~1초**). **선정·AUM·노트·테마 방향/코멘트는 KoreaSemiThemeAgent 가 `nmr_semi.json` 으로 계속 제공**(fetch_semi.py 와 **정확히 같은 이름** — merge.py 가 이름으로 join; AUM 상위 20 멤버십 변동 시 에이전트가 플래그→fetch_semi.py 목록 갱신). → `gen_rest_charts.py`(theme_*/semi_s_*/semi_e_*).
-- **경기선행지수(월간) = P2 캐시 `leading`**: 통계청/INDEXerGO 순환변동치는 월 1회 갱신 → 매 실행 마커(최신 release 月 `YYYY-MM`)로 `check leading` → reuse 면 스킵. due/미스 시에만 Chrome 으로 `indexergo.com/series/?detailId=11601&frq=M` echarts 수집(curl 403 — Chrome 필요) → `nmr_leading_series.json`·`nmr_leading.json` → `gen_leading_chart.py`.
+- **경기선행지수(월간) = `scripts/fetch_leading.py`(sandbox·stdlib, Chrome 불필요)**: e-나라지표 통계표 AJAX 엔드포인트(`showStblGams3.do?stts_cd=105701&idx_cd=1057&freq=M`, UA+Referer+X-Requested-With 헤더 → 200)에서 선행종합지수 순환변동치 월별 실측(~29개월)을 직접 파싱 → `nmr_leading_series.json`(`[["YYYY-MM",v]..]`)+`nmr_leading.json`(`{korea_leading:[{period,value,mom,note}]}` 최신 4개월 desc) → `gen_leading_chart.py`. **Phase 1 bash 병렬 tool-call** 로 실행(fetch_us·kr·semi·brokers_tele 와 함께). 실패 시 비차단(파일 미생성 → merge 가 캐시/직전 report_data 폴백). (구 P2 캐시·INDEXerGO echarts(curl 403)·통계표 Chrome 스크래핑 경로 폐기 — 항상 sandbox 실측.)
 - **CryptoAgent = 정성 지표만**(CoinInfo MCP: 시장개요·공포탐욕·김프·등락상위) → `nmr_crypto.json`. 1년 시계열(btc/eth/xrp/sol·fng)은 fetch_us.py.
 - **美 ETF 30+종**(index·sector·theme[DRAM]·defensive)은 fetch_us.py → `nmr_usetf.json`/`nmr_etfseries.json`. (UsEtfAgent 폐지.)
 - **IndexRebalanceAgent → `nmr_rebalance.json`**: S&P500·나스닥100 편입/편출·일정·기준·룰변경(1차 출처 press.spglobal.com·ir.nasdaq.com). **[P2 캐시] 매 실행 S&P/나스닥 최신 구성변경일을 마커로 `check index_rebalance <변경일>` → reuse 면 스킵·캐시; due/확인불가 면 조사 후 `set`.**
@@ -22,7 +22,7 @@
 - **품질 게이트(Phase 4.5)**: `scripts/verify_report.js` 가 위 항목을 코드로 검사. 미달이면 발송 차단·사용자 질문(조용히 "-"/stale 통과 금지).
 
 수집 에이전트는 전부 **general-purpose** 타입으로 호출한다.
-Phase 1 = **수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py` 를 bash 병렬 tool-call 로 실행**(美/글로벌·한국 시세·시계열 — 에이전트 아님). **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 동시 진행.
+Phase 1 = **수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call 로 실행**(美/글로벌·한국 시세·시계열 — 에이전트 아님). **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 동시 진행.
 Phase 2 = AnalysisAgent 를 Phase 1 수집 결과와 함께 **단독 호출**(차트 생성 후).
 
 ## 공통 반환각(Hallucination) 방지 규칙 — 모든 에이전트 프롬프트에 그대로 포함 (v3.3.0)
