@@ -373,27 +373,32 @@ function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebala
   const sp=r.sp500;
   if(sp){ children.push(p("■ S&P 500 정기 리밸런싱",{bold:true,color:"0F172A",size:21,before:120}));
     if(Array.isArray(sp.schedule)&&sp.schedule.length){ children.push(p("1. 결정 시점 (분기별)",{bold:true,size:18}));
-      simpleTable([1500,2800,3200,2700],["분기","발표일","적용일(장 마감 후)","비고"],
-        sp.schedule.map(s=>[s.q??s.cycle??s.quarter??"-",s.announce??"-",s.effective??"-",s.note??"-"]),{left:[3]}); }
+      if(sp.schedule.every(s=>typeof s==="string")) sp.schedule.forEach(s=>children.push(bullet(String(s))));
+      else simpleTable([1500,2800,3200,2700],["분기","발표일","적용일(장 마감 후)","비고"],
+        sp.schedule.map(s=>(typeof s==="string"?[s,"","",""]:[s.q??s.cycle??s.quarter??"-",s.announce??"-",s.effective??"-",s.note??"-"])),{left:[3]}); }
     renderEvents(sp.events);
     if(Array.isArray(sp.criteria)&&sp.criteria.length){ children.push(p("편입 기준",{bold:true,size:18,before:80}));
-      simpleTable([2400,7800],["항목","요건"],sp.criteria.map(c=>[c.item??"-",c.detail??"-"]),{left:[1]}); }
+      if(sp.criteria.every(c=>typeof c==="string")) sp.criteria.forEach(c=>children.push(bullet(String(c))));
+      else simpleTable([2400,7800],["항목","요건"],sp.criteria.map(c=>(typeof c==="string"?[c,""]:[c.item??"-",c.detail??"-"])),{left:[1]}); }
     if(sp.criteria_note)children.push(p(String(sp.criteria_note),{size:17,color:"9A3412"})); }
   // Nasdaq 100
   const nq=r.nasdaq100;
   if(nq){ children.push(p("■ 나스닥 100 (NDX) 정기 리밸런싱",{bold:true,color:"0F172A",size:21,before:160}));
     if(Array.isArray(nq.schedule)&&nq.schedule.length){ children.push(p("1. 결정 시점",{bold:true,size:18}));
-      simpleTable([3000,2700,4500],["주기","발표일","적용일(장 마감 후)"],
-        nq.schedule.map(s=>[s.cycle??"-",s.announce??"-",s.effective??"-"]),{left:[2]}); }
+      if(nq.schedule.every(s=>typeof s==="string")) nq.schedule.forEach(s=>children.push(bullet(String(s))));
+      else simpleTable([3000,2700,4500],["주기","발표일","적용일(장 마감 후)"],
+        nq.schedule.map(s=>(typeof s==="string"?[s,"",""]:[s.cycle??"-",s.announce??"-",s.effective??"-"])),{left:[2]}); }
     renderEvents(nq.events);
     if(nq.rule_change&&Array.isArray(nq.rule_change.rows)&&nq.rule_change.rows.length){ const rc=nq.rule_change;
       children.push(p("룰 변경"+(rc.effective?(" ("+rc.effective+" 발효)"):"")+" — 패스트 엔트리",{bold:true,color:"1E40AF",before:100,size:20}));
-      simpleTable([2600,3800,3800],["규칙","변경 전","변경 후"],
-        rc.rows.map(x=>[x.rule??"-",x.before??"-",x.after??"-"]),{left:[0,1,2]});
+      if(rc.rows.some(x=>x&&(x.before!=null||x.after!=null))) simpleTable([2600,3800,3800],["규칙","변경 전","변경 후"],
+        rc.rows.map(x=>[x.rule??x.item??"-",x.before??"-",x.after??"-"]),{left:[0,1,2]});
+      else simpleTable([2800,7400],["항목","내용"], rc.rows.map(x=>[x.rule??x.item??"-",x.detail??x.change??"-"]),{left:[1]});
       if(rc.note)children.push(p(String(rc.note),{size:17,color:"64748B"})); }
     if(Array.isArray(nq.candidates)&&nq.candidates.length){ children.push(p("패스트 엔트리 유력 후보 (대형 IPO)",{bold:true,color:"1E40AF",before:100,size:20}));
-      simpleTable([1800,3300,2000,3100],["기업","사업 내용","추정 시총","IPO 상태/사유"],
-        nq.candidates.map(c=>[c.name??"-",c.biz??"-",c.valuation??"-",c.status??"-"]),{left:[1,3]}); } }
+      if(nq.candidates.some(c=>c&&(c.biz!=null||c.valuation!=null||c.status!=null))) simpleTable([1800,3300,2000,3100],["기업","사업 내용","추정 시총","IPO 상태/사유"],
+        nq.candidates.map(c=>[c.name??"-",c.biz??"-",c.valuation??"-",c.status??"-"]),{left:[1,3]});
+      else simpleTable([2400,7800],["기업","내용"], nq.candidates.map(c=>[c.name??"-",c.note??c.detail??"-"]),{left:[1]}); } }
   if(r.comment)children.push(p("종합: "+String(r.comment),{bold:true,color:"0F766E"}));
   if(r.asof)children.push(p("기준: "+String(r.asof),{size:16,color:"94A3B8"}));
   children.push(p("")); }
