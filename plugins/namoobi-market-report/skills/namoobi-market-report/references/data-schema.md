@@ -218,3 +218,13 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
                 "candidates":[{"name":"SpaceX","biz":"발사체·위성통신","valuation":"약 $1.75조","status":"2026-06-12 상장(SPCX)"}]},
    "comment":"AI·반도체·우주 테마 편입 두드러짐","asof":"2026-06-14"}
   ```
+
+## (v3.10.0) 추가 필드 — 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드
+
+`gen_hbm_dashboard.py` 가 `charts/hbm_dashboard.png`(6패널 + EPS/PER 표)를 생성하고, `build_report.js renderKoreaExtras` 가 3.1.5 섹션에 임베드(파일 없으면 자동 생략·비차단). **모든 수치는 추정치** — HBMAgent 가 `nmr_hbm.json` 으로 저장하면 `merge.py` 가 `markets.hbm` 으로 전달(라이브 오버라이드). 미수집이면 생성기 내장 예시·추정값('예시·추정' 표기). 확인 불가 분기는 빈값.
+
+- `markets.hbm` (= `nmr_hbm.json`). 시계열 키는 `[["YYYY-MM",값]…]`(월별) 또는 `[[연도,값]…]`(연도별):
+  - `spot_index`: 메모리 종합 스팟 지수(월별, 기준 100). `ddr5_16gb`/`ddr4_8gb`/`nand_mlc_64gb`: 현물가(USD, 월별).
+  - `hbm_shipment` `[[연도,십억Gb]…]`, `hbm_market` `[[연도,$B]…]`, `hbm3e_price`/`hbm4_price` `[[연도,USD]…]`.
+  - `share`: [{year, samsung, sk_hynix, micron, others}] (others=기타·중국 CXMT 등, 합계 100%, 예상 E).
+  - `gap_ratio` `[[연도,x]…]`. `eps_per`: [{name, eps_cur, eps_next, per_cur, per_next}]. `year_cur`/`year_next`, `asof`, `source`.

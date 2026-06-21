@@ -267,6 +267,21 @@ function renderKoreaExtras(){ const m=data.markets||{};
       children.push(p("■ 반도체/AI 대표 ETF·종목",{bold:true,color:"1E40AF",before:120}));
       children.push(makeTable(RW,retRows(m.semi_ai_breakdown,"semi",semiDesc))); }
   }
+  // (v3.10.0) 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드 — charts/hbm_dashboard.png 있으면 렌더(파일 없으면 자동 생략·비차단)
+  { const hbm=(m.hbm)||{}; const hbmImg=imagePara((hbm.chart)||"charts/hbm_dashboard.png",624,695);
+    if(hbmImg){ children.push(h("3.1.5 반도체 주가 체크용 메모리+HBM 지표",3));
+      children.push(p("메모리 가격·HBM 출하/시장규모·가격(ASP)·점유율·HBM:DDR5 격차를 한 화면에 모은 대시보드. 모든 수치는 추정치이며, 확인 불가 항목은 미표기.",{italics:true,color:"64748B"}));
+      children.push(hbmImg);
+      children.push(p("[해설]",{bold:true,color:"1E40AF",before:80,size:20}));
+      ["메모리 가격 추이: 어느 제품이 먼저 강해지는지 보면 업황 주도 섹터를 가늠할 수 있습니다.",
+       "종합 스팟 지수: 지수가 오르면 메모리 전반의 가격 모멘텀이 강해졌다는 의미입니다.",
+       "HBM 출하량 / 시장규모: 출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다.",
+       "HBM 가격: HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다.",
+       "HBM 점유율: 점유율이 높아지는 회사가 업황 호황의 이익을 더 많이 가져갈 가능성이 큽니다.",
+       "HBM:DDR5 격차: 격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다."
+      ].forEach(t=>children.push(p("• "+t,{size:18,color:"475569"})));
+      children.push(p("기준: "+(hbm.asof||"최신 공개 자료")+" · 수치는 추정치 — 자료: "+(hbm.source||"TrendForce·실적 컨센서스·언론 종합, AI Research"),{size:15,color:"94A3B8"}));
+      children.push(p("")); } }
  }
 // (v3.6.30) 3.2.2 FOMC 점도표(dot plot) — 데이터(markets.fomc_dotplot) 없으면 자동 생략.
 function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; if(!f||typeof f!=="object")return;

@@ -12,7 +12,9 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.9.0)
+# Namoobi Market Report (v3.10.0)
+
+> **v3.10.0 (2026-06-21) — 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드 추가.** (1) 신규 `scripts/gen_hbm_dashboard.py` 가 6패널(메모리 스팟 종합지수·DDR4/DDR5/NAND 가격·HBM 출하량/시장규모·HBM3E/HBM4 ASP·HBM 점유율[기타 포함 합계 100%·2027E]·HBM:DDR5 격차) + HBM 3사 EPS/PER(당해·차년) 표를 `charts/hbm_dashboard.png` 로 생성(각 패널 내부 범례·하단 해석 코멘트 포함). (2) `build_report.js renderKoreaExtras` 가 **3.1.5** 섹션에 이미지+6개 해설을 `imagePara` 로 임베드(파일 없으면 자동 생략·비차단). (3) **Phase 1.5 차트 생성기 5종→6종.** (4) `merge.py` 가 `nmr_hbm.json`→`markets.hbm` 전달. **모든 수치는 추정치** — `nmr_hbm.json`(HBMAgent 웹리서치) 있으면 라이브 오버라이드, 없으면 내장 예시·추정값. 확인 불가 항목은 미표기·'추정' 표기.
 
 > **v3.9.0 (2026-06-21) — 3.2.1 빅테크 CAPEX 차트 2종 추가.** 신문형 시각자료 요청 반영: (1) 신규 `scripts/gen_capex_chart.py` 가 5개사(MS·아마존·알파벳·메타·오라클) **CAPEX 스택바 + Capex/매출 비율선**(`charts/capex_stack_ratio.png`)과 **FCF 추이선**(`charts/capex_fcf.png`)을 생성 — 2023~2025 실적(각사 10-K/FMP)·2026 가이던스·2027~2029 전망(E). (2) `build_report.js` 가 **3.2.1 표 맨 아래**에 두 차트를 `imagePara` 로 임베드(파일 없으면 자동 생략 — 비차단). (3) **Phase 1.5 차트 생성기 4종→5종**. 데이터는 내장 기본값 우선, `markets.bigtech_capex.{capex,rev,fcf}_series` 가 있으면 라이브 오버라이드.
 >
@@ -34,6 +36,7 @@ description: |
 **3.1.2 종목 수급** — 다음금융 `investor_purchase` API(네이버 차단). 코스피·코스닥 외국인·기관 순매수/순매도 상위 종목 → 빌더가 외국인·기관 병합표로 렌더.
 **3.1.3 경기선행지수** — `indexergo.com/series/?detailId=11601&frq=M` echarts 에서 순환변동치 시계열 추출 → `nmr_leading_series.json` → `gen_leading_chart.py`. WebSearch 금지.
 **3.1.4 테마·반도체** — 테마 8종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주) 10년 월별 series → `gen_rest_charts.py`. 반도체/AI **종목 10 + ETF 정확히 20**(다음금융 AUM 상위, 단일종목 레버리지 포함) 추세차트.
+**3.1.5 메모리+HBM 지표 대시보드** — `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(6패널 + HBM 3사 EPS/PER 표). HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 무료 실시간 API 가 없으므로 **HBMAgent 가 WebSearch+뉴스(TrendForce·각사 실적 컨센서스·언론)로 분기 추정치**를 `nmr_hbm.json` 으로 저장(스키마=`references/data-schema.md`). **모든 수치는 '추정' 명시**, 확인 불가 분기는 빈값. `nmr_hbm.json` 미수집 시 내장 예시·추정값으로 차트 생성('예시·추정' 표기 유지) — 3.1.5 는 비차단(차트 없으면 섹션 자동 생략).
 **3.2.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간. 실적값은 **FMP `statements` cashflow 의 `capitalExpenditure`**(절대값)로 정확 수집, 추정연도(**2027(E) 항상 채움**)만 WebSearch. 표 전체폭, 미확인 칸은 "미공개". **(v3.9.0) 표 맨 아래 차트 2종(`gen_capex_chart.py`): 5개사(+오라클) CAPEX 스택바+Capex/매출 비율선, FCF 추이선 — 2023~2025 실적·2026 가이던스·2027~2029 전망(E). 차트는 내장 기본 데이터로 항상 생성되며, `bigtech_capex.{capex,rev,fcf}_series` 제공 시 라이브 오버라이드.**
 **3.2.2 FOMC 점도표** — 2026·2027·2028말·장기중립 각 행에 **jun·mar 중간값 모두**(빈칸 금지).
 **3.2.3 HY 스프레드** — FRED `BAMLH0A0HYM2` **월별** series(Chrome 동일출처 `fredgraph.csv`) → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한, 초과 시 한계 명시).
@@ -43,7 +46,7 @@ description: |
 **7 한국 주요 증권사(10) = 텔레그램 7 + Chrome 3** — 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램** `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요). 삼성·미래에셋·한투는 **메인세션 Claude in Chrome 3탭 navigate + `javascript_tool` 타깃추출**(공개 리서치 페이지 정상 접속됨 — 삼성=`samsungpop … research_pop.jsp#bm`(팝업'확인'), 미래에셋=`miraeasset … list.do?categoryId=1521`, 한투=`koreainvestment … Strategy.jsp?jkGubun=99`·`34`; 상세 URL `references/agents.md`. get_page_text 덤프 금지; "미확인/로그인전용" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
 **7·8 신선도** — Daily≤D-1, Weekly/Monthly≤D-3(주말은 금요일까지). 미충족이면 **stale 로 채우지 말고 빈값**("기준일 충족 최신 공개 자료 미확인"). 글로벌 IB(UBS·GS·JPM·MS·BlackRock)는 WebSearch+Bigdata MCP(Chrome 금지=메인세션과 충돌).
 **슬로우체인지 캐시(P2) + carry-forward** — 점도표·버핏13F·지수리밸런싱·HY히스토리·주의사항/출처는 캐시(`_market_report_data/nmr_cache.json`). **일정은 바뀔 수 있으므로 날짜계산만 믿지 말고, 매 실행 "이벤트 마커"를 싸게 1회 확인**: 13F=Berkshire 최신 13F-HR 제출일(EDGAR/Massive `/stocks/filings`), 점도표=최신 FOMC SEP 발표일(federalreserve.gov 캘린더), 리밸런싱=S&P/나스닥 최신 구성변경 발표·효력일, HY=FRED 최신 데이터일. 그 마커로 `python3 scripts/nmr_cache.py check <item> <관측마커>` → `reuse` 면 `get <item>` 캐시값 주입(조사 스킵), `due`(마커 변동·캐시없음·**확인 불가**) 면 평소대로 조사 후 `set <item> <as_of> <마커>`. **확인 불가/불확실이면 무조건 조사(stale 금지)**, 캐시값도 as_of 명시. (백업: 실패 시 직전 report_data 폴백.)
-**차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` **5종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기). `gen_capex_chart.py` → `charts/capex_stack_ratio.png`·`charts/capex_fcf.png`(3.2.1 빅테크 CAPEX 차트, cwd 상대 출력).
+**차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` **6종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기). `gen_capex_chart.py` → `charts/capex_stack_ratio.png`·`charts/capex_fcf.png`(3.2.1 빅테크 CAPEX 차트, cwd 상대 출력). `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(3.1.5 메모리+HBM 대시보드, cwd 상대 출력; `nmr_hbm.json` 있으면 라이브, 없으면 내장 예시·추정값).
 **작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
 
 ## 보고서 품질 기준 (반드시 충족)
@@ -83,7 +86,7 @@ description: |
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·증권사 텔레그램 7사, Chrome 불필요)
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate·JS 타깃추출); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
-[Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py → charts/*.png
+[Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py → charts/*.png
         ↓
 [Phase 2: AnalysisAgent 단독 호출]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓

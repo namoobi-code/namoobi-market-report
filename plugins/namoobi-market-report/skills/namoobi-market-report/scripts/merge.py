@@ -116,6 +116,7 @@ for i, x in enumerate(semi.get('semi_ai_etfs', [])[:20]):
     se.append(r)
 m['semi_ai_stocks'] = ss; m['semi_ai_stocks_comment'] = semi.get('semi_ai_stocks_comment', '')
 m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comment', '')
+m['hbm'] = L('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
 
 m['us_etfs'] = ue
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})

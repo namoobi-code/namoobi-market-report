@@ -17,7 +17,7 @@
 - **CommoditiesAgent(본문 3) 통합(P3)**: 에너지·금속·농산물·전략광물 현재가·등락률 + **1년 주봉 `nmr_commod.json`** + 각 행 2문장 한글 trend 를 1회 수집으로 산출. (구 CommoditySeriesAgent 흡수.)
 - **NewsBerkAgent(AINews+Berkshire) → `nmr_news2.json`**: `events_calendar_longterm` ★★★ 8~10건, `berkshire` 13F(new_buys/added/reduced/exited/top_holdings≤20, 스키마 정확히), `ai_trends`(국·영 병기 — 빌더 부록B 가 items[] 렌더). **반드시 구조**: `ai_trends={"as_of":"YYYY-MM-DD","sources_checked":[..],"items":[{"tag":"<분류>","title":"<국문 제목>","summary":"<국문 2~3문장>","title_en":"<EN title>","summary_en":"<EN 1~2 sentences>","source":"<매체>","date":"YYYY-MM-DD","url":"<링크>"}, ...5~8개]}`. ⚠️ **`detail` 키 금지** — 빌더는 `summary`/`title_en`/`summary_en` 를 읽으므로 국문=`summary`, 영문=`summary_en` 로 분리한다. **[P2 캐시] 매 실행 Berkshire 최신 13F-HR 제출일(EDGAR)을 마커로 `check berkshire <제출일>` → reuse 면 13F 조사 스킵·캐시; due/확인불가 면 조사 후 `set berkshire`.**
 - **HY 스프레드**: FRED `BAMLH0A0HYM2` **월별** series → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한). **[P2 캐시] 매 실행 FRED 최신 데이터일(월)을 마커로 `check hy_spread <YYYY-MM>` → reuse 면 히스토리 재사용; due(새 달) 면 최신 점 추가 후 `set`.**
-- **차트 생성(Phase 1.5)** = `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` **4종만** (`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 폐기).
+- **차트 생성(Phase 1.5)** = `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` **6종만** (`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 폐기). `gen_capex_chart.py`→3.2.1 CAPEX, `gen_hbm_dashboard.py`→3.1.5 메모리+HBM 대시보드(`nmr_hbm.json` 라이브 또는 내장 예시·추정값, cwd 상대 `charts/` 출력).
 - **7 한국 5대 증권사** = 메인세션 Chrome 개별 `navigate→get_page_text`(WebSearch 일괄 우회 금지), 키움 `?dummyVal=0`(iframe 이면 텔레그램 t.me/s/KiwoomResearch 보조). **7·8 신선도** = Daily≤D-1·Weekly/Monthly≤D-3(주말은 금요일까지), 미충족이면 stale 금지·빈값.
 - **품질 게이트(Phase 4.5)**: `scripts/verify_report.js` 가 위 항목을 코드로 검사. 미달이면 발송 차단·사용자 질문(조용히 "-"/stale 통과 금지).
 
@@ -255,3 +255,13 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
   - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
 - `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
 - 3.1.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.
+
+## (v3.10.0) 3.1.5 HBMAgent — 메모리+HBM 지표 대시보드 (`nmr_hbm.json`)
+
+**목적**: 3.1.5 메모리+HBM 대시보드(`gen_hbm_dashboard.py`)에 들어갈 분기 추정치를 수집한다. HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 **무료 실시간 API 가 없으므로 전부 추정치**다 — WebSearch + 뉴스로 공개된 추정/실적/가이던스를 모은다.
+
+- **호출**: Phase 1 병렬 배치에 포함(선택). 결과는 `nmr_hbm.json` 으로 bash 저장하고 1줄 요약만 반환. **미수집/실패해도 무방** — 생성기가 내장 예시·추정값으로 차트를 만들고 '예시·추정' 으로 표기한다(비차단).
+- **소스**: TrendForce/DRAMeXchange 보도·블로그, SK하이닉스·삼성전자·Micron 실적발표/IR/가이던스, 증권사·언론. **원문 유료 데이터 복제 금지** — 공개 보도된 수치/레인지만.
+- **추정 명시 규칙(필수)**: 모든 값은 추정. **확인 불가 분기는 빈값(미표기)**, 절대 기억·임의값으로 패딩하지 말 것. `source`·`asof` 명시. 확신 없으면 해당 키 생략(생성기가 내장값 사용).
+- **반환 스키마** = `references/data-schema.md` 의 `markets.hbm`(= `nmr_hbm.json`). 키: `spot_index, ddr5_16gb, ddr4_8gb, nand_mlc_64gb, hbm_shipment, hbm_market, hbm3e_price, hbm4_price, share[](samsung/sk_hynix/micron/others 합계 100%·예상 E), gap_ratio, eps_per[], year_cur, year_next, asof, source`.
+- **점유율 others**: 삼성·SK하이닉스·마이크론 외 잔여분(중국 CXMT 등)을 `others` 로 채워 **합계 100%**.
