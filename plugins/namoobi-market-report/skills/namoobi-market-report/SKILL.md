@@ -12,7 +12,9 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.13.0)
+# Namoobi Market Report (v3.13.1)
+
+> **v3.13.1 (2026-06-21) — 보고서 품질 3종 상시 보정.** (1) **뉴스 한글 강제**: NewsAgent 가 `headline`·`summary`(1장 핵심 헤드라인·1.글로벌 Top News 10)를 **반드시 한글**로 작성(외신 영어·중국어는 한글 번역, source·source_url 만 원문). 영어 헤드라인 그대로 두기 금지. (2) **AI Trends 항상 10개**: NewsBerkAgent `ai_trends.items` 를 5~8개→**정확히 10개**(부족 시 추가 WebSearch·출처 URL 확인 항목만). (3) **HY 스프레드 차트 상시 렌더**: `gen_hy_chart.py` 폴백이 연결폴더 `_market_report_data` 의 직전 report_data `hy_spread`(6점)도 탐색 → FRED(sandbox 차단) 실패·merge 전 실행이어도 `charts/hy_oas.png` 항상 생성.
 
 > **v3.13.0 (2026-06-21) — 경기선행 순환변동치 차트 자동화(Chrome 불필요·sandbox 실측).** 신규 `scripts/fetch_leading.py` 가 e-나라지표 통계표 AJAX 엔드포인트(`showStblGams3.do?stts_cd=105701&idx_cd=1057&freq=M`, UA+Referer+X-Requested-With 헤더 → 200)에서 **선행종합지수 순환변동치 월별 실측(~29개월)을 sandbox 에서 직접 수집**해 `nmr_leading_series.json`(≥12)+`nmr_leading.json`(최신 4개월 desc·mom)을 생성한다. Phase 1 bash 병렬 배치에 합류(fetch_us·kr·semi·brokers_tele 와 함께) → `gen_leading_chart.py` 가 매 실행 `charts/leading_cycle.png`(3.2.3) 를 항상 채운다. 기존 "Chrome/INDEXerGO echarts(curl 403)·P2 캐시" 경로는 폐기. 실패 시 비차단(파일 미생성 → merge 가 캐시/직전 report_data 폴백).
 
@@ -61,7 +63,7 @@ description: |
 
 생성되는 docx 는 다음 10개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.
 
-1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨(`▲ 강세`/`▼ 부정`/`■ 양면` — 기호+색 구분)
+1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨(`▲ 강세`/`▼ 부정`/`■ 양면` — 기호+색 구분). **헤드라인·요약은 항상 한글**(외신도 한글 번역, 출처/URL 만 원문)
 2. **글로벌 주요 이벤트 캘린더** — ① 향후 1개월 전체 중요도(★~★★★) ② 1개월~1년 중장기는 ★★★만 (날짜·지역·이벤트·예상 영향). **빅테크 주요 이벤트(아이폰·갤럭시 언팩·GTC·CES·OpenAI 신모델 등)가 향후 일정에 있으면 누락 금지** (NewsAgent 가 별도 검색으로 확인)
 3. **단·중·장기 추세** — 모든 자산을 1주/1개월/3개월/6개월/1년 변화율로 제시
 4. **글로벌 증시 풀커버리지** — 한국(코스피·코스닥)·미국·홍콩·중국·일본·**대만**·인도·베트남·유럽

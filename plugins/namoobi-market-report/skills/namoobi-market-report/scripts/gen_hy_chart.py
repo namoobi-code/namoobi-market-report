@@ -17,7 +17,8 @@ OUT="charts/hy_oas.png"
 def _report_path():
     for a in sys.argv[1:]:
         if a.endswith(".json") and os.path.exists(a) and "report_data" in a: return a
-    c=sorted(glob.glob(O+"/_market_report_data/report_data_*.json")) or sorted(glob.glob(O+"/report_data_*.json"))
+    c=(sorted(glob.glob(O+"/_market_report_data/report_data_*.json")) or sorted(glob.glob(O+"/report_data_*.json"))
+       or sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/report_data_*.json")))  # v3.13.1: 연결폴더 직전 report_data 폴백 → FRED 실패해도 HY 차트 항상 렌더
     return c[-1] if c else None
 series=None; cur=None
 for cand in ["hy_oas.json", O+"/hy_oas.json", O+"/nmr_hy_series.json"]:
