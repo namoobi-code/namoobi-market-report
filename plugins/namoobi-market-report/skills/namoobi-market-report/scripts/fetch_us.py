@@ -125,18 +125,28 @@ markets = {
                      scales={'jpy_krw': 100.0}),
  'fx_usd': block({'usd_eur':'EUR=X','usd_jpy':'JPY=X','usd_cny':'CNY=X'}),
 }
+# (fix) CNY/KRW cross fallback: CNYKRW=X 희박/실패 시 USD_KRW / USD_CNY 합성 (5장 '-' 방지)
+def _cross(a_tk, b_tk):
+    A = {d: v for d, v in closes(RES.get(a_tk))}; B = {d: v for d, v in closes(RES.get(b_tk))}
+    return [[d, round(A[d] / B[d], 2)] for d in sorted(set(A) & set(B)) if B.get(d)]
+if not (markets['fx_markets'].get('cny_krw') or {}).get('current'):
+    _cs = _cross('KRW=X', 'CNY=X')
+    if len(_cs) >= 2:
+        _r = ret(_cs); _r['trend'] = trend(_r); markets['fx_markets']['cny_krw'] = _r
 json.dump(markets, open('nmr_markets.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_indexseries.json =====
-idxs = {k: S(IDX[k]) for k in ('kospi','kosdaq','sp500','nasdaq','dow','vix','dxy','us10y')}
+idxs = {k: S(IDX[k]) for k in ('kospi','kosdaq','sp500','nasdaq','dow','vix','dxy','us10y','nikkei','shanghai','hsi','taiwan','sensex','vietnam','stoxx50','dax','ftse')}
 json.dump(idxs, open('nmr_indexseries.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_series2.json =====
 series2 = {
  'fx': {k: S(FX[k]) for k in ('usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw','usd_jpy')},
- 'commodities': {k: S(COMM[k]) for k in ('wti','brent','natgas','gold','silver','copper')},
+ 'commodities': {k: S(COMM[k]) for k in ('wti','brent','natgas','gold','silver','copper','platinum','rare_earth','corn','soybean','wheat')},
  'strat_etf': {k: S(STRAT[k]) for k in STRAT},
 }
+if len(series2['fx'].get('cny_krw') or []) < 2:
+    series2['fx']['cny_krw'] = _cross('KRW=X', 'CNY=X')
 json.dump(series2, open('nmr_series2.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_commod.json =====

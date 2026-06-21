@@ -14,6 +14,8 @@ description: |
 
 # Namoobi Market Report (v3.7.0)
 
+> **v3.8.0 (2026-06-21) — 보고서 "-"/누락 근본 수정.** 사용자 피드백(대량 "-")에 따라: (1) `fetch_us.py` 가 아시아·유럽 지수(3.3/3.4)·금속/농산물(4.2/4.3) 시계열을 `nmr_indexseries`/`series2` 에 포함해 추세 스파크라인 생성, CNY/KRW 크로스(=USD_KRW/USD_CNY) 폴백으로 5장 환율 채움. (2) `merge.py` 가 HY 1주~1년 OAS 히스토리(3.2.3)·FOMC 점도표 "변화" 열(3.2.2, jun−mar)·김치프리미엄 `coins[]`(6.3, upbit_krw/binance_usd/premium_pct) 를 구성. (3) `build_report.js` 에서 7.9 투자자 유형별 추천 조합 **삭제**, 글로벌 IB(8장) "수집 실패" 문구는 key_message/뷰가 없을 때만 표기. (4) `agents.md` — CryptoAgent 김프 coins[] 스키마·SecuritiesAgent 삼성/미래에셋/한투 정확 URL·NewsBerk `ai_trends.items[]`(summary/title_en/summary_en) 명시. **빌더·merge 스키마 일부 확장.**
+>
 > **v3.7.0 (2026-06-20) — 문서 구조 개편(동작 불변).** 과거 변경이력(v3.0~v3.6.35)은 `CHANGELOG.md` 로 분리(런타임 미로딩)하고, 거기 흩어져 있던 현행 규칙은 아래 **핵심 수집 규칙**과 각 Phase 본문으로 통합했다. **데이터 스키마·서브에이전트·빌더(build_report.js) 로직은 그대로다 — 문서 정리만.** 모순 일원화: 최종 산출물 = **docx 전용**(soffice/PDF 변환 폐지), `request_cowork_directory` **호출 안 함**, 차트 생성기 = 현행 4종만. 에이전트별 상세 프롬프트·반환 스키마는 `references/agents.md`, 발송 절차는 `references/email-sending.md`.
 
 ## 핵심 수집 규칙 (현행 — 매 실행 준수)
@@ -36,7 +38,7 @@ description: |
 **3.2.x 미국 ETF·리밸런싱** — `us_etfs` 30종(③ 테마에 **DRAM=Roundhill Memory ETF** 항상 포함). S&P500·나스닥100 정기 리밸런싱(편입/편출·일정·룰변경).
 **5 환율 스파크라인** — 원화 5쌍(usd/eur/jpy/cny/hkd_krw) 1년 주봉.
 **6.2/6.3 코인** — BTC·ETH·XRP·SOL 1년 + 공포·탐욕 1년 차트. 김프 4종(특히 SOL) 항상 채움.
-**7 한국 주요 증권사(10) = 텔레그램 7 + Chrome 3** — 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램** `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요). 삼성·미래에셋·한투는 공개 채널 미확인 → **메인세션 Claude in Chrome 3탭 동시 navigate + `javascript_tool` 타깃추출**(get_page_text 덤프 금지; 접근 가능한데 "미확인" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
+**7 한국 주요 증권사(10) = 텔레그램 7 + Chrome 3** — 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램** `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요). 삼성·미래에셋·한투는 **메인세션 Claude in Chrome 3탭 navigate + `javascript_tool` 타깃추출**(공개 리서치 페이지 정상 접속됨 — 삼성=`samsungpop … research_pop.jsp#bm`(팝업'확인'), 미래에셋=`miraeasset … list.do?categoryId=1521`, 한투=`koreainvestment … Strategy.jsp?jkGubun=99`·`34`; 상세 URL `references/agents.md`. get_page_text 덤프 금지; "미확인/로그인전용" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
 **7·8 신선도** — Daily≤D-1, Weekly/Monthly≤D-3(주말은 금요일까지). 미충족이면 **stale 로 채우지 말고 빈값**("기준일 충족 최신 공개 자료 미확인"). 글로벌 IB(UBS·GS·JPM·MS·BlackRock)는 WebSearch+Bigdata MCP(Chrome 금지=메인세션과 충돌).
 **슬로우체인지 캐시(P2) + carry-forward** — 점도표·버핏13F·지수리밸런싱·HY히스토리·주의사항/출처는 캐시(`_market_report_data/nmr_cache.json`). **일정은 바뀔 수 있으므로 날짜계산만 믿지 말고, 매 실행 "이벤트 마커"를 싸게 1회 확인**: 13F=Berkshire 최신 13F-HR 제출일(EDGAR/Massive `/stocks/filings`), 점도표=최신 FOMC SEP 발표일(federalreserve.gov 캘린더), 리밸런싱=S&P/나스닥 최신 구성변경 발표·효력일, HY=FRED 최신 데이터일. 그 마커로 `python3 scripts/nmr_cache.py check <item> <관측마커>` → `reuse` 면 `get <item>` 캐시값 주입(조사 스킵), `due`(마커 변동·캐시없음·**확인 불가**) 면 평소대로 조사 후 `set <item> <as_of> <마커>`. **확인 불가/불확실이면 무조건 조사(stale 금지)**, 캐시값도 as_of 명시. (백업: 실패 시 직전 report_data 폴백.)
 **차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` **4종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기).

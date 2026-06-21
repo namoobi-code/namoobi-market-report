@@ -119,13 +119,44 @@ m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comme
 
 m['us_etfs'] = ue
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})
+# (fix) FOMC 점도표 '변화' 열 = jun - mar (build_report r.change 비어 '-' 표시되던 문제)
+for _r in ((m.get('fomc_dotplot') or {}).get('rows') or []):
+    if not str(_r.get('change') or '').strip():
+        try: _r['change'] = "%+.1f" % (float(_r.get('jun')) - float(_r.get('mar')))
+        except Exception: _r['change'] = ''
 m['us_credit'] = um.get('us_credit', {}); m['us_treasury_curve'] = um.get('us_treasury_curve')
 uc = um.get('us_credit', {})
 m['hy_spread'] = {'current': uc.get('hy_oas'), 'hy_oas': uc.get('hy_oas'), 'hy_yield': uc.get('hy_yield'),
                   'implied_ust': uc.get('implied_ust'), 'comment': uc.get('comment'), 'chart': 'charts/hy_oas.png'}
+# (fix) HY 1주~1년 OAS 히스토리 (nmr_hy_series.json 월별) — 3.2.3 의 1주/1개월~1년 열이 '-' 이던 문제
+_hys = L('nmr_hy_series.json'); _hser = (_hys.get('series') if isinstance(_hys, dict) else _hys) or []
+_hpts = sorted([(dt.date.fromisoformat(str(d)[:10]), float(v)) for d, v in _hser if v is not None])
+if len(_hpts) >= 2:
+    _last = _hpts[-1][0]
+    for _k, _days in [('w1', 7), ('m1', 30), ('m3', 91), ('m6', 182), ('y1', 365)]:
+        _tgt = _last - dt.timedelta(days=_days)
+        _cand = [p for p in _hpts if p[0] <= _tgt] or [_hpts[0]]
+        m['hy_spread'][_k] = round(_cand[-1][1], 2)
 m['index_rebalance'] = {k: v for k, v in rb.items() if k != 'latest_change_date'}
 
 crd = dict(cr); crd['charts'] = {'btc': 'charts/coin_btc.png', 'eth': 'charts/coin_eth.png', 'xrp': 'charts/coin_xrp.png', 'sol': 'charts/coin_sol.png', 'fng': 'charts/fng_1y.png'}
+# (fix) 김치프리미엄 coins[] 구성 (빌더는 kimchi_premium.coins[{symbol,u,b,pp,status}] 필요) — 6.3 미표시 문제
+_kp = crd.get('kimchi_premium')
+if isinstance(_kp, dict) and not _kp.get('coins'):
+    _rate = _kp.get('rate_usd_krw') or _kp.get('exchange_rate_krw_per_usd') or _kp.get('rate')
+    _coins = []
+    for _sym in ('btc', 'eth', 'xrp', 'sol'):
+        _v = _kp.get(_sym)
+        if isinstance(_v, dict):
+            _coins.append({'symbol': _sym.upper(),
+                           'upbit_krw': _v.get('upbit_krw', _v.get('u', _v.get('upbit'))),
+                           'binance_usd': _v.get('binance_usd', _v.get('b', _v.get('binance'))),
+                           'premium_pct': _v.get('premium_pct', _v.get('pp', _v.get('premium'))),
+                           'status': _v.get('status', '')})
+        elif _v is not None:
+            _coins.append({'symbol': _sym.upper(), 'upbit_krw': None, 'binance_usd': None, 'premium_pct': _v, 'status': ''})
+    if _coins:
+        crd['kimchi_premium'] = {'rate_usd_krw': _rate, 'coins': _coins}
 
 # news (+ longterm 병합·중복제거·빈event 방어 필터: 2.2 가 "-" 로 새지 않도록)
 news = dict(nw)

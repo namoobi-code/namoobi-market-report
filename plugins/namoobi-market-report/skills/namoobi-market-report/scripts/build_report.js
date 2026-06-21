@@ -630,9 +630,7 @@ if (data.securities) { let idx=0;
   const others=Object.keys(secLabels).filter(k=>!coreSet.has(k)&&data.securities[k]);
   if(others.length){ idx++; children.push(h(`7.${idx} 기타 증권사 (핵심 메시지 요약)`,2)); others.forEach(key=>{ const sec=data.securities[key]; const km=sec.key_message||"(수집)"; children.push(p(`${secLabels[key]}: ${km}`)); }); }
   if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ idx++; children.push(h(`7.${idx} 공통 핵심 주제`,2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
-  if(data.securities.investor_type_recommendation){ idx++; children.push(h(`7.${idx} 투자자 유형별 추천 조합`,2)); const rec=data.securities.investor_type_recommendation;
-    const rm=[["장기 자산배분형",rec.long_term_allocator],["해외주식 종목 픽킹",rec.overseas_stock_picker],["단기 트레이더",rec.short_term_trader],["ETF·패시브 투자자",rec.etf_passive],["중국 집중 투자자",rec.china_focused]];
-    children.push(makeTable([2800,6560],[["유형","추천 조합"],...rm].map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc||"-",{width:[2800,6560][j],header:i===0,alt:i>0&&i%2===0,bold:j===0&&i>0}))})))); }
+  // (7.9 투자자 유형별 추천 조합 — 사용자 요청으로 삭제됨)
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("8. 글로벌 주요 IB 리서치 (UBS·GS·JPM·MS·BlackRock)",1));
@@ -646,7 +644,7 @@ if (data.global_securities) { let gi=0;
     if(sec.key_message) children.push(p(`오늘의 메시지: ${sec.key_message}`));
     const vf=gVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${sec[vf[0]]}`,{color:"0F766E"}));
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 발간물:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
-    else children.push(p("(수집 실패 또는 비공개)",{italics:true,color:"94A3B8"})); }
+    else if(!sec.key_message&&!(gVF[key]&&sec[gVF[key][0]])) children.push(p("(수집 실패 또는 비공개)",{italics:true,color:"94A3B8"})); }
   if(Array.isArray(data.global_securities.common_themes)&&data.global_securities.common_themes.length){ children.push(h("8.6 글로벌 IB 공통 핵심 주제",2)); data.global_securities.common_themes.forEach(t=>children.push(bullet(t))); }
   if(data.global_securities.wall_street_consensus){ var _w=data.global_securities.wall_street_consensus; var _ws=(_w&&typeof _w==="object")?Object.keys(_w).map(function(k){var v=_w[k];return k+": "+((v&&typeof v==="object")?Object.keys(v).map(function(a){return a+" "+v[a];}).join(", "):String(v));}).join("  /  "):String(_w); children.push(h("8.7 월가 컨센서스",2)); children.push(p(_ws)); }
   children.push(p("※ 해외 IB 원문은 고객 전용 — 공개 Insights·언론 보도 기반 요약입니다.",{italics:true,color:"94A3B8",size:18}));
