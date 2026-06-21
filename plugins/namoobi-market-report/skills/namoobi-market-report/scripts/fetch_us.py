@@ -141,7 +141,7 @@ json.dump(idxs, open('nmr_indexseries.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_series2.json =====
 series2 = {
- 'fx': {k: S(FX[k]) for k in ('usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw','usd_jpy')},
+ 'fx': {k: S(FX[k]) for k in ('usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw','usd_jpy','usd_cny','usd_eur')},
  'commodities': {k: S(COMM[k]) for k in ('wti','brent','natgas','gold','silver','copper','platinum','rare_earth','corn','soybean','wheat')},
  'strat_etf': {k: S(STRAT[k]) for k in STRAT},
 }

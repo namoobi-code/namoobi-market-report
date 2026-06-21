@@ -130,6 +130,7 @@ const headerShading = { fill: "1E40AF", type: ShadingType.CLEAR, color: "auto" }
 const altShading = { fill: "EFF6FF", type: ShadingType.CLEAR, color: "auto" };
 const negativeColor = "DC2626", positiveColor = "059669";
 function fmtPct(v){ if(v===null||v===undefined||v==="")return "-"; const n=Number(v); if(isNaN(n))return String(v); return (n>=0?"+":"")+n.toFixed(2)+"%"; }
+function viewText(v){ if(v==null)return ""; if(typeof v==="string")return v; if(Array.isArray(v))return v.map(viewText).filter(Boolean).join(", "); if(typeof v==="object")return Object.keys(v).map(function(k){var x=viewText(v[k]); return x?(/^[A-Za-z0-9_]+$/.test(k)&&v[k]&&typeof v[k]==="object"?x:x):"";}).filter(Boolean).join(" / "); return String(v); }
 function pctColor(v){ if(v===null||v===undefined||v==="")return undefined; const n=Number(v); if(isNaN(n))return undefined; return n>=0?positiveColor:negativeColor; }
 function fmtNum(v){ if(v===null||v===undefined||v==="")return "-"; const n=Number(v); if(isNaN(n))return String(v); if(Math.abs(n)>=1000)return n.toLocaleString(undefined,{maximumFractionDigits:2}); return n.toFixed(2); }
 const mixedColor = "D97706"; // 양면(■) — 앰버
@@ -628,12 +629,12 @@ if (data.securities) { let idx=0;
     children.push(h(`7.${idx} ${secLabels[key]}`,2));
     if(sec.strength) children.push(p(`핵심 강점: ${sec.strength}`,{bold:true,color:"1E40AF"}));
     if(Array.isArray(sec.channels)&&sec.channels.length) children.push(p(`주요 채널: ${sec.channels.join(' / ')}`,{italics:true,color:"475569"}));
-    if(sec.key_message) children.push(p(`오늘의 메시지: ${sec.key_message}`));
-    const vf=secVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${sec[vf[0]]}`,{color:"0F766E"}));
+    if(sec.key_message) children.push(p(`오늘의 메시지: ${viewText(sec.key_message)}`));
+    const vf=secVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${viewText(sec[vf[0]])}`,{color:"0F766E"}));
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 리포트:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
     else children.push(p("(리포트 수집 실패 - 사이트 접근 제한)",{italics:true,color:"94A3B8"})); }
   const others=Object.keys(secLabels).filter(k=>!coreSet.has(k)&&data.securities[k]);
-  if(others.length){ idx++; children.push(h(`7.${idx} 기타 증권사 (핵심 메시지 요약)`,2)); others.forEach(key=>{ const sec=data.securities[key]; const km=sec.key_message||"(수집)"; children.push(p(`${secLabels[key]}: ${km}`)); }); }
+  if(others.length){ idx++; children.push(h(`7.${idx} 기타 증권사 (핵심 메시지 요약)`,2)); others.forEach(key=>{ const sec=data.securities[key]; const km=viewText(sec.key_message)||"(수집)"; children.push(p(`${secLabels[key]}: ${km}`)); }); }
   if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ idx++; children.push(h(`7.${idx} 공통 핵심 주제`,2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
   // (7.9 투자자 유형별 추천 조합 — 사용자 요청으로 삭제됨)
 }
@@ -646,8 +647,8 @@ if (data.global_securities) { let gi=0;
     children.push(h(`8.${gi} ${gL[key]}`,2));
     if(sec.strength) children.push(p(`핵심 강점: ${sec.strength}`,{bold:true,color:"1E40AF"}));
     if(Array.isArray(sec.channels)&&sec.channels.length) children.push(p(`공개 채널: ${sec.channels.join(' / ')}`,{italics:true,color:"475569"}));
-    if(sec.key_message) children.push(p(`오늘의 메시지: ${sec.key_message}`));
-    const vf=gVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${sec[vf[0]]}`,{color:"0F766E"}));
+    if(sec.key_message) children.push(p(`오늘의 메시지: ${viewText(sec.key_message)}`));
+    const vf=gVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${viewText(sec[vf[0]])}`,{color:"0F766E"}));
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 발간물:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
     else if(!sec.key_message&&!(gVF[key]&&sec[gVF[key][0]])) children.push(p("(수집 실패 또는 비공개)",{italics:true,color:"94A3B8"})); }
   if(Array.isArray(data.global_securities.common_themes)&&data.global_securities.common_themes.length){ children.push(h("8.6 글로벌 IB 공통 핵심 주제",2)); data.global_securities.common_themes.forEach(t=>children.push(bullet(t))); }
