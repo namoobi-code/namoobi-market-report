@@ -12,7 +12,9 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.16.0)
+# Namoobi Market Report (v3.17.0)
+
+> **v3.17.0 (2026-06-22) — 슬로우데이터 변경감지 보장 + 무거운 에이전트 조건부 발행(토큰·시간↓).** 점도표·버핏13F·지수리밸런싱은 **매 실행 저렴한 마커 1회 관측 → `scripts/nmr_cache.py check`** 로 변경 여부를 확인하고, **마커가 바뀐 경우에만** 해당 무거운 조사 에이전트(USMacroExtras·IndexRebalance·NewsBerk 13F)를 발행한다(변경 없으면 `get` 캐시 재사용=조사 스킵). 빅테크 CAPEX·HBM 은 저렴한 마커가 없어 **실적/분기 창**(`nmr_cache.py gate <오늘>`)으로 판정 — 창 안에서만 조사, 밖이면 carry-forward/내장값. **변경은 매 실행 재관측으로 즉시 포착(보장)** 하되 안 바뀐 날엔 무거운 검색 에이전트가 안 떠 비용이 크게 준다. 캐시 비면 무조건 조사(silent "-" 금지). 게이트는 요일 무관·이벤트창만 본다.
 
 > **v3.16.0 (2026-06-22) — 서브에이전트 모델 티어링(비용·속도 최적화).** Phase 1 수집 에이전트 9종(News·Crypto·Macro·KoreaSemiTheme·GlobalSecurities·USMacroExtras·IndexRebalance·NewsBerk·HBM)을 Agent/Task 호출 시 **`model:"sonnet"`** 으로 발행한다(검색→추출→JSON 저장 작업이라 Opus 불필요 — 토큰·지연 大폭 절감, "추정 금지·도구값만" 그라운딩 규칙으로 품질 유지). **종합·추론이 필요한 Phase 2 AnalysisAgent만 `model:"opus"`** 유지. 메인 오케스트레이터 세션·bash fetch 스크립트는 불변. `model` 미지정 시 부모(Opus) 상속이므로 **반드시 명시**한다(Crypto 등 순수 MCP 호출 에이전트는 검증 후 `haiku` 로 추가 강등 가능).
 
@@ -59,7 +61,7 @@ description: |
 **6.2/6.3 코인** — BTC·ETH·XRP·SOL 1년 + 공포·탐욕 1년 차트. 김프 4종(특히 SOL) 항상 채움.
 **7 한국 주요 증권사(10) = 텔레그램 7 + Chrome 3** — 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램** `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요). 삼성·미래에셋·한투는 **메인세션 Claude in Chrome 3탭 navigate + `javascript_tool` 타깃추출**(공개 리서치 페이지 정상 접속됨 — 삼성=`samsungpop … research_pop.jsp#bm`(팝업'확인'), 미래에셋=`miraeasset … list.do?categoryId=1521`, 한투=`koreainvestment … Strategy.jsp?jkGubun=99`·`34`; 상세 URL `references/agents.md`. get_page_text 덤프 금지; "미확인/로그인전용" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
 **7·8 신선도** — Daily≤D-1, Weekly/Monthly≤D-3(주말은 금요일까지). 미충족이면 **stale 로 채우지 말고 빈값**("기준일 충족 최신 공개 자료 미확인"). 글로벌 IB(UBS·GS·JPM·MS·BlackRock)는 WebSearch+Bigdata MCP(Chrome 금지=메인세션과 충돌).
-**슬로우체인지 캐시(P2) + carry-forward** — 점도표·버핏13F·지수리밸런싱·HY히스토리·주의사항/출처는 캐시(`_market_report_data/nmr_cache.json`). **일정은 바뀔 수 있으므로 날짜계산만 믿지 말고, 매 실행 "이벤트 마커"를 싸게 1회 확인**: 13F=Berkshire 최신 13F-HR 제출일(EDGAR/Massive `/stocks/filings`), 점도표=최신 FOMC SEP 발표일(federalreserve.gov 캘린더), 리밸런싱=S&P/나스닥 최신 구성변경 발표·효력일, HY=FRED 최신 데이터일. 그 마커로 `python3 scripts/nmr_cache.py check <item> <관측마커>` → `reuse` 면 `get <item>` 캐시값 주입(조사 스킵), `due`(마커 변동·캐시없음·**확인 불가**) 면 평소대로 조사 후 `set <item> <as_of> <마커>`. **확인 불가/불확실이면 무조건 조사(stale 금지)**, 캐시값도 as_of 명시. (백업: 실패 시 직전 report_data 폴백.)
+**슬로우체인지 캐시(P2) + carry-forward — v3.17 "매 실행 마커체크" 정책** — 점도표·버핏13F·지수리밸런싱·HY히스토리·주의사항/출처는 캐시(`_market_report_data/nmr_cache.json`). **매 실행, 각 항목의 "이벤트 마커"를 싸게 1회 재관측해 변경을 즉시 포착한다**: 13F=Berkshire 최신 13F-HR 제출일(EDGAR/Massive `/stocks/filings`), 점도표=최신 FOMC SEP 발표일(federalreserve.gov 캘린더), 리밸런싱=S&P/나스닥 최신 구성변경 발표·효력일, HY=FRED 최신 데이터일. `python3 scripts/nmr_cache.py check <item> <관측마커>` → `reuse`(마커 불변)면 `get <item>` 캐시값 주입하고 **그 항목의 무거운 조사 에이전트를 발행하지 않는다**(조사 스킵); `due`(마커 변동·캐시없음·**확인 불가**)면 조사 후 `set <item> <as_of> <마커>`. **확인 불가/불확실이면 무조건 조사(stale 금지)**, 캐시값도 as_of 명시. **빅테크 CAPEX·HBM 은 저렴한 마커가 없으므로 `python3 scripts/nmr_cache.py gate <오늘>` 의 창 판정**(verify/due=실적·분기 창 안→조사, skip=창 밖→carry-forward/내장값)을 따른다(요일 무관·이벤트창만). (백업: 실패 시 직전 report_data 폴백.)
 **차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` · `gen_macro_charts.py` · `gen_fwd_eps.py` **8종만** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기). `gen_capex_chart.py` → `charts/capex_stack_ratio.png`·`charts/capex_fcf.png`(3.2.1 빅테크 CAPEX 차트, cwd 상대 출력). `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(3.2.5 메모리+HBM 대시보드). `gen_macro_charts.py` → `charts/macro_*.png`·`charts/spark_*.png`(3.1 주요지표 13종; `nmr_macro.json` 있으면 라이브, 없으면 내장 예시·추정값). `gen_leading_chart.py` → `charts/leading_cycle.png`(3.2.3 — 입력 `nmr_leading_series.json` = `fetch_leading.py` 실측 ~29개월).
 **작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
 
@@ -92,11 +94,11 @@ description: |
 ```
 [Phase 0: 사전 점검]  실행 모드 판정(예약/일반) / 날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
         ↓
-[Phase 1.0: 캐시 체크 — 매 실행]  각 항목 최신 이벤트 마커를 싸게 1회 조회 → `nmr_cache.py check <item> <마커>` → reuse(캐시 주입·조사 스킵)/due(조사). 일정 변동 대비 매번 실제 확인
+[Phase 1.0: 슬로우데이터 변경감지 — 매 실행]  점도표/13F/리밸런싱: 저렴한 마커 1회 관측 → `nmr_cache.py check <item> <마커>` → due면 해당 에이전트 발행·`set`, reuse면 `get` 캐시주입(무거운 에이전트 미발행). CAPEX/HBM: `nmr_cache.py gate <오늘>` 창 판정(창 안만 조사). 변경은 매 실행 재관측으로 즉시 포착(보장)
         ↓
 [Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합) · 수집 에이전트 model:sonnet]
   ├─ News / Crypto(정성: CoinInfo) / Macro(FMP economics·treasury + FRED → nmr_macro.json)
-  ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk
+  ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (P2 조건부: Phase 1.0 check/gate) USMacroExtras·IndexRebalance·NewsBerk·HBM
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·경기선행·증권사 텔레그램 7사, Chrome 불필요)
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate·JS 타깃추출); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
@@ -159,7 +161,7 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 
 핵심 규칙:
 - **(v3.16 모델 티어링) 서브에이전트 `model` 인자를 반드시 명시한다.** 수집 에이전트(News·Crypto·Macro·KoreaSemiTheme·GlobalSecurities·USMacroExtras·IndexRebalance·NewsBerk·HBM)는 전부 **`model:"sonnet"`**, 종합·추론하는 AnalysisAgent(Phase 2)만 **`model:"opus"`**. 미지정 시 부모(Opus) 상속이라 토큰·지연이 커지므로 누락 금지 — 수집은 검색→추출→저장 작업이라 Sonnet 으로 충분하고 "추정 금지·도구값만" 규칙으로 품질이 유지된다.
-- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose · model:sonnet): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED CSV → nmr_macro.json)** + (P2) USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate + `javascript_tool` 타깃추출, get_page_text 덤프 금지); 텔레그램 7사(신한·키움·메리츠·하나·교보·유안타·현대차)는 `fetch_brokers_tele.py`.**
+- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose · model:sonnet): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED CSV → nmr_macro.json)** + **(P2 — Phase 1.0 check/gate 로 조건부 발행)** USMacroExtras(점도표 due 또는 CAPEX 창)·IndexRebalance(리밸런싱 due)·NewsBerk(ai_trends 때문에 상시, 단 13F 서브태스크는 berkshire due일 때만)·HBM(분기 창). **마커 reuse·창밖이면 해당 에이전트 미발행·캐시 재사용.** **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate + `javascript_tool` 타깃추출, get_page_text 덤프 금지); 텔레그램 7사(신한·키움·메리츠·하나·교보·유안타·현대차)는 `fetch_brokers_tele.py`.**
 - AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**(general-purpose · model:opus). 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
