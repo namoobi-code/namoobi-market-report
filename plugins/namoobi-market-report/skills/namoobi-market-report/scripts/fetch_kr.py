@@ -59,15 +59,29 @@ def inv(mkt, itype):
     def lstS(arr): return [{'name': x['name'], 'detail': f"순매도 {abs(round(x['straightPurchasePrice'] / 1e8)):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
     return lst(d.get('BUY')), lstS(d.get('SELL'))
 
-def hy_series():  # FRED 는 샌드박스에서 불안정 → 빠른 실패(8s·1회). 실패해도 비차단(P2 캐시/에이전트 폴백)
-    cosd = (dt.date.today() - dt.timedelta(days=365 * 3)).isoformat()
-    csv = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2&cosd={cosd}', {'User-Agent': 'Mozilla/5.0'}, tries=1, timeout=8)
-    rows = [l.split(',') for l in csv.strip().splitlines()[1:]]
-    daily = [(d, float(v)) for d, v in rows if v not in ('', '.')]
-    mo = {}
-    for d, v in daily: mo[d[:7]] = (d, v)
-    series = [[mo[k][0], round(mo[k][1], 2)] for k in sorted(mo)]
-    return {'series': series, 'points': {'current': [daily[-1][0], round(daily[-1][1], 2)]}}
+def _hy_cache():  # v3.14: FRED 차단 시 영구 누적 캐시(연결폴더) 폴백 — HY 표·차트 항상 채움
+    import glob as _g
+    for p in [os.path.join(os.getcwd(), '_market_report_data', 'nmr_hy_history.json')] + _g.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_hy_history.json') + _g.glob('/sessions/*/mnt/outputs/_market_report_data/nmr_hy_history.json'):
+        try:
+            s = (json.load(open(p)).get('series')) or []
+            if len(s) >= 5: return {'series': s, 'points': {'current': s[-1]}, 'source': 'persistent cache (FRED 차단 폴백)'}
+        except Exception: pass
+    return None
+
+def hy_series():  # FRED 우선(8s·1회), 차단 시 영구 캐시 폴백(v3.14) — 어느 경우든 HY 항상 채움
+    try:
+        cosd = (dt.date.today() - dt.timedelta(days=365 * 3)).isoformat()
+        csv = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2&cosd={cosd}', {'User-Agent': 'Mozilla/5.0'}, tries=1, timeout=8)
+        rows = [l.split(',') for l in csv.strip().splitlines()[1:]]
+        daily = [(d, float(v)) for d, v in rows if v not in ('', '.')]
+        mo = {}
+        for d, v in daily: mo[d[:7]] = (d, v)
+        series = [[mo[k][0], round(mo[k][1], 2)] for k in sorted(mo)]
+        return {'series': series, 'points': {'current': [daily[-1][0], round(daily[-1][1], 2)]}}
+    except Exception:
+        c = _hy_cache()
+        if c: return c
+        raise
 
 def safe(fn, *a):
     try: return fn(*a)
@@ -102,6 +116,23 @@ else:
 hy = f_hy.result()
 if isinstance(hy, dict):
     json.dump(hy, open('nmr_hy_series.json', 'w'), ensure_ascii=False)
+    try:  # v3.14: 영구 누적 캐시 갱신(연결폴더) — FRED 차단돼도 다음 실행이 폴백
+        import glob as _g
+        _cp = _g.glob('/sessions/*/mnt/claudeCowork/_market_report_data')
+        if _cp:
+            _hp = os.path.join(_cp[0], 'nmr_hy_history.json')
+            _hist = {}
+            if os.path.exists(_hp):
+                try: _hist = json.load(open(_hp))
+                except Exception: _hist = {}
+            _mer = {d: v for d, v in (_hist.get('series') or [])}
+            for d, v in hy['series']: _mer[d] = v
+            _cur = hy.get('points', {}).get('current')
+            if _cur: _mer[_cur[0]] = _cur[1]
+            _hist['series'] = [[d, _mer[d]] for d in sorted(_mer)]
+            _hist['updated'] = dt.date.today().isoformat()
+            json.dump(_hist, open(_hp, 'w'), ensure_ascii=False)
+    except Exception: pass
     print('HY: months', len(hy['series']), 'current', hy['points']['current'])
 else:
     print('HY 실패(차트 비차단, 캐시/에이전트 폴백):', hy)

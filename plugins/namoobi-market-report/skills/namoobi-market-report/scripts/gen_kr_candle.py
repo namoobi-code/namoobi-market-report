@@ -11,6 +11,19 @@ from matplotlib.lines import Line2D
 _f=[p for p in [os.path.join(os.path.dirname(__file__),"fonts","nmr_kr.ttf"),"fonts/nmr_kr.ttf"] if os.path.exists(p)]
 if _f: fm.fontManager.addfont(_f[0]); matplotlib.rcParams["font.family"]="NanumBarunGothic"
 matplotlib.rcParams["axes.unicode_minus"]=False
+def _ensure_mpf():  # v3.14: 캔들엔 mplfinance 필수 — 빌드환경(휘발성)에 없으면 자동설치, 실패할 때만 주봉 폴백
+    try:
+        import mplfinance  # noqa
+        return True
+    except Exception:
+        import subprocess
+        try:
+            subprocess.run([sys.executable,"-m","pip","install","mplfinance","--break-system-packages","-q"],timeout=180)
+            import importlib; importlib.invalidate_caches(); import mplfinance  # noqa
+            return True
+        except Exception as e:
+            print("mplfinance 자동설치 실패 → 주봉 폴백:",repr(e)); return False
+_HAS_MPF=_ensure_mpf()
 O=sys.argv[1] if (len(sys.argv)>1 and os.path.isdir(sys.argv[1])) else (os.environ.get("NMR_OUT") or (sorted(glob.glob("/sessions/*/mnt/outputs"))[-1] if glob.glob("/sessions/*/mnt/outputs") else "."))
 os.makedirs("charts", exist_ok=True)
 def rsi(c,n=14):
@@ -84,8 +97,11 @@ specs=[("kospi","kospi_ohlcv","kospi_flows_daily",
        ("kosdaq","kosdaq_ohlcv","kosdaq_flows_daily",
         "KOSDAQ 1년 일봉 — 캔들+이동평균(5/20/60/120)+볼린저 / 거래량 / RSI / 누적순매수","KOSDAQ 1년 주봉 — 종가 + 이동평균")]
 for name,key,fkey,tc,tw in specs:
-    done=False
-    if kr and kr.get(key):
+    done=False; mark=f"charts/{name}_tech.weekly"
+    try:
+        if os.path.exists(mark): os.remove(mark)  # 캔들 성공 시 직전 폴백 마커 제거
+    except Exception: pass
+    if _HAS_MPF and kr and kr.get(key):
         try:
             df=clean_ohlcv(kr[key])
             if len(df)>=30:
@@ -93,6 +109,10 @@ for name,key,fkey,tc,tw in specs:
             else: print(name,"일봉 유효행 부족(",len(df),") → 폴백")
         except Exception as e: print(name,"캔들 실패:",repr(e),"→ 폴백")
     if not done and idx and idx.get(name):
-        if weekly_fallback(idx[name], f"charts/{name}_tech.png", tw): done=True; print(name,"주봉 폴백 OK")
+        if weekly_fallback(idx[name], f"charts/{name}_tech.png", tw):
+            done=True
+            try: open(mark,"w").write("weekly fallback (mplfinance 미설치 또는 일봉 부족) — 게이트가 차단")
+            except Exception: pass
+            print(name,"주봉 폴백 OK — 게이트 마커 기록")
     if not done: print(name,"차트 생성 실패(데이터 없음)")
 print("kr tech charts done")

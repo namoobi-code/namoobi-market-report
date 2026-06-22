@@ -22,6 +22,7 @@ const ki=m.korea_investors||{};
   const ch=ki[k+'_chart']||'';
   if(!cExists(ch)) problems.push(`[req1] 3.1.1 ${k} chart missing/broken: ${ch||'(none)'}`);
   else if(/flows/i.test(ch)) problems.push(`[req1] 3.1.1 ${k} chart is NOT a daily candle (flows fallback): ${ch}; use gen_kr_candle (candle+volume+cumulative net-buy)`);
+  else { try{ if(fs.existsSync(path.join(chartsDir,k+'_tech.weekly'))) problems.push(`[req1] 3.1.1 ${k} chart is WEEKLY line fallback (mplfinance missing) - must be daily candle; gen_kr_candle now auto-installs mplfinance`); }catch(e){} }
 });
 // req2: 3.1.3 leading-index long series + chart
 if(!cExists(m.korea_leading_chart||'charts/leading_cycle.png')) problems.push('[req2] 3.1.3 leading-index chart missing/broken');
