@@ -182,6 +182,16 @@ MACRO_DEFAULT = json.loads(r'''{
 ''')
 _mac = L('nmr_macro.json')
 _macro = _mac.get('macro') if (isinstance(_mac, dict) and _mac.get('macro')) else (_mac if (isinstance(_mac, dict) and _mac) else None)
+# v3.13.2 재발방지: 에이전트 nmr_macro 가 빌더(MACRO_DEFAULT) 구조를 못 맞추면(평면구조 rates.fed_funds=숫자·inflation.cpi_yoy 등) 무시하고 MACRO_DEFAULT 사용 → 3.1.1~3.1.5 빈표 방지
+def _macro_ok(mm):
+    try:
+        _r = mm.get('rates') or {}
+        return isinstance(_r.get('fed_funds'), dict) and bool((mm.get('inflation') or {}).get('rows')) and bool((mm.get('employment') or {}).get('rows')) and bool((mm.get('sentiment') or {}).get('rows'))
+    except Exception:
+        return False
+if _macro and not _macro_ok(_macro):
+    print('  [macro] nmr_macro 구조 불일치(rates.fed_funds 가 dict 아님/rows 비어있음) -> MACRO_DEFAULT 폴백')
+    _macro = None
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
 # 이미 수집된 시세 재사용(중복 fetch 금지): VIX·DXY·원/달러·WTI·美10년물
 _us = m.get('us_markets') or {}; _fx = m.get('fx_markets') or {}; _en = (com.get('energy') if isinstance(com, dict) else {}) or {}

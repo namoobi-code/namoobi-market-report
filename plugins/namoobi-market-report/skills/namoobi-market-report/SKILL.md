@@ -14,6 +14,8 @@ description: |
 
 # Namoobi Market Report (v3.13.1)
 
+> **v3.13.2 (2026-06-22) — 3.1 매크로 빈표 재발방지 + docx 전용 확정.** (1) **merge.py 매크로 구조 가드(`_macro_ok`)**: 에이전트 `nmr_macro.json` 의 `macro` 가 빌더 기대 구조(MACRO_DEFAULT: `rates.fed_funds`=dict·`rates.fomc_meetings[]`·`inflation/employment/sentiment.rows[]`)를 못 맞추고 **평면 구조**(`rates.fed_funds`=숫자·`inflation.cpi_yoy` 등)면 그 결과를 **무시하고 `MACRO_DEFAULT` 로 폴백**한다 → 평면 구조가 정상 기본값을 덮어써 3.1.1~3.1.5 표가 통째로 비던 사고를 코드 차원에서 차단. 실측값은 MACRO_DEFAULT 구조 위에 덮어쓰는 방식 권장. (2) **PDF 변환 영구 폐지 재확인**: 최종 산출물은 **docx 전용**(soffice/LibreOffice 변환·PDF 생성·PDF 첨부 금지) — 예약작업 추가지시도 docx 로 통일.
+
 > **v3.13.1 (2026-06-21) — 보고서 품질 3종 상시 보정.** (1) **뉴스 한글 강제**: NewsAgent 가 `headline`·`summary`(1장 핵심 헤드라인·1.글로벌 Top News 10)를 **반드시 한글**로 작성(외신 영어·중국어는 한글 번역, source·source_url 만 원문). 영어 헤드라인 그대로 두기 금지. (2) **AI Trends 항상 10개**: NewsBerkAgent `ai_trends.items` 를 5~8개→**정확히 10개**(부족 시 추가 WebSearch·출처 URL 확인 항목만). (3) **HY 스프레드 차트 상시 렌더**: `gen_hy_chart.py` 폴백이 연결폴더 `_market_report_data` 의 직전 report_data `hy_spread`(6점)도 탐색 → FRED(sandbox 차단) 실패·merge 전 실행이어도 `charts/hy_oas.png` 항상 생성.
 
 > **v3.13.0 (2026-06-21) — 경기선행 순환변동치 차트 자동화(Chrome 불필요·sandbox 실측).** 신규 `scripts/fetch_leading.py` 가 e-나라지표 통계표 AJAX 엔드포인트(`showStblGams3.do?stts_cd=105701&idx_cd=1057&freq=M`, UA+Referer+X-Requested-With 헤더 → 200)에서 **선행종합지수 순환변동치 월별 실측(~29개월)을 sandbox 에서 직접 수집**해 `nmr_leading_series.json`(≥12)+`nmr_leading.json`(최신 4개월 desc·mom)을 생성한다. Phase 1 bash 병렬 배치에 합류(fetch_us·kr·semi·brokers_tele 와 함께) → `gen_leading_chart.py` 가 매 실행 `charts/leading_cycle.png`(3.2.3) 를 항상 채운다. 기존 "Chrome/INDEXerGO echarts(curl 403)·P2 캐시" 경로는 폐기. 실패 시 비차단(파일 미생성 → merge 가 캐시/직전 report_data 폴백).
