@@ -57,7 +57,7 @@ ax.scatter([cur[0]],[cur[1]],color="#DC2626",zorder=5,s=28)
 ax.annotate(f"{cur[1]:.2f}%",(cur[0],cur[1]),textcoords="offset points",xytext=(-30,7),color="#DC2626",fontsize=9,fontweight="bold")
 # (v3.6.33 req7) 월별 장기 추이 — nmr_hy_series.json 에 FRED BAMLH0A0HYM2 월별 시계열(가능한 최장; 무료 CSV 는 약 3년 상한)을 넣는다.
 span=f"{xs[0].strftime('%Y.%m')}~{xs[-1].strftime('%Y.%m')}"
-ax.set_title(f"美 하이일드 OAS — ICE BofA US HY (FRED BAMLH0A0HYM2, 월별 {span})",fontsize=9.5,color="#334155")
+ax.set_title(f"美 하이일드 OAS — ICE BofA US HY (FRED BAMLH0A0HYM2, 일별 {span})",fontsize=9.5,color="#334155")
 if (xs[-1]-xs[0]).days>900:
     ax.xaxis.set_major_locator(mdates.YearLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 else:
