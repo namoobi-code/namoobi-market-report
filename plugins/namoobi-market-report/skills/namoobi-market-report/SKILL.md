@@ -12,7 +12,9 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.20.0)
+# Namoobi Market Report (v3.21.0)
+
+> **v3.21.0 (2026-06-22) — Phase별 계측(병목 가시화).** 신규 `scripts/nmr_timer.py` 로 각 Phase 시작 시 벽시계를 1줄 마킹하고 Phase 6 에서 Phase별 소요·합계를 출력해 결과 보고에 포함 → 어느 단계(수집/발송/게이트 재작업)에 시간이 쏠리는지 매 실행 수치로 확인. 저비용·비차단(마킹 누락돼도 무방). 동작·산출물 불변.
 
 > **v3.20.0 (2026-06-22) — 증권사 3사(삼성·미래에셋·한투) 메인세션 Chrome 경량화.** 비-Chrome 엔드포인트가 없는(JS 렌더 → web_fetch 는 껍데기) 3사는 메인세션 Chrome 유지가 불가피하나(Chrome 은 메인세션 싱글톤 → 서브에이전트 이전 시 충돌), 토큰을 줄인다: **`browser_batch` 로 3탭 navigate 를 한 번에 묶고 `javascript_tool` 타깃추출만, 단계별 screenshot 금지·get_page_text 덤프 금지.** 텔레그램 7사는 종전대로 `fetch_brokers_tele.py`(curl, Chrome 불필요).
 
@@ -126,6 +128,7 @@ WORK="$(ls -d /sessions/*/mnt/outputs 2>/dev/null | head -1)/nmr_build"
 rm -rf "$WORK"; mkdir -p "$WORK"
 date +%s > "$WORK/nmr_start_epoch.txt"   # v3.2.4 시작시각 기록
 TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S' > "$WORK/nmr_start_human.txt"
+echo "$(date +%s) phase0_setup" > "$WORK/nmr_phase_times.txt"   # v3.21 Phase별 계측 시작
 cp "$SRC/build_report.js" "$SRC/package.json" "$WORK/"
 cp -r "$SRC/fonts" "$WORK/fonts" 2>/dev/null && echo "폰트 OK ($(wc -c < "$WORK/fonts/nmr_kr.ttf")B)"  # v3.4.2 한글 임베드 폰트
 cd "$WORK"
@@ -143,6 +146,14 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 
 > ⚠️ `/tmp` 는 이전 세션 잔존물로 권한 오류가 날 수 있으니 사용하지 말 것. 항상 outputs 하위에서 빌드.
 > ⚠️ 마운트 읽기 잘림이 의심되면(EOF 마커 없음) 호스트 git 원본을 **Read 도구** 또는 `git show HEAD:<path>` 로 읽어 WORK 에 재구성한다 — 둘 다 잘리지 않는다.
+
+## ⏱ Phase별 계측 (v3.21 — 병목 가시화)
+
+각 Phase **시작 시** 1줄로 벽시계를 마킹한다(저비용·비차단). 어느 Phase(수집/발송/게이트 재작업)에 시간이 쏠리는지 매 실행 수치로 확인하기 위함이다.
+
+- **마킹**(각 Phase 진입 직후 1회): `echo "$(date +%s) <라벨>" >> "$WORK/nmr_phase_times.txt"` — 새 bash 호출이라 `$WORK` 가 비었으면 `WORK="$(ls -d /sessions/*/mnt/outputs 2>/dev/null|head -1)/nmr_build"` 로 재유도. 라벨 순서: `phase1_collect`(Phase 1 배치 발행 직후)·`phase1_5_charts`·`phase2_analysis`·`phase3_merge`·`phase4_build`·`phase4_5_gate`·`phase5_send`.
+- **리포트**(Phase 6): 발송 확인 직후 `phase6_report` 마킹 후 `SRC="$(dirname "$(find /sessions/*/mnt -path '*namoobi-market-report/scripts/nmr_timer.py'|head -1)")"; python3 "$SRC/nmr_timer.py" report "$WORK/nmr_phase_times.txt"` 출력을 결과 보고 [실행 시간] 아래에 붙인다.
+- 마킹 일부 누락돼도 비차단 — 기록된 구간만 집계된다.
 
 ## Phase 1–2: 서브에이전트 호출
 
@@ -241,6 +252,8 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 
 소요시간 계산: `END=$(date +%s); START=$(cat "$WORK/nmr_start_epoch.txt"); echo $(( (END-START)/60 ))분 $(( (END-START)%60 ))초`
 
+**Phase별 소요(v3.21)**: 발송 확인 후 `echo "$(date +%s) phase6_report" >> "$WORK/nmr_phase_times.txt"` 마킹 → `python3 "$SRC/nmr_timer.py" report "$WORK/nmr_phase_times.txt"` 출력을 아래 [실행 시간] 블록에 포함한다(병목 Phase 확인용).
+
 ```
 📋 글로벌 시황 보고서 발송 완료
 실행 모드: 예약 / 일반  (수신자 파일: 예약메일수신자.txt / 메일수신자.txt)
@@ -252,6 +265,7 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 - 시작: YYYY-MM-DD HH:MM:SS (KST)
 - 완료(메일 발송 확인): YYYY-MM-DD HH:MM:SS (KST)
 - 소요: M분 S초
+- Phase별 소요: (nmr_timer.py report 출력 — 예: phase1_collect 23분 / phase5_send 10분 …)
 [핵심 헤드라인 3개]
 1~3. (top_news 상위 3개)
 [추천 포트폴리오 톤]
