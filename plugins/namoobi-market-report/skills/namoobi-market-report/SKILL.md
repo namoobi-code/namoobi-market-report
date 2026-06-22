@@ -12,7 +12,9 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.17.0)
+# Namoobi Market Report (v3.18.0)
+
+> **v3.18.0 (2026-06-22) — Phase 5 발송 Chrome 경량화(발송 방식 불변).** Gmail MCP 는 발송(send) 도구가 없고 첨부도 미지원 확인 → **Claude in Chrome 직접 발송 유지**하되 토큰 절감: 메일 작성 입력을 `browser_batch` 로 묶고 **단계마다 screenshot 금지**, 발송 직전 1회만 검증(우선 `get_page_text` 패시브 읽기 → To/BCC 칩·제목·첨부 확인, 애매할 때만 screenshot 1장). 첨부(file_upload)·발송 메커니즘·수신자 정책 불변. (상세 `references/email-sending.md`.)
 
 > **v3.17.0 (2026-06-22) — 슬로우데이터 변경감지 보장 + 무거운 에이전트 조건부 발행(토큰·시간↓).** 점도표·버핏13F·지수리밸런싱은 **매 실행 저렴한 마커 1회 관측 → `scripts/nmr_cache.py check`** 로 변경 여부를 확인하고, **마커가 바뀐 경우에만** 해당 무거운 조사 에이전트(USMacroExtras·IndexRebalance·NewsBerk 13F)를 발행한다(변경 없으면 `get` 캐시 재사용=조사 스킵). 빅테크 CAPEX·HBM 은 저렴한 마커가 없어 **실적/분기 창**(`nmr_cache.py gate <오늘>`)으로 판정 — 창 안에서만 조사, 밖이면 carry-forward/내장값. **변경은 매 실행 재관측으로 즉시 포착(보장)** 하되 안 바뀐 날엔 무거운 검색 에이전트가 안 떠 비용이 크게 준다. 캐시 비면 무조건 조사(silent "-" 금지). 게이트는 요일 무관·이벤트창만 본다.
 
@@ -245,7 +247,7 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 - **`//` 주석 제외**: 라인 맨 앞(공백 허용)이 `//` 인 줄은 BCC 대상에서 제외. 읽기: `grep -vE '^[[:space:]]*//' <모드별 파일> | grep -oE '<email>'`. 유효 주소 0개면 To 만 발송·"BCC 0명(전부 주석)" 보고.
 - BCC 주소는 비공개 정보 — 채팅·보고에 평문 노출 금지, **인원 수만** 보고 (예: "BCC 2명").
 - 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
-- 수신자 칩 클릭 금지, 검증은 screenshot/zoom 으로만 — 상세 함정 목록은 reference 참조.
+- 수신자 칩 클릭 금지. **(v3.18 경량화) 입력은 `browser_batch` 로 묶고 단계마다 screenshot 금지 — 검증은 발송 직전 1회, 우선 `get_page_text`(패시브 읽기·토큰 저렴) 로 To/BCC 칩·제목·첨부 확인, 애매할 때만 screenshot 1장.** 상세 함정 목록은 reference 참조.
 - "메시지 전송됨" 확인 직후 완료시각을 기록한다: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` + `date +%s`
 
 ## Phase 6: 결과 보고

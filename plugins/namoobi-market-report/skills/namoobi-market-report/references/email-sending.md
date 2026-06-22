@@ -34,6 +34,8 @@
 
 사용자가 자동발송을 승인한 세션에서는 발송 직전 재확인도 생략한다.
 
+> **⚡ 토큰 절약 (v3.18 — 발송 방식·신뢰성 불변, 스크린샷 비용만 절감):** 메일 작성은 가급적 **`browser_batch` 로 여러 단계를 한 번에** 묶는다(작성창 열기·받는사람·숨은참조·제목·본문 입력). **단계마다 screenshot 을 찍지 말 것** — 화면 확인이 필요하면 **`get_page_text` 로 패시브 읽기**(클릭 없음 → 작성창 안 닫힘 + 이미지보다 토큰 저렴). **발송 직전 단 1회만** 전체 검증(아래 8단계)하고, 그때도 우선 `get_page_text` 로 받는사람/숨은참조 칩·제목·첨부 파일명을 확인하며, 애매할 때만 screenshot 1장. 첨부(file_upload)·발송(보내기) 메커니즘은 그대로다.
+
 1. **docx 절대경로 확보** — **연결 폴더 Windows 경로** 기준 (예: `D:\claudeCowork\global_market_report_YYYYMMDD_HHMM.docx`). 같은 날짜 파일이 있어 `_HHMM` 접미사로 저장됐다면 그 실제 파일명을 사용.
 2. **탭 준비** — `tabs_context_mcp(createIfEmpty=true)`
    - "Tabs can only be moved to and from normal windows" 오류 → 일반 크롬 창 없음.
@@ -52,7 +54,7 @@
 7. **docx 첨부** — 첨부 버튼 클릭 금지(네이티브 파일창은 제어 불가).
    `find("file attachment input (type=file)")` 로 숨은 input 의 ref 획득 →
    `file_upload(paths=["D:\\claudeCowork\\...docx"], ref=..., tabId=...)` 로 직접 첨부 (연결 폴더 Windows 경로 사용 — outputs/VM 경로는 거부됨).
-8. **검증** — **screenshot/zoom 으로만** 받는사람(To)·숨은참조(BCC) 칩 개수·제목·본문·첨부(docx 파일명/용량) 확인
+8. **검증 (발송 직전 1회)** — 우선 **`get_page_text` 로** 받는사람(To)·숨은참조(BCC) 칩 개수·제목·본문·첨부(docx 파일명/용량)를 읽어 확인(클릭 금지·작성창 유지). 텍스트로 불명확할 때만 **screenshot/zoom 1장** 보강. (단계마다 screenshot 금지 — 위 ⚡ 참조)
 9. **발송** — `보내기` 클릭 → "메시지 전송됨" 토스트 확인 (#sent URL 전환, 임시보관함 비워짐도 신호)
 
 ## ⚠️ 흔한 함정 (반드시 회피)
