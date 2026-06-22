@@ -1,5 +1,30 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## (SKILL.md 배너 보관 — v3.13.2 ~ v3.7.0)
+
+> **v3.13.2 (2026-06-22) — 3.1 매크로 빈표 재발방지 + docx 전용 확정.** (1) **merge.py 매크로 구조 가드(`_macro_ok`)**: 에이전트 `nmr_macro.json` 의 `macro` 가 빌더 기대 구조(MACRO_DEFAULT: `rates.fed_funds`=dict·`rates.fomc_meetings[]`·`inflation/employment/sentiment.rows[]`)를 못 맞추고 **평면 구조**(`rates.fed_funds`=숫자·`inflation.cpi_yoy` 등)면 그 결과를 **무시하고 `MACRO_DEFAULT` 로 폴백**한다 → 평면 구조가 정상 기본값을 덮어써 3.1.1~3.1.5 표가 통째로 비던 사고를 코드 차원에서 차단. 실측값은 MACRO_DEFAULT 구조 위에 덮어쓰는 방식 권장. (2) **PDF 변환 영구 폐지 재확인**: 최종 산출물은 **docx 전용**(soffice/LibreOffice 변환·PDF 생성·PDF 첨부 금지) — 예약작업 추가지시도 docx 로 통일.
+
+> **v3.13.1 (2026-06-21) — 보고서 품질 3종 상시 보정.** (1) **뉴스 한글 강제**: NewsAgent 가 `headline`·`summary`(1장 핵심 헤드라인·1.글로벌 Top News 10)를 **반드시 한글**로 작성(외신 영어·중국어는 한글 번역, source·source_url 만 원문). 영어 헤드라인 그대로 두기 금지. (2) **AI Trends 항상 10개**: NewsBerkAgent `ai_trends.items` 를 5~8개→**정확히 10개**(부족 시 추가 WebSearch·출처 URL 확인 항목만). (3) **HY 스프레드 차트 상시 렌더**: `gen_hy_chart.py` 폴백이 연결폴더 `_market_report_data` 의 직전 report_data `hy_spread`(6점)도 탐색 → FRED(sandbox 차단) 실패·merge 전 실행이어도 `charts/hy_oas.png` 항상 생성.
+
+> **v3.13.0 (2026-06-21) — 경기선행 순환변동치 차트 자동화(Chrome 불필요·sandbox 실측).** 신규 `scripts/fetch_leading.py` 가 e-나라지표 통계표 AJAX 엔드포인트(`showStblGams3.do?stts_cd=105701&idx_cd=1057&freq=M`, UA+Referer+X-Requested-With 헤더 → 200)에서 **선행종합지수 순환변동치 월별 실측(~29개월)을 sandbox 에서 직접 수집**해 `nmr_leading_series.json`(≥12)+`nmr_leading.json`(최신 4개월 desc·mom)을 생성한다. Phase 1 bash 병렬 배치에 합류(fetch_us·kr·semi·brokers_tele 와 함께) → `gen_leading_chart.py` 가 매 실행 `charts/leading_cycle.png`(3.2.3) 를 항상 채운다. 기존 "Chrome/INDEXerGO echarts(curl 403)·P2 캐시" 경로는 폐기. 실패 시 비차단(파일 미생성 → merge 가 캐시/직전 report_data 폴백).
+
+> **v3.12.0 (2026-06-21) — 3.1 매크로 대시보드 구조 개편 + 선행EPS 차트·경기선행 실측.** (1) **3.1.4 심리에서 선행EPS 분리 → 신규 3.1.5 「지수·Forward EPS·PER」**(S&P500·KOSPI 12M 선행EPS·PER + 지수 차트). (2) **3.3.2 FOMC 점도표·3.3.3 HY 스프레드 → 3.1.1 금리·통화정책에 통합**(하위 블록). (3) **3.3.1 빅테크 CAPEX → 3.1.6**(차트 풀폭 660), **3.2.5 메모리+HBM → 3.1.7** 이동. 미국 증시(3.3)는 ETF(3.3.1)·리밸런싱(3.3.2)만. (4) 신규 `scripts/gen_fwd_eps.py`(S&P500·KOSPI 12M 선행EPS·선행PER 차트 — 지수=실측 nmr_indexseries, EPS=컨센서스 앵커 보간) — **Phase 1.5 차트 7종→8종.** (5) **3.1.1 ● 마커 → ■ + 파란색(1E40AF) 통일**, 장단기 금리차 라벨/값 2줄 분리, 기대인플레 현재값 ■ 제거. (6) **3.2.3 경기선행 순환변동치 = e-나라지표 통계표(index.go.kr idx_cd=1057 → 통계표 탭, 국가데이터처 산업활동동향)에서 12개월 실측 수집** → `nmr_leading_series.json`(INDEXerGO echarts 기계추출 곤란 시 통계표 우선). (7) **MacroAgent VKOSPI 수집값을 임의로 덮어쓰지 말 것**(중동발 급등 실측 반영). (8) **글로벌 IB 신선도 엄격**: 발행일 D-3 초과(예: 월간 House View 3주 전) 자료는 key_reports 에서 제외, 없으면 WebSearch 폴백.
+
+> **v3.11.0 (2026-06-21) — 3장 맨 앞에 「3.1 주요지표」(매크로 대시보드) 신설 + 3장 번호 재배치.** (1) 신규 `build_report.js renderMacroIndicators` 가 **3.1.1 금리·통화정책**(FOMC 기준금리·6개국 정책금리 5년·FOMC 회의 1년 리스트[최신순]·美10년물·장단기 금리차[10Y-2Y])·**3.1.2 물가**(CPI·CoreCPI·PCE·CorePCE·PPI 의미/시장영향 + 통합 YoY 그래프 + 기대인플레 10Y)·**3.1.3 고용**(NFP·실업률·GDP·ISM·소매판매 + 통합 6패널)·**3.1.4 심리**(VIX·VKOSPI·DXY·원달러·WTI 1주~1년 + 의미/활용 + S&P500/KOSPI 선행EPS·PER)를 렌더. (2) 기존 증시 블록 재배치: **한국 3.1→3.2(하위 3.1.1~3.1.5→3.2.1~3.2.5), 미국 3.2→3.3(하위 3.2.1~3.2.5→3.3.1~3.3.5), 아시아 3.3→3.4, 유럽 3.4→3.5.** **3.3 미국 증시 표에서 VIX·DXY·美10년물 제거**(주요지표와 중복 → 일원화). (3) 신규 `scripts/gen_macro_charts.py`(차트 13종) — **Phase 1.5 차트 6종→7종.** (4) 신규 **MacroAgent**(FMP economics/treasury + FRED CSV)가 `nmr_macro.json` 저장, `merge.py`가 `markets.macro`로 전달(없으면 내장 예시·추정값 `MACRO_DEFAULT`). VIX·DXY·원달러·WTI·美10년물은 `fetch_us.py` 시세 **재사용**(중복수집 금지). **확보 어려운 항목(Core CPI·PCE·PPI·ISM·VKOSPI·선행EPS·한중정책금리)은 '추정' 표기**, 미확보 시 빈값.
+
+> **v3.10.0 (2026-06-21) — 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드 추가.** (1) 신규 `scripts/gen_hbm_dashboard.py` 가 6패널(메모리 스팟 종합지수·DDR4/DDR5/NAND 가격·HBM 출하량/시장규모·HBM3E/HBM4 ASP·HBM 점유율[기타 포함 합계 100%·2027E]·HBM:DDR5 격차) + HBM 3사 EPS/PER(당해·차년) 표를 `charts/hbm_dashboard.png` 로 생성(각 패널 내부 범례·하단 해석 코멘트 포함). (2) `build_report.js renderKoreaExtras` 가 **3.1.5** 섹션에 이미지+6개 해설을 `imagePara` 로 임베드(파일 없으면 자동 생략·비차단). (3) **Phase 1.5 차트 생성기 5종→6종.** (4) `merge.py` 가 `nmr_hbm.json`→`markets.hbm` 전달. **모든 수치는 추정치** — `nmr_hbm.json`(HBMAgent 웹리서치) 있으면 라이브 오버라이드, 없으면 내장 예시·추정값. 확인 불가 항목은 미표기·'추정' 표기.
+
+> **v3.9.0 (2026-06-21) — 3.2.1 빅테크 CAPEX 차트 2종 추가.** 신문형 시각자료 요청 반영: (1) 신규 `scripts/gen_capex_chart.py` 가 5개사(MS·아마존·알파벳·메타·오라클) **CAPEX 스택바 + Capex/매출 비율선**(`charts/capex_stack_ratio.png`)과 **FCF 추이선**(`charts/capex_fcf.png`)을 생성 — 2023~2025 실적(각사 10-K/FMP)·2026 가이던스·2027~2029 전망(E). (2) `build_report.js` 가 **3.2.1 표 맨 아래**에 두 차트를 `imagePara` 로 임베드(파일 없으면 자동 생략 — 비차단). (3) **Phase 1.5 차트 생성기 4종→5종**. 데이터는 내장 기본값 우선, `markets.bigtech_capex.{capex,rev,fcf}_series` 가 있으면 라이브 오버라이드.
+
+>
+
+> **v3.8.0 (2026-06-21) — 보고서 "-"/누락 근본 수정.** 사용자 피드백(대량 "-")에 따라: (1) `fetch_us.py` 가 아시아·유럽 지수(3.3/3.4)·금속/농산물(4.2/4.3) 시계열을 `nmr_indexseries`/`series2` 에 포함해 추세 스파크라인 생성, CNY/KRW 크로스(=USD_KRW/USD_CNY) 폴백으로 5장 환율 채움. (2) `merge.py` 가 HY 1주~1년 OAS 히스토리(3.2.3)·FOMC 점도표 "변화" 열(3.2.2, jun−mar)·김치프리미엄 `coins[]`(6.3, upbit_krw/binance_usd/premium_pct) 를 구성. (3) `build_report.js` 에서 7.9 투자자 유형별 추천 조합 **삭제**, 글로벌 IB(8장) "수집 실패" 문구는 key_message/뷰가 없을 때만 표기. (4) `agents.md` — CryptoAgent 김프 coins[] 스키마·SecuritiesAgent 삼성/미래에셋/한투 정확 URL·NewsBerk `ai_trends.items[]`(summary/title_en/summary_en) 명시. **빌더·merge 스키마 일부 확장.**
+
+>
+
+> **v3.7.0 (2026-06-20) — 문서 구조 개편(동작 불변).** 과거 변경이력(v3.0~v3.6.35)은 `CHANGELOG.md` 로 분리(런타임 미로딩)하고, 거기 흩어져 있던 현행 규칙은 아래 **핵심 수집 규칙**과 각 Phase 본문으로 통합했다. **데이터 스키마·서브에이전트·빌더(build_report.js) 로직은 그대로다 — 문서 정리만.** 모순 일원화: 최종 산출물 = **docx 전용**(soffice/PDF 변환 폐지), `request_cowork_directory` **호출 안 함**, 차트 생성기 = 현행 4종만. 에이전트별 상세 프롬프트·반환 스키마는 `references/agents.md`, 발송 절차는 `references/email-sending.md`.
+
+
 ## v3.11.0 (2026-06-21)
 - **3장 맨 앞에 「3.1 주요지표」(매크로 대시보드) 신설** — `renderMacroIndicators`: 3.1.1 금리·통화정책(기준금리·6개국 정책금리·FOMC 회의 1년 리스트[최신순]·美10년물·장단기 금리차 10Y-2Y), 3.1.2 물가(CPI~PPI 의미/시장영향 + 통합 YoY 그래프 + 기대인플레 10Y), 3.1.3 고용(NFP·실업·GDP·ISM·소매 + 통합 6패널), 3.1.4 심리(VIX·VKOSPI·DXY·원달러·WTI + 의미/활용 + S&P500/KOSPI 선행EPS·PER).
 - **3장 번호 재배치**: 한국 3.1→3.2(하위 3.1.1~3.1.5→3.2.1~3.2.5), 미국 3.2→3.3(하위 3.2.1~3.2.5→3.3.1~3.3.5), 아시아 3.3→3.4, 유럽 3.4→3.5.
