@@ -12,7 +12,9 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (v3.13.1)
+# Namoobi Market Report (v3.16.0)
+
+> **v3.16.0 (2026-06-22) — 서브에이전트 모델 티어링(비용·속도 최적화).** Phase 1 수집 에이전트 9종(News·Crypto·Macro·KoreaSemiTheme·GlobalSecurities·USMacroExtras·IndexRebalance·NewsBerk·HBM)을 Agent/Task 호출 시 **`model:"sonnet"`** 으로 발행한다(검색→추출→JSON 저장 작업이라 Opus 불필요 — 토큰·지연 大폭 절감, "추정 금지·도구값만" 그라운딩 규칙으로 품질 유지). **종합·추론이 필요한 Phase 2 AnalysisAgent만 `model:"opus"`** 유지. 메인 오케스트레이터 세션·bash fetch 스크립트는 불변. `model` 미지정 시 부모(Opus) 상속이므로 **반드시 명시**한다(Crypto 등 순수 MCP 호출 에이전트는 검증 후 `haiku` 로 추가 강등 가능).
 
 > **v3.13.2 (2026-06-22) — 3.1 매크로 빈표 재발방지 + docx 전용 확정.** (1) **merge.py 매크로 구조 가드(`_macro_ok`)**: 에이전트 `nmr_macro.json` 의 `macro` 가 빌더 기대 구조(MACRO_DEFAULT: `rates.fed_funds`=dict·`rates.fomc_meetings[]`·`inflation/employment/sentiment.rows[]`)를 못 맞추고 **평면 구조**(`rates.fed_funds`=숫자·`inflation.cpi_yoy` 등)면 그 결과를 **무시하고 `MACRO_DEFAULT` 로 폴백**한다 → 평면 구조가 정상 기본값을 덮어써 3.1.1~3.1.5 표가 통째로 비던 사고를 코드 차원에서 차단. 실측값은 MACRO_DEFAULT 구조 위에 덮어쓰는 방식 권장. (2) **PDF 변환 영구 폐지 재확인**: 최종 산출물은 **docx 전용**(soffice/LibreOffice 변환·PDF 생성·PDF 첨부 금지) — 예약작업 추가지시도 docx 로 통일.
 
@@ -92,7 +94,7 @@ description: |
         ↓
 [Phase 1.0: 캐시 체크 — 매 실행]  각 항목 최신 이벤트 마커를 싸게 1회 조회 → `nmr_cache.py check <item> <마커>` → reuse(캐시 주입·조사 스킵)/due(조사). 일정 변동 대비 매번 실제 확인
         ↓
-[Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합)]
+[Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합) · 수집 에이전트 model:sonnet]
   ├─ News / Crypto(정성: CoinInfo) / Macro(FMP economics·treasury + FRED → nmr_macro.json)
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (P2 트리거 시) USMacroExtras·IndexRebalance·NewsBerk
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·경기선행·증권사 텔레그램 7사, Chrome 불필요)
@@ -100,7 +102,7 @@ description: |
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_macro_charts.py·gen_fwd_eps.py → charts/*.png
         ↓
-[Phase 2: AnalysisAgent 단독 호출]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
+[Phase 2: AnalysisAgent 단독 호출 · model:opus]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓
 [Phase 3: 데이터 종합 → JSON 저장 + 유효성 검증]
         ↓
@@ -156,8 +158,9 @@ tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
 상세 프롬프트와 각 에이전트의 반환 JSON 스키마는 **`references/agents.md`** 를 읽고 그대로 사용한다.
 
 핵심 규칙:
-- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED CSV → nmr_macro.json)** + (P2) USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate + `javascript_tool` 타깃추출, get_page_text 덤프 금지); 텔레그램 7사(신한·키움·메리츠·하나·교보·유안타·현대차)는 `fetch_brokers_tele.py`.**
-- AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**. 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
+- **(v3.16 모델 티어링) 서브에이전트 `model` 인자를 반드시 명시한다.** 수집 에이전트(News·Crypto·Macro·KoreaSemiTheme·GlobalSecurities·USMacroExtras·IndexRebalance·NewsBerk·HBM)는 전부 **`model:"sonnet"`**, 종합·추론하는 AnalysisAgent(Phase 2)만 **`model:"opus"`**. 미지정 시 부모(Opus) 상속이라 토큰·지연이 커지므로 누락 금지 — 수집은 검색→추출→저장 작업이라 Sonnet 으로 충분하고 "추정 금지·도구값만" 규칙으로 품질이 유지된다.
+- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose · model:sonnet): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED CSV → nmr_macro.json)** + (P2) USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(3탭 동시 navigate + `javascript_tool` 타깃추출, get_page_text 덤프 금지); 텔레그램 7사(신한·키움·메리츠·하나·교보·유안타·현대차)는 `fetch_brokers_tele.py`.**
+- AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**(general-purpose · model:opus). 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
 - MCP 도구는 deferred 상태일 수 있으므로 각 에이전트 프롬프트에 "먼저 `ToolSearch` 키워드 검색(예: `+UsStockInfo historical`, `+CoinInfo fear greed`)으로 도구를 로드한 뒤 사용하라"고 명시한다. **UUID 가 포함된 도구명을 하드코딩하지 말 것** — 서버 ID는 세션마다 다를 수 있다.

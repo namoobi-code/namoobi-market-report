@@ -21,9 +21,9 @@
 - **7 한국 5대 증권사** = 메인세션 Chrome 개별 `navigate→get_page_text`(WebSearch 일괄 우회 금지), 키움 `?dummyVal=0`(iframe 이면 텔레그램 t.me/s/KiwoomResearch 보조). **7·8 신선도** = Daily≤D-1·Weekly/Monthly≤D-3(주말은 금요일까지), 미충족이면 stale 금지·빈값.
 - **품질 게이트(Phase 4.5)**: `scripts/verify_report.js` 가 위 항목을 코드로 검사. 미달이면 발송 차단·사용자 질문(조용히 "-"/stale 통과 금지).
 
-수집 에이전트는 전부 **general-purpose** 타입으로 호출한다.
-Phase 1 = **수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call 로 실행**(美/글로벌·한국 시세·시계열 — 에이전트 아님). **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 동시 진행.
-Phase 2 = AnalysisAgent 를 Phase 1 수집 결과와 함께 **단독 호출**(차트 생성 후).
+수집 에이전트는 전부 **general-purpose** 타입 + **`model:"sonnet"`** 으로 호출한다(v3.16 모델 티어링 — 검색·추출·저장 작업이라 Opus 불필요, 토큰·지연 절감·품질 불변). **종합·추론하는 AnalysisAgent(Phase 2)만 `model:"opus"`.** `model` 미지정 시 부모(Opus) 상속이므로 반드시 명시.
+Phase 1 = **수집 에이전트를 단일 메시지로 1회 동시 발행**(P3): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities + (P2 트리거 시)USMacroExtras·IndexRebalance·NewsBerk. **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py` 를 bash 병렬 tool-call 로 실행**(美/글로벌·한국 시세·시계열 — 에이전트 아님). **SecuritiesAgent(한국 5대)=메인세션 Chrome 전용** → 동시 진행. **(v3.16) 위 수집 에이전트는 전부 `model:"sonnet"` 로 발행한다.**
+Phase 2 = AnalysisAgent 를 Phase 1 수집 결과와 함께 **단독 호출**(차트 생성 후) — **model:"opus"**.
 
 ## 공통 반환각(Hallucination) 방지 규칙 — 모든 에이전트 프롬프트에 그대로 포함 (v3.3.0)
 
@@ -167,7 +167,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 ---
 
-## 7. AnalysisAgent (마지막 단독 호출)
+## 7. AnalysisAgent (마지막 단독 호출 · model:"opus")
 
 **임무**: Phase 1 의 6개 JSON 전체를 입력으로 받아 종합 분석과 포트폴리오를 도출. **분석은 의견(opinion)이며, 반드시 Phase 1 에서 수집된 실제 데이터에 근거**해야 한다 — 입력 JSON 에 없는 수치·사실을 새로 만들어내지 말 것.
 
