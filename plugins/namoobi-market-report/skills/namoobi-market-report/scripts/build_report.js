@@ -16,7 +16,7 @@ catch (e) { console.error(`JSON parse fail: ${inputPath}\n${e.message}`); proces
 // 에이전트가 1m_pct/3m_pct/6m_pct·1mo/3mo/6mo 등으로 키를 내보내도 표준키(1w_pct/1mo_pct/3mo_pct/6mo_pct/1y_pct)로 통일.
 // 표준키가 비었을 때만 복사(실데이터 보존), 데이터 전체 재귀. → 3.1.4 등 1·3·6개월 '-' 키드리프트 버그를 코드로 영구 차단.
 function normalizePctKeys(root){
-  const ALIAS={"1w":"1w_pct","1week_pct":"1w_pct","1m":"1mo_pct","1m_pct":"1mo_pct","1mo":"1mo_pct","1month_pct":"1mo_pct","3m":"3mo_pct","3m_pct":"3mo_pct","3mo":"3mo_pct","3month_pct":"3mo_pct","6m":"6mo_pct","6m_pct":"6mo_pct","6mo":"6mo_pct","6month_pct":"6mo_pct","1y":"1y_pct","12m_pct":"1y_pct","1yr_pct":"1y_pct"};
+  const ALIAS={"1d":"1d_pct","1day_pct":"1d_pct","1w":"1w_pct","1week_pct":"1w_pct","1m":"1mo_pct","1m_pct":"1mo_pct","1mo":"1mo_pct","1month_pct":"1mo_pct","3m":"3mo_pct","3m_pct":"3mo_pct","3mo":"3mo_pct","3month_pct":"3mo_pct","6m":"6mo_pct","6m_pct":"6mo_pct","6mo":"6mo_pct","6month_pct":"6mo_pct","1y":"1y_pct","12m_pct":"1y_pct","1yr_pct":"1y_pct"};
   const seen=new WeakSet();
   (function walk(o){ if(!o||typeof o!=="object"||seen.has(o))return; seen.add(o);
     if(Array.isArray(o)){ for(const it of o) walk(it); return; }
@@ -133,6 +133,25 @@ function fmtPct(v){ if(v===null||v===undefined||v==="")return "-"; const n=Numbe
 function viewText(v){ if(v==null)return ""; if(typeof v==="string")return v; if(Array.isArray(v))return v.map(viewText).filter(Boolean).join(", "); if(typeof v==="object")return Object.keys(v).map(function(k){var x=viewText(v[k]); return x?(/^[A-Za-z0-9_]+$/.test(k)&&v[k]&&typeof v[k]==="object"?x:x):"";}).filter(Boolean).join(" / "); return String(v); }
 function pctColor(v){ if(v===null||v===undefined||v==="")return undefined; const n=Number(v); if(isNaN(n))return undefined; return n>=0?positiveColor:negativeColor; }
 function fmtNum(v){ if(v===null||v===undefined||v==="")return "-"; const n=Number(v); if(isNaN(n))return String(v); if(Math.abs(n)>=1000)return n.toLocaleString(undefined,{maximumFractionDigits:2}); return n.toFixed(2); }
+// (v3.21) 전일 대비 절대변동 절댓값 포맷 (부호는 ▲/▼ 화살표로 표기)
+function fmtChgAbs(v){ if(v===null||v===undefined||v==="")return null; const n=Number(v); if(isNaN(n))return null; const a=Math.abs(n);
+  return a>=1000?a.toLocaleString(undefined,{maximumFractionDigits:2}):(a>=1?a.toFixed(2):a.toFixed(3)); }
+// (v3.21b) '1일전' 셀: 전일(하루 전) 종가 표기 — 현재가(오늘)와 다른 하루 전 값. 접두 $/접미 % 가능.
+function prevCloseText(v, opts){ opts=opts||{}; if(v===null||v===undefined||v==="")return "-"; return (opts.prefix||"")+fmtNum(v)+(opts.suffix||""); }
+// (v3.21) 현재가 셀 runs: 1행=현재가(접두 $/접미 % 가능), 2행=전일대비 ▲/▼ 절대변동 (±%). 상승=초록·하락=빨강.
+//   m.chg=전일대비 절대변동, m['1d_pct']=전일대비 %. 둘 다 없으면 현재가만 표기(기존과 동일).
+function curCellRuns(cur, m, opts){ opts=opts||{}; m=m||{};
+  const curStr=(opts.curText!=null&&opts.curText!=="")?String(opts.curText)
+    :((cur===null||cur===undefined||cur==="")?"-":((opts.prefix||"")+fmtNum(cur)+(opts.suffix||"")));
+  const runs=[new TextRun({text:curStr,bold:true,size:opts.size??20,color:opts.curColor})];
+  let pct=m['1d_pct']; pct=(pct===null||pct===undefined||pct==="")?null:Number(pct);
+  let chg=m.chg; chg=(chg===null||chg===undefined||chg==="")?null:Number(chg);
+  if((pct!==null&&!isNaN(pct))||(chg!==null&&!isNaN(chg))){
+    const ref=(pct!==null&&!isNaN(pct))?pct:chg; const col=ref>=0?positiveColor:negativeColor; const arrow=ref>=0?"▲":"▼";
+    let t=arrow; const a=(chg!==null&&!isNaN(chg))?fmtChgAbs(chg):null; if(a!==null)t+=" "+a;
+    if(pct!==null&&!isNaN(pct))t+=" ("+(pct>=0?"+":"")+pct.toFixed(2)+"%)";
+    runs.push(new TextRun({text:t,break:1,size:(opts.size?Math.max(14,opts.size-4):16),color:col,bold:true})); }
+  return runs; }
 const mixedColor = "D97706"; // 양면(■) — 앰버
 // (v3.4.3) 임팩트·방향 마커 색상: ▲ 강세=초록 / ▼ 부정=빨강 / ■ 양면=앰버. 구버전 ★(강세)·중립도 매핑.
 function markColor(s){ const t=String(s||""); if(t.includes("▲")||t.includes("★"))return positiveColor; if(t.includes("▼"))return negativeColor; if(t.includes("■"))return mixedColor; return undefined; }
@@ -223,28 +242,30 @@ function renderKoreaExtras(){ const m=data.markets||{};
     if(m.korea_themes_intro)children.push(p(m.korea_themes_intro,{italics:true,color:"64748B"}));
     children.push(p("각 항목은 2줄로 표기: 1행=설명(테마/종목·방향·대표ETF/시총·현황), 2행=현재가·1주·1개월·3개월·6개월·1년 수익률·추세(1Y) 그래프·추세 평가.",{size:16,color:"94A3B8"}));
     // (요청) 2줄 수익률 블록: 1행=설명(span), 2행=현재가·1주~1년·추세그래프·추세평가
-    const RW=[1500,1050,1050,1050,1050,1050,1750,1850]; const RTOT=RW.reduce((a,b)=>a+b,0);
-    const retHeader=()=>new TableRow({children:["현재가","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:RW[i],header:true,align:AlignmentType.CENTER}))});
+    const RW=[1500,950,950,950,950,950,950,1500,1600]; const RTOT=RW.reduce((a,b)=>a+b,0);
+    const retHeader=()=>new TableRow({children:["현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:RW[i],header:true,align:AlignmentType.CENTER}))});
     const retRows=(items,prefix,descFn)=>{ const rows=[retHeader()];
       items.forEach((x,i)=>{ const alt=i%2===1; const chart=x.chart||(prefix?("charts/"+prefix+"_"+i+".png"):"");
-        rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:8,width:{size:RTOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:descFn(x)})]}) ]}));
+        rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:9,width:{size:RTOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:descFn(x)})]}) ]}));
         rows.push(new TableRow({children:[
-          cell((x.current==null||x.current==="")?"-":fmtNum(x.current),{width:RW[0],alt,align:AlignmentType.RIGHT,bold:true}),
-          cell(fmtPct(x['1w_pct']),{width:RW[1],alt,align:AlignmentType.RIGHT,color:pctColor(x['1w_pct'])}),
-          cell(fmtPct(x['1mo_pct']),{width:RW[2],alt,align:AlignmentType.RIGHT,color:pctColor(x['1mo_pct'])}),
-          cell(fmtPct(x['3mo_pct']),{width:RW[3],alt,align:AlignmentType.RIGHT,color:pctColor(x['3mo_pct'])}),
-          cell(fmtPct(x['6mo_pct']),{width:RW[4],alt,align:AlignmentType.RIGHT,color:pctColor(x['6mo_pct'])}),
-          cell(fmtPct(x['1y_pct']),{width:RW[5],alt,align:AlignmentType.RIGHT,color:pctColor(x['1y_pct'])}),
-          imgCellSpark(chart,RW[6],alt,150,48),
-          cell(x.trend||x.trend_eval||"-",{width:RW[7],alt,size:16})]}));
+          cell("",{width:RW[0],alt,align:AlignmentType.RIGHT,runs:curCellRuns(x.current,x,{})}),
+          cell(prevCloseText(x.prev_close,{}),{width:RW[1],alt,align:AlignmentType.RIGHT}),
+          cell(fmtPct(x['1w_pct']),{width:RW[2],alt,align:AlignmentType.RIGHT,color:pctColor(x['1w_pct'])}),
+          cell(fmtPct(x['1mo_pct']),{width:RW[3],alt,align:AlignmentType.RIGHT,color:pctColor(x['1mo_pct'])}),
+          cell(fmtPct(x['3mo_pct']),{width:RW[4],alt,align:AlignmentType.RIGHT,color:pctColor(x['3mo_pct'])}),
+          cell(fmtPct(x['6mo_pct']),{width:RW[5],alt,align:AlignmentType.RIGHT,color:pctColor(x['6mo_pct'])}),
+          cell(fmtPct(x['1y_pct']),{width:RW[6],alt,align:AlignmentType.RIGHT,color:pctColor(x['1y_pct'])}),
+          imgCellSpark(chart,RW[7],alt,150,48),
+          cell(x.trend||x.trend_eval||"-",{width:RW[8],alt,size:16})]}));
       });
       return rows; };
     // 테마 (8개 고정 순서)
     const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주"];
     const themeArr=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
     const tByName={}; themeArr.forEach(t=>{ if(t&&t.theme)tByName[t.theme]=t; });
+    const themeEtfs=m.korea_theme_etfs||{};
     const sani=(s)=>String(s).replace(/\//g,"_").replace(/\s+/g,"_");
-    const themeItems=THEME_ORDER.map(nm=>{ const t=Object.assign({theme:nm},tByName[nm]||{}); if(!t.chart)t.chart="charts/theme_"+sani(nm)+".png"; return t; });
+    const themeItems=THEME_ORDER.map(nm=>{ const t=Object.assign({theme:nm},tByName[nm]||{}); if(!t.etf&&themeEtfs[nm])t.etf=themeEtfs[nm]; if(!t.chart)t.chart="charts/theme_"+sani(nm)+".png"; return t; });
     const themeDesc=(x)=>[ new TextRun({text:(x.theme||"-")+"  ",bold:true,size:20}),
       new TextRun({text:(x.direction||""),bold:true,size:18,color:markColor(x.direction)}),
       new TextRun({text:(x.etf?("   대표ETF: "+x.etf):""),size:16,color:"475569"}),
@@ -353,7 +374,7 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
     children.push(p(label,{bold:true,color:"1E40AF",before:120,size:21}));
     const items=arr.map(x=>{ const sym=String(x.symbol||x.ticker||"-"); const nameLine=sym+" · "+(x.name||sym)+(x.weight?("  ["+x.weight+"]"):"");
       return {desc:[new TextRun({text:nameLine,bold:true,size:18,color:"1D4ED8"}),new TextRun({text:(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
-        m:x,current:x.current,curText:((x.current===null||x.current===undefined||x.current==="")?"-":("$"+fmtNum(x.current))),trend:String(x.trend||"-"),chart:"charts/spark_etf_"+sym+".png"}; });
+        m:x,current:x.current,curPrefix:"$",trend:String(x.trend||"-"),chart:"charts/spark_etf_"+sym+".png"}; });
     children.push(makeTable(TR2,trend2Rows(items))); });
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
@@ -500,17 +521,18 @@ renderBigtechEvents();
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("3. 글로벌 증시 단·중·장기 추세",1));
 children.push(p("각 시장의 1주/1개월/3개월/6개월/1년 변화율로 추세·모멘텀을 평가한다.",{italics:true,color:"64748B"}));
-const tw=[1700,1300,1100,1100,1100,1100,1100,1700];
-function trendRow(name,m,i){ return new TableRow({children:[
-  cell(name,{width:1700,alt:i%2===1,bold:true}),
-  cell(fmtNum(m&&m.current),{width:1300,alt:i%2===1,align:AlignmentType.RIGHT}),
-  cell(fmtPct(m&&m['1w_pct']),{width:1100,alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['1w_pct'])}),
-  cell(fmtPct(m&&m['1mo_pct']),{width:1100,alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['1mo_pct'])}),
-  cell(fmtPct(m&&m['3mo_pct']),{width:1100,alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['3mo_pct'])}),
-  cell(fmtPct(m&&m['6mo_pct']),{width:1100,alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['6mo_pct'])}),
-  cell(fmtPct(m&&m['1y_pct']),{width:1100,alt:i%2===1,align:AlignmentType.RIGHT,color:pctColor(m&&m['1y_pct'])}),
-  cell((m&&m.trend)||"-",{width:1700,alt:i%2===1})]}); }
-function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
+const tw=[1500,1400,800,800,800,800,800,800,1500];
+function trendRow(name,m,i){ const alt=i%2===1; return new TableRow({children:[
+  cell(name,{width:tw[0],alt,bold:true}),
+  cell("",{width:tw[1],alt,align:AlignmentType.RIGHT,runs:curCellRuns(m&&m.current,m,{})}),
+  cell(prevCloseText(m&&m.prev_close,{}),{width:tw[2],alt,align:AlignmentType.RIGHT}),
+  cell(fmtPct(m&&m['1w_pct']),{width:tw[3],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['1w_pct'])}),
+  cell(fmtPct(m&&m['1mo_pct']),{width:tw[4],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['1mo_pct'])}),
+  cell(fmtPct(m&&m['3mo_pct']),{width:tw[5],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['3mo_pct'])}),
+  cell(fmtPct(m&&m['6mo_pct']),{width:tw[6],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['6mo_pct'])}),
+  cell(fmtPct(m&&m['1y_pct']),{width:tw[7],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['1y_pct'])}),
+  cell((m&&m.trend)||"-",{width:tw[8],alt})]}); }
+function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1일전","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
 function renderMarketBlock(title,obj,labels,exclude){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRow()]; let i=0;
   for(const [k,v] of Object.entries(obj)){ if(exclude&&exclude.includes(k))continue; rows.push(trendRow((labels&&labels[k])||k.toUpperCase(),v,i)); i++; } children.push(makeTable(tw,rows)); children.push(p("")); }
 function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=null;
@@ -528,20 +550,21 @@ function koTrend(m){ if(!m)return "-"; const t=String(m.trend||"").trim(); if(t&
   if(m3!==undefined&&m3!==null)parts.push("3개월 "+(m3>=0?"+":"")+Math.round(m3)+"% "+(m3>=0?"상승":"조정"));
   else if(m1!==undefined&&m1!==null)parts.push("1개월 "+(m1>=0?"+":"")+Math.round(m1)+"% "+(m1>=0?"반등":"조정"));
   return parts.length?parts.join(", "):(t||"-"); }
-const TR2=[1500,1050,1050,1050,1050,1050,1750,1850]; const TR2TOT=TR2.reduce((a,b)=>a+b,0);
-function trend2Header(){ return new TableRow({children:["현재가","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:TR2[i],header:true,align:AlignmentType.CENTER}))}); }
+const TR2=[1500,950,950,950,950,950,950,1500,1600]; const TR2TOT=TR2.reduce((a,b)=>a+b,0);
+function trend2Header(){ return new TableRow({children:["현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:TR2[i],header:true,align:AlignmentType.CENTER}))}); }
 function trend2Rows(items){ const rows=[trend2Header()];
   items.forEach((it,i)=>{ const alt=i%2===1; const m=it.m||{};
-    rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:8,width:{size:TR2TOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:it.desc})]}) ]}));
+    rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:9,width:{size:TR2TOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:it.desc})]}) ]}));
     rows.push(new TableRow({children:[
-      cell((it.current==null||it.current==="")?"-":(it.curText||fmtNum(it.current)),{width:TR2[0],alt,align:AlignmentType.RIGHT,bold:true,color:it.changed?negativeColor:undefined}),
-      cell(fmtPct(m['1w_pct']),{width:TR2[1],alt,align:AlignmentType.RIGHT,color:pctColor(m['1w_pct'])}),
-      cell(fmtPct(m['1mo_pct']),{width:TR2[2],alt,align:AlignmentType.RIGHT,color:pctColor(m['1mo_pct'])}),
-      cell(fmtPct(m['3mo_pct']),{width:TR2[3],alt,align:AlignmentType.RIGHT,color:pctColor(m['3mo_pct'])}),
-      cell(fmtPct(m['6mo_pct']),{width:TR2[4],alt,align:AlignmentType.RIGHT,color:pctColor(m['6mo_pct'])}),
-      cell(fmtPct(m['1y_pct']),{width:TR2[5],alt,align:AlignmentType.RIGHT,color:pctColor(m['1y_pct'])}),
-      imgCellSpark(it.chart,TR2[6],alt,150,46),
-      cell(it.trend||koTrend(m),{width:TR2[7],alt,size:16}) ]}));
+      cell("",{width:TR2[0],alt,align:AlignmentType.RIGHT,runs:curCellRuns(it.current,m,{prefix:it.curPrefix,suffix:it.curSuffix,curText:it.curText,curColor:it.changed?negativeColor:undefined})}),
+      cell(prevCloseText(m.prev_close,{prefix:it.curPrefix,suffix:it.curSuffix}),{width:TR2[1],alt,align:AlignmentType.RIGHT}),
+      cell(fmtPct(m['1w_pct']),{width:TR2[2],alt,align:AlignmentType.RIGHT,color:pctColor(m['1w_pct'])}),
+      cell(fmtPct(m['1mo_pct']),{width:TR2[3],alt,align:AlignmentType.RIGHT,color:pctColor(m['1mo_pct'])}),
+      cell(fmtPct(m['3mo_pct']),{width:TR2[4],alt,align:AlignmentType.RIGHT,color:pctColor(m['3mo_pct'])}),
+      cell(fmtPct(m['6mo_pct']),{width:TR2[5],alt,align:AlignmentType.RIGHT,color:pctColor(m['6mo_pct'])}),
+      cell(fmtPct(m['1y_pct']),{width:TR2[6],alt,align:AlignmentType.RIGHT,color:pctColor(m['1y_pct'])}),
+      imgCellSpark(it.chart,TR2[7],alt,150,46),
+      cell(it.trend||koTrend(m),{width:TR2[8],alt,size:16}) ]}));
   });
   return rows; }
 function trendRowC(name,m,i,chart,changed){ return new TableRow({children:[
@@ -610,12 +633,14 @@ function renderMacroIndicators(){
     children.push(p("의미: 연준 정책방향(매파/비둘기파) · 발표: 회의 후 즉시",{size:16,color:"64748B"}));
     if(r.fomc_market_impact)children.push(p("시장영향: "+r.fomc_market_impact,{size:17,bold:true,color:"334155"})); }
   // 美 10년물 (1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가)
-  if(r.us10y){ const o=r.us10y; const w=[1600,1080,780,780,780,780,780,1300,2200];
-    const rows=[hdrRow(["지표","현재가","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
-    rows.push(new TableRow({children:[cell("美 10년물 국채금리",{width:w[0],bold:true}),cell(o.current+"%",{width:w[1],align:AlignmentType.RIGHT,bold:true}),
-      cell(fmtPct(o['1w_pct']),{width:w[2],align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}),cell(fmtPct(o['1mo_pct']),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
-      cell(fmtPct(o['3mo_pct']),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}),cell(fmtPct(o['6mo_pct']),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
-      cell(fmtPct(o['1y_pct']),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}),imgCellSpark(o.spark,w[7],false,150,40),cell(o.trend||"-",{width:w[8],size:16})]}));
+  if(r.us10y){ const o=r.us10y; const w=[1500,1100,700,700,700,700,700,700,1200,1900];
+    const rows=[hdrRow(["지표","현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
+    rows.push(new TableRow({children:[cell("美 10년물 국채금리",{width:w[0],bold:true}),
+      cell("",{width:w[1],align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{suffix:"%"})}),
+      cell(prevCloseText(o.prev_close,{suffix:"%"}),{width:w[2],align:AlignmentType.RIGHT}),
+      cell(fmtPct(o['1w_pct']),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}),cell(fmtPct(o['1mo_pct']),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
+      cell(fmtPct(o['3mo_pct']),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}),cell(fmtPct(o['6mo_pct']),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
+      cell(fmtPct(o['1y_pct']),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}),imgCellSpark(o.spark,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]}));
     children.push(makeTable(w,rows));
     children.push(p("의미: 장기 금리·기준이자율 역할 · 발표: 매일 · 시장영향: 10년물↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"})); }
   // 미국 장단기 금리차
@@ -660,12 +685,13 @@ function renderMacroIndicators(){
   // 3.1.4 심리 — 6개월 추가
   const s=x.sentiment||{};
   children.push(h("3.1.4 심리·자금흐름 보조지표",3));
-  { const w=[1400,1050,760,760,760,760,760,1230,2600]; const rows=[hdrRow(["지표","현재가","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
+  { const w=[1400,1050,700,700,700,700,700,700,1230,2000]; const rows=[hdrRow(["지표","현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
     (s.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
-      cell(o.name,{width:w[0],alt:a,bold:true}), cell(fmtNum(o.current),{width:w[1],alt:a,align:AlignmentType.RIGHT,bold:true}),
-      cell(fmtPct(o['1w_pct']),{width:w[2],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}), cell(fmtPct(o['1mo_pct']),{width:w[3],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
-      cell(fmtPct(o['3mo_pct']),{width:w[4],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}), cell(fmtPct(o['6mo_pct']),{width:w[5],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
-      cell(fmtPct(o['1y_pct']),{width:w[6],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}), imgCellSpark(o.spark,w[7],a,150,40), cell(o.trend,{width:w[8],alt:a,size:16})]})); });
+      cell(o.name,{width:w[0],alt:a,bold:true}), cell("",{width:w[1],alt:a,align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{})}),
+      cell(prevCloseText(o.prev_close,{}),{width:w[2],alt:a,align:AlignmentType.RIGHT}),
+      cell(fmtPct(o['1w_pct']),{width:w[3],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}), cell(fmtPct(o['1mo_pct']),{width:w[4],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
+      cell(fmtPct(o['3mo_pct']),{width:w[5],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}), cell(fmtPct(o['6mo_pct']),{width:w[6],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
+      cell(fmtPct(o['1y_pct']),{width:w[7],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}), imgCellSpark(o.spark,w[8],a,150,40), cell(o.trend,{width:w[9],alt:a,size:16})]})); });
     children.push(makeTable(w,rows)); }
   { const w=[2000,2900,5180]; const rows=[hdrRow(["지표","의미","활용"],w)];
     (s.rows||[]).forEach((o,i)=>rows.push(new TableRow({children:[cell(o.name,{width:w[0],alt:i%2===1,bold:true}),

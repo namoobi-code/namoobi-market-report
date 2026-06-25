@@ -88,13 +88,22 @@ def lead_comment(kl):
 m['korea_leading_comment'] = lead_comment(kl)
 
 # 테마 (nmr_semi.json 의 선정/방향/코멘트 + nmr_kr_series.json 의 시계열 join)
-themes = krs.get('themes', {}); trows = []
+themes = krs.get('themes', {}); kr_daily = krs.get('daily') or {}; theme_etf = krs.get('theme_etf') or {}; trows = []
+d_themes = kr_daily.get('themes') or {}
 for t in (semi.get('korea_themes') or []):
     nm = t.get('theme'); s = themes.get(nm) or []
     r = ret(s); r.update({'theme': nm, 'direction': t.get('direction'), 'comment': t.get('comment'),
                           'chart': f"charts/theme_{san(nm)}.png", 'trend': koTrend(r)})
+    r['etf'] = t.get('etf') or theme_etf.get(nm) or ''  # 대표 ETF 명칭 (3.2.4)
+    ds = d_themes.get(nm)
+    if ds:  # 일봉 현재가·전일대비 (테마 series 는 월봉=현재가 stale → 일봉으로 갱신)
+        if ds.get('current') is not None: r['current'] = ds['current']
+        if ds.get('chg') is not None: r['chg'] = ds['chg']
+        if ds.get('1d_pct') is not None: r['1d_pct'] = ds['1d_pct']
+        if ds.get('prev_close') is not None: r['prev_close'] = ds['prev_close']
     trows.append(r)
 m['korea_theme_rows'] = trows; m['korea_themes_comment'] = semi.get('korea_themes_comment') or ''
+m['korea_theme_etfs'] = theme_etf  # 빌더 fallback (테마→대표ETF명)
 
 def aumfmt(v):
     try:
@@ -108,11 +117,21 @@ ss = []
 for i, x in enumerate(semi.get('semi_ai_stocks', [])[:10]):
     s = (krs.get('stocks') or {}).get(x.get('name')) or []
     r = ret(s); r.update({'name': x.get('name'), 'aum': aumfmt(x.get('aum')), 'note': x.get('note', ''), 'chart': f"charts/semi_s_{i}.png", 'trend': koTrend(r)})
+    _ds = (kr_daily.get('stocks') or {}).get(x.get('name'))
+    if _ds:
+        if _ds.get('chg') is not None: r['chg'] = _ds['chg']
+        if _ds.get('1d_pct') is not None: r['1d_pct'] = _ds['1d_pct']
+        if _ds.get('prev_close') is not None: r['prev_close'] = _ds['prev_close']
     ss.append(r)
 se = []
 for i, x in enumerate(semi.get('semi_ai_etfs', [])[:20]):
     s = (krs.get('etfs') or {}).get(x.get('name')) or []
     r = ret(s); r.update({'name': x.get('name'), 'aum': aumfmt(x.get('aum')), 'note': x.get('note', ''), 'chart': f"charts/semi_e_{i}.png", 'trend': koTrend(r)})
+    _ds = (kr_daily.get('etfs') or {}).get(x.get('name'))
+    if _ds:
+        if _ds.get('chg') is not None: r['chg'] = _ds['chg']
+        if _ds.get('1d_pct') is not None: r['1d_pct'] = _ds['1d_pct']
+        if _ds.get('prev_close') is not None: r['prev_close'] = _ds['prev_close']
     se.append(r)
 m['semi_ai_stocks'] = ss; m['semi_ai_stocks_comment'] = semi.get('semi_ai_stocks_comment', '')
 m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comment', '')
@@ -195,7 +214,7 @@ if _macro and not _macro_ok(_macro):
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
 # 이미 수집된 시세 재사용(중복 fetch 금지): VIX·DXY·원/달러·WTI·美10년물
 _us = m.get('us_markets') or {}; _fx = m.get('fx_markets') or {}; _en = (com.get('energy') if isinstance(com, dict) else {}) or {}
-_RK = ('current', '1w_pct', '1mo_pct', '3mo_pct', '6mo_pct', '1y_pct', 'trend')
+_RK = ('current', '1w_pct', '1mo_pct', '3mo_pct', '6mo_pct', '1y_pct', 'trend', '1d_pct', 'chg', 'prev_close')
 def _reuse(dst, srcv):
     if isinstance(dst, dict) and isinstance(srcv, dict):
         for _k in _RK:

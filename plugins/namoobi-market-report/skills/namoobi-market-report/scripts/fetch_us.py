@@ -109,12 +109,30 @@ with ThreadPoolExecutor(max_workers=4) as ex:
 def R(tk, scale=1.0): return ret(closes(RES.get(tk)), scale)
 def S(tk): return closes(RES.get(tk))
 
+# ===== (v3.21) 전일 대비(1일) 변동 — 일봉 마지막 2개 종가로 산출 (주봉으로는 1일 변동 계산 불가) =====
+def fetch_dy1(tk): return tk, yfetch(tk, '1mo', '1d')
+DRES = {}
+with ThreadPoolExecutor(max_workers=12) as ex:
+    for tk, r in ex.map(fetch_dy1, list(wk_tickers)): DRES[tk] = r
+def day_stats(tk, scale=1.0):
+    s = closes(DRES.get(tk))
+    if len(s) < 2: return (None, None, None)
+    cur = s[-1][1] * scale; prev = s[-2][1] * scale
+    if not prev: return (None, None, None)
+    dec = 4 if abs(cur) < 10 else (3 if abs(cur) < 100 else 2)
+    return (round(cur - prev, dec), round((cur / prev - 1) * 100, 2), round(prev, dec))
+def add_day(r, tk, scale=1.0):
+    if isinstance(r, dict):
+        c, p, pc = day_stats(tk, scale)
+        if p is not None: r['chg'] = c; r['1d_pct'] = p; r['prev_close'] = pc  # prev_close=전일(하루 전) 종가
+    return r
+
 # ===== nmr_markets.json =====
 def block(mp, scales=None):
     scales = scales or {}
     o = {}
     for nm, tk in mp.items():
-        r = R(tk, scales.get(nm, 1.0)); r['trend'] = trend(r); o[nm] = r
+        r = R(tk, scales.get(nm, 1.0)); r['trend'] = trend(r); add_day(r, tk, scales.get(nm, 1.0)); o[nm] = r
     return o
 markets = {
  'korea': block({'kospi': '^KS11', 'kosdaq': '^KQ11'}),
@@ -161,7 +179,7 @@ metals = block({'gold':'GC=F','silver':'SI=F','copper':'HG=F','platinum':'PL=F',
 agri = block({'corn':'ZC=F','soybean':'ZS=F','wheat':'ZW=F'})
 strat_etf_rows = []
 for k, sym in STRAT.items():
-    r = R(sym); r['name'] = sym; r['trend'] = trend(r); strat_etf_rows.append(r)
+    r = R(sym); r['name'] = sym; r['trend'] = trend(r); add_day(r, sym); strat_etf_rows.append(r)
 commod = {
  'energy': energy, 'metals': metals, 'agriculture': agri,
  'strategic_metals': {'etf': strat_etf_rows},
@@ -176,7 +194,7 @@ json.dump(commod, open('nmr_commod.json', 'w'), ensure_ascii=False)
 usetf = {'index': [], 'sector': [], 'theme': [], 'defensive': [], 'comment': '', 'asof': dt.date.today().isoformat()}
 etfseries = {}
 for sym, (grp, name, desc, wt) in ETF.items():
-    r = R(sym); row = {'symbol': sym, 'name': name, 'desc': desc, **r, 'trend': trend(r)}
+    r = R(sym); add_day(r, sym); row = {'symbol': sym, 'name': name, 'desc': desc, **r, 'trend': trend(r)}
     if wt is not None: row['weight'] = wt
     usetf[grp].append(row)
     etfseries[sym] = S(sym)
