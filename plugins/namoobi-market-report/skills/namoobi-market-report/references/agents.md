@@ -274,7 +274,7 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 **수집**
 - **FMP `economics-indicators`**(name=): `federalFunds`(현재 기준금리)·`CPI`(지수→YoY/MoM)·`unemploymentRate`·`totalNonfarmPayroll`(전월차→신규고용)·`retailSales`(MoM)·`realGDP`(전기比 연율)·(보너스 `consumerSentiment`). **FMP `treasury-rates`** 최근일 `year2`·`year10` → `yield_curve`(10Y-2Y)·`us10y`.
 - **FRED CSV**(Chrome 동일출처 `fredgraph.csv` — 3.3.3 HY OAS 와 동일 패턴): Core CPI=`CPILFESL`·PCE=`PCEPI`·Core PCE=`PCEPILFE`·PPI=`PPIFIS`·10Y 기대인플레=`T10YIE`(월별 12개+YoY/현재값).
-- **추정**(무료 실시간 API 없음): ISM 제조/서비스 PMI·VKOSPI·S&P500/KOSPI 12M 선행 EPS·선행PER·한·중 정책금리 → WebSearch/뉴스(TrendForce·LSEG·연합인포맥스·각국 중앙은행) 분기·월 추정, **'추정' 표기**. 확인 불가 시 빈값.
-- **재사용(수집 금지)**: VIX·DXY·원/달러·WTI·美10년물 = `fetch_us.py` 산출 → `merge.py` 가 주입.
+- **추정**(무료 실시간 API 없음): ISM 제조/서비스 PMI·S&P500/KOSPI 12M 선행 EPS·선행PER·한·중 정책금리 → WebSearch/뉴스(TrendForce·LSEG·연합인포맥스·각국 중앙은행) 분기·월 추정, **'추정' 표기**. 확인 불가 시 빈값. **(v3.22) KSVKOSPI(코스피 변동성지수)는 추정 금지 — `fetch_us.py` 가 CNBC `.KSVKOSPI` 실시간 수집(현재/전일/등락), merge 가 'KSVKOSPI (KOSPI Volatility)' 행에 주입.**
+- **재사용(수집 금지)**: VIX·DXY·원/달러·WTI·美10년물·**KSVKOSPI(CNBC .KSVKOSPI)** = `fetch_us.py` 산출 → `merge.py` 가 주입.
 
 **반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment·spx_eps·spx_idx·kospi_eps·kospi_idx) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).

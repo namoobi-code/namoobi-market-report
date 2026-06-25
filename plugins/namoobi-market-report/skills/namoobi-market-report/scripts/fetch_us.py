@@ -151,6 +151,25 @@ if not (markets['fx_markets'].get('cny_krw') or {}).get('current'):
     _cs = _cross('KRW=X', 'CNY=X')
     if len(_cs) >= 2:
         _r = ret(_cs); _r['trend'] = trend(_r); markets['fx_markets']['cny_krw'] = _r
+# (v3.22) KSVKOSPI (코스피 변동성지수 VKOSPI) — Yahoo 미제공 → CNBC .KSVKOSPI 실시간(현재/전일종가/등락)
+def fetch_vkospi():
+    try:
+        j = json.loads(get('https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=.KSVKOSPI&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json', timeout=10, tries=2))
+        q = j['FormattedQuoteResult']['FormattedQuote'][0]
+        def _n(x):
+            try: return float(str(x).replace(',', '').replace('%', '').replace('+', ''))
+            except Exception: return None
+        cur = _n(q.get('last'))
+        if cur is None: return None
+        r = {'current': round(cur, 2), 'trend': '실시간(CNBC .KSVKOSPI)'}
+        for k, src in (('prev_close', 'previous_day_closing'), ('chg', 'change'), ('1d_pct', 'change_pct')):
+            v = _n(q.get(src))
+            if v is not None: r[k] = round(v, 2)
+        return r
+    except Exception as e:
+        print('vkospi 실패(비차단):', e); return None
+_vk = fetch_vkospi()
+if _vk: markets['vkospi'] = _vk; print('vkospi(KSVKOSPI):', _vk.get('current'), '전일', _vk.get('prev_close'))
 json.dump(markets, open('nmr_markets.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_indexseries.json =====

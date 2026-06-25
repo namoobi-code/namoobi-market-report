@@ -237,8 +237,8 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 - `rates`: `fed_funds{current,decision,bias,meaning,freq,impact}` · `policy_rates[{country,rate,asof,note}]`(6개국) · `policy_rates_chart` · `fomc_meetings[{date,stance,note}]`(빌더가 **최신순** 렌더, stance 에 '매파'=빨강/'비둘기'=초록) · `fomc_market_impact` · `us10y{current,1w_pct,1mo_pct,3mo_pct,6mo_pct,1y_pct,trend,spark}` · `yield_curve{label,spread,status,note,meaning,impact,chart}`(10Y-2Y).
 - `inflation`: `chart`(통합 YoY) · `rows[{name,yoy,mom,asof,meaning,impact}]`(CPI·Core CPI·PCE·Core PCE·PPI) · `infl_exp_10y{current,trend,chart,meaning,freq,impact}`(표 없이 현재값+차트+해설).
 - `employment`: `chart`(통합 6패널) · `rows[{name,value,asof,meaning,freq,impact}]`(NFP·실업률·GDP·ISM 제조/서비스·소매판매).
-- `sentiment`: `rows[{name,current,1w_pct,1mo_pct,3mo_pct,6mo_pct,1y_pct,trend,spark,meaning,use}]`(VIX·VKOSPI·DXY·원/달러·WTI) · `spx_fwd{fwd_eps,fwd_per,asof,chart,note}` · `kospi_fwd{...}`.
-- **재사용**: `merge.py` 가 `sentiment.rows` 의 VIX·DXY·원/달러·WTI 와 `rates.us10y` 를 `fetch_us.py` 시세(`us_markets`/`fx_markets`/`commodities.energy`)로 채움(중복수집 금지).
+- `sentiment`: `rows[{name,current,1w_pct,1mo_pct,3mo_pct,6mo_pct,1y_pct,trend,spark,meaning,use}]`(VIX·KSVKOSPI·DXY·원/달러·WTI) · `spx_fwd{fwd_eps,fwd_per,asof,chart,note}` · `kospi_fwd{...}`.
+- **재사용**: `merge.py` 가 `sentiment.rows` 의 VIX·DXY·원/달러·WTI·**KSVKOSPI**(CNBC `.KSVKOSPI`) 와 `rates.us10y` 를 `fetch_us.py` 시세(`us_markets`/`fx_markets`/`commodities.energy`/`vkospi`)로 채움(중복수집 금지).
 - **차트**: `gen_macro_charts.py` → `charts/macro_policy_rates.png`·`macro_curve.png`·`macro_inflation.png`·`macro_employment.png`·`macro_infl_exp.png`·`macro_spx_fwd.png`·`macro_kospi_fwd.png` + `charts/spark_{us10y,vix,vkospi,dxy,usdkrw,wti}.png`. 시계열 라이브 오버라이드는 `nmr_macro.json` 의 `macro.series.{fed_funds_5y,curve_10_2,inflation,infl_exp,employment,sentiment,spx_eps,spx_idx,kospi_eps,kospi_idx}`.
 
 ```json
@@ -293,7 +293,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
   "sentiment": {
     "rows": [
       {"name": "VIX (공포지수)", "current": 17.2, "1w_pct": -5.0, "1mo_pct": -8.0, "3mo_pct": -12.0, "6mo_pct": -6.0, "1y_pct": -10.0, "trend": "안정(추정)", "spark": "charts/spark_vix.png", "meaning": "변동성 예측", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
-      {"name": "VKOSPI", "current": 18.0, "1w_pct": -3.0, "1mo_pct": -6.0, "3mo_pct": -9.0, "6mo_pct": -4.0, "1y_pct": -8.0, "trend": "안정(추정)", "spark": "charts/spark_vkospi.png", "meaning": "변동성 예측(코스피)", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
+      {"name": "KSVKOSPI (KOSPI Volatility)", "current": 95.73, "trend": "실시간(CNBC .KSVKOSPI)", "spark": "charts/spark_vkospi.png", "meaning": "코스피200 변동성지수(VKOSPI)", "use": "20대=안정·30↑ 고변동, 급등 시 공포 확대 → 현금 비중 관망"},
       {"name": "달러인덱스 DXY", "current": 98.1, "1w_pct": 0.3, "1mo_pct": -0.5, "3mo_pct": -1.8, "6mo_pct": -3.0, "1y_pct": -4.0, "trend": "약보합(추정)", "spark": "charts/spark_dxy.png", "meaning": "달러 가치", "use": "달러 강세 → 코스피 조정 역사"},
       {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usdkrw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
       {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}

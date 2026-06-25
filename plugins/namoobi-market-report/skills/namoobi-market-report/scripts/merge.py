@@ -189,7 +189,7 @@ MACRO_DEFAULT = json.loads(r'''{
   "sentiment": {
     "rows": [
       {"name": "VIX (공포지수)", "current": 17.2, "1w_pct": -5.0, "1mo_pct": -8.0, "3mo_pct": -12.0, "6mo_pct": -6.0, "1y_pct": -10.0, "trend": "안정(추정)", "spark": "charts/spark_vix.png", "meaning": "변동성 예측", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
-      {"name": "VKOSPI", "current": 18.0, "1w_pct": -3.0, "1mo_pct": -6.0, "3mo_pct": -9.0, "6mo_pct": -4.0, "1y_pct": -8.0, "trend": "안정(추정)", "spark": "charts/spark_vkospi.png", "meaning": "변동성 예측(코스피)", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
+      {"name": "KSVKOSPI (KOSPI Volatility)", "current": 95.73, "trend": "실시간(CNBC .KSVKOSPI)", "spark": "charts/spark_vkospi.png", "meaning": "코스피200 변동성지수(VKOSPI)", "use": "20대=안정·30↑ 고변동, 급등 시 공포 확대 → 현금 비중 관망"},
       {"name": "달러인덱스 DXY", "current": 98.1, "1w_pct": 0.3, "1mo_pct": -0.5, "3mo_pct": -1.8, "6mo_pct": -3.0, "1y_pct": -4.0, "trend": "약보합(추정)", "spark": "charts/spark_dxy.png", "meaning": "달러 가치", "use": "달러 강세 → 코스피 조정 역사"},
       {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usdkrw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
       {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}
@@ -223,6 +223,12 @@ _byname = {'VIX (공포지수)': _us.get('vix'), '달러인덱스 DXY': _us.get(
 for _r in ((macro.get('sentiment') or {}).get('rows') or []):
     if isinstance(_r, dict) and _byname.get(_r.get('name')): _reuse(_r, _byname[_r['name']])
 _reuse((macro.get('rates') or {}).get('us10y'), _us.get('us10y'))
+# (v3.22) KSVKOSPI 표준화 + CNBC 실시간 주입 — 에이전트가 VKOSPI/KSVKOSPI 어떤 이름으로 주든 통일
+_vk = mk.get('vkospi')
+for _r in ((macro.get('sentiment') or {}).get('rows') or []):
+    if isinstance(_r, dict) and 'VKOSPI' in str(_r.get('name', '')).upper():
+        _r['name'] = 'KSVKOSPI (KOSPI Volatility)'
+        if _vk: _reuse(_r, _vk)
 m['macro'] = macro
 
 m['us_etfs'] = ue
