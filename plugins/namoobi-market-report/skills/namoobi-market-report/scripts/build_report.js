@@ -138,6 +138,11 @@ function fmtChgAbs(v){ if(v===null||v===undefined||v==="")return null; const n=N
   return a>=1000?a.toLocaleString(undefined,{maximumFractionDigits:2}):(a>=1?a.toFixed(2):a.toFixed(3)); }
 // (v3.21b) '1일전' 셀: 전일(하루 전) 종가 표기 — 현재가(오늘)와 다른 하루 전 값. 접두 $/접미 % 가능.
 function prevCloseText(v, opts){ opts=opts||{}; if(v===null||v===undefined||v==="")return "-"; return (opts.prefix||"")+fmtNum(v)+(opts.suffix||""); }
+// (v3.22) '1일' 셀: 전일대비 +/- % (1d_pct 우선, 없으면 current/prev_close 로 계산). 색상=상승 초록·하락 빨강.
+function pct1d(m){ if(!m)return null; let p=m['1d_pct'];
+  if(p===null||p===undefined||p===""){ const c=Number(m.current),pv=Number(m.prev_close); if(!isNaN(c)&&!isNaN(pv)&&pv!==0)p=(c/pv-1)*100; else return null; }
+  p=Number(p); return isNaN(p)?null:p; }
+function pct1dCell(m,width,alt){ const v=pct1d(m); return cell(fmtPct(v),{width:width,alt:alt,align:AlignmentType.RIGHT,color:pctColor(v)}); }
 // (v3.21) 현재가 셀 runs: 1행=현재가(접두 $/접미 % 가능), 2행=전일대비 ▲/▼ 절대변동 (±%). 상승=초록·하락=빨강.
 //   m.chg=전일대비 절대변동, m['1d_pct']=전일대비 %. 둘 다 없으면 현재가만 표기(기존과 동일).
 function curCellRuns(cur, m, opts){ opts=opts||{}; m=m||{};
@@ -148,8 +153,8 @@ function curCellRuns(cur, m, opts){ opts=opts||{}; m=m||{};
   let chg=m.chg; chg=(chg===null||chg===undefined||chg==="")?null:Number(chg);
   if((pct!==null&&!isNaN(pct))||(chg!==null&&!isNaN(chg))){
     const ref=(pct!==null&&!isNaN(pct))?pct:chg; const col=ref>=0?positiveColor:negativeColor; const arrow=ref>=0?"▲":"▼";
-    let t=arrow; const a=(chg!==null&&!isNaN(chg))?fmtChgAbs(chg):null; if(a!==null)t+=" "+a;
-    if(pct!==null&&!isNaN(pct))t+=" ("+(pct>=0?"+":"")+pct.toFixed(2)+"%)";
+    let t=arrow; const a=(chg!==null&&!isNaN(chg))?fmtChgAbs(chg):null;
+    if(a!==null)t+=" "+a; else if(pct!==null&&!isNaN(pct))t+=" "+(pct>=0?"+":"")+pct.toFixed(2)+"%";
     runs.push(new TextRun({text:t,break:1,size:(opts.size?Math.max(14,opts.size-4):16),color:col,bold:true})); }
   return runs; }
 const mixedColor = "D97706"; // 양면(■) — 앰버
@@ -243,13 +248,13 @@ function renderKoreaExtras(){ const m=data.markets||{};
     children.push(p("각 항목은 2줄로 표기: 1행=설명(테마/종목·방향·대표ETF/시총·현황), 2행=현재가·1주·1개월·3개월·6개월·1년 수익률·추세(1Y) 그래프·추세 평가.",{size:16,color:"94A3B8"}));
     // (요청) 2줄 수익률 블록: 1행=설명(span), 2행=현재가·1주~1년·추세그래프·추세평가
     const RW=[1500,950,950,950,950,950,950,1500,1600]; const RTOT=RW.reduce((a,b)=>a+b,0);
-    const retHeader=()=>new TableRow({children:["현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:RW[i],header:true,align:AlignmentType.CENTER}))});
+    const retHeader=()=>new TableRow({children:["현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:RW[i],header:true,align:AlignmentType.CENTER}))});
     const retRows=(items,prefix,descFn)=>{ const rows=[retHeader()];
       items.forEach((x,i)=>{ const alt=i%2===1; const chart=x.chart||(prefix?("charts/"+prefix+"_"+i+".png"):"");
         rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:9,width:{size:RTOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:descFn(x)})]}) ]}));
         rows.push(new TableRow({children:[
           cell("",{width:RW[0],alt,align:AlignmentType.RIGHT,runs:curCellRuns(x.current,x,{})}),
-          cell(prevCloseText(x.prev_close,{}),{width:RW[1],alt,align:AlignmentType.RIGHT}),
+          pct1dCell(x,RW[1],alt),
           cell(fmtPct(x['1w_pct']),{width:RW[2],alt,align:AlignmentType.RIGHT,color:pctColor(x['1w_pct'])}),
           cell(fmtPct(x['1mo_pct']),{width:RW[3],alt,align:AlignmentType.RIGHT,color:pctColor(x['1mo_pct'])}),
           cell(fmtPct(x['3mo_pct']),{width:RW[4],alt,align:AlignmentType.RIGHT,color:pctColor(x['3mo_pct'])}),
@@ -525,14 +530,14 @@ const tw=[1500,1400,800,800,800,800,800,800,1500];
 function trendRow(name,m,i){ const alt=i%2===1; return new TableRow({children:[
   cell(name,{width:tw[0],alt,bold:true}),
   cell("",{width:tw[1],alt,align:AlignmentType.RIGHT,runs:curCellRuns(m&&m.current,m,{})}),
-  cell(prevCloseText(m&&m.prev_close,{}),{width:tw[2],alt,align:AlignmentType.RIGHT}),
+  pct1dCell(m,tw[2],alt),
   cell(fmtPct(m&&m['1w_pct']),{width:tw[3],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['1w_pct'])}),
   cell(fmtPct(m&&m['1mo_pct']),{width:tw[4],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['1mo_pct'])}),
   cell(fmtPct(m&&m['3mo_pct']),{width:tw[5],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['3mo_pct'])}),
   cell(fmtPct(m&&m['6mo_pct']),{width:tw[6],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['6mo_pct'])}),
   cell(fmtPct(m&&m['1y_pct']),{width:tw[7],alt,align:AlignmentType.RIGHT,color:pctColor(m&&m['1y_pct'])}),
   cell((m&&m.trend)||"-",{width:tw[8],alt})]}); }
-function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1일전","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
+function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1일","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
 function renderMarketBlock(title,obj,labels,exclude){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRow()]; let i=0;
   for(const [k,v] of Object.entries(obj)){ if(exclude&&exclude.includes(k))continue; rows.push(trendRow((labels&&labels[k])||k.toUpperCase(),v,i)); i++; } children.push(makeTable(tw,rows)); children.push(p("")); }
 function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=null;
@@ -551,13 +556,13 @@ function koTrend(m){ if(!m)return "-"; const t=String(m.trend||"").trim(); if(t&
   else if(m1!==undefined&&m1!==null)parts.push("1개월 "+(m1>=0?"+":"")+Math.round(m1)+"% "+(m1>=0?"반등":"조정"));
   return parts.length?parts.join(", "):(t||"-"); }
 const TR2=[1500,950,950,950,950,950,950,1500,1600]; const TR2TOT=TR2.reduce((a,b)=>a+b,0);
-function trend2Header(){ return new TableRow({children:["현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:TR2[i],header:true,align:AlignmentType.CENTER}))}); }
+function trend2Header(){ return new TableRow({children:["현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"].map((x,i)=>cell(x,{width:TR2[i],header:true,align:AlignmentType.CENTER}))}); }
 function trend2Rows(items){ const rows=[trend2Header()];
   items.forEach((it,i)=>{ const alt=i%2===1; const m=it.m||{};
     rows.push(new TableRow({children:[ new TableCell({borders,columnSpan:9,width:{size:TR2TOT,type:WidthType.DXA},shading:alt?altShading:undefined,margins:{top:70,bottom:30,left:120,right:120},children:[new Paragraph({children:it.desc})]}) ]}));
     rows.push(new TableRow({children:[
       cell("",{width:TR2[0],alt,align:AlignmentType.RIGHT,runs:curCellRuns(it.current,m,{prefix:it.curPrefix,suffix:it.curSuffix,curText:it.curText,curColor:it.changed?negativeColor:undefined})}),
-      cell(prevCloseText(m.prev_close,{prefix:it.curPrefix,suffix:it.curSuffix}),{width:TR2[1],alt,align:AlignmentType.RIGHT}),
+      pct1dCell(m,TR2[1],alt),
       cell(fmtPct(m['1w_pct']),{width:TR2[2],alt,align:AlignmentType.RIGHT,color:pctColor(m['1w_pct'])}),
       cell(fmtPct(m['1mo_pct']),{width:TR2[3],alt,align:AlignmentType.RIGHT,color:pctColor(m['1mo_pct'])}),
       cell(fmtPct(m['3mo_pct']),{width:TR2[4],alt,align:AlignmentType.RIGHT,color:pctColor(m['3mo_pct'])}),
@@ -634,10 +639,10 @@ function renderMacroIndicators(){
     if(r.fomc_market_impact)children.push(p("시장영향: "+r.fomc_market_impact,{size:17,bold:true,color:"334155"})); }
   // 美 10년물 (1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가)
   if(r.us10y){ const o=r.us10y; const w=[1500,1100,700,700,700,700,700,700,1200,1900];
-    const rows=[hdrRow(["지표","현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
+    const rows=[hdrRow(["지표","현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
     rows.push(new TableRow({children:[cell("美 10년물 국채금리",{width:w[0],bold:true}),
       cell("",{width:w[1],align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{suffix:"%"})}),
-      cell(prevCloseText(o.prev_close,{suffix:"%"}),{width:w[2],align:AlignmentType.RIGHT}),
+      pct1dCell(o,w[2]),
       cell(fmtPct(o['1w_pct']),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}),cell(fmtPct(o['1mo_pct']),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
       cell(fmtPct(o['3mo_pct']),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}),cell(fmtPct(o['6mo_pct']),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
       cell(fmtPct(o['1y_pct']),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}),imgCellSpark(o.spark,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]}));
@@ -685,10 +690,10 @@ function renderMacroIndicators(){
   // 3.1.4 심리 — 6개월 추가
   const s=x.sentiment||{};
   children.push(h("3.1.4 심리·자금흐름 보조지표",3));
-  { const w=[1400,1050,700,700,700,700,700,700,1230,2000]; const rows=[hdrRow(["지표","현재가","1일전","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
+  { const w=[1400,1050,700,700,700,700,700,700,1230,2000]; const rows=[hdrRow(["지표","현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
     (s.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name,{width:w[0],alt:a,bold:true}), cell("",{width:w[1],alt:a,align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{})}),
-      cell(prevCloseText(o.prev_close,{}),{width:w[2],alt:a,align:AlignmentType.RIGHT}),
+      pct1dCell(o,w[2],a),
       cell(fmtPct(o['1w_pct']),{width:w[3],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}), cell(fmtPct(o['1mo_pct']),{width:w[4],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
       cell(fmtPct(o['3mo_pct']),{width:w[5],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}), cell(fmtPct(o['6mo_pct']),{width:w[6],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
       cell(fmtPct(o['1y_pct']),{width:w[7],alt:a,align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}), imgCellSpark(o.spark,w[8],a,150,40), cell(o.trend,{width:w[9],alt:a,size:16})]})); });
@@ -700,12 +705,20 @@ function renderMacroIndicators(){
   children.push(p(""));
   children.push(h("3.1.5 지수·Forward EPS·PER (실적 vs 밸류에이션)",3));
   children.push(p("선행 EPS(향후 12개월 예상 이익)와 지수·선행 PER 의 관계로 '실적장세 vs 밸류 부담'을 점검한다. 지수는 실측, 선행 EPS 는 컨센서스 기반 추정.",{italics:true,color:"64748B"}));
-  if(s.spx_fwd){ const e=s.spx_fwd;
-    children.push(p("■ S&P500 12M Forward EPS: $"+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 7,500 / "+e.asof+")",{bold:true,color:"1E40AF",before:100}));
-    const c=imagePara(e.chart,660,241); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
-  if(s.kospi_fwd){ const e=s.kospi_fwd;
-    children.push(p("■ KOSPI 12M Forward EPS: "+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 9,000 / "+e.asof+")",{bold:true,color:"1E40AF",before:80}));
-    const c=imagePara(e.chart,660,241); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
+  const _mk=data.markets||{};
+  const _curIdx=(grp,key)=>{ try{ const v=_mk[grp]&&_mk[grp][key]&&_mk[grp][key].current; return (v===0||v)?Number(v):null; }catch(e){ return null; } };
+  if(s.spx_fwd){ const e=s.spx_fwd; const idx=(e.idx!=null?Number(e.idx):null)||_curIdx("us_markets","sp500");
+    const per=(idx&&e.fwd_eps)?(idx/Number(e.fwd_eps)):e.fwd_per;
+    children.push(p("■ S&P500 12M 선행 EPS: $"+e.fwd_eps+"  ·  선행 PER: "+(per?Number(per).toFixed(1):e.fwd_per)+"배  (지수 "+(idx?fmtNum(idx):"-")+" / "+e.asof+")",{bold:true,color:"1E40AF",before:100}));
+    const c=imagePara(e.chart,660,241); if(c)children.push(c);
+    if(e.comment)children.push(p(e.comment,{size:17,color:"334155"}));
+    if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
+  if(s.kospi_fwd){ const e=s.kospi_fwd; const idx=(e.idx!=null?Number(e.idx):null)||_curIdx("korea","kospi");
+    const per=(idx&&e.fwd_eps)?(idx/Number(e.fwd_eps)):e.fwd_per;
+    children.push(p("■ KOSPI 12M 선행 EPS: "+e.fwd_eps+"  ·  선행 PER: "+(per?Number(per).toFixed(1):e.fwd_per)+"배  (지수 "+(idx?fmtNum(idx):"-")+" / "+e.asof+")",{bold:true,color:"1E40AF",before:80}));
+    const c=imagePara(e.chart,660,241); if(c)children.push(c);
+    if(e.comment)children.push(p(e.comment,{size:17,color:"334155"}));
+    if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
   children.push(p("선행EPS 해석: EPS↑+지수↑=실적장세 · EPS↑인데 지수 정체=밸류부담 점검 · EPS 꺾이면 성장주 탄력 둔화",{size:16,color:"64748B"}));
   children.push(p(""));
   renderCapex();

@@ -194,8 +194,8 @@ MACRO_DEFAULT = json.loads(r'''{
       {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usdkrw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
       {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}
     ],
-    "spx_fwd": {"fwd_eps": 330, "fwd_per": 22.7, "asof": "2026-06", "chart": "charts/macro_spx_fwd.png", "note": "출처: LSEG/Yardeni 공개치(월간 캐시) — 추정. 지수 7,500 / EPS 330 → 선행PER 22.7배로 정합"},
-    "kospi_fwd": {"fwd_eps": 918, "fwd_per": 9.8, "asof": "2026-06", "chart": "charts/macro_kospi_fwd.png", "note": "출처: 연합인포맥스/WISEfn(월간 캐시) — 추정. 지수 9,000 / EPS 918 → 선행PER 9.8배로 정합"}
+    "spx_fwd": {"fwd_eps": 350, "fwd_per": 21.0, "idx": 7358, "asof": "2026-06", "chart": "charts/macro_spx_fwd.png", "comment": "최근 1년 지수 +19%(6,173→7,358)·선행EPS도 동반 상승 → 선행PER 약 21배(5년 평균 ~20배 소폭 상회). 실적이 받쳐주는 강세장.", "note": "출처: FactSet 선행 P/E 21·CY26 EPS $309 — 추정. 지수 7,358 ÷ 선행EPS $350 = 선행PER 21.0배 (선행PER=지수÷12M선행EPS)"},
+    "kospi_fwd": {"fwd_eps": 1056, "fwd_per": 8.5, "idx": 8930, "asof": "2026-06", "chart": "charts/macro_kospi_fwd.png", "comment": "최근 1년 지수 +192%(3,056→8,930) 폭등에도 선행EPS가 더 가파르게 상승(반도체 슈퍼사이클·이익전망 +74%) → 선행PER 약 8.5배로 과거 평균 하단. 밸류 부담보다 실적 모멘텀이 주도한 랠리.", "note": "출처: 연합인포맥스/WISEfn 컨센서스 — 추정. 12M 선행EPS 1,056(6/15)·지수 8,930 → 선행PER 8.5배 (선행PER=지수÷12M선행EPS)"}
   }
 }
 ''')

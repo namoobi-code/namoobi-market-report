@@ -27,6 +27,28 @@ def months(sy,sm,n):
         if m>12:m=1;y+=1
     return o
 mon=months(2025,6,12)
+def recent_months(n):
+    end=dt.date.today().replace(day=1); out=[]; y,m=end.year,end.month
+    for _ in range(n):
+        out.append(dt.date(y,m,1)); m-=1
+        if m<1: m=12; y-=1
+    return list(reversed(out))
+# (v3.22) 선행EPS 차트용 실측 지수 월별 시계열 (fetch_us.py -> nmr_indexseries.json)
+def _load_idx():
+    for c in ["nmr_indexseries.json", os.path.join(O,"nmr_indexseries.json"), os.path.join(O,"nmr_build","nmr_indexseries.json")]:
+        if os.path.exists(c):
+            try: return json.load(open(c,encoding="utf-8"))
+            except Exception: pass
+    return {}
+IDXS=_load_idx()
+def monthly_idx(key,n=12):
+    mp={}
+    for row in (IDXS.get(key) or []):
+        try:
+            d,v=row[0],row[1]
+            if v is not None: mp[d[:7]]=float(v)
+        except Exception: pass
+    return [v for _,v in sorted(mp.items())[-n:]]
 def spark(name,xs,ys,color=BLUE):
     fig,ax=plt.subplots(figsize=(2.3,0.62),dpi=150); ax.plot(xs,ys,color=color,linewidth=1.4)
     ax.scatter([xs[-1]],[ys[-1]],color=RED,s=12,zorder=5); ax.axis("off")
@@ -106,16 +128,26 @@ spark("dxy",list(range(12)),sent.get("dxy") or [102,101,100,99.5,99,98.5,99,98.8
 spark("usdkrw",list(range(12)),sent.get("usdkrw") or [1352,1361,1378,1390,1372,1366,1375,1381,1379,1377,1378,1380])
 spark("wti",list(range(12)),sent.get("wti") or [78,76,74,72,70,69,73,72,71,70,72,71.5],GREEN)
 
-# (7) 선행 EPS — 지수/PER 정합
-def fwd(name,title,eps,idx):
-    per=[round(idx[i]/eps[i],1) for i in range(len(eps))]
-    fig,ax=plt.subplots(figsize=(7.4,2.6),dpi=150); ax.bar(mon,eps,width=20,color="#93C5FD",label="12M Fwd EPS"); ax.set_ylabel("Fwd EPS",fontsize=8,color=BLUE)
-    ax2=ax.twinx(); ax2.plot(mon,idx,color=BLUE,linewidth=2.0,marker="o",ms=3,label="지수"); ax2.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
-    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",38)); ax3.plot(mon,per,color=RED,linewidth=1.5,linestyle="--",label="선행 PER"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=RED)
-    ax2.annotate("%d"%idx[-1],(mon[-1],idx[-1]),textcoords="offset points",xytext=(-22,6),color=BLUE,fontsize=8,fontweight="bold")
+# (7) 선행 EPS — 실측 지수선 + 선행EPS(막대) + 선행PER(점선). EPS 막대=컨센서스 앵커 보간, 선행PER=지수/EPS.
+def fwd(name,title,idx,eps_anchors,fb):
+    if not idx or len(idx)<2: idx=fb
+    n=len(idx); xs=recent_months(n)
+    a,b,c=eps_anchors; mid=max(1,round(n*2/3))  # 1년전·분기중간·현재 3앵커 컨센서스 보간(매끄러움)
+    eps=[round(a+(b-a)*(i/mid)) if i<=mid else round(b+(c-b)*((i-mid)/max(1,(n-1-mid)))) for i in range(n)]
+    per=[round(idx[i]/eps[i],2) for i in range(n)]   # 선행PER = 지수 / 선행EPS (정의 — 실측 지수 변동 반영)
+    fig,ax=plt.subplots(figsize=(7.4,2.6),dpi=150); ax.bar(xs,eps,width=20,color="#93C5FD",label="12M 선행 EPS")
+    ax.set_ylabel("선행 EPS",fontsize=8,color=BLUE); ax.set_ylim(0,max(eps)*1.18)
+    ax2=ax.twinx(); ax2.plot(xs,idx,color=BLUE,linewidth=2.0,marker="o",ms=3,label="지수(실측)"); ax2.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
+    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",38)); ax3.plot(xs,per,color=RED,linewidth=1.5,linestyle="--",label="선행 PER"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=RED)
+    ax2.annotate(format(round(idx[-1]),",d"),(xs[-1],idx[-1]),textcoords="offset points",xytext=(-26,6),color=BLUE,fontsize=8,fontweight="bold")
     ax.set_title(title,fontsize=9.5,color="#334155"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.spines["top"].set_visible(False)
     h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels(); h3,l3=ax3.get_legend_handles_labels(); ax.legend(h1+h2+h3,l1+l2+l3,fontsize=7,loc="upper left")
     plt.tight_layout(); plt.savefig("charts/macro_%s.png"%name,bbox_inches="tight"); plt.close()
-fwd("spx_fwd","S&P500 12개월 선행 EPS + 지수 + 선행PER (추정)",(S.get("spx_eps") or [300,305,310,313,316,320,323,326,328,329,330,330]),(S.get("spx_idx") or [6950,7050,7150,7240,7300,7370,7410,7450,7475,7490,7498,7500]))
-fwd("kospi_fwd","KOSPI 12개월 선행 EPS + 지수 + 선행PER (추정)",(S.get("kospi_eps") or [815,838,856,872,884,898,905,910,913,916,917,918]),(S.get("kospi_idx") or [8050,8250,8420,8560,8660,8790,8860,8930,8965,8985,8996,9000]))
+# EPS 3앵커(1년전·분기중간·현재 컨센서스)=막대; 선행PER=지수/EPS(점선). S 오버라이드 가능.
+fwd("spx_fwd","S&P500 지수(실측)·12개월 선행EPS·선행PER (최근 1년)",monthly_idx("sp500"),
+    (S.get("spx_eps_anchors") or (271,309,350)),
+    [6173,6300,6450,6600,6760,6900,7010,7110,7200,7280,7330,7358])
+fwd("kospi_fwd","KOSPI 지수(실측)·12개월 선행EPS·선행PER (최근 1년)",monthly_idx("kospi"),
+    (S.get("kospi_eps_anchors") or (330,666,1056)),
+    [3056,3500,4200,5000,5800,6500,7200,7800,8300,8650,8850,8930])
 print("macro charts ->", len([x for x in os.listdir("charts") if x.startswith("macro_") or x.startswith("spark_")]), "files")
