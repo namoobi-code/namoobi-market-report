@@ -151,8 +151,10 @@ if not (markets['fx_markets'].get('cny_krw') or {}).get('current'):
     _cs = _cross('KRW=X', 'CNY=X')
     if len(_cs) >= 2:
         _r = ret(_cs); _r['trend'] = trend(_r); markets['fx_markets']['cny_krw'] = _r
-# (v3.22) KSVKOSPI (코스피 변동성지수 VKOSPI) — Yahoo 미제공 → CNBC .KSVKOSPI 실시간(현재/전일종가/등락)
-def fetch_vkospi():
+# (v3.23) KSVKOSPI (코스피 변동성지수) — investing.com 페이지 파싱(현재+1주~1년+anchors), CNBC 폴백
+#   CNBC 는 현재값만 제공(이력 API 차단). investing.com 페이지(api 아님)는 차단 없이 받아지며
+#   본문에 "last":<현재> + "priceChanges":{pct_1d/1w/1m/3m/6m/1y} 구조가 내장돼 있어 1주~1년 전부 확보.
+def _vkospi_cnbc():
     try:
         j = json.loads(get('https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=.KSVKOSPI&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json', timeout=10, tries=2))
         q = j['FormattedQuoteResult']['FormattedQuote'][0]
@@ -167,7 +169,42 @@ def fetch_vkospi():
             if v is not None: r[k] = round(v, 2)
         return r
     except Exception as e:
-        print('vkospi 실패(비차단):', e); return None
+        print('vkospi CNBC 실패:', e); return None
+
+def fetch_vkospi():
+    # 1순위: investing.com 페이지 본문 내장 JSON("last"+"priceChanges") 파싱 → 현재+1일~1년 + 차트 앵커
+    try:
+        import re as _re
+        req = urllib.request.Request('https://kr.investing.com/indices/kospi-volatility', headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+            'Accept-Language': 'ko,en;q=0.9'})
+        html = urllib.request.urlopen(req, timeout=20).read().decode('utf-8', 'replace')
+        def _f(s):
+            try: return round(float(s), 2)
+            except Exception: return None
+        mlast = _re.search(r'"last":\s*(-?\d+\.?\d*)', html)
+        mpc = _re.search(r'"priceChanges":\s*\{([^}]*)\}', html)
+        if mlast and mpc:
+            cur = _f(mlast.group(1)); body = mpc.group(1)
+            def g(k):
+                mm = _re.search(r'"%s":\s*(-?\d+\.?\d*)' % k, body); return _f(mm.group(1)) if mm else None
+            r = {'current': cur, 'source': 'investing.com'}
+            for dk, sk in (('1d_pct', 'pct_1d'), ('1w_pct', 'pct_1w'), ('1mo_pct', 'pct_1m'), ('3mo_pct', 'pct_3m'), ('6mo_pct', 'pct_6m'), ('1y_pct', 'pct_1y')):
+                v = g(sk)
+                if v is not None: r[dk] = v
+            if cur is not None and r.get('1d_pct') is not None:
+                r['prev_close'] = round(cur / (1 + r['1d_pct'] / 100), 2); r['chg'] = round(cur - r['prev_close'], 2)
+            td = dt.date.today(); anch = []
+            for sk_, days in (('1y_pct', 365), ('6mo_pct', 182), ('3mo_pct', 91), ('1mo_pct', 30), ('1w_pct', 7), (None, 0)):
+                if sk_ is None: anch.append([td.isoformat(), cur])
+                elif r.get(sk_) is not None: anch.append([(td - dt.timedelta(days=days)).isoformat(), round(cur / (1 + r[sk_] / 100), 2)])
+            if len(anch) >= 3: r['anchors'] = anch
+            def _p(x): return ('+%.1f' % x) if x >= 0 else ('%.1f' % x)
+            r['trend'] = ('급등세 1년 %s%%·1개월 %s%% (investing.com)' % (_p(r['1y_pct']), _p(r.get('1mo_pct') or 0))) if r.get('1y_pct') is not None else '실시간(investing.com KSVKOSPI)'
+            if cur is not None: return r
+    except Exception as e:
+        print('vkospi investing 실패→CNBC 폴백:', e)
+    return _vkospi_cnbc()
 _vk = fetch_vkospi()
 if _vk: markets['vkospi'] = _vk; print('vkospi(KSVKOSPI):', _vk.get('current'), '전일', _vk.get('prev_close'))
 json.dump(markets, open('nmr_markets.json', 'w'), ensure_ascii=False)

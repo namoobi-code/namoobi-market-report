@@ -93,7 +93,15 @@ plt.tight_layout(rect=[0,0,1,0.95]); plt.savefig("charts/macro_employment.png",b
 sent=S.get("sentiment") or {}
 spark("us10y",list(range(12)),sent.get("us10y") or [4.25,4.30,4.42,4.55,4.48,4.40,4.52,4.50,4.47,4.43,4.49,4.46])
 spark("vix",list(range(12)),sent.get("vix") or [19,21,24,18,17,16,20,18,17,16,18,17.2],RED)
-spark("vkospi",list(range(12)),sent.get("vkospi") or [18,19,17,16,18,20,19,18,22,30,55,84],RED)
+# (v3.23) KSVKOSPI 스파크 = nmr_markets.json vkospi.anchors(investing.com 기간수익률 역산) 우선, 없으면 내장 예시
+_vk_anch=None
+try:
+    _mkj=json.load(open(os.path.join(O,"nmr_markets.json"),encoding="utf-8")); _vk_anch=(_mkj.get("vkospi") or {}).get("anchors")
+except Exception: _vk_anch=None
+if _vk_anch and len(_vk_anch)>=3:
+    spark("vkospi",list(range(len(_vk_anch))),[v for _,v in _vk_anch],RED)
+else:
+    spark("vkospi",list(range(12)),sent.get("vkospi") or [18,19,17,16,18,20,19,18,22,30,55,84],RED)
 spark("dxy",list(range(12)),sent.get("dxy") or [102,101,100,99.5,99,98.5,99,98.8,98.5,98.2,98,98.1])
 spark("usdkrw",list(range(12)),sent.get("usdkrw") or [1352,1361,1378,1390,1372,1366,1375,1381,1379,1377,1378,1380])
 spark("wti",list(range(12)),sent.get("wti") or [78,76,74,72,70,69,73,72,71,70,72,71.5],GREEN)
