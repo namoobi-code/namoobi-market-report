@@ -21,7 +21,11 @@ def _report_path():
        or sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/report_data_*.json")))  # v3.13.1: 연결폴더 직전 report_data 폴백 → FRED 실패해도 HY 차트 항상 렌더
     return c[-1] if c else None
 series=None; cur=None
-for cand in ["hy_oas.json", O+"/hy_oas.json", O+"/nmr_hy_series.json"]:
+# (req3) nmr_hy_history.json(일별 캐시) 도 후보 → 일별 곡선 렌더.
+_hy_cands=["hy_oas.json", O+"/hy_oas.json", O+"/nmr_hy_series.json",
+           O+"/nmr_hy_history.json", O+"/_market_report_data/nmr_hy_history.json"] \
+          + sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_hy_history.json"))
+for cand in _hy_cands:
     if os.path.exists(cand):
         try:
             d=json.load(open(cand)); s=d.get("series") or []

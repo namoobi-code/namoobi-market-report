@@ -68,8 +68,16 @@ for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_policy_rates.png",bbox_inches="tight"); plt.close()
 
 # (2) 장단기 금리차 10Y-2Y
-d=S.get("curve_10_2") or [0.42,0.40,0.39,0.40,0.38,0.29,0.27]; dl=S.get("curve_labels") or ["6/10","6/11","6/12","6/15","6/16","6/17","6/18"]
-fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4); ax.axhline(0,color=RED,linewidth=0.9,linestyle="--")
+# (req2/req1) ★MacroAgent: series.curve_10_2(최근1년 일별)+curve_labels(YYYY-MM-DD) 를 FMP treasury daily(y10-y2)로 채울 것.
+d=S.get("curve_10_2") or [0.42,0.40,0.39,0.40,0.38,0.29,0.27]; dl=S.get("curve_labels") or ["(예시)","","","","","","(데이터없음)"]
+fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150)
+try: _xd=[dt.date.fromisoformat(str(x)) for x in dl]; _isd=True
+except Exception: _xd=None; _isd=False
+if _isd and len(d)>30:
+    ax.plot(_xd,d,color=BLUE,linewidth=1.5); ax.fill_between(_xd,d,0,color=BLUE,alpha=0.07); ax.xaxis.set_major_locator(mdates.MonthLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); dl=_xd
+else:
+    ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4)
+ax.axhline(0,color=RED,linewidth=0.9,linestyle="--")
 ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28); ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
 ax.set_title("미국 장단기 금리차(수익률곡선)(10Y-2Y) (+면 정상 / -면 역전)",fontsize=9.5,color="#334155"); ax.grid(True,alpha=0.25); ax.set_ylabel("%p",fontsize=8,color="#64748B")
 for s in ["top","right"]: ax.spines[s].set_visible(False)
@@ -85,9 +93,15 @@ for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_inflation.png",bbox_inches="tight"); plt.close()
 
 # (4) 기대인플레 10Y
-ie=S.get("infl_exp") or [2.18,2.20,2.22,2.21,2.25,2.28,2.27,2.30,2.32,2.31,2.34,2.35]
-fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(mon,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
-ax.scatter([mon[-1]],[ie[-1]],color=RED,zorder=5,s=24); ax.set_title("기대인플레이션 10년(BEI) 1년 추이 · 점선=2% (추정)",fontsize=9.5,color="#334155")
+ie=S.get("infl_exp") or [2.28,2.30,2.31,2.33,2.35,2.34,2.32,2.30,2.27,2.25,2.23,2.21]  # (req5) 현재월 포함
+_asof=S.get("infl_exp_asof") or ""
+_n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
+for _ in range(_n-1):
+    _sm-=1
+    if _sm<1: _sm=12; _sy-=1
+mon_bei=months(_sy,_sm,_n)
+fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(mon_bei,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
+ax.scatter([mon_bei[-1]],[ie[-1]],color=RED,zorder=5,s=24); ax.set_title((f"기대인플레이션 10년(BEI) 1년 추이 · 점선=2% · 현재값 {ie[-1]:.2f}%"+(f" ({_asof} 실측)" if _asof else " (추정)")),fontsize=8.6,color="#334155")
 ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()

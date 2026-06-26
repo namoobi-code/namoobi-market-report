@@ -258,7 +258,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 ## (v3.10.0) 3.1.5 HBMAgent — 메모리+HBM 지표 대시보드 (`nmr_hbm.json`)
 
-**목적**: 3.1.5 메모리+HBM 대시보드(`gen_hbm_dashboard.py`)에 들어갈 분기 추정치를 수집한다. HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 **무료 실시간 API 가 없으므로 전부 추정치**다 — WebSearch + 뉴스로 공개된 추정/실적/가이던스를 모은다.
+**목적**: 3.1.5 메모리+HBM 대시보드(`gen_hbm_dashboard.py`)에 들어갈 분기 추정치를 수집한다. HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 **전부 추정치**다 — **(3.1.7) 뉴스 단독 금지: 3사 EPS/PER=FnGuide·SimplyWallSt·MarketScreener, 점유율=TrendForce·Counterpoint** 로 수집·출처/기준일 명시.
 
 - **호출**: Phase 1 병렬 배치에 포함(선택). **[v3.17] 저렴한 마커가 없으므로 `nmr_cache.py gate <오늘>` 의 hbm 이 verify/due(분기 창: 1·4·7·10월 초)일 때만 HBMAgent 발행, skip(창 밖)이면 미발행**(생성기가 내장/직전 nmr_hbm 으로 비차단 렌더). 결과는 `nmr_hbm.json` 으로 bash 저장하고 1줄 요약만 반환. **미수집/실패해도 무방** — 생성기가 내장 예시·추정값으로 차트를 만들고 '예시·추정' 으로 표기한다(비차단).
 - **소스**: TrendForce/DRAMeXchange 보도·블로그, SK하이닉스·삼성전자·Micron 실적발표/IR/가이던스, 증권사·언론. **원문 유료 데이터 복제 금지** — 공개 보도된 수치/레인지만.
@@ -274,7 +274,7 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 **수집**
 - **FMP `economics-indicators`**(name=): `federalFunds`(현재 기준금리)·`CPI`(지수→YoY/MoM)·`unemploymentRate`·`totalNonfarmPayroll`(전월차→신규고용)·`retailSales`(MoM)·`realGDP`(전기比 연율)·(보너스 `consumerSentiment`). **FMP `treasury-rates`** 최근일 `year2`·`year10` → `yield_curve`(10Y-2Y)·`us10y`.
 - **FRED CSV**(Chrome 동일출처 `fredgraph.csv` — 3.3.3 HY OAS 와 동일 패턴): Core CPI=`CPILFESL`·PCE=`PCEPI`·Core PCE=`PCEPILFE`·PPI=`PPIFIS`·10Y 기대인플레=`T10YIE`(월별 12개+YoY/현재값).
-- **추정**(무료 실시간 API 없음): ISM 제조/서비스 PMI·S&P500/KOSPI 12M 선행 EPS·선행PER·한·중 정책금리 → WebSearch/뉴스(TrendForce·LSEG·연합인포맥스·각국 중앙은행) 분기·월 추정, **'추정' 표기**. 확인 불가 시 빈값. **(v3.22) KSVKOSPI(코스피 변동성지수)는 추정 금지 — `fetch_us.py` 가 CNBC `.KSVKOSPI` 실시간 수집(현재/전일/등락), merge 가 'KSVKOSPI (KOSPI Volatility)' 행에 주입.**
+- **추정**: ISM·한·중 정책금리 → WebSearch. **★(3.1.5) S&P500/KOSPI 12M 선행EPS·PER 은 뉴스 금지: S&P500=FactSet(Bloomberg·Yardeni) 12MF P/E, KOSPI=FnGuide·증권사 12MF P/E → '선행EPS=지수÷선행PER'. 출처·기준일 명시.** 확인 불가 시 빈값. **(v3.22/req1) KSVKOSPI: investing.com 이 urllib·Chrome 에서 403/차단되므로 MacroAgent 가 `web_fetch`(차단 안 됨)로 kospi-volatility(+historical-data) 를 받아 주입. 실패 시 `fetch_us.py` CNBC+일별캐시(nmr_vkospi_history.json) 폴백.**
 - **재사용(수집 금지)**: VIX·DXY·원/달러·WTI·美10년물·**KSVKOSPI(CNBC .KSVKOSPI)** = `fetch_us.py` 산출 → `merge.py` 가 주입.
 
 **반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment·spx_eps·spx_idx·kospi_eps·kospi_idx) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).

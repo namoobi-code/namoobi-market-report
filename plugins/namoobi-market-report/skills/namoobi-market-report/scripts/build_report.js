@@ -139,7 +139,7 @@ function fmtChgAbs(v){ if(v===null||v===undefined||v==="")return null; const n=N
 // (v3.21b) '1일전' 셀: 전일(하루 전) 종가 표기 — 현재가(오늘)와 다른 하루 전 값. 접두 $/접미 % 가능.
 function prevCloseText(v, opts){ opts=opts||{}; if(v===null||v===undefined||v==="")return "-"; return (opts.prefix||"")+fmtNum(v)+(opts.suffix||""); }
 // (v3.22) '1일' 셀: 전일대비 +/- % (1d_pct 우선, 없으면 current/prev_close 로 계산). 색상=상승 초록·하락 빨강.
-function pct1d(m){ if(!m)return null; let p=m['1d_pct'];
+function pct1d(m){ if(!m)return null; let p=(m.prev_pct!==undefined&&m.prev_pct!==null)?m.prev_pct:m['1d_pct'];  // (req5) 1일 칸=직전장 등락률(prev_pct) 우선
   if(p===null||p===undefined||p===""){ const c=Number(m.current),pv=Number(m.prev_close); if(!isNaN(c)&&!isNaN(pv)&&pv!==0)p=(c/pv-1)*100; else return null; }
   p=Number(p); return isNaN(p)?null:p; }
 function pct1dCell(m,width,alt){ const v=pct1d(m); return cell(fmtPct(v),{width:width,alt:alt,align:AlignmentType.RIGHT,color:pctColor(v)}); }

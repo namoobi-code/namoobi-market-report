@@ -89,7 +89,8 @@ def day_snap(tk):
     if len(pts) < 2 or not pts[-2]: return None
     cur, prev = pts[-1], pts[-2]
     dec = 4 if abs(cur) < 10 else (3 if abs(cur) < 100 else 2)
-    return {"current": round(cur, dec), "chg": round(cur - prev, dec), "1d_pct": round((cur / prev - 1) * 100, 2), "prev_close": round(prev, dec)}
+    prev_pct = round((pts[-2] / pts[-3] - 1) * 100, 2) if (len(pts) >= 3 and pts[-3]) else None  # (req5) 직전장 등락률
+    return {"current": round(cur, dec), "chg": round(cur - prev, dec), "1d_pct": round((cur / prev - 1) * 100, 2), "prev_close": round(prev, dec), "prev_pct": prev_pct}
 dtasks = ([("themes", th, tk) for th, (tk, _n) in themes_etf.items()] +
           [("stocks", nm, tk) for nm, tk in stocks.items()] +
           [("etfs", nm, tk) for nm, tk in etfs_ordered])
