@@ -70,25 +70,6 @@ try:
         YEARS,CAPEX=_apply(bc.get("capex_series"),"years",YEARS,CAPEX)
         _,REV       =_apply(bc.get("rev_series"),"years",YEARS,REV)
         FCF_YEARS,FCF=_apply(bc.get("fcf_series"),"years",FCF_YEARS,FCF)
-        # (v3.22) capex_series 미제공 시 표(rows)의 최신 실적/가이던스로 2025~2027 칼럼 동기화(차트=표 일치)
-        rows=bc.get("rows") or []
-        if rows and not (isinstance(bc.get("capex_series"),dict) and bc.get("capex_series",{}).get("years")):
-            def _co(nm):
-                s=str(nm or "").lower()
-                for c in COMPANIES:
-                    if c.lower() in s: return c
-                if "googl" in s: return "Alphabet"
-                if "meta" in s: return "Meta"
-                return None
-            for r in rows:
-                co=_co(r.get("company"))
-                if not co or co not in CAPEX: continue
-                for yr,key in ((2025,"y2025"),(2026,"y2026"),(2027,"y2027")):
-                    if yr not in YEARS: continue
-                    val=r.get(key)
-                    try:
-                        if val not in (None,"","미공개"): CAPEX[co][YEARS.index(yr)]=float(str(val).replace(",",""))
-                    except Exception: pass
 except Exception: pass
 
 tot_capex=[sum(CAPEX[c][i] for c in COMPANIES) for i in range(len(YEARS))]

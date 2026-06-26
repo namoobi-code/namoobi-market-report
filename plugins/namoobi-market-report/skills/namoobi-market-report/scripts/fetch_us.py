@@ -120,18 +120,25 @@ def day_stats(tk, scale=1.0):
     cur = s[-1][1] * scale; prev = s[-2][1] * scale
     if not prev: return (None, None, None, None)
     dec = 4 if abs(cur) < 10 else (3 if abs(cur) < 100 else 2)
-    prev_pct = round((s[-2][1] / s[-3][1] - 1) * 100, 2) if (len(s) >= 3 and s[-3][1]) else None  # (req5) 직전장
+    # (req5) prev_pct = 직전장(2일전) 등락률 = s[-2] 대비 s[-3] (1일 칸 = 현재가 등락의 한 세션 전)
+    prev_pct = round((s[-2][1] / s[-3][1] - 1) * 100, 2) if (len(s) >= 3 and s[-3][1]) else None
     return (round(cur - prev, dec), round((cur / prev - 1) * 100, 2), round(prev, dec), prev_pct)
 def add_day(r, tk, scale=1.0):
     if isinstance(r, dict):
         c, p, pc, ppct = day_stats(tk, scale)
-        if ppct is not None: r['prev_pct'] = ppct  # (req5) 1일 칸=직전장 등락률
+        if ppct is not None: r['prev_pct'] = ppct  # (req5) 1일 칸 = 직전장 등락률
         if pc is not None:
-            cur = r.get('current')  # (req10) 현재가 기준 1일변동 재계산(정합)
+            # (req10 fix) 현재가는 ret()의 최신 종가(r['current']) 기준으로 두고, 1일 변동/전일종가를
+            #   '현재가 vs 전일종가(일봉 직전)'로 일관 재계산한다 → 표의 현재가·▲절대변동·(±%)·전일종가(1일전)가
+            #   서로 정합(주봉 현재가 ↔ 일봉 변동 불일치 제거). 일봉이 stale 해도 현재가는 그대로 유지.
+            cur = r.get('current')
             if cur is not None and pc:
                 dec = 4 if abs(cur) < 10 else (3 if abs(cur) < 100 else 2)
-                r['chg'] = round(cur - pc, dec); r['1d_pct'] = round((cur / pc - 1) * 100, 2); r['prev_close'] = pc
-            else: r['chg'] = c; r['1d_pct'] = p; r['prev_close'] = pc
+                r['prev_close'] = pc
+                r['chg'] = round(cur - pc, dec)
+                r['1d_pct'] = round((cur / pc - 1) * 100, 2)
+            else:
+                r['chg'] = c; r['1d_pct'] = p; r['prev_close'] = pc  # 폴백(현재가 없음)
     return r
 
 # ===== nmr_markets.json =====
@@ -179,30 +186,34 @@ def _vkospi_cnbc():
         print('vkospi CNBC 실패:', e); return None
 
 def _vkospi_cache_enrich(base):
-    # (req1) investing.com 403 차단 시 CNBC 현재값을 nmr_vkospi_history.json(일별캐시) 누적 → 1주~1년·스파크 계산.
+    # (req1 fix) investing.com 이 403 으로 막혀 1주~1년·스파크가 비므로, CNBC 현재값을 매 실행
+    #   nmr_vkospi_history.json(일별 캐시)에 누적 → 캐시에서 1주~1년 수익률·스파크 앵커를 계산한다(HY 캐시와 동일 패턴).
     import datetime as _dt
     if not base or base.get('current') is None: return base
-    cur=base['current']
-    cdir=(sorted(glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data')) or sorted(glob.glob('/sessions/*/mnt/outputs/_market_report_data')) or ['.'])[0]
-    cpath=os.path.join(cdir,'nmr_vkospi_history.json')
-    try: hist=json.load(open(cpath)) if os.path.exists(cpath) else {'series':[]}
-    except Exception: hist={'series':[]}
-    ser=[p for p in hist.get('series',[]) if p and p[0]!=_dt.date.today().isoformat()]
-    ser.append([_dt.date.today().isoformat(),cur]); ser.sort()
-    hist['series']=ser; hist['updated']=_dt.date.today().isoformat()
-    try: json.dump(hist,open(cpath,'w'),ensure_ascii=False)
+    cur = base['current']
+    cdir = (sorted(glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data'))
+            or sorted(glob.glob('/sessions/*/mnt/outputs/_market_report_data')) or ['.'])[0]
+    cpath = os.path.join(cdir, 'nmr_vkospi_history.json')
+    try: hist = json.load(open(cpath)) if os.path.exists(cpath) else {'series': []}
+    except Exception: hist = {'series': []}
+    ser = [p for p in hist.get('series', []) if p and p[0] != _dt.date.today().isoformat()]
+    ser.append([_dt.date.today().isoformat(), cur]); ser.sort()
+    hist['series'] = ser; hist['updated'] = _dt.date.today().isoformat()
+    try: json.dump(hist, open(cpath, 'w'), ensure_ascii=False)
     except Exception: pass
-    if len(ser)>=2:
-        td=_dt.date.fromisoformat(ser[-1][0])
-        for key,days in (('1w_pct',7),('1mo_pct',30),('3mo_pct',91),('6mo_pct',182),('1y_pct',365)):
-            past=[p for p in ser if _dt.date.fromisoformat(p[0])<=td-_dt.timedelta(days=days)]
-            if past and past[-1][1]: base[key]=round((cur/past[-1][1]-1)*100,2)
-        if len(ser)>=3: base['anchors']=[[p[0],p[1]] for p in ser]
+    if len(ser) >= 2:
+        td = _dt.date.fromisoformat(ser[-1][0])
+        for key, days in (('1w_pct',7),('1mo_pct',30),('3mo_pct',91),('6mo_pct',182),('1y_pct',365)):
+            past = [p for p in ser if _dt.date.fromisoformat(p[0]) <= td - _dt.timedelta(days=days)]
+            if past and past[-1][1]: base[key] = round((cur/past[-1][1]-1)*100, 2)
+        if len(ser) >= 3: base['anchors'] = [[p[0], p[1]] for p in ser]
+        if base.get('1y_pct') is not None:
+            base['trend'] = '캐시 누적 1년 %+.1f%%·1개월 %+.1f%% (CNBC .KSVKOSPI 일별누적)' % (base['1y_pct'], base.get('1mo_pct') or 0)
     return base
 
 def fetch_vkospi():
     # 1순위: investing.com 페이지 본문 내장 JSON("last"+"priceChanges") 파싱 → 현재+1일~1년 + 차트 앵커
-    #   ※ investing.com 403 차단 시 CNBC+일별캐시 폴백. (워크플로우는 web_fetch 권장)
+    #   ※ investing.com 이 403(anti-bot)으로 막히면 CNBC + 일별캐시(_vkospi_cache_enrich)로 폴백.
     try:
         import re as _re
         req = urllib.request.Request('https://kr.investing.com/indices/kospi-volatility', headers={
@@ -224,6 +235,7 @@ def fetch_vkospi():
                 if v is not None: r[dk] = v
             if cur is not None and r.get('1d_pct') is not None:
                 r['prev_close'] = round(cur / (1 + r['1d_pct'] / 100), 2); r['chg'] = round(cur - r['prev_close'], 2)
+            # 스파크라인 앵커(기간수익률 역산: 값=현재/(1+pct/100))
             td = dt.date.today(); anch = []
             for sk_, days in (('1y_pct', 365), ('6mo_pct', 182), ('3mo_pct', 91), ('1mo_pct', 30), ('1w_pct', 7), (None, 0)):
                 if sk_ is None: anch.append([td.isoformat(), cur])
@@ -233,7 +245,7 @@ def fetch_vkospi():
             r['trend'] = ('급등세 1년 %s%%·1개월 %s%% (investing.com)' % (_p(r['1y_pct']), _p(r.get('1mo_pct') or 0))) if r.get('1y_pct') is not None else '실시간(investing.com KSVKOSPI)'
             if cur is not None: return r
     except Exception as e:
-        print('vkospi investing 실패(403)→CNBC+일별캐시 폴백:', e)
+        print('vkospi investing 실패(403 등)→CNBC+일별캐시 폴백:', e)
     return _vkospi_cache_enrich(_vkospi_cnbc())
 _vk = fetch_vkospi()
 if _vk: markets['vkospi'] = _vk; print('vkospi(KSVKOSPI):', _vk.get('current'), '전일', _vk.get('prev_close'))

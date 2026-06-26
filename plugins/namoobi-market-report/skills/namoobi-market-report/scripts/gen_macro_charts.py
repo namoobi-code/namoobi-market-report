@@ -27,28 +27,6 @@ def months(sy,sm,n):
         if m>12:m=1;y+=1
     return o
 mon=months(2025,6,12)
-def recent_months(n):
-    end=dt.date.today().replace(day=1); out=[]; y,m=end.year,end.month
-    for _ in range(n):
-        out.append(dt.date(y,m,1)); m-=1
-        if m<1: m=12; y-=1
-    return list(reversed(out))
-# (v3.22) 선행EPS 차트용 실측 지수 월별 시계열 (fetch_us.py -> nmr_indexseries.json)
-def _load_idx():
-    for c in ["nmr_indexseries.json", os.path.join(O,"nmr_indexseries.json"), os.path.join(O,"nmr_build","nmr_indexseries.json")]:
-        if os.path.exists(c):
-            try: return json.load(open(c,encoding="utf-8"))
-            except Exception: pass
-    return {}
-IDXS=_load_idx()
-def monthly_idx(key,n=12):
-    mp={}
-    for row in (IDXS.get(key) or []):
-        try:
-            d,v=row[0],row[1]
-            if v is not None: mp[d[:7]]=float(v)
-        except Exception: pass
-    return [v for _,v in sorted(mp.items())[-n:]]
 def spark(name,xs,ys,color=BLUE):
     fig,ax=plt.subplots(figsize=(2.3,0.62),dpi=150); ax.plot(xs,ys,color=color,linewidth=1.4)
     ax.scatter([xs[-1]],[ys[-1]],color=RED,s=12,zorder=5); ax.axis("off")
@@ -68,18 +46,25 @@ for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_policy_rates.png",bbox_inches="tight"); plt.close()
 
 # (2) 장단기 금리차 10Y-2Y
-# (req2/req1) ★MacroAgent: series.curve_10_2(최근1년 일별)+curve_labels(YYYY-MM-DD) 를 FMP treasury daily(y10-y2)로 채울 것.
+# (req1/req2) ★MacroAgent 필수: series.curve_10_2(최근 1년 일별 10Y-2Y %p) + curve_labels(['YYYY-MM-DD',...] 권장)를
+#   FMP treasury-rates(daily, from=1년전~당일)의 year10-year2 로 매 실행 채울 것. 라벨이 날짜(YYYY-MM-DD)이고
+#   점이 30개 초과면 '최근 1년 일별' 날짜축으로 렌더(req1), 적으면 기존 카테고리축. 하드코딩은 데이터 누락 폴백.
 d=S.get("curve_10_2") or [0.42,0.40,0.39,0.40,0.38,0.29,0.27]; dl=S.get("curve_labels") or ["(예시)","","","","","","(데이터없음)"]
 fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150)
-try: _xd=[dt.date.fromisoformat(str(x)) for x in dl]; _isd=True
-except Exception: _xd=None; _isd=False
-if _isd and len(d)>30:
-    ax.plot(_xd,d,color=BLUE,linewidth=1.5); ax.fill_between(_xd,d,0,color=BLUE,alpha=0.07); ax.xaxis.set_major_locator(mdates.MonthLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); dl=_xd
-else:
+try: _xd=[dt.date.fromisoformat(str(x)) for x in dl]; _isdate=True
+except Exception: _xd=None; _isdate=False
+if _isdate and len(d)>30:   # 1년 일별 → 날짜축(req1)
+    ax.plot(_xd,d,color=BLUE,linewidth=1.5); ax.fill_between(_xd,d,0,color=BLUE,alpha=0.07)
+    ax.scatter([_xd[-1]],[d[-1]],color=RED,zorder=5,s=28)
+    ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(_xd[-1],d[-1]),textcoords="offset points",xytext=(-40,7),color=RED,fontsize=9,fontweight="bold")
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
+    _ttl="미국 장단기 금리차(수익률곡선)(10Y-2Y) 최근 1년 일별 (+면 정상 / -면 역전)"
+else:                        # 폴백/단기 → 카테고리축
     ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4)
+    ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28); ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
+    _ttl="미국 장단기 금리차(수익률곡선)(10Y-2Y) (+면 정상 / -면 역전)"
 ax.axhline(0,color=RED,linewidth=0.9,linestyle="--")
-ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28); ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
-ax.set_title("미국 장단기 금리차(수익률곡선)(10Y-2Y) (+면 정상 / -면 역전)",fontsize=9.5,color="#334155"); ax.grid(True,alpha=0.25); ax.set_ylabel("%p",fontsize=8,color="#64748B")
+ax.set_title(_ttl,fontsize=9.0,color="#334155"); ax.grid(True,alpha=0.25); ax.set_ylabel("%p",fontsize=8,color="#64748B")
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_curve.png",bbox_inches="tight"); plt.close()
 
@@ -92,16 +77,19 @@ ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fo
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_inflation.png",bbox_inches="tight"); plt.close()
 
-# (4) 기대인플레 10Y
-ie=S.get("infl_exp") or [2.28,2.30,2.31,2.33,2.35,2.34,2.32,2.30,2.27,2.25,2.23,2.21]  # (req5) 현재월 포함
+# (4) 기대인플레 10Y — req5: 축을 '이번 달'까지 동적 생성(현재월 6월 포함) + 현재값 asof 표기
+#   BEI(T10YIE)는 일별이므로 MacroAgent 가 series.infl_exp(현재월까지) + series.infl_exp_asof(YYYY-MM-DD)를 제공.
+ie=S.get("infl_exp") or [2.28,2.30,2.31,2.33,2.35,2.34,2.32,2.30,2.27,2.25,2.23,2.21]
 _asof=S.get("infl_exp_asof") or ""
 _n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
 for _ in range(_n-1):
     _sm-=1
     if _sm<1: _sm=12; _sy-=1
-mon_bei=months(_sy,_sm,_n)
-fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(mon_bei,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
-ax.scatter([mon_bei[-1]],[ie[-1]],color=RED,zorder=5,s=24); ax.set_title((f"기대인플레이션 10년(BEI) 1년 추이 · 점선=2% · 현재값 {ie[-1]:.2f}%"+(f" ({_asof} 실측)" if _asof else " (추정)")),fontsize=8.6,color="#334155")
+bmon=months(_sy,_sm,_n)   # 마지막 점 = 이번 달(현재월 포함)
+fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(bmon,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
+ax.scatter([bmon[-1]],[ie[-1]],color=RED,zorder=5,s=24)
+_ttl=f"기대인플레이션 10년(BEI) 1년 추이 · 점선=2% · 현재값 {ie[-1]:.2f}%"+(f" ({_asof} 기준 실측)" if _asof else " (추정)")
+ax.set_title(_ttl,fontsize=8.6,color="#334155")
 ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()
@@ -142,26 +130,16 @@ spark("dxy",list(range(12)),sent.get("dxy") or [102,101,100,99.5,99,98.5,99,98.8
 spark("usdkrw",list(range(12)),sent.get("usdkrw") or [1352,1361,1378,1390,1372,1366,1375,1381,1379,1377,1378,1380])
 spark("wti",list(range(12)),sent.get("wti") or [78,76,74,72,70,69,73,72,71,70,72,71.5],GREEN)
 
-# (7) 선행 EPS — 실측 지수선 + 선행EPS(막대) + 선행PER(점선). EPS 막대=컨센서스 앵커 보간, 선행PER=지수/EPS.
-def fwd(name,title,idx,eps_anchors,fb):
-    if not idx or len(idx)<2: idx=fb
-    n=len(idx); xs=recent_months(n)
-    a,b,c=eps_anchors; mid=max(1,round(n*2/3))  # 1년전·분기중간·현재 3앵커 컨센서스 보간(매끄러움)
-    eps=[round(a+(b-a)*(i/mid)) if i<=mid else round(b+(c-b)*((i-mid)/max(1,(n-1-mid)))) for i in range(n)]
-    per=[round(idx[i]/eps[i],2) for i in range(n)]   # 선행PER = 지수 / 선행EPS (정의 — 실측 지수 변동 반영)
-    fig,ax=plt.subplots(figsize=(7.4,2.6),dpi=150); ax.bar(xs,eps,width=20,color="#93C5FD",label="12M 선행 EPS")
-    ax.set_ylabel("선행 EPS",fontsize=8,color=BLUE); ax.set_ylim(0,max(eps)*1.18)
-    ax2=ax.twinx(); ax2.plot(xs,idx,color=BLUE,linewidth=2.0,marker="o",ms=3,label="지수(실측)"); ax2.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
-    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",38)); ax3.plot(xs,per,color=RED,linewidth=1.5,linestyle="--",label="선행 PER"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=RED)
-    ax2.annotate(format(round(idx[-1]),",d"),(xs[-1],idx[-1]),textcoords="offset points",xytext=(-26,6),color=BLUE,fontsize=8,fontweight="bold")
+# (7) 선행 EPS — 지수/PER 정합
+def fwd(name,title,eps,idx):
+    per=[round(idx[i]/eps[i],1) for i in range(len(eps))]
+    fig,ax=plt.subplots(figsize=(7.4,2.6),dpi=150); ax.bar(mon,eps,width=20,color="#93C5FD",label="12M Fwd EPS"); ax.set_ylabel("Fwd EPS",fontsize=8,color=BLUE)
+    ax2=ax.twinx(); ax2.plot(mon,idx,color=BLUE,linewidth=2.0,marker="o",ms=3,label="지수"); ax2.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
+    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",38)); ax3.plot(mon,per,color=RED,linewidth=1.5,linestyle="--",label="선행 PER"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=RED)
+    ax2.annotate("%d"%idx[-1],(mon[-1],idx[-1]),textcoords="offset points",xytext=(-22,6),color=BLUE,fontsize=8,fontweight="bold")
     ax.set_title(title,fontsize=9.5,color="#334155"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.spines["top"].set_visible(False)
     h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels(); h3,l3=ax3.get_legend_handles_labels(); ax.legend(h1+h2+h3,l1+l2+l3,fontsize=7,loc="upper left")
     plt.tight_layout(); plt.savefig("charts/macro_%s.png"%name,bbox_inches="tight"); plt.close()
-# EPS 3앵커(1년전·분기중간·현재 컨센서스)=막대; 선행PER=지수/EPS(점선). S 오버라이드 가능.
-fwd("spx_fwd","S&P500 지수(실측)·12개월 선행EPS·선행PER (최근 1년)",monthly_idx("sp500"),
-    (S.get("spx_eps_anchors") or (271,309,350)),
-    [6173,6300,6450,6600,6760,6900,7010,7110,7200,7280,7330,7358])
-fwd("kospi_fwd","KOSPI 지수(실측)·12개월 선행EPS·선행PER (최근 1년)",monthly_idx("kospi"),
-    (S.get("kospi_eps_anchors") or (330,666,1056)),
-    [3056,3500,4200,5000,5800,6500,7200,7800,8300,8650,8850,8930])
+fwd("spx_fwd","S&P500 12개월 선행 EPS + 지수 + 선행PER (추정)",(S.get("spx_eps") or [300,305,310,313,316,320,323,326,328,329,330,330]),(S.get("spx_idx") or [6950,7050,7150,7240,7300,7370,7410,7450,7475,7490,7498,7500]))
+fwd("kospi_fwd","KOSPI 12개월 선행 EPS + 지수 + 선행PER (추정)",(S.get("kospi_eps") or [815,838,856,872,884,898,905,910,913,916,917,918]),(S.get("kospi_idx") or [8050,8250,8420,8560,8660,8790,8860,8930,8965,8985,8996,9000]))
 print("macro charts ->", len([x for x in os.listdir("charts") if x.startswith("macro_") or x.startswith("spark_")]), "files")
