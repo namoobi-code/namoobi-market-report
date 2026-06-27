@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import glob
 # fetch_us.py (v3.7) — 美/글로벌 시세 sandbox 수집 (Chrome 불필요, stdlib only, 스레드 병렬).
 # MarketsAgent·CommoditiesAgent·UsEtfAgent + Crypto 시계열을 대체. 표의 trend 셀은 기계 계산
 # (한국 koTrend 스타일과 일관). 그룹 서술 코멘트(에너지/금속/농산물/ETF)는 기계 요약 1줄.
