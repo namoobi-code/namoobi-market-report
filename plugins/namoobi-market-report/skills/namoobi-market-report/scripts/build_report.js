@@ -707,8 +707,7 @@ function renderMacroIndicators(){
       cell(o.asof||"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.release||o.release_date||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
       cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15})]})); });
     children.push(makeTable(w,rows)); }
-    { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("NFP·실업률·ISM 제조/서비스·소매판매 월별 추이 (GDP는 분기 지표로 아래 별도 차트)",{size:15,color:"94A3B8"})); } }
-  { const gc=imagePara("charts/macro_gdp.png",560,212); if(gc){ children.push(p("■ 실질 GDP 성장률 (전기比 연율) — 분기, 최근 약 1년",{bold:true,color:"1E40AF",before:90,size:18})); children.push(gc); children.push(p("실질 GDP QoQ 연율 추이 · 2026-Q1 +2.1% (BEA 실측). 분기 지표라 1년=약 4~5분기.",{size:15,color:"94A3B8"})); } }
+    { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("고용·경기 6개 지표 — 주식 관점 중요도 순 (① NFP·실업률 > ③ 소매판매 > ④ ISM제조 > ⑤ ISM서비스 > ⑥ GDP). 월별(GDP만 분기).",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.4 심리 — 6개월 추가

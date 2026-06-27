@@ -47,8 +47,10 @@ for s in ['top','right']: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig('charts/macro_inflation.png',bbox_inches='tight'); plt.close()
 # (3) employment 6 panels
 emp=(m2.get('series') or {}).get('employment') or {}
-pn=[('NFP 신규고용(천명)','nfp',B,0),('실업률(%)','unemp',R,None),('ISM 제조 PMI','ism_mfg',B,50),('ISM 서비스 PMI','ism_svc',G,50),('소매판매 MoM(%)','retail','#7C3AED',0)]
+gd=L('nmr_gdp.json'); gdpv=[v for _,v in (gd.get('gdp_growth') or []) if v is not None]
+pn=[('① NFP 신규고용(천명)','nfp',B,0),('② 실업률(%)','unemp',R,None),('③ 소매판매 MoM(%)','retail','#7C3AED',0),('④ ISM 제조 PMI','ism_mfg',B,50),('⑤ ISM 서비스 PMI','ism_svc',G,50)]
 av=[(t,[x for x in (emp.get(k) or []) if x is not None],c,hl) for t,k,c,hl in pn]
+if len(gdpv)>=2: av.append(('⑥ 실질 GDP 연율(%)',gdpv,G,0))
 av=[p for p in av if len(p[1])>=2]
 nc=3; nr=max(1,(len(av)+2)//3); fig,axs=plt.subplots(nr,nc,figsize=(2.6*nc,2.4*nr),dpi=150)
 axs=list(axs.flatten()) if hasattr(axs,'flatten') else [axs]
@@ -58,7 +60,7 @@ for i,(t,v,c,hl) in enumerate(av):
     ax.set_title(t,fontsize=8,color='#334155'); ax.grid(alpha=0.2); ax.set_xticks([])
     for s in ['top','right']: ax.spines[s].set_visible(False)
 for j in range(len(av),len(axs)): axs[j].axis('off')
-fig.suptitle('미국 고용·경기 6개 지표 (최신 2026-05, BLS/BEA/ISM 실측)',fontsize=9.5,color='#334155')
+fig.suptitle('미국 고용·경기 6개 지표 — 주식 관점 중요도 순 (실측)',fontsize=9.5,color='#334155')
 plt.tight_layout(rect=[0,0,1,0.94]); plt.savefig('charts/macro_employment.png',bbox_inches='tight'); plt.close()
 # (4) BEI
 bd=L('nmr_bei_daily.json'); daily=(bd.get('daily') if isinstance(bd,dict) else None) or []
