@@ -1,3 +1,11 @@
+## 추가 규칙 — 2026-06-26 (라운드6) 3.1.2/3.1.3 표 스키마
+
+- **3.1.2 물가 표**: 컬럼 = 지표·최신값 YoY·최신값 MoM·기준월·**발표날짜**·의미·시장영향. 행 6개 = CPI·Core CPI·PCE·Core PCE·PPI·**기대인플레 10Y BEI(표 행으로 통합)**. yoy/mom 은 숫자(자동 % 포맷) 또는 문자열(BEI 등) 모두 허용. inflation.rows[]={name,yoy,mom,asof,release,meaning,impact}. 별도 BEI 소절 제거, 통합 추이 그래프 1개(macro_inflation.png).
+- **3.1.3 고용 표**: 컬럼 = 지표·최신 수치·기준·**발표일자**·의미·시장영향. employment.rows[]={name,value,asof,release,meaning,freq,impact}.
+- 발표날짜/발표일자는 각 지표의 공식 발표일(BLS/BEA/ISM/Census). BEI 는 '실시간 변동'.
+
+---
+
 ## 추가 규칙 — 2026-06-26 (라운드5) 3.1 실측 확장
 
 - 매크로 시계열은 FMP **historical 24개월** 확보(latest 1개 금지): inflation 5종+MoM, employment 6종, BEI. gen_macro2.py 가 렌더.

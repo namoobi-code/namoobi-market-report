@@ -670,31 +670,32 @@ function renderMacroIndicators(){
   // 3.1.2 물가 — 추세1Y 제거, 통합 그래프 하나
   const inf=x.inflation||{};
   children.push(h("3.1.2 물가·인플레이션 (금리 방향 결정)",3));
-  children.push(p("업데이트: 매일 체크 → 신규 지표 발표 시에만 갱신, 없으면 기존 자료 유지 (FMP/FRED 실측, 추정 미사용).",{size:15,italics:true,color:"94A3B8"}));
-  children.push(p("발표주기: 모두 매월 · 1년 월별 추세는 아래 통합 그래프 1개로 표시.",{italics:true,size:16,color:"94A3B8"}));
-  { const w=[1900,900,900,1000,2300,3080]; const rows=[hdrRow(["지표","YoY","MoM","기준월","의미","시장영향"],w)];
+  children.push(p("업데이트: 매일 변동 체크 → 신규 지표 발표 시에만 갱신, 없으면 기존 자료 유지 (FMP·BLS·BEA·시장 실측). 발표주기: 월별(BEI는 실시간).",{size:15,italics:true,color:"94A3B8"}));
+  { const w=[920,1380,1320,900,1140,2200,1880];
+    const fy=(v)=> (v===null||v===undefined||v==="")?"-":(typeof v==="number"?((v>=0?"+":"")+v+"%"):String(v));
+    const rows=[hdrRow(["지표","최신값 YoY","최신값 MoM","기준월","발표날짜","의미","시장영향"],w)];
     (inf.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
-      cell(o.name,{width:w[0],alt:a,bold:true}), cell(o.yoy!=null?((o.yoy>=0?"+":"")+o.yoy+"%"):"-",{width:w[1],alt:a,align:AlignmentType.CENTER}),
-      cell(o.mom!=null?((o.mom>=0?"+":"")+o.mom+"%"):"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.asof,{width:w[3],alt:a,align:AlignmentType.CENTER}),
-      cell(o.meaning||"-",{width:w[4],alt:a,size:16}), cell(o.impact||"-",{width:w[5],alt:a,size:16})]})); });
+      cell(o.name||"-",{width:w[0],alt:a,bold:true}),
+      cell(fy(o.yoy),{width:w[1],alt:a,align:AlignmentType.CENTER}),
+      cell(fy(o.mom),{width:w[2],alt:a,align:AlignmentType.CENTER}),
+      cell(o.asof||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
+      cell(o.release||o.release_date||"-",{width:w[4],alt:a,align:AlignmentType.CENTER,size:15}),
+      cell(o.meaning||"-",{width:w[5],alt:a,size:14}),
+      cell(o.impact||"-",{width:w[6],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
-  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); children.push(p("CPI·Core CPI·PCE·Core PCE·PPI 최근 12개월 YoY 통합 추이",{size:15,color:"94A3B8"})); } }
-  if(inf.infl_exp_10y){ const e=inf.infl_exp_10y;
-    children.push(p("■ 기대인플레이션 (10년 BEI)",{bold:true,color:"1E40AF",before:120}));
-    children.push(p("현재값: "+e.current+"%   "+(e.trend||""),{bold:true,size:22,color:"1E40AF"}));
-    const ic2=imagePara(e.chart,648,176); if(ic2){ children.push(ic2); children.push(p("기대인플레이션 10년(BEI) 최근 1년 추이 · 점선=2%",{size:15,color:"94A3B8"})); }
-    children.push(p("의미: "+e.meaning+" · 발표주기: "+e.freq+" · 시장영향: "+e.impact,{size:16,color:"64748B"})); }
+  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); children.push(p("CPI·Core CPI·PCE·Core PCE·PPI 최근 추이 통합 (YoY %, 실측)",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.3 고용 — 추세1Y 제거, 통합 그래프 하나
   const emp=x.employment||{};
   children.push(h("3.1.3 고용·경기 (금리 간접 영향)",3));
-  { const w=[2100,1400,1200,2300,3080]; const rows=[hdrRow(["지표","최신 수치","기준","의미","시장영향"],w)];
+  { const w=[1900,1250,1050,1150,2300,2090]; const rows=[hdrRow(["지표","최신 수치","기준","발표일자","의미","시장영향"],w)];
     (emp.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name,{width:w[0],alt:a,bold:true}), cell(o.value!=null?String(o.value):"-",{width:w[1],alt:a,align:AlignmentType.CENTER,bold:true}),
-      cell(o.asof,{width:w[2],alt:a,align:AlignmentType.CENTER}), cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[3],alt:a,size:16}), cell(o.impact||"-",{width:w[4],alt:a,size:16})]})); });
+      cell(o.asof||"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.release||o.release_date||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
+      cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15})]})); });
     children.push(makeTable(w,rows)); }
-  { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("NFP·실업률·GDP·ISM 제조/서비스·소매판매 최근 1년 통합",{size:15,color:"94A3B8"})); } }
+    { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("NFP·실업률·GDP·ISM 제조/서비스·소매판매 최근 1년 통합",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.4 심리 — 6개월 추가

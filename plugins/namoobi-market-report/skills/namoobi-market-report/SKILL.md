@@ -1,3 +1,5 @@
+> **v3.25.0 (2026-06-26) — 3.1.2/3.1.3 표 재정비.** 3.1.2 물가표에 **발표날짜 컬럼** 추가 + **10Y BEI 를 표 행으로 통합**(6행: CPI·Core CPI·PCE·Core PCE·PPI·BEI), 통합 추이 그래프. 3.1.3 고용표에 **발표일자 컬럼** 추가(지표·최신수치·기준·발표일자·의미·시장영향). yoy/mom 문자열 허용.
+
 > **v3.24.0 (2026-06-26) — 3.1 실측 확장·GOOD REPORT 정합.** (r1) 美 국채금리 블록 **2년물 추가**(10Y+2Y). (r2/r4) 물가5·고용6 월별 **FMP historical 24개월**로 확장(차트 정상화). (r3) BEI 24개월. (r6) SPX 선행지수 추이+선행PER. (r7) **CAPEX 표 2024~2029(E)+기업별 추세 스파크+일별 차트2종**. (r8) **HBM 대시보드 복원**. (r0) 갱신주기 명시. 신규 **gen_macro2.py**(측정 매크로 차트 생성기).
 
 > **v3.23.0 (2026-06-26) — 매크로 전면 실측화(추정 제거, req0).** (1) gen_macro_charts 측정전용: 기준금리=미국 실효(FRED/FMP)만·추정 국가선/ISM/추정 스파크 제거·BEI 무측정시 '미표시'·고용=실측 패널만(실업률·소매·GDP)·물가=CPI 실측(동적 x). (2) 장단기 금리차 차트 **최대기간**(FMP daily). (3) 美10년물 **현재가에 당일변동 복원**·'1일'=직전거래일(prev_pct). (4) 정책금리·**CAPEX(FMP cash-flow)**·**HBM 3사 EPS/PER** 실측, HBM 스팟/점유율 미수록. (5) **KSVKOSPI=investing.com 실측**. (6) MacroAgent series 는 gen_macro_charts 평면배열 스키마. (build_report·gen_macro_charts·merge·agents 갱신.)
