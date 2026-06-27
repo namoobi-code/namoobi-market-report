@@ -47,7 +47,7 @@ for s in ['top','right']: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig('charts/macro_inflation.png',bbox_inches='tight'); plt.close()
 # (3) employment 6 panels
 emp=(m2.get('series') or {}).get('employment') or {}
-pn=[('NFP 신규고용(천명)','nfp',B,0),('실업률(%)','unemp',R,None),('GDP 연율(%)','gdp',G,None),('ISM 제조 PMI','ism_mfg',B,50),('ISM 서비스 PMI','ism_svc',G,50),('소매판매 MoM(%)','retail','#7C3AED',0)]
+pn=[('NFP 신규고용(천명)','nfp',B,0),('실업률(%)','unemp',R,None),('ISM 제조 PMI','ism_mfg',B,50),('ISM 서비스 PMI','ism_svc',G,50),('소매판매 MoM(%)','retail','#7C3AED',0)]
 av=[(t,[x for x in (emp.get(k) or []) if x is not None],c,hl) for t,k,c,hl in pn]
 av=[p for p in av if len(p[1])>=2]
 nc=3; nr=max(1,(len(av)+2)//3); fig,axs=plt.subplots(nr,nc,figsize=(2.6*nc,2.4*nr),dpi=150)
@@ -61,11 +61,25 @@ for j in range(len(av),len(axs)): axs[j].axis('off')
 fig.suptitle('미국 고용·경기 6개 지표 (최신 2026-05, BLS/BEA/ISM 실측)',fontsize=9.5,color='#334155')
 plt.tight_layout(rect=[0,0,1,0.94]); plt.savefig('charts/macro_employment.png',bbox_inches='tight'); plt.close()
 # (4) BEI
+bd=L('nmr_bei_daily.json'); daily=(bd.get('daily') if isinstance(bd,dict) else None) or []
+_infl=(m2.get('series') or {}).get('inflation') or {}
+_nmax=max((len([z for z in (v or []) if z is not None]) for v in _infl.values()), default=23)
+_xs0=mlab(_nmax)[0]
 bei=[x for x in ((m2.get('series') or {}).get('infl_exp') or []) if x is not None]
-if len(bei)>=2:
+dd=[(dt.date.fromisoformat(str(p[0])),p[1]) for p in daily if p and p[1] is not None]
+dd=[p for p in dd if p[0]>=_xs0]
+if len(dd)>=2:
+    xs=[p[0] for p in dd]; ys=[p[1] for p in dd]
+    fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(xs,ys,color=B,lw=1.0); ax.axhline(2.0,color=R,lw=0.9,ls='--',alpha=0.6); ax.scatter([xs[-1]],[ys[-1]],color=R,s=18,zorder=5)
+    ax.set_xlim(_xs0,dt.date(2026,6,30))
+    ax.set_title('기대인플레이션 10년(BEI) 일별 추이 · 점선=2%% · 현재 %.2f%% (FRED T10YIE 일별 실측)'%ys[-1],fontsize=8.6,color='#334155')
+    ax.grid(alpha=0.25); ax.set_ylabel('%',fontsize=8,color='#64748B'); ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
+    for s in ['top','right']: ax.spines[s].set_visible(False)
+    plt.tight_layout(); plt.savefig('charts/macro_infl_exp.png',bbox_inches='tight'); plt.close()
+elif len(bei)>=2:
     fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(mlab(len(bei)),bei,color=B,lw=1.8,marker='o',ms=3); ax.axhline(2.0,color=R,lw=0.9,ls='--',alpha=0.6)
-    ax.set_title('기대인플레이션 10년(BEI) 추이 · 점선=2% (FRED T10YIE 실측)',fontsize=8.8,color='#334155')
-    ax.grid(alpha=0.25); ax.set_ylabel('%',fontsize=8,color='#64748B'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
+    ax.set_xlim(_xs0,dt.date(2026,6,30)); ax.set_title('기대인플레이션 10년(BEI) 추이 · 점선=2% (월별 실측)',fontsize=8.6,color='#334155')
+    ax.grid(alpha=0.25); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
     for s in ['top','right']: ax.spines[s].set_visible(False)
     plt.tight_layout(); plt.savefig('charts/macro_infl_exp.png',bbox_inches='tight'); plt.close()
 # (5) curve sparse-x

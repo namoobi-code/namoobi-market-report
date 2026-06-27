@@ -696,7 +696,7 @@ function renderMacroIndicators(){
       cell(o.asof||"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.release||o.release_date||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
       cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15})]})); });
     children.push(makeTable(w,rows)); }
-    { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("NFP·실업률·GDP·ISM 제조/서비스·소매판매 최근 1년 통합",{size:15,color:"94A3B8"})); } }
+    { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("NFP·실업률·ISM 제조/서비스·소매판매 월별 추이 (GDP는 분기 지표로 위 표에만 수록)",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.4 심리 — 6개월 추가
