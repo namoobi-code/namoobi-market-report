@@ -39,12 +39,9 @@ fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150); drew=False
 for k,lab in disp:
     v=[x for x in (infl.get(k) or []) if x is not None]
     if len(v)>=2: ax.plot(mlab(len(v)),v,lw=1.6,marker='o',ms=3,label=lab); drew=True
-bei=[x for x in ((m2.get('series') or {}).get('infl_exp') or []) if x is not None]
-if len(bei)>=2:
-    ax.plot(mlab(len(bei)),bei,lw=1.7,ls='--',color='#111827',marker='s',ms=2.4,label='10Y BEI(기대)'); drew=True
 ax.axhline(2.0,color=R,lw=0.9,ls='--',alpha=0.6)
-ax.set_title('미국 물가 YoY + 10년 기대인플레(BEI) 추이 (최신, 실측)',fontsize=9.5,color='#334155')
-if drew: ax.legend(fontsize=7,ncol=6)
+ax.set_title('미국 물가 YoY 추이 (최신, BLS/BEA 실측)',fontsize=9.5,color='#334155')
+if drew: ax.legend(fontsize=7,ncol=5)
 ax.grid(alpha=0.25); ax.set_ylabel('YoY %',fontsize=8,color='#64748B'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
 for s in ['top','right']: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig('charts/macro_inflation.png',bbox_inches='tight'); plt.close()

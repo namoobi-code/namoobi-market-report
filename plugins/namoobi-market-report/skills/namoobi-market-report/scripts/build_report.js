@@ -683,7 +683,8 @@ function renderMacroIndicators(){
       cell(o.meaning||"-",{width:w[5],alt:a,size:14}),
       cell(o.impact||"-",{width:w[6],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
-  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); children.push(p("CPI·Core CPI·PCE·Core PCE·PPI + 10년 기대인플레(BEI) 최근 추이 통합 (YoY %·BEI 점선, 실측)",{size:15,color:"94A3B8"})); } }
+  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); children.push(p("CPI·Core CPI·PCE·Core PCE·PPI 최근 추이 통합 (YoY %, 실측)",{size:15,color:"94A3B8"})); } }
+  { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표 (별도 표시)",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); children.push(p("10년 국채−TIPS 차이(BEI) 추이 · 점선=2% · 실시간/일별 (FRED 실측)",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.3 고용 — 추세1Y 제거, 통합 그래프 하나
