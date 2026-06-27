@@ -95,28 +95,36 @@ if len(pts)>=2:
     ax.xaxis.set_major_locator(mdates.YearLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y')); ax.grid(alpha=0.2); ax.set_ylabel('%p',fontsize=8,color='#64748B')
     for s in ['top','right']: ax.spines[s].set_visible(False)
     plt.tight_layout(); plt.savefig('charts/macro_curve.png',bbox_inches='tight'); plt.close()
-# (6) spx/kospi 선행EPS·지수·PER (nmr_fwd)
-fw=L('nmr_fwd.json')
-def _fwd_chart(node,out,name):
-    e=[v for v in (node.get('eps') or []) if v is not None]; i=[v for v in (node.get('idx') or []) if v is not None]; mo=node.get('months') or []
-    try:
-        if len(e)>=2 and len(e)==len(i):
-            xm=[dt.datetime.strptime(m,'%Y-%m') for m in mo[:len(e)]]; per=[round(i[k]/e[k],1) for k in range(len(e))]
-            fig,ax=plt.subplots(figsize=(7.2,2.5),dpi=150); ax.bar(xm,e,width=20,color='#93C5FD',label='12M Fwd EPS'); ax.set_ylabel('Fwd EPS',fontsize=8,color=B)
-            ax2=ax.twinx(); ax2.plot(xm,i,color=B,lw=2,marker='o',ms=3,label='지수')
-            ax3=ax.twinx(); ax3.spines['right'].set_position(('outward',40)); ax3.plot(xm,per,color=R,lw=1.5,ls='--',label='선행PER'); ax3.set_ylabel('선행PER(x)',fontsize=8,color=R)
-            ax.set_title(name+' 12개월 선행EPS·지수·선행PER (실측)',fontsize=9,color='#334155'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
-            h1,l1=ax.get_legend_handles_labels();h2,l2=ax2.get_legend_handles_labels();h3,l3=ax3.get_legend_handles_labels(); ax.legend(h1+h2+h3,l1+l2+l3,fontsize=7,loc='upper left')
-            plt.tight_layout(); plt.savefig(out,bbox_inches='tight'); plt.close(); return
-        if len(i)>=2:
-            xm=[dt.datetime.strptime(m,'%Y-%m') for m in mo[:len(i)]]
-            fig,ax=plt.subplots(figsize=(7.2,2.2),dpi=150); ax.plot(xm,i,color=B,lw=2,marker='o',ms=3)
-            ax.set_title(name+' 지수 추이 (선행EPS 미확보 — 지수만)',fontsize=9,color='#334155'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m')); ax.grid(alpha=0.25)
-            for s in ['top','right']: ax.spines[s].set_visible(False)
-            plt.tight_layout(); plt.savefig(out,bbox_inches='tight'); plt.close()
-    except Exception as e: print('fwd chart err',name,e)
-_fwd_chart(fw.get('spx') or {},'charts/macro_spx_fwd.png','S&P500')
-_fwd_chart(fw.get('kospi') or {},'charts/macro_kospi_fwd.png','KOSPI')
+# (6) S&P500·KOSPI 선행EPS·지수·선행PER 오버레이 (nmr_fwd + 지수 시계열)
+fw=L('nmr_fwd.json'); idxs=L('nmr_indexseries.json')
+def _md(m): return dt.datetime.strptime(m,'%Y-%m')
+try:
+    sx=fw.get('spx') or {}; months=sx.get('months') or []; sidx=sx.get('idx') or []; anch=sx.get('eps_anchors') or []
+    if months and sidx:
+        xi=[_md(m) for m in months]
+        fig,ax=plt.subplots(figsize=(7.4,2.7),dpi=150); ax.plot(xi,sidx,color=B,lw=2,marker='o',ms=2.5,label='S&P500 지수'); ax.set_ylabel('지수',fontsize=8,color=B)
+        if anch:
+            xe=[_md(m) for m,_ in anch]; ye=[v for _,v in anch]; ax2=ax.twinx(); ax2.plot(xe,ye,color=GR,lw=1.6,marker='s',ms=5,ls='--',label='12M 선행EPS($)'); ax2.set_ylabel('선행EPS($)',fontsize=8,color=GR)
+            for x,v in zip(xe,ye): ax2.annotate('$%.0f'%v,(x,v),textcoords='offset points',xytext=(0,6),fontsize=7,color=GR)
+        ax.set_title('S&P500 지수 + 12개월 선행EPS · 현재 선행 P/E %s (FactSet)'%str(sx.get('fwd_per_now','20.1배')),fontsize=9,color='#334155')
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m')); ax.grid(alpha=0.2)
+        h1,l1=ax.get_legend_handles_labels(); h2,l2=(ax2.get_legend_handles_labels() if anch else ([],[])); ax.legend(h1+h2,l1+l2,fontsize=7,loc='upper left')
+        for s in ['top']: ax.spines[s].set_visible(False)
+        plt.tight_layout(); plt.savefig('charts/macro_spx_fwd.png',bbox_inches='tight'); plt.close()
+    kp=fw.get('kospi') or {}; keps=kp.get('eps') or []; kmo=kp.get('months') or []
+    kidx=[(dt.date.fromisoformat(str(d)[:10]),v) for d,v in (idxs.get('kospi') or []) if v is not None]
+    if kidx:
+        xk=[d for d,_ in kidx]; yk=[v for _,v in kidx]; per=round((yk[-1]/926.8),1)
+        fig,ax=plt.subplots(figsize=(7.4,2.7),dpi=150); ax.plot(xk,yk,color=B,lw=1.6,label='KOSPI 지수'); ax.set_ylabel('지수',fontsize=8,color=B)
+        if keps and kmo:
+            xe=[_md(m) for m in kmo[:len(keps)]]; ax2=ax.twinx(); ax2.plot(xe,keps,color=GR,lw=1.6,marker='s',ms=6,ls='--',label='12M 선행EPS(p)'); ax2.set_ylabel('선행EPS(p)',fontsize=8,color=GR)
+            for x,v in zip(xe,keps): ax2.annotate('%.0f'%v,(x,v),textcoords='offset points',xytext=(0,6),fontsize=7,color=GR)
+        ax.set_title('KOSPI 지수 + 12개월 선행EPS · 선행 P/E 약 %.1f배 (FnGuide 컨센서스)'%per,fontsize=8.8,color='#334155')
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m')); ax.grid(alpha=0.2)
+        h1,l1=ax.get_legend_handles_labels(); h2,l2=(ax2.get_legend_handles_labels() if keps else ([],[])); ax.legend(h1+h2,l1+l2,fontsize=7,loc='upper left')
+        for s in ['top']: ax.spines[s].set_visible(False)
+        plt.tight_layout(); plt.savefig('charts/macro_kospi_fwd.png',bbox_inches='tight'); plt.close()
+except Exception as e: print('fwd overlay err',e)
 # (7) GDP 성장률 분기 (최근 ~1년)
 gd=L('nmr_gdp.json'); gg=[(str(q),v) for q,v in (gd.get('gdp_growth') or []) if v is not None]
 if len(gg)>=2:
