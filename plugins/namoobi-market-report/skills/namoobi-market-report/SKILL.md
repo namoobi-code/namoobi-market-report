@@ -1,3 +1,5 @@
+> **v3.33.0 (2026-06-26) — 3.1.5 검증된 출처 링크 + 풀날짜.** 표의 '조사 출처·링크'는 실제 데이터가 보이는 1차 출처로 연결한다. **S&P500=FactSet Earnings Insight 주간 PDF**(URL=`EarningsInsight_MMDDYY.pdf`, eps_date에서 자동 구성 — 해당 PDF에 그 날짜의 forward 12M P/E·지수 수록, 검증됨; 041026만 'A' 접미사). **KOSPI=출처 증권사 리포트 PDF**(대신 이경민 주간전략 등 — 선행EPS·PER 수치 명시). DB는 풀날짜(eps_date) 키로 dedup(월 단위 금지 — 같은 달 복수 시점 허용). EPS·PER 둘 다 조사되면 지수=EPS×PER(출처와 일치), 한쪽만이면 해당일 일일지수로 보정. MacroAgent 는 spx_fwd/kospi_fwd 에 **asof=풀날짜(YYYY-MM-DD)·link=출처 URL** 을 반드시 담는다(월만 있으면 누적 제외).
+
 > **v3.32.0 (2026-06-26) — 3.1.5 DB schema2 + 일일지수 통합차트 + 최신5 표.** DB 점 스키마: `{eps,eps_date,per,per_date,idx,idx_date,src,link}` (날짜시점 지수=실측 일일종가). `fetch_idx_daily.py` 가 ^GSPC·^KS11 2년 일봉을 `nmr_idx_daily.json` 으로 수집. `nmr_fwd_accum.py` 는 매 실행 MacroAgent 스냅샷을 월키로 upsert하며 **EPS or PER 한쪽만 조사되면 해당일 일일지수로 보정(EPS×PER=지수)**. `gen_fwd3.py` 통합차트=**지수 일일선(실측)+선행EPS·PER 조사시점 포인트**(3중 Y축). 빌더는 각 지수마다 **최신 5건 표**(선행EPS·날짜 | 선행PER·날짜 | 날짜시점 지수 | 조사 출처·링크 ExternalHyperlink) 렌더.
 
 > **v3.31.0 (2026-06-26) — 섹션 재배치.** 3.2.3 경기선행지수 순환변동치 → **3.1.8**(매크로 대시보드 말미, renderKoreaLeading)로 이동. 기존 3.2.4 순환매 테마별 현황 → **3.2.3**으로 번호 변경. 3.1.5 캡션을 단일 통합차트(3중 Y축)에 맞게 수정.
