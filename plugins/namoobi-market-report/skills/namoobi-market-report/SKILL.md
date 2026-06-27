@@ -1,3 +1,5 @@
+> **v3.35.0 (2026-06-26) — 3.1.6 CAPEX 표·차트 완전 데이터연동.** 표를 기업별 **4행**(CAPEX / 매출 / Capex·매출 비율 / FCF)으로 확장하고, 두 차트(스택+비율선, FCF)를 모두 이 표값(`bigtech_capex.rows`)으로 구동(하드코딩 매출/FCF 제거). 매출=FMP income(실측 2024~25)+애널리스트 컨센서스(2026~29E), FCF=FMP cashflow freeCashFlow(실측)+(직전 영업CF×매출성장−CAPEX) 추정, Capex/매출=CAPEX÷매출. ORCL 은 FMP 플랜 제한 시 공개치·추정.
+
 > **v3.34.0 (2026-06-26) — 3.1.6 CAPEX 표·차트 일치.** gen_capex_chart.py 가 표(bigtech_capex.rows, y2024~y2029)를 막대 CAPEX 로 직접 사용(2023만 내장 유지) → 표와 그래프 수치 완전 일치(예: 2026E MSFT=GOOGL=190 이면 막대 높이 동일). 기존엔 내장 기본값으로 그려 표와 달랐음. 차트 제목 비중%는 ratio 최대값으로 동적 표기.
 
 > **v3.33.0 (2026-06-26) — 3.1.5 검증된 출처 링크 + 풀날짜.** 표의 '조사 출처·링크'는 실제 데이터가 보이는 1차 출처로 연결한다. **S&P500=FactSet Earnings Insight 주간 PDF**(URL=`EarningsInsight_MMDDYY.pdf`, eps_date에서 자동 구성 — 해당 PDF에 그 날짜의 forward 12M P/E·지수 수록, 검증됨; 041026만 'A' 접미사). **KOSPI=출처 증권사 리포트 PDF**(대신 이경민 주간전략 등 — 선행EPS·PER 수치 명시). DB는 풀날짜(eps_date) 키로 dedup(월 단위 금지 — 같은 달 복수 시점 허용). EPS·PER 둘 다 조사되면 지수=EPS×PER(출처와 일치), 한쪽만이면 해당일 일일지수로 보정. MacroAgent 는 spx_fwd/kospi_fwd 에 **asof=풀날짜(YYYY-MM-DD)·link=출처 URL** 을 반드시 담는다(월만 있으면 누적 제외).

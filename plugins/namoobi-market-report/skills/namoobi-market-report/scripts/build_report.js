@@ -336,17 +336,23 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
 function renderCapex(){ const m=data.markets||{};
   if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.1.6 AI 빅테크 자본지출(CAPEX)",3));
     if(Array.isArray(cx.change_log)&&cx.change_log.length){ children.push(p("■ CAPEX 변동 이력 (매일 체크 · 변경분):",{bold:true,size:14,color:"DC2626"})); cx.change_log.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); }
-    const capV=(v)=>(v!==null&&v!==undefined&&String(v).trim()!=="")?String(v):"미공개";
-    const yrs=[["y2024","2024"],["y2025","2025"],["y2026","2026E"],["y2027","2027E"],["y2028","2028E"],["y2029","2029E"]];
-    const w=[1300,700,700,700,700,700,700,2840,900];
-    const rows=[hdrRow(["기업"].concat(yrs.map(y=>y[1])).concat(["코멘트","추세"]),w)];
-    cx.rows.forEach((r,i)=>{ const a=i%2===1; const cs=[cell(r.company||"-",{width:w[0],alt:a,bold:true})];
-      yrs.forEach((y,j)=>cs.push(cell(capV(r[y[0]]),{width:w[1+j],alt:a,align:AlignmentType.CENTER})));
-      cs.push(cell(r.comment||"-",{width:w[7],alt:a,size:12}));
-      cs.push(imgCellSpark(r.trend,w[8],a,120,32));
-      rows.push(new TableRow({children:cs})); });
+    // (v3.35) 기업별 4행: CAPEX / 매출 / Capex매출 / FCF — 표값으로 두 차트 구동
+    const YR=["2024","2025","2026","2027","2028","2029"]; const HD=["2024","2025","2026E","2027E","2028E","2029E"];
+    const w=[2050,1175,1175,1175,1175,1175,1175];
+    const num=(v)=>(v===null||v===undefined||v==="")?"-":(typeof v==="number"?(Number.isInteger(v)?String(v):v.toFixed(1)):String(v));
+    const rows=[hdrRow(["항목 (십억 $)"].concat(HD),w)];
+    cx.rows.forEach((r,ci)=>{ const a=ci%2===1;
+      rows.push(new TableRow({children:[cell(r.company||"-",{width:w[0],alt:a,bold:true})].concat(
+        YR.map((y,j)=>cell(num(r["y"+y]),{width:w[1+j],alt:a,align:AlignmentType.CENTER,bold:true})))}));
+      rows.push(new TableRow({children:[cell("   └ 매출",{width:w[0],alt:a,size:16,color:"475569"})].concat(
+        YR.map((y,j)=>cell(num(r["rev"+y]),{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16})))}));
+      rows.push(new TableRow({children:[cell("   └ Capex/매출",{width:w[0],alt:a,size:16,color:"475569"})].concat(
+        YR.map((y,j)=>{const v=r["ratio"+y];return cell(v==null?"-":v+"%",{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16,color:"1D4ED8"});}))}));
+      rows.push(new TableRow({children:[cell("   └ FCF",{width:w[0],alt:a,size:16,color:"475569"})].concat(
+        YR.map((y,j)=>{const v=r["fcf"+y];return cell(num(v),{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16,color:(typeof v==="number"&&v<0)?"DC2626":"0F172A"});}))}));
+    });
     children.push(makeTable(w,rows));
-    children.push(p("단위: 십억 달러. 2024~2025=FMP capitalExpenditure 실측 · 2026~2029(E)=가이던스·IB 컨센서스 추세. 추세=기업별 연도별 CAPEX 흐름. (매일 변동 체크, 변동 시 갱신)",{size:14,color:"94A3B8"}));
+    children.push(p("단위: 십억 달러(USD). CAPEX·매출·FCF 모두 연도별 조사값 — 2024~2025=FMP 실측(capitalExpenditure·revenue·freeCashFlow) · 2026~2029(E)=매출 애널리스트 컨센서스·CAPEX 회사 가이던스·FCF(직전 영업CF×매출성장−CAPEX) 추정. Capex/매출=CAPEX÷매출. ORCL은 FMP 플랜 제한으로 공개치·추정. 아래 두 차트는 이 표값으로 그려집니다.",{size:13,color:"94A3B8"}));
     { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",660,289);
       if(c1){ children.push(c1); children.push(p("빅테크 CAPEX 합계(스택)·매출 대비 비율 추이",{size:15,color:"94A3B8"})); }
       const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",660,266);

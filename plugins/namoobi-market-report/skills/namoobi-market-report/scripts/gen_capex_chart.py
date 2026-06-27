@@ -71,25 +71,23 @@ try:
         _,REV       =_apply(bc.get("rev_series"),"years",YEARS,REV)
         FCF_YEARS,FCF=_apply(bc.get("fcf_series"),"years",FCF_YEARS,FCF)
 except Exception: pass
-# ---- (v3.34) 표와 차트 일치: bigtech_capex.rows(y2024..y2029)로 막대 CAPEX 덮어쓰기(2023은 내장 유지) ----
+# ---- (v3.35) 표(rows)로 CAPEX·매출·FCF 모두 구동 → 두 차트 완전 일치 (2024~2029) ----
 try:
     if rp:
         _bc=((json.load(open(rp)).get("markets") or {}).get("bigtech_capex")) or {}
         _rows=_bc.get("rows")
         if isinstance(_rows,list) and _rows:
-            _yrs=["y2024","y2025","y2026","y2027","y2028","y2029"]; _new=dict(CAPEX); _ok=True
+            _Y=[2024,2025,2026,2027,2028,2029]; _cap={}; _rev={}; _fcf={}; _ok=True
             for c in COMPANIES:
                 _row=next((r for r in _rows if str(r.get("company","")).split(" (")[0].strip()==c), None)
                 if not _row: _ok=False; break
-                _v=[]
-                for k in _yrs:
-                    try: _v.append(float(_row.get(k)))
-                    except Exception: _ok=False; break
-                if not _ok or len(_v)!=6: _ok=False; break
-                _b23=(CAPEX.get(c) or [_v[0]])[0]
-                _new[c]=[_b23]+_v
+                try:
+                    _cap[c]=[float(_row["y%d"%y]) for y in _Y]
+                    _rev[c]=[float(_row["rev%d"%y]) for y in _Y]
+                    _fcf[c]=[float(_row["fcf%d"%y]) for y in _Y]
+                except Exception: _ok=False; break
             if _ok:
-                YEARS=[2023,2024,2025,2026,2027,2028,2029]; CAPEX=_new
+                YEARS=_Y; CAPEX=_cap; REV=_rev; FCF_YEARS=_Y; FCF=_fcf
 except Exception: pass
 
 tot_capex=[sum(CAPEX[c][i] for c in COMPANIES) for i in range(len(YEARS))]
