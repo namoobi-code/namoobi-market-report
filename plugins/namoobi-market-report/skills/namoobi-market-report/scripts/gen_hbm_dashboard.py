@@ -81,6 +81,7 @@ def _live():
         if a.endswith("nmr_hbm.json"): cands.append(a)
         elif os.path.isdir(a): cands.append(os.path.join(a,"nmr_hbm.json"))
     O=_outdir(); cands += [os.path.join(O,"nmr_hbm.json"), "nmr_hbm.json"]
+    cands += glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_hbm.json")  # (v3.39) 연결폴더 영구본 폴백
     for c in cands:
         if c and os.path.exists(c):
             try: return json.load(open(c, encoding="utf-8")) or {}

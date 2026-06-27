@@ -4,7 +4,7 @@
 # 사용: python3 merge.py [WORK_DIR] [REPORT_DATE_YYYYMMDD]
 #   WORK_DIR 없으면 cwd. REPORT_DATE 없으면 env NMR_DATE 또는 오늘(KST).
 #   mode 는 env NMR_MODE(scheduled/normal) 또는 'normal'.
-import json, os, sys, datetime as dt
+import json, os, sys, glob, datetime as dt
 
 W = sys.argv[1] if (len(sys.argv) > 1 and os.path.isdir(sys.argv[1])) else '.'
 KST = dt.timezone(dt.timedelta(hours=9))
@@ -18,6 +18,21 @@ def L(p):
     try: return json.load(open(os.path.join(W, p), encoding='utf-8'))
     except Exception as e:
         print('load fail', p, e); return {}
+
+# (v3.39) 휘발 데이터 carry-forward: WORK 우선 → 없으면 연결폴더 영구본 → 사용분은 연결폴더에 저장(다음 회차 폴백)
+_CWROOT = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data') or [os.path.join(W, '_market_report_data')])[0]
+def LCF(name):
+    d = L(name)
+    if not d:
+        try: d = json.load(open(os.path.join(_CWROOT, name), encoding='utf-8'))
+        except Exception: d = {}
+        if d: print('carry-forward(%s): WORK 없음 → 연결폴더 영구본 사용' % name)
+    if d:
+        try:
+            os.makedirs(_CWROOT, exist_ok=True)
+            json.dump(d, open(os.path.join(_CWROOT, name), 'w'), ensure_ascii=False)
+        except Exception: pass
+    return d
 
 mk = L('nmr_markets.json'); com = L('nmr_commod.json'); cr = L('nmr_crypto.json'); ue = L('nmr_usetf.json')
 nw = L('nmr_news.json'); gs = L('nmr_globalsec.json'); um = L('nmr_usmacro.json'); rb = L('nmr_rebalance.json')
@@ -135,7 +150,7 @@ for i, x in enumerate(semi.get('semi_ai_etfs', [])[:20]):
     se.append(r)
 m['semi_ai_stocks'] = ss; m['semi_ai_stocks_comment'] = semi.get('semi_ai_stocks_comment', '')
 m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comment', '')
-m['hbm'] = L('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
+m['hbm'] = LCF('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
 
 # 3.1 주요지표(매크로 대시보드) — nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 오버라이드, 없으면 내장 예시·추정값
 MACRO_DEFAULT = json.loads(r'''{
@@ -250,7 +265,7 @@ if isinstance(_rt3.get('us10y'), dict) and _um10.get('prev_pct') is not None: _r
 _spk3 = {'VIX (공포지수)':'charts/spark_vix.png','KSVKOSPI (KOSPI Volatility)':'charts/spark_vkospi.png','달러인덱스 DXY':'charts/spark_dxy.png','원/달러 환율':'charts/spark_usdkrw.png','WTI 유가':'charts/spark_wti.png','미국 10년물 국채금리':'charts/spark_us10y_v2.png'}
 for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
     if _r3.get('name') in _spk3: _r3['spark'] = _spk3[_r3['name']]
-_cap3 = L('nmr_capex.json')
+_cap3 = LCF('nmr_capex.json')
 if isinstance(_cap3, dict) and _cap3.get('bigtech_capex'): m['bigtech_capex'] = _cap3['bigtech_capex']
 # (R4) 센티 prev_pct(1일=직전 거래일 변동) 보강
 _src4={'VIX (공포지수)':(m.get('us_markets') or {}).get('vix'),'달러인덱스 DXY':(m.get('us_markets') or {}).get('dxy'),'원/달러 환율':(m.get('fx_markets') or {}).get('usd_krw'),'미국 10년물 국채금리':(m.get('us_markets') or {}).get('us10y'),'WTI 유가':((com.get('energy') if isinstance(com,dict) else {}) or {}).get('wti'),'KSVKOSPI (KOSPI Volatility)':mk.get('vkospi')}
