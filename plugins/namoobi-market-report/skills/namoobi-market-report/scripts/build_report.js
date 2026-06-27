@@ -311,6 +311,7 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
   children.push(p("■ FOMC 점도표 (dot plot)",{bold:true,color:"1E40AF",before:140,size:22}));
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
+  children.push(p("업데이트: 분기 SEP(3·6·9·12월 FOMC) 발표 시 변동 체크 → 변동 시에만 갱신, 없으면 기존 자료 유지.",{size:15,italics:true,color:"94A3B8"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
   if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[r.item!=null?r.item:"-",r.jun!=null?r.jun:"-",r.mar!=null?r.mar:"-",r.change!=null?r.change:"-"]),{left:[0]});
   if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
@@ -346,6 +347,7 @@ function renderCapex(){ const m=data.markets||{};
 function renderHY(){ const m=data.markets||{};
   if(m.hy_spread){ const c=m.hy_spread; children.push(p("■ 하이일드(HY) 스프레드",{bold:true,color:"1E40AF",before:140,size:22}));
     children.push(p("하이일드 스프레드(HY Spread): 하이일드 채권 수익률에서 미국 국채 수익률을 뺀 스프레드가 확대되면 신용시장 위험이 높아지지만, 반대로 안정되거나 좁혀지면 신용시장이 정상화되며 주식시장이 회복되는 경향을 보입니다.",{italics:true,color:"64748B"}));
+    children.push(p("업데이트: 매일 (FRED BAMLH0A0HYM2 · ICE BofA US HY OAS 실측).",{size:15,italics:true,color:"94A3B8"}));
     const cols=[2200,1300,1200,1200,1200,1200,1700];
     const hdr=new TableRow({children:["지표 (OAS %)","현재","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
     const lv=(v)=> (v===null||v===undefined)?"-":Number(v).toFixed(2)+"%";
@@ -611,21 +613,46 @@ function renderMacroIndicators(){
   children.push(h("3.1 주요지표 (매크로 대시보드)",2));
   children.push(p("증시 방향을 좌우하는 금리·물가·고용·심리 지표를 의미·발표주기·시장영향과 함께 정리한다.",{italics:true,color:"64748B"}));
 
-  // 3.1.1 금리·통화정책
+  // 3.1.1 금리·통화정책 (REQ2 순서: 美10년물 → 장단기차 → HY → 기준금리 → FOMC회의 → 점도표)
   const r=x.rates||{};
   children.push(h("3.1.1 금리·통화정책 (가장 직접적 영향)",3));
-  if(r.fed_funds){ const f=r.fed_funds;
-    children.push(p("■ FOMC 기준금리(현재): "+f.current+"%   ("+f.decision+" / "+f.bias+")",{bold:true,size:23,color:"1E40AF"}));
-    children.push(p("의미: "+f.meaning+" · 발표: "+f.freq+" · 시장영향: "+f.impact,{size:17,color:"64748B"})); }
-  if(Array.isArray(r.policy_rates)){
-    const w=[2000,2000,1500,4580]; const rows=[hdrRow(["국가","현재 정책금리","기준","비고"],w)];
-    r.policy_rates.forEach((c,i)=>rows.push(new TableRow({children:[cell(c.country,{width:w[0],alt:i%2===0,bold:true}),
-      cell(c.rate+"%",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.asof,{width:w[2],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.note||"",{width:w[3],alt:i%2===0})]})));
+  // [1] 美 10년물 국채금리 (매일 실측)
+  if(r.us10y){ const o=r.us10y; const w=[1500,1100,700,700,700,700,700,700,1200,1900];
+    children.push(p("■ 美 10년물 국채금리",{bold:true,color:"1E40AF",size:22,before:60}));
+    const rows=[hdrRow(["지표","현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
+    rows.push(new TableRow({children:[cell("美 10년물 국채금리",{width:w[0],bold:true}),
+      cell(o.current!=null?fmtNum(o.current)+"%":"-",{width:w[1],align:AlignmentType.RIGHT,bold:true}),
+      cell(fmtPct(o["1d_pct"]),{width:w[2],align:AlignmentType.RIGHT,color:pctColor(o["1d_pct"])}),
+      cell(fmtPct(o["1w_pct"]),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o["1w_pct"])}),cell(fmtPct(o["1mo_pct"]),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o["1mo_pct"])}),
+      cell(fmtPct(o["3mo_pct"]),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o["3mo_pct"])}),cell(fmtPct(o["6mo_pct"]),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o["6mo_pct"])}),
+      cell(fmtPct(o["1y_pct"]),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o["1y_pct"])}),imgCellSpark(o.spark,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]}));
     children.push(makeTable(w,rows));
-    const pc=imagePara(r.policy_rates_chart,648,243); if(pc){children.push(pc); children.push(p("주요 6개국 정책금리 5년 추이 (미국=FMP 실측 월별)",{size:15,color:"94A3B8"}));} }
-  // FOMC 회의 1년 (최신 상단)
+    children.push(p("의미: 장기 금리·기준이자율 역할 · 시장영향: 10년물↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"}));
+    children.push(p("업데이트: 매일 (Yahoo ^TNX·FRED DGS10 실측). 1일 = 직전 거래일 종가 대비 1일 변동률.",{size:15,italics:true,color:"94A3B8"})); }
+  // [2] 미국 장단기 금리차 (10Y-2Y, 매일 실측)
+  if(r.yield_curve){ const yc=r.yield_curve;
+    children.push(p("■ "+(yc.label||"미국 장단기 금리차(수익률곡선)(10Y-2Y)"),{bold:true,size:22,color:"1E40AF",before:140}));
+    children.push(p((yc.spread>=0?"+":"")+yc.spread+"%p → "+yc.status+"  ("+(yc.note||"")+")",{bold:true,size:22,color:"1E40AF"}));
+    children.push(p("의미: "+(yc.meaning||"")+" · 시장영향: "+(yc.impact||""),{size:16,color:"64748B"}));
+    children.push(p("업데이트: 매일 (FRED T10Y2Y 실측, 최근 1년 추이).",{size:15,italics:true,color:"94A3B8"}));
+    const cc=imagePara(yc.chart,648,176); if(cc)children.push(cc); }
+  // [3] 하이일드(HY) 스프레드 (매일)
+  renderHY();
+  // [4] FOMC 기준금리 + 6개국 정책금리 (변동 시 갱신·실측)
+  if(r.fed_funds){ const f=r.fed_funds;
+    children.push(p("■ FOMC 기준금리(현재): "+f.current+"%   ("+f.decision+" / "+f.bias+")",{bold:true,size:23,color:"1E40AF",before:140}));
+    children.push(p("의미: "+f.meaning+" · 발표: "+f.freq+" · 시장영향: "+f.impact,{size:17,color:"64748B"}));
+    children.push(p("업데이트: 매 실행 변동 여부만 체크 → FOMC 결정으로 변동 시에만 갱신, 없으면 기존 자료 유지 (FMP 실측).",{size:15,italics:true,color:"94A3B8"})); }
+  if(Array.isArray(r.policy_rates)){
+    const w=[2100,1600,1700,4680]; const rows=[hdrRow(["국가","현재 정책금리","기준일","비고"],w)];
+    r.policy_rates.forEach((c,i)=>rows.push(new TableRow({children:[cell(c.country,{width:w[0],alt:i%2===0,bold:true}),
+      cell(c.rate!=null?c.rate+"%":"-",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.asof||"-",{width:w[2],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.note||"",{width:w[3],alt:i%2===0,size:16})]})));
+    children.push(makeTable(w,rows));
+    children.push(p("주요 6개국 정책금리 — 각국 중앙은행 실측치(추정 아님). 업데이트: 매 실행 변동 체크 → 변동 시에만 갱신.",{size:15,italics:true,color:"94A3B8"}));
+    const pc=imagePara(r.policy_rates_chart,648,243); if(pc){children.push(pc);} }
+  // [5] FOMC 회의 일정·정책방향 (신규 회의 시 갱신)
   if(Array.isArray(r.fomc_meetings)){
-    children.push(p("■ FOMC 회의 일정·정책방향 (최근 1년 · 최신순)",{bold:true,color:"1E40AF",before:80}));
+    children.push(p("■ FOMC 회의 일정·정책방향 (최근 1년 · 최신순)",{bold:true,color:"1E40AF",before:140,size:22}));
     const w=[2200,2300,5580]; const rows=[hdrRow(["회의일","정책방향","결정·코멘트"],w)];
     r.fomc_meetings.slice().reverse().forEach((mt,i)=>rows.push(new TableRow({children:[
       cell(mt.date,{width:w[0],alt:i%2===0,align:AlignmentType.CENTER,bold:true}),
@@ -633,26 +660,10 @@ function renderMacroIndicators(){
       cell(mt.note||"",{width:w[2],alt:i%2===0})]})));
     children.push(makeTable(w,rows));
     children.push(p("의미: 연준 정책방향(매파/비둘기파) · 발표: 회의 후 즉시",{size:16,color:"64748B"}));
+    children.push(p("업데이트: 매 실행 신규 FOMC 개최 여부 체크 → 새 회의 있을 때만 갱신, 없으면 기존 자료 유지.",{size:15,italics:true,color:"94A3B8"}));
     if(r.fomc_market_impact)children.push(p("시장영향: "+r.fomc_market_impact,{size:17,bold:true,color:"334155"})); }
-  // 美 10년물 (1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가)
-  if(r.us10y){ const o=r.us10y; const w=[1500,1100,700,700,700,700,700,700,1200,1900];
-    const rows=[hdrRow(["지표","현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
-    rows.push(new TableRow({children:[cell("美 10년물 국채금리",{width:w[0],bold:true}),
-      cell("",{width:w[1],align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{suffix:"%"})}),
-      cell(fmtPct(day1pct(o)),{width:w[2],align:AlignmentType.RIGHT,color:pctColor(day1pct(o))}),
-      cell(fmtPct(o['1w_pct']),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o['1w_pct'])}),cell(fmtPct(o['1mo_pct']),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o['1mo_pct'])}),
-      cell(fmtPct(o['3mo_pct']),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o['3mo_pct'])}),cell(fmtPct(o['6mo_pct']),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o['6mo_pct'])}),
-      cell(fmtPct(o['1y_pct']),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o['1y_pct'])}),imgCellSpark(o.spark,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]}));
-    children.push(makeTable(w,rows));
-    children.push(p("의미: 장기 금리·기준이자율 역할 · 발표: 매일 · 시장영향: 10년물↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"})); }
-  // 미국 장단기 금리차
-  if(r.yield_curve){ const yc=r.yield_curve; const inv=String(yc.status||"").includes("역전");
-    children.push(p("■ "+yc.label,{bold:true,size:22,color:"1E40AF"}));
-    children.push(p((yc.spread>=0?"+":"")+yc.spread+"%p → "+yc.status+"  ("+yc.note+")",{bold:true,size:22,color:"1E40AF"}));
-    children.push(p("의미: "+yc.meaning+" · 발표: 매일 · 시장영향: "+yc.impact,{size:16,color:"64748B"}));
-    const cc=imagePara(yc.chart,648,176); if(cc)children.push(cc); }
+  // [6] FOMC 점도표
   renderFomcDotplot();
-  renderHY();
   children.push(p(""));
 
   // 3.1.2 물가 — 추세1Y 제거, 통합 그래프 하나

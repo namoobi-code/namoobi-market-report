@@ -230,6 +230,14 @@ for _r in ((macro.get('sentiment') or {}).get('rows') or []):
         _r['name'] = 'KSVKOSPI (KOSPI Volatility)'
         if _vk: _reuse(_r, _vk)
 m['macro'] = macro
+# (REQ3) 실측 정책금리 — nmr_policyrates.json 있으면 추정치 대체
+_pr = L('nmr_policyrates.json')
+if isinstance(_pr, dict) and _pr.get('policy_rates'):
+    (macro.setdefault('rates', {}))['policy_rates'] = _pr['policy_rates']
+# (REQ6/REQ5) 1년 금리차 차트·美10년물 실측 스파크 경로(생성 시 사용, 없으면 빌더가 자동 생략)
+_rt = macro.get('rates') or {}
+if isinstance(_rt.get('yield_curve'), dict): _rt['yield_curve']['chart'] = 'charts/macro_curve_1y.png'
+if isinstance(_rt.get('us10y'), dict): _rt['us10y']['spark'] = 'charts/spark_us10y_v2.png'
 
 m['us_etfs'] = ue
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})

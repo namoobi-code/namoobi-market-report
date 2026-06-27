@@ -1,3 +1,5 @@
+> **v3.22.0 (2026-06-26) — 사용자 피드백 8건 반영.** (1) **3.1.1 순서 재정렬**: 美10년물 → 장단기 금리차(10Y-2Y) → HY 스프레드 → FOMC 기준금리 → FOMC 회의 → 점도표. (2) 각 항목 **업데이트 주기/방법 캡션**(매일·변동 시 갱신 등). (3) **6개국 정책금리 실측화** — `PolicyRatesAgent → nmr_policyrates.json`, merge 가 MACRO_DEFAULT 추정 대체. (4) **美10년물 '1일'** = 직전 거래일 대비 1일 변동률(현재가와 분리). (5) **장단기 금리차 1년 차트** `gen_curve_1y.py`(FRED T10Y2Y→FMP curve_10_2 폴백). (6) **Top News 최근 3일 이내만**. Phase 1.5 차트 목록에 `gen_curve_1y.py` 추가.
+
 ---
 name: namoobi-market-report
 description: |
