@@ -1,3 +1,14 @@
+## 추가 규칙 — 2026-06-26 (라운드5) 3.1 실측 확장
+
+- 매크로 시계열은 FMP **historical 24개월** 확보(latest 1개 금지): inflation 5종+MoM, employment 6종, BEI. gen_macro2.py 가 렌더.
+- 美 국채금리: **10년물+2년물**(FMP treasury year10/year2) 모두 수록(rates.us10y/us2y). build 가 2행 표로 렌더.
+- CAPEX: nmr_capex.bigtech_capex.rows 에 y2024~y2029(2024~25 실측, 26~29 E=가이던스/IB 컨센서스)+trend(charts/capex_spark_i.png). build 6년+추세 스파크열.
+- HBM: gen_hbm_dashboard.py 대시보드 복원 + eps_per 실측 표(둘 다 렌더).
+- KSVKOSPI: investing.com web_fetch(현재/1일/1년 실측). 무료 일별이력 제한 구간은 '-'.
+- (r0) 갱신원칙: 매일 최신 조사, 비일간 지표는 변동 체크 후 변동 시만 갱신·각 항목 주기 표기.
+
+---
+
 ## 추가 규칙 — 2026-06-26 (라운드3) 매크로 실측 강화
 
 - **MacroAgent series 포맷**: gen_macro_charts 스키마(평면 숫자배열)로 산출 — `fed_funds_5y`[~60 월별], `curve_10_2`[일별 최대기간]+`curve_labels`, `inflation`{"CPI":[..],...}, `employment`{unemp,gdp,retail,...}, `sentiment`{us10y:[..]}. FMP 실측, 없는 시리즈는 생략(추정 금지). ([날짜,값]쌍 금지 — 평면배열.)
