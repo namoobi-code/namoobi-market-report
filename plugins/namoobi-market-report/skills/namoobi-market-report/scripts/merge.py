@@ -253,7 +253,7 @@ for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
 _cap3 = L('nmr_capex.json')
 if isinstance(_cap3, dict) and _cap3.get('bigtech_capex'): m['bigtech_capex'] = _cap3['bigtech_capex']
 # (R4) 센티 prev_pct(1일=직전 거래일 변동) 보강
-_src4={'VIX (공포지수)':(m.get('us_markets') or {}).get('vix'),'달러인덱스 DXY':(m.get('us_markets') or {}).get('dxy'),'원/달러 환율':(m.get('fx_markets') or {}).get('usd_krw'),'미국 10년물 국채금리':(m.get('us_markets') or {}).get('us10y'),'WTI 유가':((com.get('energy') if isinstance(com,dict) else {}) or {}).get('wti')}
+_src4={'VIX (공포지수)':(m.get('us_markets') or {}).get('vix'),'달러인덱스 DXY':(m.get('us_markets') or {}).get('dxy'),'원/달러 환율':(m.get('fx_markets') or {}).get('usd_krw'),'미국 10년물 국채금리':(m.get('us_markets') or {}).get('us10y'),'WTI 유가':((com.get('energy') if isinstance(com,dict) else {}) or {}).get('wti'),'KSVKOSPI (KOSPI Volatility)':mk.get('vkospi')}
 for _r4 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
     _sv4=_src4.get(_r4.get('name'))
     if isinstance(_sv4,dict) and _sv4.get('prev_pct') is not None: _r4['prev_pct']=_sv4['prev_pct']
