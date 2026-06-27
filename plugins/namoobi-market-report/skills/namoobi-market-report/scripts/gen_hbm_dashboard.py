@@ -112,9 +112,16 @@ fig=plt.figure(figsize=(15.2,12.8), dpi=150)
 fig.suptitle("반도체 주가 체크용 메모리 + HBM 지표 대시보드", fontsize=21, fontweight="bold", y=0.987)
 _src=D.get("source") or "TrendForce·실적 컨센서스·언론 종합"
 _tag="추정치" if USED_LIVE else "예시·추정 데이터"
+# 차트별 갱신 주기·최종 갱신일 라벨
+_CAD={"spot":"월별 추정","dram":"월별 추정","ship":"분기·연간 추정","hbmprice":"분기 추정","share":"분기 추정","gap":"분기 추정(계산값)"}
+_CAD.update(D.get("cadence") or {})
+_AM=D.get("asof_map") or {}; _ASOF=D.get("asof","")
+def cad(k):
+    a=_AM.get(k) or ((_ASOF) if _ASOF and _ASOF!="예시·추정" else None)
+    return "  ▪ "+_CAD.get(k,"추정")+(" · 최종 갱신 "+a if a else " (예시값)")
 fig.text(0.5,0.962, f"※ 아래 모든 수치는 {_tag}입니다 — 에이전트 웹리서치({_src}) 기준, 확인 불가 항목은 미표기('추정' 표기)",
          ha="center", fontsize=10.5, color="#B45309")
-gs=fig.add_gridspec(3,2, top=0.93, bottom=0.05, left=0.06, right=0.97, hspace=0.55, wspace=0.20, height_ratios=[1,1,1])
+gs=fig.add_gridspec(3,2, top=0.93, bottom=0.05, left=0.06, right=0.97, hspace=0.78, wspace=0.20, height_ratios=[1,1,1])
 def style(ax):
     for s in ["top","right"]: ax.spines[s].set_visible(False)
     ax.grid(**GRID)
@@ -130,7 +137,7 @@ if sp:
     ax1.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y")); ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
 ax1.set_title("DRAMeXchange / TrendForce Spot 종합 흐름", fontsize=13, fontweight="bold"); ax1.set_ylabel("지수")
 style(ax1); ax1.legend(loc="upper left", **LEG)
-caption(ax1, "지수가 오르면 메모리 전반의 가격 모멘텀이 강해졌다는 의미입니다.")
+caption(ax1, "지수가 오르면 메모리 전반의 가격 모멘텀이 강해졌다는 의미입니다."+cad("spot"))
 
 # 패널2 — 메모리 가격
 ax2=fig.add_subplot(gs[0,1])
@@ -140,7 +147,7 @@ for key,col,lab in [("ddr5_16gb",C_DDR5,"DDR5 16Gb"),("ddr4_8gb",C_DDR4,"DDR4 8G
 ax2.set_title("DDR4 8Gb / DDR5 16Gb / NAND MLC 64Gb 가격 추이", fontsize=13, fontweight="bold"); ax2.set_ylabel("가격 (USD)")
 ax2.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y")); ax2.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
 style(ax2); ax2.legend(loc="upper left", ncol=3, **LEG)
-caption(ax2, "어느 제품이 먼저 강해지는지 보면 업황 주도 섹터를 가늠할 수 있습니다.")
+caption(ax2, "어느 제품이 먼저 강해지는지 보면 업황 주도 섹터를 가늠할 수 있습니다."+cad("dram"))
 
 # 패널3 — 출하량 + 시장규모
 ax3=fig.add_subplot(gs[1,0]); shp=D["hbm_shipment"]; mkt=D["hbm_market"]
@@ -154,7 +161,7 @@ for x,v in zip(mx,my): ax3b.annotate(f"${v:.1f}B",(x,v),textcoords="offset point
 ax3.spines["top"].set_visible(False); ax3b.spines["top"].set_visible(False); ax3.grid(**GRID)
 ax3.legend(ax3.get_legend_handles_labels()[0]+ax3b.get_legend_handles_labels()[0],
            ax3.get_legend_handles_labels()[1]+ax3b.get_legend_handles_labels()[1], loc="upper left", **LEG)
-caption(ax3, "출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다.")
+caption(ax3, "출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다."+cad("ship"))
 
 # 패널4 — HBM 가격
 ax4=fig.add_subplot(gs[1,1]); h3=D["hbm3e_price"]; h4=D["hbm4_price"]
@@ -166,7 +173,7 @@ ax4.set_xticks(sorted(set([r[0] for r in h3]+[r[0] for r in h4])))
 for x,v in zip([r[0] for r in h3],[r[1] for r in h3]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,-16),ha="center",fontsize=9,color=C_HBM3E,fontweight="bold")
 for x,v in zip([r[0] for r in h4],[r[1] for r in h4]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,9),ha="center",fontsize=9,color=C_HBM4,fontweight="bold")
 style(ax4); ax4.legend(loc="upper left", **LEG)
-caption(ax4, "HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다.")
+caption(ax4, "HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다."+cad("hbmprice"))
 
 # 패널5 — 점유율(기타 포함, 합계 100%)
 ax5=fig.add_subplot(gs[2,0]); shr=D["share"]; lbl=[s.get("year") for s in shr]; xpos=list(range(len(shr)))
@@ -180,7 +187,7 @@ for i in xpos:
 ax5.set_title("HBM 점유율 (합계 100%)", fontsize=13, fontweight="bold"); ax5.set_ylabel("점유율 (%)")
 ax5.set_xticks(xpos); ax5.set_xticklabels(lbl); ax5.set_ylim(0,128)
 style(ax5); ax5.legend(loc="upper center", ncol=4, fontsize=7.6, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.4, columnspacing=0.8, borderpad=0.4)
-caption(ax5, "점유율↑ 기업이 호황 이익을 더 가져갈 가능성. 나머지는 기타(중국 CXMT 등 신규).")
+caption(ax5, "점유율↑ 기업이 호황 이익을 더 가져갈 가능성. 나머지는 기타(중국 CXMT 등 신규)."+cad("share"))
 
 # 패널6 — HBM:DDR5 격차
 ax6=fig.add_subplot(gs[2,1]); gp=D["gap_ratio"]; gx=[r[0] for r in gp]; gy=[r[1] for r in gp]
@@ -189,7 +196,7 @@ ax6.set_title("HBM : DDR5 가격 격차", fontsize=13, fontweight="bold"); ax6.s
 ax6.set_ylim(min(gy)-0.1, max(gy)+0.18); ax6.set_xticks(gx)
 for x,v in zip(gx,gy): ax6.annotate(f"{v:.1f}x",(x,v),textcoords="offset points",xytext=(0,9),ha="center",fontsize=9,color=C_GAP,fontweight="bold")
 style(ax6); ax6.legend(loc="upper center", **LEG)
-caption(ax6, "격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다.")
+caption(ax6, "격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다."+cad("gap"))
 
 os.makedirs("charts", exist_ok=True)
 OUT="charts/hbm_dashboard.png"
