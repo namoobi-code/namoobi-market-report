@@ -1,3 +1,5 @@
+> **v3.23.0 (2026-06-26) — 매크로 전면 실측화(추정 제거, req0).** (1) gen_macro_charts 측정전용: 기준금리=미국 실효(FRED/FMP)만·추정 국가선/ISM/추정 스파크 제거·BEI 무측정시 '미표시'·고용=실측 패널만(실업률·소매·GDP)·물가=CPI 실측(동적 x). (2) 장단기 금리차 차트 **최대기간**(FMP daily). (3) 美10년물 **현재가에 당일변동 복원**·'1일'=직전거래일(prev_pct). (4) 정책금리·**CAPEX(FMP cash-flow)**·**HBM 3사 EPS/PER** 실측, HBM 스팟/점유율 미수록. (5) **KSVKOSPI=investing.com 실측**. (6) MacroAgent series 는 gen_macro_charts 평면배열 스키마. (build_report·gen_macro_charts·merge·agents 갱신.)
+
 > **v3.22.0 (2026-06-26) — 사용자 피드백 8건 반영.** (1) **3.1.1 순서 재정렬**: 美10년물 → 장단기 금리차(10Y-2Y) → HY 스프레드 → FOMC 기준금리 → FOMC 회의 → 점도표. (2) 각 항목 **업데이트 주기/방법 캡션**(매일·변동 시 갱신 등). (3) **6개국 정책금리 실측화** — `PolicyRatesAgent → nmr_policyrates.json`, merge 가 MACRO_DEFAULT 추정 대체. (4) **美10년물 '1일'** = 직전 거래일 대비 1일 변동률(현재가와 분리). (5) **장단기 금리차 1년 차트** `gen_curve_1y.py`(FRED T10Y2Y→FMP curve_10_2 폴백). (6) **Top News 최근 3일 이내만**. Phase 1.5 차트 목록에 `gen_curve_1y.py` 추가.
 
 ---

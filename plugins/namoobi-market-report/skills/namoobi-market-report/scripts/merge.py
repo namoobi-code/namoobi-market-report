@@ -241,6 +241,17 @@ if isinstance(_rt.get('us10y'), dict): _rt['us10y']['spark'] = 'charts/spark_us1
 
 m['us_etfs'] = ue
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})
+# (R3 실측화 wiring) 정책금리차트=미국 실효금리, 곡선=최대기간, us10y prev_pct, 센티 스파크(측정치), capex 실측
+_rt3 = (m.get('macro') or {}).get('rates') or {}
+_rt3['policy_rates_chart'] = 'charts/macro_policy_rates.png'
+if isinstance(_rt3.get('yield_curve'), dict): _rt3['yield_curve']['chart'] = 'charts/macro_curve.png'
+_um10 = ((m.get('us_markets') or {}).get('us10y') or {})
+if isinstance(_rt3.get('us10y'), dict) and _um10.get('prev_pct') is not None: _rt3['us10y']['prev_pct'] = _um10['prev_pct']
+_spk3 = {'VIX (공포지수)':'charts/spark_vix.png','달러인덱스 DXY':'charts/spark_dxy.png','원/달러 환율':'charts/spark_usdkrw.png','WTI 유가':'charts/spark_wti.png','미국 10년물 국채금리':'charts/spark_us10y_v2.png'}
+for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
+    if _r3.get('name') in _spk3: _r3['spark'] = _spk3[_r3['name']]
+_cap3 = L('nmr_capex.json')
+if isinstance(_cap3, dict) and _cap3.get('bigtech_capex'): m['bigtech_capex'] = _cap3['bigtech_capex']
 # (fix) FOMC 점도표 '변화' 열 = jun - mar (build_report r.change 비어 '-' 표시되던 문제)
 for _r in ((m.get('fomc_dotplot') or {}).get('rows') or []):
     if not str(_r.get('change') or '').strip():

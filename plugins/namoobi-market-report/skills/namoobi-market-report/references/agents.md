@@ -1,3 +1,13 @@
+## 추가 규칙 — 2026-06-26 (라운드3) 매크로 실측 강화
+
+- **MacroAgent series 포맷**: gen_macro_charts 스키마(평면 숫자배열)로 산출 — `fed_funds_5y`[~60 월별], `curve_10_2`[일별 최대기간]+`curve_labels`, `inflation`{"CPI":[..],...}, `employment`{unemp,gdp,retail,...}, `sentiment`{us10y:[..]}. FMP 실측, 없는 시리즈는 생략(추정 금지). ([날짜,값]쌍 금지 — 평면배열.)
+- **CAPEX**: CAPEXAgent → `nmr_capex.json`(`{bigtech_capex:{rows:[{company,y2024,y2025,y2026,comment}]}}`, FMP cash-flow-statement `capitalExpenditure` 실측). merge 가 `m['bigtech_capex']` 로 주입(2026E 미확정은 빈값).
+- **HBM**: HBMAgent → `nmr_hbm.json`(`{eps_per:[SK하이닉스·삼성·Micron EPS/PER FMP·UsStockInfo 실측]}`). 스팟가격·ASP·출하량·점유율은 무료 실측 부재로 **미수록**(추정 금지). build 가 eps_per 표 렌더(추정 대시보드 제거).
+- **KSVKOSPI**: `web_fetch` investing.com `kospi-volatility` 로 현재/전일/1일/1년 **실측** → `nmr_markets` vkospi(CNBC 는 폴백). 일중 1주~6개월 이력 미확보 시 해당 칸 '-'(추정 금지).
+- **gen_macro_charts 측정전용**: 기준금리=미국 실효만(추정 국가선 제거), 고용=실측 패널만(실업률·소매·GDP), 물가=CPI(동적 x), BEI 무측정 시 '미표시' 플레이스홀더, ISM·추정 스파크 제거(스파크는 gen_rest_charts 측정치 사용).
+
+---
+
 ## 추가 규칙 — 2026-06-26 사용자 피드백 반영 (항상 준수)
 
 - **(REQ1) Top News 최신성**: `top_news` 10개는 발행일이 실행일 기준 **최근 3일 이내**(D-0~D-3)인 기사만 사용. 오래된 기사는 제외(부족하면 같은 기간 추가 검색).

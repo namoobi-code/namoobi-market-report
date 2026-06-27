@@ -292,20 +292,22 @@ function renderKoreaExtras(){ const m=data.markets||{};
   }
  }
 // (v3.12.0) 3.1.6 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
-function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{}; const hbmImg=imagePara((hbm.chart)||"charts/hbm_dashboard.png",660,735);
-  if(hbmImg){ children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
-    children.push(p("메모리 가격·HBM 출하/시장규모·가격(ASP)·점유율·HBM:DDR5 격차를 한 화면에 모은 대시보드. 모든 수치는 추정치이며, 확인 불가 항목은 미표기.",{italics:true,color:"64748B"}));
-    children.push(hbmImg);
-    children.push(p("[해설]",{bold:true,color:"1E40AF",before:80,size:20}));
-    ["메모리 가격 추이: 어느 제품이 먼저 강해지는지 보면 업황 주도 섹터를 가늠할 수 있습니다.",
-     "종합 스팟 지수: 지수가 오르면 메모리 전반의 가격 모멘텀이 강해졌다는 의미입니다.",
-     "HBM 출하량 / 시장규모: 출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다.",
-     "HBM 가격: HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다.",
-     "HBM 점유율: 점유율이 높아지는 회사가 업황 호황의 이익을 더 많이 가져갈 가능성이 큽니다.",
-     "HBM:DDR5 격차: 격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다."
-    ].forEach(t=>children.push(p("• "+t,{size:18,color:"475569"})));
-    children.push(p("기준: "+(hbm.asof||"최신 공개 자료")+" · 수치는 추정치 — 자료: "+(hbm.source||"TrendForce·실적 컨센서스·언론 종합, AI Research"),{size:15,color:"94A3B8"}));
+function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
+  const ep=Array.isArray(hbm.eps_per)?hbm.eps_per:null;
+  if(ep&&ep.length){ children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
+    children.push(p("HBM 핵심 3사(SK하이닉스·삼성전자·Micron)의 EPS·PER 실측치. HBM 스팟가격·ASP·출하량·점유율은 무료 실측 데이터가 없어 이번 회차 미수록(추정 미사용).",{italics:true,color:"64748B"}));
+    const w=[2600,1900,1500,1500,2240]; const rows=[hdrRow(["종목","EPS (TTM / E)","PER (TTM / E)","Fwd PER","비고"],w)];
+    ep.forEach((o,i)=>{ const a=i%2===1;
+      const eps=(o.eps_ttm!=null?String(o.eps_ttm):(o.eps_current_year!=null?(o.eps_current_year+" (E)"):"-"));
+      const per=(o.per_ttm!=null?String(o.per_ttm):(o.per_current_year!=null?(o.per_current_year+" (E)"):"-"));
+      rows.push(new TableRow({children:[cell(o.name||"-",{width:w[0],alt:a,bold:true}),
+        cell(eps,{width:w[1],alt:a,align:AlignmentType.CENTER}),cell(per,{width:w[2],alt:a,align:AlignmentType.CENTER}),
+        cell(o.forward_per!=null?String(o.forward_per):"-",{width:w[3],alt:a,align:AlignmentType.CENTER}),
+        cell(o.note||(o.currency||""),{width:w[4],alt:a,size:14})]})); });
+    children.push(makeTable(w,rows));
+    children.push(p("기준: "+(hbm.asof||"")+" · 자료: "+(hbm.source||"FMP/UsStockInfo 실측")+(hbm.note?(" · "+hbm.note):""),{size:15,color:"94A3B8"}));
     children.push(p("")); } }
+
 // (v3.6.30) 3.2.2 FOMC 점도표(dot plot) — 데이터(markets.fomc_dotplot) 없으면 자동 생략.
 function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; if(!f||typeof f!=="object")return;
   if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
@@ -539,7 +541,7 @@ function trendRow(name,m,i){ const alt=i%2===1; return new TableRow({children:[
 function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1일","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
 function renderMarketBlock(title,obj,labels,exclude){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRow()]; let i=0;
   for(const [k,v] of Object.entries(obj)){ if(exclude&&exclude.includes(k))continue; rows.push(trendRow((labels&&labels[k])||k.toUpperCase(),v,i)); i++; } children.push(makeTable(tw,rows)); children.push(p("")); }
-function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=null;
+function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=null; if(!relPath)return cell("-",{width:width,alt:alt,align:AlignmentType.CENTER});
   const cands=[relPath, path.join(__dirname,relPath), path.join(process.cwd(),relPath)];
   for(const c of cands){ try{ if(c&&relPath&&fs.existsSync(c)&&fs.statSync(c).isFile()){fp=c;break;} }catch(e){} }
   if(fp&&HAS_IMG){ return new TableCell({borders,width:{size:width,type:WidthType.DXA},
@@ -621,14 +623,14 @@ function renderMacroIndicators(){
     children.push(p("■ 美 10년물 국채금리",{bold:true,color:"1E40AF",size:22,before:60}));
     const rows=[hdrRow(["지표","현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
     rows.push(new TableRow({children:[cell("美 10년물 국채금리",{width:w[0],bold:true}),
-      cell(o.current!=null?fmtNum(o.current)+"%":"-",{width:w[1],align:AlignmentType.RIGHT,bold:true}),
-      cell(fmtPct(o["1d_pct"]),{width:w[2],align:AlignmentType.RIGHT,color:pctColor(o["1d_pct"])}),
+      cell("",{width:w[1],align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{suffix:"%"})}),
+      cell(fmtPct(day1pct(o)),{width:w[2],align:AlignmentType.RIGHT,color:pctColor(day1pct(o))}),
       cell(fmtPct(o["1w_pct"]),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o["1w_pct"])}),cell(fmtPct(o["1mo_pct"]),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o["1mo_pct"])}),
       cell(fmtPct(o["3mo_pct"]),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o["3mo_pct"])}),cell(fmtPct(o["6mo_pct"]),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o["6mo_pct"])}),
       cell(fmtPct(o["1y_pct"]),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o["1y_pct"])}),imgCellSpark(o.spark,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]}));
     children.push(makeTable(w,rows));
     children.push(p("의미: 장기 금리·기준이자율 역할 · 시장영향: 10년물↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"}));
-    children.push(p("업데이트: 매일 (Yahoo ^TNX·FRED DGS10 실측). 1일 = 직전 거래일 종가 대비 1일 변동률.",{size:15,italics:true,color:"94A3B8"})); }
+    children.push(p("업데이트: 매일 (Yahoo ^TNX·FMP 실측). 현재가 옆=당일 전일대비 변동(▲/▼·%), '1일'=직전 거래일의 1일 변동률.",{size:15,italics:true,color:"94A3B8"})); }
   // [2] 미국 장단기 금리차 (10Y-2Y, 매일 실측)
   if(r.yield_curve){ const yc=r.yield_curve;
     children.push(p("■ "+(yc.label||"미국 장단기 금리차(수익률곡선)(10Y-2Y)"),{bold:true,size:22,color:"1E40AF",before:140}));
@@ -669,6 +671,7 @@ function renderMacroIndicators(){
   // 3.1.2 물가 — 추세1Y 제거, 통합 그래프 하나
   const inf=x.inflation||{};
   children.push(h("3.1.2 물가·인플레이션 (금리 방향 결정)",3));
+  children.push(p("업데이트: 매일 체크 → 신규 지표 발표 시에만 갱신, 없으면 기존 자료 유지 (FMP/FRED 실측, 추정 미사용).",{size:15,italics:true,color:"94A3B8"}));
   children.push(p("발표주기: 모두 매월 · 1년 월별 추세는 아래 통합 그래프 1개로 표시.",{italics:true,size:16,color:"94A3B8"}));
   { const w=[1900,900,900,1000,2300,3080]; const rows=[hdrRow(["지표","YoY","MoM","기준월","의미","시장영향"],w)];
     (inf.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[

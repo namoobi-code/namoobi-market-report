@@ -37,10 +37,7 @@ ff=S.get("fed_funds_5y") or [0.09,0.08,0.07,0.07,0.06,0.08,0.10,0.09,0.08,0.08,0
 ffx=months(2021,1,len(ff))
 fig,ax=plt.subplots(figsize=(7.2,2.8),dpi=150)
 ax.plot(ffx,ff,color=BLUE,linewidth=1.8,label="미국(실측)")
-yx=[dt.date(y,6,1) for y in range(2021,2027)]
-for nm,vals,c in [("한국",[0.5,1.25,3.5,3.5,3.0,2.5],GREEN),("일본",[-0.1,-0.1,-0.1,0.1,0.5,0.5],"#D97706"),("중국",[3.85,3.7,3.55,3.45,3.1,3.0],"#7C3AED"),("유로존",[0.0,0.5,4.0,4.0,2.65,2.15],"#0891B2"),("영국",[0.1,1.25,5.0,5.0,4.5,4.0],"#BE185D")]:
-    ax.plot(yx,vals,linewidth=1.3,marker="o",ms=3,label=nm+"(추정)",color=c)
-ax.set_title("주요 6개국 정책금리 5년 추이 (미국=실측 월별, 그 외 추정)",fontsize=9.5,color="#334155")
+ax.set_title("미국 기준금리(실효) 5년 추이 — FMP/FRED 실측",fontsize=9.5,color="#334155")
 ax.legend(fontsize=7,ncol=6,loc="upper center",bbox_to_anchor=(0.5,-0.13)); ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B")
 for s in ["top","right"]: ax.spines[s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_policy_rates.png",bbox_inches="tight"); plt.close()
@@ -58,7 +55,7 @@ if _isdate and len(d)>30:   # 1년 일별 → 날짜축(req1)
     ax.scatter([_xd[-1]],[d[-1]],color=RED,zorder=5,s=28)
     ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(_xd[-1],d[-1]),textcoords="offset points",xytext=(-40,7),color=RED,fontsize=9,fontweight="bold")
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
-    _ttl="미국 장단기 금리차(수익률곡선)(10Y-2Y) 최근 1년 일별 (+면 정상 / -면 역전)"
+    _ttl="미국 장단기 금리차(10Y-2Y) 최대기간 일별 실측 (+정상/-역전)"
 else:                        # 폴백/단기 → 카테고리축
     ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4)
     ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28); ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
@@ -71,7 +68,9 @@ plt.tight_layout(); plt.savefig("charts/macro_curve.png",bbox_inches="tight"); p
 # (3) 물가 통합 5종 YoY
 infl=S.get("inflation") or {"CPI":[2.6,2.7,2.8,2.9,3.1,3.3,3.4,3.6,3.8,3.9,4.0,4.17],"Core CPI":[2.9,2.9,3.0,3.0,3.0,3.1,3.1,3.2,3.1,3.1,3.0,3.1],"PCE":[2.3,2.4,2.4,2.5,2.5,2.6,2.6,2.6,2.6,2.7,2.6,2.6],"Core PCE":[2.6,2.6,2.7,2.7,2.7,2.8,2.8,2.8,2.8,2.8,2.8,2.8],"PPI":[1.8,2.0,2.2,2.3,2.4,2.6,2.7,2.8,2.9,3.0,2.9,2.9]}
 fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150)
-for k,v in infl.items(): ax.plot(mon,v,linewidth=1.6,marker="o",ms=3,label=k)
+for k,v in infl.items():
+    _mx=months(2025,6,len(v)) if len(v)!=12 else mon
+    ax.plot(_mx,v,linewidth=1.6,marker="o",ms=3,label=k)
 ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title("미국 물가 YoY 최근 12개월 통합 (점선=연준 2% 목표 · CPI 최신 실측)",fontsize=9.5,color="#334155")
 ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
 for s in ["top","right"]: ax.spines[s].set_visible(False)
@@ -79,56 +78,47 @@ plt.tight_layout(); plt.savefig("charts/macro_inflation.png",bbox_inches="tight"
 
 # (4) 기대인플레 10Y — req5: 축을 '이번 달'까지 동적 생성(현재월 6월 포함) + 현재값 asof 표기
 #   BEI(T10YIE)는 일별이므로 MacroAgent 가 series.infl_exp(현재월까지) + series.infl_exp_asof(YYYY-MM-DD)를 제공.
-ie=S.get("infl_exp") or [2.28,2.30,2.31,2.33,2.35,2.34,2.32,2.30,2.27,2.25,2.23,2.21]
-_asof=S.get("infl_exp_asof") or ""
-_n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
-for _ in range(_n-1):
-    _sm-=1
-    if _sm<1: _sm=12; _sy-=1
-bmon=months(_sy,_sm,_n)   # 마지막 점 = 이번 달(현재월 포함)
-fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(bmon,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
-ax.scatter([bmon[-1]],[ie[-1]],color=RED,zorder=5,s=24)
-_ttl=f"기대인플레이션 10년(BEI) 1년 추이 · 점선=2% · 현재값 {ie[-1]:.2f}%"+(f" ({_asof} 기준 실측)" if _asof else " (추정)")
-ax.set_title(_ttl,fontsize=8.6,color="#334155")
-ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
-for s in ["top","right"]: ax.spines[s].set_visible(False)
-plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()
+ie=S.get("infl_exp")
+if not (ie and len(ie)>=2):
+    fig,ax=plt.subplots(figsize=(7.2,1.0),dpi=150); ax.axis("off")
+    ax.text(0.5,0.5,"기대인플레이션 10년(BEI): 무료 실측 데이터 미확보 — 이번 회차 미표시 (추정 미사용)",ha="center",va="center",fontsize=10,color="#94A3B8")
+    plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()
+if ie and len(ie)>=2:
+    _asof=S.get("infl_exp_asof") or ""
+    _n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
+    for _ in range(_n-1):
+        _sm-=1
+        if _sm<1: _sm=12; _sy-=1
+    bmon=months(_sy,_sm,_n)
+    fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(bmon,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
+    ax.scatter([bmon[-1]],[ie[-1]],color=RED,zorder=5,s=24)
+    ax.set_title(f"기대인플레이션 10년(BEI) · 점선=2% · 현재값 {ie[-1]:.2f}% ("+(_asof or "")+" 실측)",fontsize=8.6,color="#334155")
+    ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
+    for s in ["top","right"]: ax.spines[s].set_visible(False)
+    plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()
 
 # (5) 고용 통합 2x3
 emp=S.get("employment") or {}
-nfp=emp.get("nfp") or [13,-20,64,-70,76,-140,41,-17,160,-156,214,179,172]
-un=emp.get("unemp") or [4.2,4.3,4.1,4.3,4.3,4.4,4.5,4.4,4.3,4.4,4.3,4.3,4.3]
-gdp=emp.get("gdp") or [23548.21,23770.976,24026.834,24055.749,24152.656]
-ism_m=emp.get("ism_mfg") or [49.1,48.8,49.0,48.5,48.7,49.3,48.9,49.5,48.6,48.9,48.5,48.7]
-ism_s=emp.get("ism_svc") or [51.0,51.4,50.8,51.2,52.0,51.5,51.8,52.1,51.3,51.6,51.2,51.6]
-rt=emp.get("retail") or [624272,616231,624146,628747,632149,632395,631346,634477,634830,634949,641038,653772,655933,662752]
-fig,axs=plt.subplots(2,3,figsize=(7.6,3.4),dpi=150)
+_ep=[]
+if emp.get("unemp"): _ep.append(("실업률(%, 실측)",emp["unemp"],RED,None))
+if emp.get("nfp"): _ep.append(("NFP 신규고용(천명, 실측)",emp["nfp"],BLUE,0))
+if emp.get("gdp"): _ep.append(("실질GDP(분기, 실측)",emp["gdp"],GREEN,None))
+if emp.get("retail"): _ep.append(("소매판매(백만$, 실측)",emp["retail"],"#7C3AED",None))
+if emp.get("ism_mfg"): _ep.append(("ISM 제조 PMI(실측)",emp["ism_mfg"],BLUE,50))
+if emp.get("ism_svc"): _ep.append(("ISM 서비스 PMI(실측)",emp["ism_svc"],GREEN,50))
+_nc=max(1,len(_ep)); fig,axs=plt.subplots(1,_nc,figsize=(2.7*_nc,2.6),dpi=150)
+if _nc==1: axs=[axs]
 def panel(ax,t,ys,c,hl=None):
     ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
     if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
     ax.set_title(t,fontsize=8,color="#334155"); ax.grid(True,alpha=0.2); ax.set_xticks([])
     for s in ["top","right"]: ax.spines[s].set_visible(False)
-panel(axs[0,0],"NFP 신규고용(천명, 실측)",nfp,BLUE,0); panel(axs[0,1],"실업률(%, 실측)",un,RED); panel(axs[0,2],"실질GDP(분기, 실측)",gdp,GREEN)
-panel(axs[1,0],"ISM 제조 PMI(추정)",ism_m,BLUE,50); panel(axs[1,1],"ISM 서비스 PMI(추정)",ism_s,GREEN,50); panel(axs[1,2],"소매판매(백만$, 실측)",rt,"#7C3AED")
-fig.suptitle("미국 고용·경기 6개 지표 최근 1년 통합",fontsize=9.5,color="#334155")
-plt.tight_layout(rect=[0,0,1,0.95]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
+for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
+fig.suptitle("미국 고용·경기 지표 최근 1년 (FMP 실측)",fontsize=9.5,color="#334155")
+plt.tight_layout(rect=[0,0,1,0.93]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
 
-# (6) 심리 스파크 5종
+# (6) 심리 스파크 — gen_rest_charts 의 측정치 스파크 사용(여기서 미생성, 추정 덮어쓰기 방지)
 sent=S.get("sentiment") or {}
-spark("us10y",list(range(12)),sent.get("us10y") or [4.25,4.30,4.42,4.55,4.48,4.40,4.52,4.50,4.47,4.43,4.49,4.46])
-spark("vix",list(range(12)),sent.get("vix") or [19,21,24,18,17,16,20,18,17,16,18,17.2],RED)
-# (v3.23) KSVKOSPI 스파크 = nmr_markets.json vkospi.anchors(investing.com 기간수익률 역산) 우선, 없으면 내장 예시
-_vk_anch=None
-try:
-    _mkj=json.load(open(os.path.join(O,"nmr_markets.json"),encoding="utf-8")); _vk_anch=(_mkj.get("vkospi") or {}).get("anchors")
-except Exception: _vk_anch=None
-if _vk_anch and len(_vk_anch)>=3:
-    spark("vkospi",list(range(len(_vk_anch))),[v for _,v in _vk_anch],RED)
-else:
-    spark("vkospi",list(range(12)),sent.get("vkospi") or [18,19,17,16,18,20,19,18,22,30,55,84],RED)
-spark("dxy",list(range(12)),sent.get("dxy") or [102,101,100,99.5,99,98.5,99,98.8,98.5,98.2,98,98.1])
-spark("usdkrw",list(range(12)),sent.get("usdkrw") or [1352,1361,1378,1390,1372,1366,1375,1381,1379,1377,1378,1380])
-spark("wti",list(range(12)),sent.get("wti") or [78,76,74,72,70,69,73,72,71,70,72,71.5],GREEN)
 
 # (7) 선행 EPS — 지수/PER 정합
 def fwd(name,title,eps,idx):
