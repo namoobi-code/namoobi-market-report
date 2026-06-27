@@ -1,3 +1,5 @@
+> **v3.31.0 (2026-06-26) — 섹션 재배치.** 3.2.3 경기선행지수 순환변동치 → **3.1.8**(매크로 대시보드 말미, renderKoreaLeading)로 이동. 기존 3.2.4 순환매 테마별 현황 → **3.2.3**으로 번호 변경. 3.1.5 캡션을 단일 통합차트(3중 Y축)에 맞게 수정.
+
 > **v3.30.0 (2026-06-26) — 3.1.5 선행EPS/PER DB 누적 + 단일 통합차트.** 조사된 12M 선행EPS·PER 을 `_market_report_data/nmr_fwd_history.json`(DB)에 월(YYYY-MM) 키로 저장, 매 실행 신규 검색분을 병합(`nmr_fwd_accum.py` = 시리즈 파일 + MacroAgent 스냅샷 harvest) → 시계열이 매일 향상. 차트(`gen_fwd3.py`)는 DB 를 읽어 **지수/12M선행EPS/선행PER 를 하나의 그래프(3중 Y축)** 로 표시(지수=선행EPS×선행PER 복원 → 전구간 가시, Y축 패딩). S&P500=FactSet · KOSPI=FnGuide. 판단기준 박스 포함. (구 `gen_fwd_eps.py`·3단 분리 폐기.)
 
 > **v3.29.0 (2026-06-26) — 3.1.5 3단 시계열.** 지수/12M 선행EPS/선행PER 3단 공유축 차트(gen_fwd3.py): S&P500=FactSet 14포인트(월말, 동일 산식), KOSPI=FnGuide 컨센서스 6포인트(증권사 리포트 인용). 매 실행 월말 스냅샷 nmr_fwd_history.json 누적(12+ 자동 충족). 판단 기준 박스(EPS·PER 4국면) 추가.

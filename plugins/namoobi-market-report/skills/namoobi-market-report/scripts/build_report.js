@@ -79,7 +79,7 @@ function validate(d) {
   if (d.global_securities && !gsK.some(k=>d.global_securities[k])) issues.push("global_securities 5사 평탄 키 없음 → 8장 전체 누락");
   if (d.crypto && !d.crypto.charts) warn.push("crypto.charts 없음 → 6.2 코인차트 섹션 생략됨 (coin_*.png 생성 확인)");
   if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.2.3 HY 표/그래프 비거나 누락"); }
-  if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.3 경기선행지수 누락(통계청 KOSIS 수집 필요)");
+  if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.8 경기선행지수 누락(통계청 KOSIS 수집 필요)");
   if (M.fx_markets){ const need=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'];
     const miss=need.filter(k=>{try{return !fs.existsSync('charts/spark_'+k+'.png');}catch(e){return true;}});
     if(miss.length===need.length) warn.push("환율 추세 스파크라인 전무 → 5장 추세열 빈칸(nmr_series2.fx 시계열 수집 필요)"); }
@@ -88,10 +88,10 @@ function validate(d) {
   const needChart=(cond,file,msg)=>{ if(cond){ try{ if(!fs.existsSync(file)) issues.push("[차트누락] "+msg+" → "+file+" 없음 (데이터는 있으나 차트 미생성 — 사용자 확인 필요)"); }catch(e){ issues.push("[차트누락] "+msg);} } };
   needChart(M.korea_investors&&M.korea_investors.kospi, "charts/kospi_tech.png","3.2.1 코스피 일봉 캔들");
   needChart(M.korea_investors&&M.korea_investors.kosdaq, "charts/kosdaq_tech.png","3.2.1 코스닥 일봉 캔들");
-  needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.2.3 경기선행지수 차트");
+  needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.1.8 경기선행지수 차트");
   needChart(M.hy_spread, "charts/hy_oas.png","3.3.3 HY 스프레드 차트");
-  (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.2.4 반도체 종목 추세("+((x&&x.name)||i)+")"));
-  (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.2.4 반도체 ETF 추세("+((x&&x.name)||i)+")"));
+  (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.2.3 반도체 종목 추세("+((x&&x.name)||i)+")"));
+  (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.2.3 반도체 ETF 추세("+((x&&x.name)||i)+")"));
   const etfN=(M.semi_ai_etfs||[]).length; if(M.semi_ai_etfs && etfN<20) issues.push("[부족] 반도체/AI ETF "+etfN+"종(<20) → 항상 상위 20 필요(수집 보강 후 재생성)");
   return { issues, warn };
 }
@@ -234,13 +234,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
     invMerged("순매수 상위 10 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_buy||ks.kosdaq_buy,ks.kosdaq_inst_buy,10);
     invMerged("순매도 상위 10 (좌 외국인 · 우 기관)",ks.kosdaq_foreign_sell||ks.kosdaq_sell,ks.kosdaq_inst_sell,10);
     children.push(p("")); }
-  if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.2.3 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
-    children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
-    children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
-    simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
-    { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
-    if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); }
-  { children.push(h("3.2.4 순환매 대비 테마별 현황 (대표 ETF·추세·수익률)",3));
+  { children.push(h("3.2.3 순환매 대비 테마별 현황 (대표 ETF·추세·수익률)",3));
     if(m.korea_themes_intro)children.push(p(m.korea_themes_intro,{italics:true,color:"64748B"}));
     children.push(p("각 항목은 2줄로 표기: 1행=설명(테마/종목·방향·대표ETF/시총·현황), 2행=현재가·1주·1개월·3개월·6개월·1년 수익률·추세(1Y) 그래프·추세 평가.",{size:16,color:"94A3B8"}));
     // (요청) 2줄 수익률 블록: 1행=설명(span), 2행=현재가·1주~1년·추세그래프·추세평가
@@ -312,6 +306,14 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
     children.push(p("EPS·PER: SK하이닉스·삼성전자=삼성증권 컨센서스(2026-06), Micron=S&P Global 컨센서스. 2026E~2028E 추정치 · 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
   children.push(p("")); }
 
+// (v3.31.0) 3.1.8 경기선행지수 — 3.2 한국증시 -> 3.1 매크로 대시보드로 이동.
+function renderKoreaLeading(){ const m=data.markets||{};
+  if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.8 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
+    children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
+    children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
+    simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
+    { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
+    if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); } }
 // (v3.6.30) 3.2.2 FOMC 점도표(dot plot) — 데이터(markets.fomc_dotplot) 없으면 자동 생략.
 function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; if(!f||typeof f!=="object")return;
   if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
@@ -736,10 +738,11 @@ function renderMacroIndicators(){
     const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
   children.push(p("■ 실적 vs 밸류에이션 판단 기준",{bold:true,color:"1E40AF",before:90,size:18}));
   ["EPS 우상향 + PER 안정 → 건강한 강세장","EPS 우상향 + PER 급등 → 과열 가능성","EPS 둔화 + PER 유지 → 고점권 경계","EPS 하향 + PER 축소 → 조정장·디레이팅"].forEach(t=>children.push(p("• "+t,{size:16,color:"475569"})));
-  children.push(p("※ 차트는 같은 날짜축(월말)에 지수·12M 선행EPS·선행PER 3단으로 정렬. S&P500=FactSet, KOSPI=FnGuide 컨센서스 — 동일 출처·산식.",{size:14,italics:true,color:"94A3B8"}));
+  children.push(p("※ 차트는 같은 날짜축(월말)에 지수·12M 선행EPS·선행PER 를 하나의 그래프(3중 Y축)로 합쳐 표시. S&P500=FactSet, KOSPI=FnGuide 컨센서스 — 동일 출처·산식.",{size:14,italics:true,color:"94A3B8"}));
   children.push(p(""));
   renderCapex();
   renderHBM();
+  renderKoreaLeading();
 }
 
 if (data.markets) {
