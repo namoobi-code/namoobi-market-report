@@ -71,6 +71,26 @@ try:
         _,REV       =_apply(bc.get("rev_series"),"years",YEARS,REV)
         FCF_YEARS,FCF=_apply(bc.get("fcf_series"),"years",FCF_YEARS,FCF)
 except Exception: pass
+# ---- (v3.34) 표와 차트 일치: bigtech_capex.rows(y2024..y2029)로 막대 CAPEX 덮어쓰기(2023은 내장 유지) ----
+try:
+    if rp:
+        _bc=((json.load(open(rp)).get("markets") or {}).get("bigtech_capex")) or {}
+        _rows=_bc.get("rows")
+        if isinstance(_rows,list) and _rows:
+            _yrs=["y2024","y2025","y2026","y2027","y2028","y2029"]; _new=dict(CAPEX); _ok=True
+            for c in COMPANIES:
+                _row=next((r for r in _rows if str(r.get("company","")).split(" (")[0].strip()==c), None)
+                if not _row: _ok=False; break
+                _v=[]
+                for k in _yrs:
+                    try: _v.append(float(_row.get(k)))
+                    except Exception: _ok=False; break
+                if not _ok or len(_v)!=6: _ok=False; break
+                _b23=(CAPEX.get(c) or [_v[0]])[0]
+                _new[c]=[_b23]+_v
+            if _ok:
+                YEARS=[2023,2024,2025,2026,2027,2028,2029]; CAPEX=_new
+except Exception: pass
 
 tot_capex=[sum(CAPEX[c][i] for c in COMPANIES) for i in range(len(YEARS))]
 tot_rev=[sum(REV[c][i] for c in COMPANIES) for i in range(len(YEARS))]
@@ -108,7 +128,7 @@ def chart_stack(ax):
     ax2.spines["right"].set_color("#FCA5A5")
     h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels()
     ax.legend(h1+h2, l1+l2, loc="upper left", fontsize=7.6, ncol=3, frameon=False, handlelength=1.2, columnspacing=1.0, borderaxespad=0.2)
-    ax.set_title("치솟는 빅테크 CAPEX — 매출 대비 비중 30%대 진입", fontsize=11, color=INK, fontweight="bold", pad=10, loc="left")
+    ax.set_title(f"치솟는 빅테크 CAPEX — 매출 대비 비중 최대 {max(ratio)}%까지 상승", fontsize=11, color=INK, fontweight="bold", pad=10, loc="left")
 
 def chart_fcf(ax):
     x=list(range(len(FCF_YEARS))); order=[c for c in ["Microsoft","Alphabet","Meta","Amazon","Oracle"] if c in FCF]
