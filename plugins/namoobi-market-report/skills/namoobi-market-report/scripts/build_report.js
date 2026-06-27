@@ -617,6 +617,27 @@ function markStance(s){ s=String(s||""); if(s.includes("매파"))return negative
 
 function hdrRow(labels,w){ return new TableRow({children:labels.map((x,i)=>cell(x,{width:w[i],header:true,align:AlignmentType.CENTER}))}); }
 
+// (v3.32.0) 3.1.5 선행EPS/PER DB(schema2) 리더 + 최신5 표
+let _fwdHist=undefined;
+function fwdHist(){ if(_fwdHist!==undefined) return _fwdHist;
+  for(const c of [path.join(__dirname,'nmr_fwd_history.json'),path.join(process.cwd(),'nmr_fwd_history.json')]){ try{ _fwdHist=JSON.parse(fs.readFileSync(c,'utf8')); return _fwdHist; }catch(e){} }
+  _fwdHist={}; return _fwdHist; }
+function fwdRecentTable(key,unit){ const h=fwdHist(); const arr=(h&&h[key])||[]; if(!arr.length) return;
+  const rows=arr.slice().sort((a,b)=>String(b.eps_date||b.date).localeCompare(String(a.eps_date||a.date))).slice(0,5);
+  const w=[2300,2100,1600,3400];
+  const epsS=(v)=>v==null?"-":(unit==="$"?("$"+(Math.round(v*100)/100)):((Math.round(v*10)/10)+"p"));
+  const tr=[hdrRow(["선행 EPS (날짜)","선행 PER (날짜)","날짜시점 지수","조사 출처·링크"],w)];
+  rows.forEach((r,i)=>{ const a=i%2===1;
+    const lr = r.link ? new ExternalHyperlink({link:r.link,children:[new TextRun({text:String(r.src||r.link).slice(0,42),color:"1155CC",size:15,underline:{type:"single"}})]}) : new TextRun({text:String(r.src||"-"),size:15,color:"475569"});
+    const lc = new TableCell({borders,width:{size:w[3],type:WidthType.DXA},shading:a?altShading:undefined,margins:{top:40,bottom:40,left:110,right:110},children:[new Paragraph({children:[lr]})]});
+    tr.push(new TableRow({children:[
+      cell(epsS(r.eps)+"  ("+(r.eps_date||"-")+")",{width:w[0],alt:a,size:16}),
+      cell((r.per!=null?(r.per+"배"):"-")+"  ("+(r.per_date||"-")+")",{width:w[1],alt:a,size:16}),
+      cell(r.idx!=null?Number(r.idx).toLocaleString():"-",{width:w[2],alt:a,align:AlignmentType.RIGHT,size:16}),
+      lc]})); });
+  children.push(p("■ 최신 5건 (DB 누적 — 선행EPS·PER·날짜시점 지수·조사 출처)",{bold:true,color:"1E40AF",before:70,size:17}));
+  children.push(makeTable(w,tr));
+  children.push(p("DB(nmr_fwd_history.json) 최신 5건 · EPS/PER 한쪽만 조사 시 해당일 일일지수로 보정(EPS×PER=지수) 후 저장 · 매 실행 신규 검색분 누적.",{size:13,color:"94A3B8"})); }
 function renderMacroIndicators(){
   const M=data.markets||{}; const x=M.macro; if(!x)return;
   children.push(h("3.1 주요지표 (매크로 대시보드)",2));
@@ -730,15 +751,18 @@ function renderMacroIndicators(){
   children.push(p(""));
   children.push(h("3.1.5 지수·Forward EPS·PER (실적 vs 밸류에이션)",3));
   children.push(p("선행 EPS(향후 12개월 예상 이익)와 지수·선행 PER 의 관계로 '실적장세 vs 밸류 부담'을 점검한다. 지수는 실측, 선행 EPS 는 컨센서스 기반 추정.",{italics:true,color:"64748B"}));
+  { const _hh=fwdHist(); const _ls=((_hh.spx||[]).slice(-1)[0])||{}; const _lk=((_hh.kospi||[]).slice(-1)[0])||{};
   if(s.spx_fwd){ const e=s.spx_fwd;
-    children.push(p("■ S&P500 12M Forward EPS: $"+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 7,500 / "+e.asof+")",{bold:true,color:"1E40AF",before:100}));
-    const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
+    children.push(p("■ S&P500 12M Forward EPS: $"+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (날짜시점 지수 "+(_ls.idx!=null?Number(_ls.idx).toLocaleString():"-")+" / "+(_ls.idx_date||e.asof)+")",{bold:true,color:"1E40AF",before:120}));
+    const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:14,color:"94A3B8"}));
+    fwdRecentTable("spx","$"); }
   if(s.kospi_fwd){ const e=s.kospi_fwd;
-    children.push(p("■ KOSPI 12M Forward EPS: "+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 9,000 / "+e.asof+")",{bold:true,color:"1E40AF",before:80}));
-    const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
+    children.push(p("■ KOSPI 12M Forward EPS: "+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (날짜시점 지수 "+(_lk.idx!=null?Number(_lk.idx).toLocaleString():"-")+" / "+(_lk.idx_date||e.asof)+")",{bold:true,color:"1E40AF",before:160}));
+    const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:14,color:"94A3B8"}));
+    fwdRecentTable("kospi","p"); } }
   children.push(p("■ 실적 vs 밸류에이션 판단 기준",{bold:true,color:"1E40AF",before:90,size:18}));
   ["EPS 우상향 + PER 안정 → 건강한 강세장","EPS 우상향 + PER 급등 → 과열 가능성","EPS 둔화 + PER 유지 → 고점권 경계","EPS 하향 + PER 축소 → 조정장·디레이팅"].forEach(t=>children.push(p("• "+t,{size:16,color:"475569"})));
-  children.push(p("※ 차트는 같은 날짜축(월말)에 지수·12M 선행EPS·선행PER 를 하나의 그래프(3중 Y축)로 합쳐 표시. S&P500=FactSet, KOSPI=FnGuide 컨센서스 — 동일 출처·산식.",{size:14,italics:true,color:"94A3B8"}));
+  children.push(p("※ 통합차트: 지수=일일선(실측 일봉), 12M 선행EPS·선행PER=조사 시점 포인트(3중 Y축). EPS/PER 한쪽만 조사되면 해당일 지수로 보정(EPS×PER=지수). S&P500=FactSet, KOSPI=FnGuide 컨센서스.",{size:14,italics:true,color:"94A3B8"}));
   children.push(p(""));
   renderCapex();
   renderHBM();
