@@ -730,10 +730,10 @@ function renderMacroIndicators(){
   children.push(p("선행 EPS(향후 12개월 예상 이익)와 지수·선행 PER 의 관계로 '실적장세 vs 밸류 부담'을 점검한다. 지수는 실측, 선행 EPS 는 컨센서스 기반 추정.",{italics:true,color:"64748B"}));
   if(s.spx_fwd){ const e=s.spx_fwd;
     children.push(p("■ S&P500 12M Forward EPS: $"+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 7,500 / "+e.asof+")",{bold:true,color:"1E40AF",before:100}));
-    const c=imagePara(e.chart,620,470); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
+    const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
   if(s.kospi_fwd){ const e=s.kospi_fwd;
     children.push(p("■ KOSPI 12M Forward EPS: "+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (지수 약 9,000 / "+e.asof+")",{bold:true,color:"1E40AF",before:80}));
-    const c=imagePara(e.chart,620,470); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
+    const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:15,color:"94A3B8"})); }
   children.push(p("■ 실적 vs 밸류에이션 판단 기준",{bold:true,color:"1E40AF",before:90,size:18}));
   ["EPS 우상향 + PER 안정 → 건강한 강세장","EPS 우상향 + PER 급등 → 과열 가능성","EPS 둔화 + PER 유지 → 고점권 경계","EPS 하향 + PER 축소 → 조정장·디레이팅"].forEach(t=>children.push(p("• "+t,{size:16,color:"475569"})));
   children.push(p("※ 차트는 같은 날짜축(월말)에 지수·12M 선행EPS·선행PER 3단으로 정렬. S&P500=FactSet, KOSPI=FnGuide 컨센서스 — 동일 출처·산식.",{size:14,italics:true,color:"94A3B8"}));

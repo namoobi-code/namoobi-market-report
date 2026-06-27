@@ -1,3 +1,5 @@
+> **v3.30.0 — 3.1.5 선행EPS/PER DB 누적.** MacroAgent 가 매 실행 수집하는 S&P500(FactSet)·KOSPI(FnGuide) 12M 선행 P/E·선행EPS(`nmr_macro.json` sentiment.spx_fwd/kospi_fwd)를, 파이프라인이 `nmr_fwd_accum.py` 로 시리즈 파일(`nmr_spx/kospi_fwd_series.json`)과 함께 `_market_report_data/nmr_fwd_history.json`(DB·연결폴더·영구)에 **월 키로 병합**(신규 추가·기존 갱신)한다 → 시계열이 매일 누적·향상. `gen_fwd3.py` 가 이 DB 를 읽어 지수/EPS/PER **단일 통합차트(3중 Y축, 지수=선행EPS×선행PER 복원)** 를 그린다. (`nmr_fwd_history.json` 은 런타임 데이터 — 저장소에 커밋하지 않음.)
+
 ## 추가 규칙 — 2026-06-26 (라운드6) 변동이력·표 정비
 
 - **변동이력(빨간색, 표 위)**: nmr_changelog.py 가 비일간 지표(정책금리·물가·고용·CAPEX) 최종값을 `_market_report_data/nmr_valcache.json` 에 저장 → 매 실행 직전값과 비교, 변경분만 change_log 로 부착(merge 후·build 전 실행). build 가 각 표 **위에 빨간색**으로 렌더(변경 없으면 미표시).
