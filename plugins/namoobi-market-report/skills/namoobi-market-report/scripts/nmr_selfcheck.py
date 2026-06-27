@@ -2,12 +2,14 @@
 # Phase 0 자가점검: 지금 실행하려는 '설치본 스크립트'가 GitHub repo HEAD(진실 원본)와 일치하는지 확인.
 # 불일치(설치본 STALE)면 목록 출력 + exit 2 → 스킬은 사용자에게 '플러그인 업데이트' 요청 후 진행 여부 확인.
 # 사용: python3 nmr_selfcheck.py <설치 scripts 디렉터리> [<githubtoken.txt 경로>]
-import sys, os, subprocess, tempfile, glob
+import sys, os, subprocess, tempfile, glob, hashlib
 SRC = sys.argv[1]
 TOKP = sys.argv[2] if len(sys.argv) > 2 else None
 REPO = "github.com/namoobi-code/namoobi-market-report.git"
 def h(p):
-    return subprocess.run(["git","hash-object",p],capture_output=True,text=True).stdout.strip()
+    try:
+        with open(p,"rb") as f: return hashlib.sha256(f.read().replace(b"\r\n",b"\n")).hexdigest()
+    except Exception: return None
 tok = None
 if TOKP and os.path.exists(TOKP):
     tok = open(TOKP).read().strip()
