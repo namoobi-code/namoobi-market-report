@@ -247,7 +247,7 @@ _rt3['policy_rates_chart'] = 'charts/macro_policy_rates.png'
 if isinstance(_rt3.get('yield_curve'), dict): _rt3['yield_curve']['chart'] = 'charts/macro_curve.png'
 _um10 = ((m.get('us_markets') or {}).get('us10y') or {})
 if isinstance(_rt3.get('us10y'), dict) and _um10.get('prev_pct') is not None: _rt3['us10y']['prev_pct'] = _um10['prev_pct']
-_spk3 = {'VIX (공포지수)':'charts/spark_vix.png','달러인덱스 DXY':'charts/spark_dxy.png','원/달러 환율':'charts/spark_usdkrw.png','WTI 유가':'charts/spark_wti.png','미국 10년물 국채금리':'charts/spark_us10y_v2.png'}
+_spk3 = {'VIX (공포지수)':'charts/spark_vix.png','KSVKOSPI (KOSPI Volatility)':'charts/spark_vkospi.png','달러인덱스 DXY':'charts/spark_dxy.png','원/달러 환율':'charts/spark_usdkrw.png','WTI 유가':'charts/spark_wti.png','미국 10년물 국채금리':'charts/spark_us10y_v2.png'}
 for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
     if _r3.get('name') in _spk3: _r3['spark'] = _spk3[_r3['name']]
 _cap3 = L('nmr_capex.json')

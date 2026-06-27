@@ -108,13 +108,13 @@ def _pairs_dt(series):
     return out
 
 # ================= 렌더 =================
-fig=plt.figure(figsize=(15.2,16.8), dpi=150)
+fig=plt.figure(figsize=(15.2,12.8), dpi=150)
 fig.suptitle("반도체 주가 체크용 메모리 + HBM 지표 대시보드", fontsize=21, fontweight="bold", y=0.987)
 _src=D.get("source") or "TrendForce·실적 컨센서스·언론 종합"
 _tag="추정치" if USED_LIVE else "예시·추정 데이터"
 fig.text(0.5,0.962, f"※ 아래 모든 수치는 {_tag}입니다 — 에이전트 웹리서치({_src}) 기준, 확인 불가 항목은 미표기('추정' 표기)",
          ha="center", fontsize=10.5, color="#B45309")
-gs=fig.add_gridspec(4,2, top=0.935, bottom=0.035, left=0.06, right=0.97, hspace=0.62, wspace=0.20, height_ratios=[1,1,1,0.62])
+gs=fig.add_gridspec(3,2, top=0.93, bottom=0.05, left=0.06, right=0.97, hspace=0.55, wspace=0.20, height_ratios=[1,1,1])
 def style(ax):
     for s in ["top","right"]: ax.spines[s].set_visible(False)
     ax.grid(**GRID)
@@ -190,21 +190,6 @@ ax6.set_ylim(min(gy)-0.1, max(gy)+0.18); ax6.set_xticks(gx)
 for x,v in zip(gx,gy): ax6.annotate(f"{v:.1f}x",(x,v),textcoords="offset points",xytext=(0,9),ha="center",fontsize=9,color=C_GAP,fontweight="bold")
 style(ax6); ax6.legend(loc="upper center", **LEG)
 caption(ax6, "격차 축소는 HBM 프리미엄 약화, 확대는 HBM 강세 지속 신호입니다.")
-
-# 패널7 — EPS/PER 표
-ax7=fig.add_subplot(gs[3,:]); ax7.axis("off")
-yc=D.get("year_cur","당해"); yn=D.get("year_next","차년")
-ax7.set_title(f"HBM 3사 EPS / PER  —  해당년도 {yc} · 차년도 {yn} (추정)", fontsize=13, fontweight="bold", pad=14)
-col=["종목",f"EPS {yc}",f"EPS {yn}",f"PER {yc}",f"PER {yn}"]
-rows=[[r.get("name","-"),r.get("eps_cur","-"),r.get("eps_next","-"),r.get("per_cur","-"),r.get("per_next","-")] for r in D["eps_per"]]
-tbl=ax7.table(cellText=rows, colLabels=col, loc="center", cellLoc="center", bbox=[0.06,0.18,0.88,0.66])
-tbl.auto_set_font_size(False); tbl.set_fontsize(11)
-for (r,c),cell in tbl.get_celld().items():
-    cell.set_edgecolor("#D1D5DB"); cell.set_height(0.18)
-    if r==0: cell.set_facecolor("#1E40AF"); cell.set_text_props(color="white", fontweight="bold")
-    elif r%2==0: cell.set_facecolor("#F1F5F9")
-ax7.text(0.06,0.06,"[해석] 점유율↑ 기업일수록 HBM 호황 이익이 EPS 로 반영, 차년도 PER 하락(이익 증가)이면 밸류 매력 — EPS·PER 은 추정치(컨센서스 기준)",
-         transform=ax7.transAxes, ha="left", va="top", fontsize=9.5, color="#475569")
 
 os.makedirs("charts", exist_ok=True)
 OUT="charts/hbm_dashboard.png"

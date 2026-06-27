@@ -93,23 +93,36 @@ if len(pts)>=2:
     ax.xaxis.set_major_locator(mdates.YearLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y')); ax.grid(alpha=0.2); ax.set_ylabel('%p',fontsize=8,color='#64748B')
     for s in ['top','right']: ax.spines[s].set_visible(False)
     plt.tight_layout(); plt.savefig('charts/macro_curve.png',bbox_inches='tight'); plt.close()
-# (6) spx fwd
-sf=m2.get('spx_fwd') or {}; se=[x for x in ((m2.get('series') or {}).get('spx_eps') or []) if x is not None]; si=[x for x in ((m2.get('series') or {}).get('spx_idx') or []) if x is not None]
-if sf.get('fwd_eps'):
-    if len(se)>=2 and len(se)==len(si):
-        x=mlab(len(se)); fig,ax=plt.subplots(figsize=(7.2,2.4),dpi=150); ax.bar(x,se,width=18,color='#93C5FD',label='12M Fwd EPS'); ax.set_ylabel('Fwd EPS($)',fontsize=8,color=B)
-        ax2=ax.twinx(); ax2.plot(x,si,color=B,lw=2,marker='o',ms=3,label='지수'); ax2.set_ylabel('지수',fontsize=8,color=B)
-        ax.set_title('S&P500 12M 선행EPS·지수 (FactSet 실측, 선행P/E %.1fx)'%sf.get('fwd_per',0),fontsize=9,color='#334155'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
-        for s in ['top']: ax.spines[s].set_visible(False)
-        plt.tight_layout(); plt.savefig('charts/macro_spx_fwd.png',bbox_inches='tight'); plt.close()
-    elif len(si)>=2:
-        x=mlab(len(si)); fig,ax=plt.subplots(figsize=(7.2,2.4),dpi=150); ax.plot(x,si,color=B,lw=2,marker='o',ms=3)
-        ax.set_title('S&P500 지수 추이(24개월) · 현재 선행 P/E %.1fx · 선행EPS $%.1f (FactSet 실측)'%(sf.get('fwd_per',0),sf.get('fwd_eps',0)),fontsize=9,color='#334155')
-        ax.grid(alpha=0.25); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
-        for s2 in ['top','right']: ax.spines[s2].set_visible(False)
-        plt.tight_layout(); plt.savefig('charts/macro_spx_fwd.png',bbox_inches='tight'); plt.close()
-    else:
-        fig,ax=plt.subplots(figsize=(7.2,1.3),dpi=150); ax.axis('off')
-        ax.text(0.5,0.5,'S&P500 12M 선행 P/E %.1fx · 선행EPS $%.1f · 지수 %.0f (FactSet 실측, %s)'%(sf.get('fwd_per',0),sf.get('fwd_eps',0),sf.get('idx',0),sf.get('asof','')),ha='center',va='center',fontsize=11,color=B)
-        plt.tight_layout(); plt.savefig('charts/macro_spx_fwd.png',bbox_inches='tight'); plt.close()
+# (6) spx/kospi 선행EPS·지수·PER (nmr_fwd)
+fw=L('nmr_fwd.json')
+def _fwd_chart(node,out,name):
+    e=[v for v in (node.get('eps') or []) if v is not None]; i=[v for v in (node.get('idx') or []) if v is not None]; mo=node.get('months') or []
+    try:
+        if len(e)>=2 and len(e)==len(i):
+            xm=[dt.datetime.strptime(m,'%Y-%m') for m in mo[:len(e)]]; per=[round(i[k]/e[k],1) for k in range(len(e))]
+            fig,ax=plt.subplots(figsize=(7.2,2.5),dpi=150); ax.bar(xm,e,width=20,color='#93C5FD',label='12M Fwd EPS'); ax.set_ylabel('Fwd EPS',fontsize=8,color=B)
+            ax2=ax.twinx(); ax2.plot(xm,i,color=B,lw=2,marker='o',ms=3,label='지수')
+            ax3=ax.twinx(); ax3.spines['right'].set_position(('outward',40)); ax3.plot(xm,per,color=R,lw=1.5,ls='--',label='선행PER'); ax3.set_ylabel('선행PER(x)',fontsize=8,color=R)
+            ax.set_title(name+' 12개월 선행EPS·지수·선행PER (실측)',fontsize=9,color='#334155'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m'))
+            h1,l1=ax.get_legend_handles_labels();h2,l2=ax2.get_legend_handles_labels();h3,l3=ax3.get_legend_handles_labels(); ax.legend(h1+h2+h3,l1+l2+l3,fontsize=7,loc='upper left')
+            plt.tight_layout(); plt.savefig(out,bbox_inches='tight'); plt.close(); return
+        if len(i)>=2:
+            xm=[dt.datetime.strptime(m,'%Y-%m') for m in mo[:len(i)]]
+            fig,ax=plt.subplots(figsize=(7.2,2.2),dpi=150); ax.plot(xm,i,color=B,lw=2,marker='o',ms=3)
+            ax.set_title(name+' 지수 추이 (선행EPS 미확보 — 지수만)',fontsize=9,color='#334155'); ax.xaxis.set_major_formatter(mdates.DateFormatter('%y/%m')); ax.grid(alpha=0.25)
+            for s in ['top','right']: ax.spines[s].set_visible(False)
+            plt.tight_layout(); plt.savefig(out,bbox_inches='tight'); plt.close()
+    except Exception as e: print('fwd chart err',name,e)
+_fwd_chart(fw.get('spx') or {},'charts/macro_spx_fwd.png','S&P500')
+_fwd_chart(fw.get('kospi') or {},'charts/macro_kospi_fwd.png','KOSPI')
+# (7) GDP 성장률 분기 (최근 ~1년)
+gd=L('nmr_gdp.json'); gg=[(str(q),v) for q,v in (gd.get('gdp_growth') or []) if v is not None]
+if len(gg)>=2:
+    labs=[q for q,_ in gg]; ys=[v for _,v in gg]; cols=[G if v>=0 else R for v in ys]
+    fig,ax=plt.subplots(figsize=(5.8,2.15),dpi=150); ax.bar(range(len(ys)),ys,color=cols,width=0.6); ax.axhline(0,color='#9ca3af',lw=0.8)
+    for i,v in enumerate(ys): ax.text(i,v+(0.08 if v>=0 else -0.22),('%+.1f'%v),ha='center',fontsize=8,color='#334155')
+    ax.set_xticks(range(len(labs))); ax.set_xticklabels(labs,fontsize=8); ax.set_ylabel('%',fontsize=8,color='#64748B')
+    ax.set_title('미국 실질 GDP 성장률(전기比 연율) 최근 %d분기 실측'%len(ys),fontsize=9,color='#334155'); ax.grid(alpha=0.2,axis='y')
+    for sp in ['top','right']: ax.spines[sp].set_visible(False)
+    plt.tight_layout(); plt.savefig('charts/macro_gdp.png',bbox_inches='tight'); plt.close(); print('gdp chart',len(ys),'q')
 print('gen_macro2 done')

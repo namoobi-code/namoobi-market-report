@@ -1,3 +1,14 @@
+## 추가 규칙 — 2026-06-26 (라운드6) 변동이력·표 정비
+
+- **변동이력(빨간색, 표 위)**: nmr_changelog.py 가 비일간 지표(정책금리·물가·고용·CAPEX) 최종값을 `_market_report_data/nmr_valcache.json` 에 저장 → 매 실행 직전값과 비교, 변경분만 change_log 로 부착(merge 후·build 전 실행). build 가 각 표 **위에 빨간색**으로 렌더(변경 없으면 미표시).
+- 3.1.4 심리표 우측열 헤더 = '시장 영향'.
+- KSVKOSPI: investing.com 1년 일별(nmr_vkospi_hist.json)로 현재·1주~1년·스파크 산출.
+- 3.1.5: nmr_fwd.json(SPX eps+idx, KOSPI idx) → gen_macro2 가 선행EPS·지수·선행PER 오버레이(KOSPI 선행EPS 미확보 시 지수만).
+- 3.1.6 CAPEX change_log 표 위. 3.1.7 gen_hbm_dashboard EPS패널 제거 + nmr_hbm_eps.json 3사 연도별 EPS/PER 표(2025~2028E, build).
+- 3.1.3 GDP 분기 별도 차트(nmr_gdp.json, gen_macro2). 고용 통합차트는 월별 5종.
+
+---
+
 ## 추가 규칙 — 2026-06-26 (라운드6) 3.1.2/3.1.3 표 스키마
 
 - **3.1.2 물가 표**: 컬럼 = 지표·최신값 YoY·최신값 MoM·기준월·**발표날짜**·의미·시장영향. 행 6개 = CPI·Core CPI·PCE·Core PCE·PPI·**기대인플레 10Y BEI(표 행으로 통합)**. yoy/mom 은 숫자(자동 % 포맷) 또는 문자열(BEI 등) 모두 허용. inflation.rows[]={name,yoy,mom,asof,release,meaning,impact}. 별도 BEI 소절 제거, 통합 추이 그래프 1개(macro_inflation.png).
