@@ -125,8 +125,8 @@ def chart_stack(ax):
     for s in ["top","left"]: ax2.spines[s].set_visible(False)
     ax2.spines["right"].set_color("#FCA5A5")
     h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels()
-    ax.legend(h1+h2, l1+l2, loc="upper left", fontsize=7.6, ncol=3, frameon=False, handlelength=1.2, columnspacing=1.0, borderaxespad=0.2)
-    ax.set_title(f"치솟는 빅테크 CAPEX — 매출 대비 비중 최대 {max(ratio)}%까지 상승", fontsize=11, color=INK, fontweight="bold", pad=10, loc="left")
+    ax.legend(h1+h2, l1+l2, loc="lower left", bbox_to_anchor=(0,1.005), fontsize=8, ncol=6, frameon=False, handlelength=1.4, columnspacing=1.3, borderaxespad=0)
+    ax.set_title(f"치솟는 빅테크 CAPEX — 매출 대비 비중 최대 {max(ratio)}%까지 상승", fontsize=11, color=INK, fontweight="bold", pad=30, loc="left")
 
 def chart_fcf(ax):
     x=list(range(len(FCF_YEARS))); order=[c for c in ["Microsoft","Alphabet","Meta","Amazon","Oracle"] if c in FCF]
@@ -137,14 +137,12 @@ def chart_fcf(ax):
     ax.axhline(0, color="#475569", linewidth=1.0, linestyle=(0,(4,3)), zorder=2)
     for c in order:
         ax.plot(x, FCF[c], color=COLORS[c], linewidth=2.0, marker="o", ms=4.5, markeredgecolor="white", markeredgewidth=0.8, label=KLABEL[c], zorder=4)
-    style_ax(ax); ax.set_xlim(-0.3, len(FCF_YEARS)-0.55); ax.set_ylim(ymin-12, ymax+8)
+    style_ax(ax); ax.set_xlim(-0.3, len(FCF_YEARS)-0.55); ax.set_ylim(ymin-14, ymax+14)
     ax.set_xticks(x); ax.set_xticklabels(xl(FCF_YEARS))
     ax.set_ylabel("잉여현금흐름 FCF (십억 달러)", fontsize=8.5, color=SUB)
     ax.yaxis.set_major_locator(MultipleLocator(40)); ax.grid(axis="y", alpha=0.25, color=GRID); ax.set_axisbelow(True)
-    ax.legend(loc="upper left", fontsize=7.6, ncol=5, frameon=False, handlelength=1.2, columnspacing=1.0, borderaxespad=0.2)
-    neg=[KLABEL[c] for c in order if min(FCF[c])<0]
-    if neg: ax.annotate("·".join(neg)+" 마이너스 전환", (max(0,est_x), ymin*0.8 if ymin<0 else ymin), fontsize=7.6, color="#B91C1C", fontweight="bold", ha="center")
-    ax.set_title("일부 빅테크는 FCF(잉여현금흐름) 마이너스 구간 진입", fontsize=11, color=INK, fontweight="bold", pad=10, loc="left")
+    ax.legend(loc="lower left", bbox_to_anchor=(0,1.005), fontsize=8, ncol=5, frameon=False, handlelength=1.5, columnspacing=1.6, borderaxespad=0)
+    ax.set_title("일부 빅테크는 FCF(잉여현금흐름) 마이너스 구간 진입", fontsize=11, color=INK, fontweight="bold", pad=30, loc="left")
 
 NOTE=("2023~2025 실적(각사 10-K, 단위 십억 달러) · 2026 회사 가이던스 · 2027~2029 전망(E) · 회색=전망구간 · 자료: 각사 SEC 보고서/FMP, AI Research")
 
@@ -152,7 +150,7 @@ fig,ax=plt.subplots(figsize=(8.2,3.6),dpi=150); chart_stack(ax)
 fig.text(0.01,0.005,NOTE,fontsize=6.6,color=FAINT,ha="left")
 plt.tight_layout(rect=[0,0.04,1,1]); plt.savefig(OUT_STACK,bbox_inches="tight"); plt.close(); print("capex stack ->",OUT_STACK)
 
-fig,ax=plt.subplots(figsize=(8.2,3.3),dpi=150); chart_fcf(ax)
+fig,ax=plt.subplots(figsize=(8.2,3.9),dpi=150); chart_fcf(ax)
 fig.text(0.01,0.005,NOTE,fontsize=6.6,color=FAINT,ha="left")
 plt.tight_layout(rect=[0,0.04,1,1]); plt.savefig(OUT_FCF,bbox_inches="tight"); plt.close(); print("capex fcf ->",OUT_FCF)
 print("ratio:",ratio,"| capex tot:",tot_capex)
