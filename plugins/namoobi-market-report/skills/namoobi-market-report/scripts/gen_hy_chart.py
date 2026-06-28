@@ -52,6 +52,15 @@ if not series:
         except Exception: pass
 if not series:
     print("hy: 데이터 없음 — 차트 생략(표는 hy_spread 값으로 렌더됨)"); sys.exit(0)
+# (req11) HY 차트 X축 최근 1년으로 제한
+try:
+    import datetime as _dt
+    _last=series[-1][0]
+    if hasattr(_last,"toordinal"):
+        _cut=_last-_dt.timedelta(days=366)
+        series=[p for p in series if p[0]>=_cut] or series
+        if cur is None or (hasattr(cur[0],"toordinal") and cur[0]<_cut): cur=series[-1]
+except Exception: pass
 xs=[p[0] for p in series]; ys=[p[1] for p in series]
 if cur is None: cur=series[-1]
 fig,ax=plt.subplots(figsize=(7.2,2.6),dpi=150)
