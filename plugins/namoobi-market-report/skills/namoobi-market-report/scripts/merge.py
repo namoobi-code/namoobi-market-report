@@ -284,6 +284,14 @@ for _r in ((macro.get('sentiment') or {}).get('rows') or []):
 _reuse((macro.get('rates') or {}).get('us10y'), _us.get('us10y'))
 # (v3.22) KSVKOSPI 표준화 + CNBC 실시간 주입 — 에이전트가 VKOSPI/KSVKOSPI 어떤 이름으로 주든 통일
 _vk = mk.get('vkospi')
+if not (isinstance(_vk, dict) and _vk.get('current') is not None):
+    # (req27) KSVKOSPI 폴백: 일별 캐시(nmr_vkospi_history.json) 최신값 — 라이브 실패 시에도 stale 기본값/'-' 금지
+    try:
+        _vp = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json') or glob.glob(os.path.join(W,'_market_report_data','nmr_vkospi_history.json')) or [None])[0]
+        if _vp:
+            _vser = (json.load(open(_vp)).get('series') or [])
+            if _vser: _vk = {'current': _vser[-1][1], 'trend': '캐시(CNBC .KSVKOSPI 일별누적)', 'anchors': _vser}
+    except Exception: pass
 for _r in ((macro.get('sentiment') or {}).get('rows') or []):
     if isinstance(_r, dict) and 'VKOSPI' in str(_r.get('name', '')).upper():
         _r['name'] = 'KSVKOSPI (KOSPI Volatility)'
