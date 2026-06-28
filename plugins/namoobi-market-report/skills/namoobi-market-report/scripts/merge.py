@@ -476,6 +476,7 @@ try:
     _tn = news.get('top_news') or []
     _fresh = [x for x in _tn if str(x.get('published_date','')) >= _d1]
     if _fresh: news['top_news'] = _fresh
+    for _i, _t in enumerate(news.get('top_news') or []): _t['rank'] = _i + 1  # [fix] 신선도 필터 후 rank 1..N 재부여(번호 공백 방지)
 except Exception: pass
 # (req2) 2.3 빅테크 이벤트·이벤트캘린더: 지나간(오늘 이전) 항목 제거
 try:
