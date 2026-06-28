@@ -40,7 +40,10 @@
 
 ## 추가 규칙 — 2026-06-26 (라운드3) 매크로 실측 강화
 
-- **MacroAgent series 포맷**: gen_macro_charts 스키마(평면 숫자배열)로 산출 — `fed_funds_5y`[~60 월별], `curve_10_2`[일별 최대기간]+`curve_labels`, `inflation`{"CPI":[..],...}, `employment`{unemp,gdp,retail,...}, `sentiment`{us10y:[..]}. FMP 실측, 없는 시리즈는 생략(추정 금지). ([날짜,값]쌍 금지 — 평면배열.)
+- **MacroAgent series 포맷 + 출처 (v3.41 차트 완전성 — req21·26)**: gen_macro_charts 스키마(평면 숫자배열)로 산출. **반드시 인플레 5라인·고용 6패널을 모두 채운다**: `inflation`={"CPI":[..],"Core CPI":[..],"PCE":[..],"Core PCE":[..],"PPI":[..]}(각 ~24개월 YoY %), `employment`={"nfp":[..],"unemp":[..],"retail":[..],"ism_mfg":[..],"ism_svc":[..],"gdp":[..]}, + `fed_funds_5y`·`curve_10_2`+`curve_labels`.
+  - **출처(검증됨)**: ① **CPI·실업률·NFP(=totalNonfarmPayroll 월차)·소매(RetailSales MoM)·GDP(realGDP 연율) = FMP `economics-indicators`**(endpoint=economics-indicators, name별, from_date≈36개월 전) — **안정적**. ② **Core CPI·PCE·Core PCE·PPI·BEI = FRED CSV**(CPILFESL·PCEPI·PCEPILFE·PPIFIS·T10YIE) 를 **`mcp__workspace__web_fetch`** 로 받아 YoY 계산. ③ **ISM 제조/서비스 = WebSearch**(월별 공개치). 없는 달은 비우고(추정 금지) DB 가 채운다.
+  - ⚠️ **샌드박스 urllib·fetch_*.py 스크립트는 `fred.stlouisfed.org` 에 도달하지 못한다(allowlist timeout). FRED 시계열은 반드시 web_fetch/에이전트 경로로 수집** (sandbox 직접조회 금지). FMP MCP 는 도달 가능.
+  - **[Big-Arch DB 누적]** 물가·고용 series 는 `_market_report_data/db/inflation.json`·`db/employment.json` 에 **월키로 upsert 누적**(매 실행 새 달만 추가) → 한 번에 다 못 구해도 시계열이 매 실행 향상되어 항상 5라인·6패널이 그려진다. ([날짜,값]쌍 금지 — 평면배열.)
 - **CAPEX**: CAPEXAgent → `nmr_capex.json`(`{bigtech_capex:{rows:[{company,y2024,y2025,y2026,comment}]}}`, FMP cash-flow-statement `capitalExpenditure` 실측). merge 가 `m['bigtech_capex']` 로 주입(2026E 미확정은 빈값).
 - **HBM**: HBMAgent → `nmr_hbm.json`(`{eps_per:[SK하이닉스·삼성·Micron EPS/PER FMP·UsStockInfo 실측]}`). 스팟가격·ASP·출하량·점유율은 무료 실측 부재로 **미수록**(추정 금지). build 가 eps_per 표 렌더(추정 대시보드 제거).
 - **KSVKOSPI**: `web_fetch` investing.com `kospi-volatility` 로 현재/전일/1일/1년 **실측** → `nmr_markets` vkospi(CNBC 는 폴백). 일중 1주~6개월 이력 미확보 시 해당 칸 '-'(추정 금지).

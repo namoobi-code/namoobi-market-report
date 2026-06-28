@@ -100,20 +100,22 @@ if ie and len(ie)>=2:
 # (5) 고용 통합 2x3
 emp=S.get("employment") or {}
 _ep=[]
-if emp.get("unemp"): _ep.append(("실업률(%, 실측)",emp["unemp"],RED,None))
-if emp.get("nfp"): _ep.append(("NFP 신규고용(천명, 실측)",emp["nfp"],BLUE,0))
-if emp.get("gdp"): _ep.append(("실질GDP(분기, 실측)",emp["gdp"],GREEN,None))
-if emp.get("retail"): _ep.append(("소매판매(백만$, 실측)",emp["retail"],"#7C3AED",None))
-if emp.get("ism_mfg"): _ep.append(("ISM 제조 PMI(실측)",emp["ism_mfg"],BLUE,50))
-if emp.get("ism_svc"): _ep.append(("ISM 서비스 PMI(실측)",emp["ism_svc"],GREEN,50))
-_nc=max(1,len(_ep)); fig,axs=plt.subplots(1,_nc,figsize=(2.7*_nc,2.6),dpi=150)
-if _nc==1: axs=[axs]
+if emp.get("nfp"): _ep.append(("① NFP 신규고용(천명)",emp["nfp"],BLUE,0))
+if emp.get("unemp"): _ep.append(("② 실업률(%)",emp["unemp"],RED,None))
+if emp.get("retail"): _ep.append(("③ 소매판매 MoM(%)",emp["retail"],"#7C3AED",None))
+if emp.get("ism_mfg"): _ep.append(("④ ISM 제조 PMI",emp["ism_mfg"],BLUE,50))
+if emp.get("ism_svc"): _ep.append(("⑤ ISM 서비스 PMI",emp["ism_svc"],GREEN,50))
+if emp.get("gdp"): _ep.append(("⑥ 실질GDP 연율(%)",emp["gdp"],GREEN,None))
+_n=len(_ep); _ncol=3 if _n>=5 else max(1,_n); _nrow=(_n+_ncol-1)//_ncol
+fig,axs=plt.subplots(_nrow,_ncol,figsize=(3.0*_ncol,2.5*_nrow),dpi=150)
+axs=list(axs.flatten()) if hasattr(axs,"flatten") else [axs]
 def panel(ax,t,ys,c,hl=None):
     ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
     if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
     ax.set_title(t,fontsize=8,color="#334155"); ax.grid(True,alpha=0.2); ax.set_xticks([])
     for s in ["top","right"]: ax.spines[s].set_visible(False)
 for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
+for _j in range(_n,len(axs)): axs[_j].axis("off")
 fig.suptitle("미국 고용·경기 지표 최근 1년 (FMP 실측)",fontsize=9.5,color="#334155")
 plt.tight_layout(rect=[0,0,1,0.93]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
 
