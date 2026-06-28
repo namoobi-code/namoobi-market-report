@@ -105,5 +105,19 @@ with ThreadPoolExecutor(max_workers=8) as ex:
 kr_series["daily"] = daily
 kr_series["theme_etf"] = {th: nm for th, (tk, nm) in themes_etf.items()}
 
+# [DB화·시총 매일] 다음금융 quotes 로 시총·상장주식수 매일 수집 → 시총=현재가×주식수(라이브), 주식수 변동 자동 반영
+import urllib.request as _ur
+def _daum_cap(code6):
+    u="https://finance.daum.net/api/quotes/A%s?summary=false"%code6
+    rq=_ur.Request(u, headers={"Referer":"https://finance.daum.net/quotes/A%s"%code6,"User-Agent":"Mozilla/5.0","X-Requested-With":"XMLHttpRequest"})
+    d=json.loads(_ur.urlopen(rq, timeout=10).read().decode("utf-8"))
+    return {"eok": round(d.get("marketCap",0)/1e8), "shares": d.get("listedShareCount"), "price": d.get("tradePrice")}
+_caps={}
+for _nm,_tk in (list(stocks.items())+etfs_ordered):
+    try: _caps[_nm]=_daum_cap(_tk.split(".")[0])
+    except Exception: pass
+kr_series["caps"]=_caps
+print("  [caps] 시총·상장주식수 매일수집:", len(_caps), "종")
+
 json.dump(kr_series, open("nmr_kr_series.json", "w", encoding="utf-8"), ensure_ascii=False)
 print(f"WROTE nmr_kr_series.json — themes {len(kr_series['themes'])} stocks {len(kr_series['stocks'])} etfs {len(kr_series['etfs'])} | ok {ok} miss {miss} | daily {sum(len(v) for v in daily.values())}")

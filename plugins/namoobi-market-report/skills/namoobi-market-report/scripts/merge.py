@@ -155,6 +155,20 @@ for i, x in enumerate(semi.get('semi_ai_etfs', [])[:20]):
     se.append(r)
 m['semi_ai_stocks'] = ss; m['semi_ai_stocks_comment'] = semi.get('semi_ai_stocks_comment', '')
 m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comment', '')
+# [DB화·시총 매일] krs.caps(다음 라이브 시총·주식수)로 시총/AUM 덮어쓰기 → stale 방지·주식수 변동 자동 반영 + 시총/AUM순 정렬
+_capm = (krs.get('caps') if isinstance(krs, dict) else None) or {}
+if _capm:
+    def _capov(lst):
+        for _x in lst:
+            _c = _capm.get(_x.get('name'))
+            if _c and _c.get('eok'): _x['aum'] = str(_c['eok']); _x['shares'] = _c.get('shares')
+        return lst
+    def _capnk(_x):
+        try: return -float(str(_x.get('aum','')).replace(',',''))
+        except Exception: return 1e18
+    m['semi_ai_stocks'] = sorted(_capov(m.get('semi_ai_stocks') or []), key=_capnk)
+    m['semi_ai_etfs'] = sorted(_capov(m.get('semi_ai_etfs') or []), key=_capnk)
+    print('  [caps] 시총/AUM 라이브 덮어쓰기·정렬:', len(_capm))
 m['hbm'] = LCF('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
 
 # 3.1 주요지표(매크로 대시보드) — nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 오버라이드, 없으면 내장 예시·추정값
