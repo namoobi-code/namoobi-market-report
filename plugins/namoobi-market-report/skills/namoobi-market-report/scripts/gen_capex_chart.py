@@ -77,17 +77,18 @@ try:
         _bc=((json.load(open(rp)).get("markets") or {}).get("bigtech_capex")) or {}
         _rows=_bc.get("rows")
         if isinstance(_rows,list) and _rows:
-            _Y=[2024,2025,2026,2027,2028,2029]; _cap={}; _rev={}; _fcf={}; _ok=True
+            _Y=[2024,2025,2026,2027,2028,2029]; _cap={}; _rev={}; _fcf={}; _present=[]
             for c in COMPANIES:
                 _row=next((r for r in _rows if str(r.get("company","")).split(" (")[0].strip()==c), None)
-                if not _row: _ok=False; break
+                if not _row: continue
                 try:
                     _cap[c]=[float(_row["y%d"%y]) for y in _Y]
                     _rev[c]=[float(_row["rev%d"%y]) for y in _Y]
                     _fcf[c]=[float(_row["fcf%d"%y]) for y in _Y]
-                except Exception: _ok=False; break
-            if _ok:
-                YEARS=_Y; CAPEX=_cap; REV=_rev; FCF_YEARS=_Y; FCF=_fcf
+                    _present.append(c)
+                except Exception: continue
+            if _present:  # (req13) 표에 있는 회사만으로 차트 구동 → 차트=표 항상 일치
+                COMPANIES=_present; YEARS=_Y; CAPEX=_cap; REV=_rev; FCF_YEARS=_Y; FCF=_fcf
 except Exception: pass
 
 tot_capex=[sum(CAPEX[c][i] for c in COMPANIES) for i in range(len(YEARS))]

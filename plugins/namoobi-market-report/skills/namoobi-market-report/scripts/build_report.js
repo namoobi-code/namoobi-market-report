@@ -133,7 +133,7 @@ function fmtPct(v){ if(v===null||v===undefined||v==="")return "-"; const n=Numbe
 function viewText(v){ if(v==null)return ""; if(typeof v==="string")return v; if(Array.isArray(v))return v.map(viewText).filter(Boolean).join(", "); if(typeof v==="object")return Object.keys(v).map(function(k){var x=viewText(v[k]); return x?(/^[A-Za-z0-9_]+$/.test(k)&&v[k]&&typeof v[k]==="object"?x:x):"";}).filter(Boolean).join(" / "); return String(v); }
 function pctColor(v){ if(v===null||v===undefined||v==="")return undefined; const n=Number(v); if(isNaN(n))return undefined; return n>=0?positiveColor:negativeColor; }
 // (req5) '1일' 칸 = 직전장(2일전) 등락률 prev_pct (현재가의 한 세션 전). prev_pct 없으면 1d_pct 폴백.
-function day1pct(m){ if(!m)return null; return (m.prev_pct!==undefined&&m.prev_pct!==null)?m.prev_pct:m['1d_pct']; }
+function day1pct(m){ if(!m)return null; return (m.prev_pct!==undefined&&m.prev_pct!==null)?m.prev_pct:null; }
 function fmtNum(v){ if(v===null||v===undefined||v==="")return "-"; const n=Number(v); if(isNaN(n))return String(v); if(Math.abs(n)>=1000)return n.toLocaleString(undefined,{maximumFractionDigits:2}); return n.toFixed(2); }
 // (v3.21) 전일 대비 절대변동 절댓값 포맷 (부호는 ▲/▼ 화살표로 표기)
 function fmtChgAbs(v){ if(v===null||v===undefined||v==="")return null; const n=Number(v); if(isNaN(n))return null; const a=Math.abs(n);
@@ -367,7 +367,7 @@ function renderHY(){ const m=data.markets||{};
     const cols=[2000,1180,1080,1080,1080,1080,1080,1420];
     const hdr=new TableRow({children:["지표 (OAS %)","현재","1일","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
     const lv=(v)=> (v===null||v===undefined)?"-":Number(v).toFixed(2)+"%";
-    const col=(v)=>{ if(v===null||v===undefined)return undefined; return Number(v)>Number(c.current)? negativeColor : (Number(v)<Number(c.current)? positiveColor: undefined); };
+    const col=(v)=>{ if(v===null||v===undefined)return undefined; return Number(v)>Number(c.current)? positiveColor : (Number(v)<Number(c.current)? negativeColor: undefined); };
     const row=new TableRow({children:[
       cell("美 HY OAS",{width:cols[0],bold:true}),
       cell(lv(c.current),{width:cols[1],align:AlignmentType.RIGHT,bold:true}),
@@ -473,7 +473,7 @@ function renderStrategicMetals(){ const sm=data.commodities&&data.commodities.st
     simpleTable([1800,2400,5880],["품목","최근 가격","추세·코멘트"],sm.spot.map(s=>[s.item??"-",s.price??"-",s.comment??"-"]),{left:[2]}); }
   if(sm.comment)children.push(p(sm.comment)); children.push(p("")); }
 
-const children = [];
+const children = []; let __cut31=-1;
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:2400,after:240},children:[new TextRun({text:"글로벌 금융시장 종합 시황 보고서",bold:true,size:48,color:"1E3A8A"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:1200},children:[new TextRun({text:"Global Financial Markets Comprehensive Report",italics:true,size:28,color:"475569"})]}));
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},children:[new TextRun({text:`기준일: ${reportDate}`,size:26,bold:true})]}));
@@ -659,13 +659,13 @@ function renderMacroIndicators(){
   if(r.us10y||r.us2y){ const w=[1700,1100,680,680,680,680,680,680,1150,1810];
     children.push(p("■ 美 국채금리 (10년물·2년물)",{bold:true,color:"1E40AF",size:22,before:60}));
     const rows=[hdrRow(["지표","현재가","1일","1주","1개월","3개월","6개월","1년","추세(1Y)","추세 평가"],w)];
-    const trow=(label,o)=>{ if(!o)return; rows.push(new TableRow({children:[cell(label,{width:w[0],bold:true}),
+    const trow=(label,o,sparkPath)=>{ if(!o)return; rows.push(new TableRow({children:[cell(label,{width:w[0],bold:true}),
       cell("",{width:w[1],align:AlignmentType.RIGHT,runs:curCellRuns(o.current,o,{suffix:"%"})}),
       cell(fmtPct(day1pct(o)),{width:w[2],align:AlignmentType.RIGHT,color:pctColor(day1pct(o))}),
       cell(fmtPct(o["1w_pct"]),{width:w[3],align:AlignmentType.RIGHT,color:pctColor(o["1w_pct"])}),cell(fmtPct(o["1mo_pct"]),{width:w[4],align:AlignmentType.RIGHT,color:pctColor(o["1mo_pct"])}),
       cell(fmtPct(o["3mo_pct"]),{width:w[5],align:AlignmentType.RIGHT,color:pctColor(o["3mo_pct"])}),cell(fmtPct(o["6mo_pct"]),{width:w[6],align:AlignmentType.RIGHT,color:pctColor(o["6mo_pct"])}),
-      cell(fmtPct(o["1y_pct"]),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o["1y_pct"])}),imgCellSpark(o.spark,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]})); };
-    trow("美 10년물 국채금리",r.us10y); trow("美 2년물 국채금리",r.us2y);
+      cell(fmtPct(o["1y_pct"]),{width:w[7],align:AlignmentType.RIGHT,color:pctColor(o["1y_pct"])}),imgCellSpark((o.spark)||sparkPath,w[8],false,150,40),cell(o.trend||"-",{width:w[9],size:16})]})); };
+    trow("美 10년물 국채금리",r.us10y,"charts/spark_us10y.png"); trow("美 2년물 국채금리",r.us2y,"charts/spark_us2y.png");
     children.push(makeTable(w,rows));
     children.push(p("의미: 10년물=장기 기준금리 역할 · 2년물=정책금리 기대 민감 · 시장영향: 금리↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"}));
   }
@@ -712,7 +712,7 @@ function renderMacroIndicators(){
 { const _cl=inf.change_log; if(Array.isArray(_cl)&&_cl.length){ children.push(p("■ 물가 변동 이력 (직전 대비):",{bold:true,size:15,color:"DC2626"})); _cl.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); } }
     { const w=[860,1060,1020,820,1040,1860,1660,1560];
     const fy=(v)=> (v===null||v===undefined||v==="")?"-":(typeof v==="number"?((v>=0?"+":"")+v+"%"):String(v));
-    const rows=[hdrRow(["지표","최신값 YoY","최신값 MoM","기준월","발표날짜","의미","시장영향","해석"],w)];
+    const rows=[hdrRow(["지표","최신값 YoY","최신값 MoM","기준월","발표날짜","의미","시장영향","예상영향"],w)];
     (inf.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name||"-",{width:w[0],alt:a,bold:true}),
       cell(fy(o.yoy),{width:w[1],alt:a,align:AlignmentType.CENTER}),
@@ -723,7 +723,7 @@ function renderMacroIndicators(){
       cell(o.impact||"-",{width:w[6],alt:a,size:14}),
       cell(o.interp||"-",{width:w[7],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
-  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); } }
+  { const ic=imagePara(inf.chart||'charts/macro_inflation.png',660,259); if(ic){ children.push(ic); } }
   { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표 (별도 표시)",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); } }
   children.push(p(""));
 
@@ -732,13 +732,13 @@ function renderMacroIndicators(){
   children.push(h("3.1.3 고용·경기 (금리 간접 영향)",3));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
 { const _cl=emp.change_log; if(Array.isArray(_cl)&&_cl.length){ children.push(p("■ 고용 변동 이력 (직전 대비):",{bold:true,size:15,color:"DC2626"})); _cl.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); } }
-    { const w=[1700,1080,940,1040,2020,1880,1480]; const rows=[hdrRow(["지표","최신 수치","기준","발표일자","의미","시장영향","해석"],w)];
+    { const w=[1700,1080,940,1040,2020,1880,1480]; const rows=[hdrRow(["지표","최신 수치","기준","발표일자","의미","시장영향","예상영향"],w)];
     (emp.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name,{width:w[0],alt:a,bold:true}), cell(o.value!=null?String(o.value):"-",{width:w[1],alt:a,align:AlignmentType.CENTER,bold:true}),
       cell(o.asof||"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.release||o.release_date||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
       cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15}), cell(o.interp||"-",{width:w[6],alt:a,size:15})]})); });
     children.push(makeTable(w,rows)); }
-    { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("고용·경기 6개 지표 — 주식 관점 중요도 순 (① NFP·실업률 > ③ 소매판매 > ④ ISM제조 > ⑤ ISM서비스 > ⑥ GDP). 월별(GDP만 분기).",{size:15,color:"94A3B8"})); } }
+    { const ec=imagePara(emp.chart||'charts/macro_employment.png',660,288); if(ec){ children.push(ec); children.push(p("고용·경기 6개 지표 — 주식 관점 중요도 순 (① NFP·실업률 > ③ 소매판매 > ④ ISM제조 > ⑤ ISM서비스 > ⑥ GDP). 월별(GDP만 분기).",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.4 심리 — 6개월 추가
@@ -760,11 +760,11 @@ function renderMacroIndicators(){
   children.push(h("3.1.5 지수·Forward EPS·PER (실적 vs 밸류에이션)",3));
   children.push(p("선행 EPS(향후 12개월 예상 이익)와 지수·선행 PER 의 관계로 '실적장세 vs 밸류 부담'을 점검한다. 지수는 실측, 선행 EPS 는 컨센서스 기반 추정.",{italics:true,color:"64748B"}));
   { const _hh=fwdHist(); const _ls=((_hh.spx||[]).slice(-1)[0])||{}; const _lk=((_hh.kospi||[]).slice(-1)[0])||{};
-  if(s.spx_fwd){ const e=s.spx_fwd;
+  if(s.spx_fwd){ const e=s.spx_fwd; if(!e.chart)e.chart="charts/macro_spx_fwd.png";
     children.push(p("■ S&P500 12M Forward EPS: $"+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (날짜시점 지수 "+(_ls.idx!=null?Number(_ls.idx).toLocaleString():"-")+" / "+(_ls.idx_date||e.asof)+")",{bold:true,color:"1E40AF",before:120}));
     const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:14,color:"94A3B8"}));
     fwdRecentTable("spx","$"); }
-  if(s.kospi_fwd){ const e=s.kospi_fwd;
+  if(s.kospi_fwd){ const e=s.kospi_fwd; if(!e.chart)e.chart="charts/macro_kospi_fwd.png";
     children.push(p("■ KOSPI 12M Forward EPS: "+e.fwd_eps+"  ·  선행 PER: "+e.fwd_per+"배  (날짜시점 지수 "+(_lk.idx!=null?Number(_lk.idx).toLocaleString():"-")+" / "+(_lk.idx_date||e.asof)+")",{bold:true,color:"1E40AF",before:160}));
     const c=imagePara(e.chart,648,324); if(c)children.push(c); if(e.note)children.push(p(e.note,{size:14,color:"94A3B8"}));
     fwdRecentTable("kospi","p"); } }
@@ -779,7 +779,8 @@ function renderMacroIndicators(){
 
 if (data.markets) {
   renderMacroIndicators();
-  renderMarketBlock("3.2 한국 증시",data.markets.korea,{kospi:"코스피",kosdaq:"코스닥"});
+  if(process.env.NMR_ONLY_31)__cut31=children.length;
+  if(!process.env.NMR_ONLY_31) renderMarketBlock("3.2 한국 증시",data.markets.korea,{kospi:"코스피",kosdaq:"코스닥"});
   renderKoreaExtras();
   renderMarketBlockC("3.3 미국 증시",{sp500:(data.markets.us_markets||{}).sp500,nasdaq:(data.markets.us_markets||{}).nasdaq,dow:(data.markets.us_markets||{}).dow},{sp500:"S&P 500",nasdaq:"나스닥",dow:"다우"},data.markets.us_prev);
   children.push(p("※ 현재치는 매 실행 시 최신값으로 갱신되며, 직전 보고서 대비 값이 변동된 항목은 빨간색으로 강조됩니다.",{size:16,italics:true,color:"94A3B8"}));
@@ -935,6 +936,7 @@ function renderAITrends(){ const a=data.ai_trends; if(!a)return;
 }
 renderBerkshire();
 renderAITrends();
+if(__cut31>=0)children.length=__cut31;
 const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData}]}:{}),
   styles:{ default:{document:{run:{font:FONT,size:22}}},
   paragraphStyles:[

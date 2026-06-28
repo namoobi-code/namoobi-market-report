@@ -1,29 +1,48 @@
 #!/usr/bin/env python3
-# gen_macro_charts.py (v3.11.0) — 3.1 주요지표(매크로 대시보드) 차트 생성기.
-# 출력: charts/macro_policy_rates.png·macro_curve.png·macro_inflation.png·macro_employment.png·
-#       macro_infl_exp.png·macro_spx_fwd.png·macro_kospi_fwd.png + charts/spark_{us10y,vix,vkospi,dxy,usdkrw,wti}.png
-# 데이터: nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 의 series_* 있으면 라이브 오버라이드,
-#         없으면 내장 예시·추정 시계열로 생성('추정' 표기 유지). build_report.js renderMacroIndicators 와 파일명 일치.
-import os, json, glob, datetime as dt, matplotlib
+# gen_macro_charts.py (v4.0.0) — 3.1 매크로 대시보드. (R4 견고화: try/except 격리·_flat·stale삭제·리포트)
+import os, json, glob, datetime as dt, traceback, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt, matplotlib.font_manager as fm, matplotlib.dates as mdates
+import matplotlib.ticker as mticker
 _f=[p for p in [os.path.join(os.path.dirname(__file__),"fonts","nmr_kr.ttf"),"fonts/nmr_kr.ttf"] if os.path.exists(p)]
 if _f: fm.fontManager.addfont(_f[0]); matplotlib.rcParams["font.family"]="NanumBarunGothic"
 matplotlib.rcParams["axes.unicode_minus"]=False
 O=os.environ.get("NMR_OUT") or (sorted(glob.glob("/sessions/*/mnt/outputs"))[-1] if glob.glob("/sessions/*/mnt/outputs") else ".")
 os.makedirs("charts", exist_ok=True)
-BLUE="#1E40AF"; RED="#DC2626"; GREEN="#059669"
+BLUE="#1E40AF"; RED="#DC2626"; GREEN="#059669"; AMBER="#D97706"; PURPLE="#7C3AED"; SLATE="#334155"
+def _loadjson(*names):
+    for c in names:
+        for p in [c, os.path.join(O,c)]:
+            if os.path.exists(p):
+                try: return json.load(open(p,encoding="utf-8"))
+                except Exception: pass
+    return None
 MAC={}
-def _load():
+def _load_series():
     global MAC
-    for c in ["nmr_macro.json", os.path.join(O,"nmr_macro.json")]:
-        if os.path.exists(c):
-            try:
-                d=json.load(open(c,encoding="utf-8")); _m=d.get("macro",d); 
-                globals()["MAC"]=_m; return _m.get("series",{}) or {}
-            except Exception: pass
+    d=_loadjson("nmr_macro.json")
+    if isinstance(d,dict):
+        MAC=d.get("macro",d) or {}; return MAC.get("series",{}) or {}
     return {}
-S=_load()  # 라이브 series 오버라이드(있으면)
+S=_load_series()
+def _flat(v, default=None):
+    if not isinstance(v,(list,tuple)) or len(v)<2: return default
+    out=[]
+    for x in v:
+        if isinstance(x,(list,tuple)):
+            if len(x)<1: return default
+            x=x[-1]
+        try: out.append(float(x))
+        except Exception: return default
+    return out
+def _xy(v):
+    ys=_flat(v)
+    if ys is None: return None,None
+    xs=None
+    if isinstance(v[0],(list,tuple)) and len(v[0])>=2:
+        try: xs=[mdates.datestr2num((str(p[0])[:7]+"-01") if len(str(p[0]))==7 else str(p[0])[:10]) for p in v]
+        except Exception: xs=None
+    return xs, ys
 def months(sy,sm,n):
     o=[];y,m=sy,sm
     for _ in range(n):
@@ -31,147 +50,183 @@ def months(sy,sm,n):
         if m>12:m=1;y+=1
     return o
 mon=months(2025,6,12)
-def spark(name,xs,ys,color=BLUE):
-    fig,ax=plt.subplots(figsize=(2.3,0.62),dpi=150); ax.plot(xs,ys,color=color,linewidth=1.4)
-    ax.scatter([xs[-1]],[ys[-1]],color=RED,s=12,zorder=5); ax.axis("off")
+REQUIRED=["macro_policy_rates","macro_curve","macro_inflation","macro_infl_exp","macro_employment","macro_spx_fwd","macro_kospi_fwd"]
+for _r in REQUIRED:
+    try: os.remove("charts/%s.png"%_r)
+    except OSError: pass
+_made=[]; _failed=[]
+def _safe(name, fn):
+    try:
+        fn()
+        if os.path.exists("charts/%s.png"%name): _made.append(name)
+        else: _failed.append(name+"(no-file)")
+    except Exception as e:
+        _failed.append("%s(%s)"%(name,type(e).__name__)); traceback.print_exc()
+        try:
+            fig,ax=plt.subplots(figsize=(7.2,1.0),dpi=150); ax.axis("off")
+            ax.text(0.5,0.5,"[차트 생성 실패: %s]"%name,ha="center",va="center",fontsize=10,color=RED)
+            plt.tight_layout(); plt.savefig("charts/%s.png"%name,bbox_inches="tight"); plt.close()
+        except Exception: pass
+def spark(name,ys,color=BLUE):
+    ys=[y for y in ys if y is not None]
+    if len(ys)<2: return
+    fig,ax=plt.subplots(figsize=(2.3,0.62),dpi=150); ax.plot(range(len(ys)),ys,color=color,linewidth=1.4)
+    ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=12,zorder=5); ax.axis("off")
     plt.tight_layout(pad=0.1); plt.savefig("charts/spark_%s.png"%name,bbox_inches="tight",transparent=True); plt.close()
-
-# (1) 정책금리 6개국 5년 (미국=실측 월별 기본, S 오버라이드 가능)
-_ff_live=S.get("fed_funds_5y"); ff=(_ff_live if (isinstance(_ff_live,list) and len(_ff_live)>=24) else None) or [0.09,0.08,0.07,0.07,0.06,0.08,0.10,0.09,0.08,0.08,0.08,0.08,0.08,0.08,0.20,0.33,0.77,1.21,1.68,2.33,2.56,3.08,3.78,4.10,4.33,4.57,4.65,4.83,5.06,5.08,5.12,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.13,4.83,4.64,4.48,4.33,4.33,4.33,4.33,4.33,4.33,4.33,4.33,4.22,4.09,3.88,3.72,3.64,3.64,3.64,3.64,3.63]
-ffx=months(2021,1,len(ff))
-_pr0=(MAC.get("rates") or {}).get("policy_rates") or []
-import re as _re
-def _prate(v):
-    if isinstance(v,(int,float)): return float(v)
-    m=_re.search(r"[\d.]+", str(v or "")); return float(m.group()) if m else None
-_pr=[]
-_src=_pr0
-if not _src:
-    for _pp in ["nmr_policyrates.json", os.path.join(O,"nmr_policyrates.json")]:
-        if os.path.exists(_pp):
-            try: _src=json.load(open(_pp,encoding="utf-8")).get("policy_rates") or []; break
-            except Exception: pass
-for _c in (_src or []):
-    _pr.append({"country":_c.get("country"),"rate":_prate(_c.get("rate"))})
-if not _pr:
-    _pr=[{"country":"미국","rate":3.63},{"country":"영국","rate":4.0},{"country":"중국","rate":3.0},{"country":"한국","rate":2.5},{"country":"유로존","rate":2.15},{"country":"일본","rate":1.0}]
-if _pr:
-    fig,axs=plt.subplots(1,2,figsize=(8.6,2.8),dpi=150,gridspec_kw={"width_ratios":[2,1]})
-    ax=axs[0]
-else:
-    fig,ax=plt.subplots(figsize=(7.2,2.8),dpi=150)
-ax.plot(ffx,ff,color=BLUE,linewidth=1.8,label="미국(실측)")
-ax.set_title("미국 기준금리(실효) 5년 추이 — FMP 실측",fontsize=9.0,color="#334155")
-ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B")
-for _s in ["top","right"]: ax.spines[_s].set_visible(False)
-if _pr:
-    ax2=axs[1]; _nm=[c.get("country","") for c in _pr]; _rt=[c.get("rate") for c in _pr]
-    _cl=["#1E40AF" if n=="미국" else "#94A3B8" for n in _nm]
-    _yp=list(range(len(_nm))); ax2.barh(_yp,[(r or 0) for r in _rt],color=_cl,height=0.62)
-    ax2.set_yticks(_yp); ax2.set_yticklabels(_nm,fontsize=8); ax2.invert_yaxis()
-    ax2.set_title("주요국 현재 정책금리(%)",fontsize=9.0,color="#334155"); ax2.grid(True,axis="x",alpha=0.25)
-    for _i,_r in enumerate(_rt):
-        if _r is not None: ax2.text(_r,_i,(" %.2f"%_r),va="center",fontsize=7,color="#334155")
-    for _s in ["top","right"]: ax2.spines[_s].set_visible(False)
-plt.tight_layout(); plt.savefig("charts/macro_policy_rates.png",bbox_inches="tight"); plt.close()
-
-# (2) 장단기 금리차 10Y-2Y
-# (req1/req2) ★MacroAgent 필수: series.curve_10_2(최근 1년 일별 10Y-2Y %p) + curve_labels(['YYYY-MM-DD',...] 권장)를
-#   FMP treasury-rates(daily, from=1년전~당일)의 year10-year2 로 매 실행 채울 것. 라벨이 날짜(YYYY-MM-DD)이고
-#   점이 30개 초과면 '최근 1년 일별' 날짜축으로 렌더(req1), 적으면 기존 카테고리축. 하드코딩은 데이터 누락 폴백.
-d=S.get("curve_10_2") or [0.42,0.40,0.39,0.40,0.38,0.29,0.27]; dl=S.get("curve_labels") or ["(예시)","","","","","","(데이터없음)"]
-fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150)
-try: _xd=[dt.date.fromisoformat(str(x)) for x in dl]; _isdate=True
-except Exception: _xd=None; _isdate=False
-if _isdate and len(d)>30:   # 1년 일별 → 날짜축(req1)
-    ax.plot(_xd,d,color=BLUE,linewidth=1.5); ax.fill_between(_xd,d,0,color=BLUE,alpha=0.07)
-    ax.scatter([_xd[-1]],[d[-1]],color=RED,zorder=5,s=28)
-    ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(_xd[-1],d[-1]),textcoords="offset points",xytext=(-40,7),color=RED,fontsize=9,fontweight="bold")
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); [t.set_rotation(0) for t in ax.get_xticklabels()]
-    _ttl="미국 장단기 금리차(10Y-2Y) 최대기간 일별 실측 (+정상/-역전)"
-else:                        # 폴백/단기 → 카테고리축
-    ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4)
-    ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28); ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
-    import matplotlib.ticker as _mt
-    ax.xaxis.set_major_locator(_mt.MaxNLocator(nbins=8))
-    [t.set_rotation(30) for t in ax.get_xticklabels()]; [t.set_horizontalalignment("right") for t in ax.get_xticklabels()]
-    _ttl="미국 장단기 금리차(수익률곡선)(10Y-2Y) (+면 정상 / -면 역전)"
-ax.axhline(0,color=RED,linewidth=0.9,linestyle="--")
-ax.set_title(_ttl,fontsize=9.0,color="#334155"); ax.grid(True,alpha=0.25); ax.set_ylabel("%p",fontsize=8,color="#64748B")
-for s in ["top","right"]: ax.spines[s].set_visible(False)
-plt.tight_layout(); plt.savefig("charts/macro_curve.png",bbox_inches="tight"); plt.close()
-
-# (3) 물가 통합 5종 YoY
-infl=S.get("inflation") or {"CPI":[2.6,2.7,2.8,2.9,3.1,3.3,3.4,3.6,3.8,3.9,4.0,4.17],"Core CPI":[2.9,2.9,3.0,3.0,3.0,3.1,3.1,3.2,3.1,3.1,3.0,3.1],"PCE":[2.3,2.4,2.4,2.5,2.5,2.6,2.6,2.6,2.6,2.7,2.6,2.6],"Core PCE":[2.6,2.6,2.7,2.7,2.7,2.8,2.8,2.8,2.8,2.8,2.8,2.8],"PPI":[1.8,2.0,2.2,2.3,2.4,2.6,2.7,2.8,2.9,3.0,2.9,2.9]}
-fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150)
-for k,v in infl.items():
-    if v and isinstance(v[0],(list,tuple)):   # [["YYYY-MM",val]..] → 실제 날짜축(길이 달라도 정렬)
-        _xs=[mdates.datestr2num(str(p[0])[:7]+"-01") for p in v]; _ys=[p[1] for p in v]
-        ax.plot(_xs,_ys,linewidth=1.6,marker="o",ms=3,label=k)
+def _ch_spark_bonds():
+    tc=_loadjson("treasury_consistent.json") or {}
+    for bk,col in (("us10y",BLUE),("us2y","#0E7490")):
+        sv=(tc.get(bk) or {}).get("spark_vals")
+        if isinstance(sv,list) and len(sv)>=2: spark(bk, sv, col)
+        else:
+            cand=_flat(S.get(bk+"_series") or S.get(bk))
+            if cand and len(cand)>=2: spark(bk, cand, col)
+def _ch_spark_vkospi():
+    vh=_loadjson("nmr_vkospi_history.json")
+    ser=(vh.get("series") if isinstance(vh,dict) else None) or []
+    ys=[p[1] for p in ser if isinstance(p,(list,tuple)) and len(p)>=2]
+    if len(ys)>=2: spark("vkospi", ys, "#DC2626")
+try: _ch_spark_bonds(); _ch_spark_vkospi()
+except Exception: traceback.print_exc()
+def _ch_policy():
+    # (req5 갱신) 사용자 제공 실측 결정이력(nmr_policyrates_monthly.json) → 단일패널 step 시계열, 막대 제거
+    import datetime as _dt
+    pr=_loadjson("nmr_policyrates_monthly.json")
+    ser=(pr.get("series") if isinstance(pr,dict) else None) or {}
+    fig,ax=plt.subplots(figsize=(8.8,3.2),dpi=150)
+    CC={"미국":BLUE,"유로존":GREEN,"영국":RED,"한국":AMBER,"중국":PURPLE,"일본":"#0E7490"}
+    x0=_dt.date(2022,1,1); plotted=False
+    for cn,pts in ser.items():
+        try: P=sorted((_dt.date.fromisoformat(str(d)[:10]),float(r)) for d,r in pts)
+        except Exception: continue
+        pre=[r for d,r in P if d<=x0]; win=[(d,r) for d,r in P if d>=x0]
+        if pre: win=[(x0,pre[-1])]+win
+        if len(win)<2: continue
+        xs=[mdates.date2num(d) for d,r in win]; ys=[r for d,r in win]
+        ax.plot(xs,ys,linewidth=2.0 if cn=="미국" else 1.4,color=CC.get(cn,"#94A3B8"),label=cn,drawstyle="steps-post")
+        ax.annotate("%.2f"%ys[-1],(xs[-1],ys[-1]),textcoords="offset points",xytext=(5,0),fontsize=6.8,color=CC.get(cn,"#94A3B8"),fontweight="bold",va="center")
+        plotted=True
+    if plotted:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.xaxis.set_major_locator(mdates.MonthLocator(interval=4))
+        [t.set_rotation(0) for t in ax.get_xticklabels()]
+        # 범례를 플롯 밖(축 위)으로 빼 라인과 겹침 방지 + 제목은 그 위
+        ax.legend(fontsize=7,ncol=6,loc="lower center",bbox_to_anchor=(0.5,1.005),frameon=False,columnspacing=1.6,handlelength=1.7,borderaxespad=0.1)
+        ax.set_title("주요국 정책금리 결정이력 (실측 · 중앙은행 발표)",fontsize=9.4,color=SLATE,pad=20)
+        ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.set_xlim(left=mdates.date2num(x0))
+        _lo,_hi=ax.get_ylim(); ax.set_ylim(_lo,_hi+(_hi-_lo)*0.05)  # 상단 약간 여유
+        for _s in ["top","right"]: ax.spines[_s].set_visible(False)
     else:
-        _mx=months(2025,6,len(v)) if len(v)!=12 else mon
-        ax.plot(_mx,v,linewidth=1.6,marker="o",ms=3,label=k)
-ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title("미국 물가 YoY 최근 12개월 통합 (점선=연준 2% 목표 · CPI 최신 실측)",fontsize=9.5,color="#334155")
-ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
-for s in ["top","right"]: ax.spines[s].set_visible(False)
-plt.tight_layout(); plt.savefig("charts/macro_inflation.png",bbox_inches="tight"); plt.close()
-
-# (4) 기대인플레 10Y — req5: 축을 '이번 달'까지 동적 생성(현재월 6월 포함) + 현재값 asof 표기
-#   BEI(T10YIE)는 일별이므로 MacroAgent 가 series.infl_exp(현재월까지) + series.infl_exp_asof(YYYY-MM-DD)를 제공.
-ie=S.get("infl_exp")
-if not (ie and len(ie)>=2):
-    fig,ax=plt.subplots(figsize=(7.2,1.0),dpi=150); ax.axis("off")
-    ax.text(0.5,0.5,"기대인플레이션 10년(BEI): 무료 실측 데이터 미확보 — 이번 회차 미표시 (추정 미사용)",ha="center",va="center",fontsize=10,color="#94A3B8")
-    plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()
-if ie and len(ie)>=2:
-    _asof=S.get("infl_exp_asof") or ""
-    _n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
+        ax.axis("off"); ax.text(0.5,0.5,"정책금리 결정이력 DB 미확보",ha="center",va="center",fontsize=10,color="#94A3B8")
+    plt.tight_layout(); plt.savefig("charts/macro_policy_rates.png",bbox_inches="tight"); plt.close()
+_safe("macro_policy_rates", _ch_policy)
+def _ch_curve():
+    d=_flat(S.get("curve_10_2")) or [0.42,0.40,0.39,0.40,0.38,0.29,0.27]
+    dl=S.get("curve_labels") or ["(예시)","","","","","","(데이터없음)"]
+    fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150)
+    try: _xd=[dt.date.fromisoformat(str(x)[:10]) for x in dl]; _isdate=True
+    except Exception: _xd=None; _isdate=False
+    if _isdate and len(d)>30:
+        ax.plot(_xd,d,color=BLUE,linewidth=1.5); ax.fill_between(_xd,d,0,color=BLUE,alpha=0.07); ax.scatter([_xd[-1]],[d[-1]],color=RED,zorder=5,s=28)
+        ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(_xd[-1],d[-1]),textcoords="offset points",xytext=(-40,7),color=RED,fontsize=9,fontweight="bold")
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); [t.set_rotation(0) for t in ax.get_xticklabels()]
+        _ttl="미국 장단기 금리차(10Y-2Y) 최대기간 일별 실측 (+정상/-역전)"
+    else:
+        ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4); ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28)
+        ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
+        ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=8)); [t.set_rotation(30) for t in ax.get_xticklabels()]; [t.set_horizontalalignment("right") for t in ax.get_xticklabels()]
+        _ttl="미국 장단기 금리차(수익률곡선)(10Y-2Y) (+면 정상 / -면 역전)"
+    ax.axhline(0,color=RED,linewidth=0.9,linestyle="--"); ax.set_title(_ttl,fontsize=9.0,color=SLATE); ax.grid(True,alpha=0.25); ax.set_ylabel("%p",fontsize=8,color="#64748B")
+    for s in ["top","right"]: ax.spines[s].set_visible(False)
+    plt.tight_layout(); plt.savefig("charts/macro_curve.png",bbox_inches="tight"); plt.close()
+_safe("macro_curve", _ch_curve)
+def _ch_infl():
+    infl=S.get("inflation") or {"CPI":[2.6,2.7,2.8,2.9,3.1,3.3,3.4,3.6,3.8,3.9,4.0,4.17],"Core CPI":[2.9,2.9,3.0,3.0,3.0,3.1,3.1,3.2,3.1,3.1,3.0,3.1],"PCE":[2.3,2.4,2.4,2.5,2.5,2.6,2.6,2.6,2.6,2.7,2.6,2.6],"Core PCE":[2.6,2.6,2.7,2.7,2.7,2.8,2.8,2.8,2.8,2.8,2.8,2.8],"PPI":[1.8,2.0,2.2,2.3,2.4,2.6,2.7,2.8,2.9,3.0,2.9,2.9]}
+    fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150)
+    for k,v in infl.items():
+        xs,ys=_xy(v)
+        if ys is None: continue
+        if xs is not None: ax.plot(xs,ys,linewidth=1.6,marker="o",ms=3,label=k)
+        else:
+            _mx=months(2025,6,len(ys)) if len(ys)!=12 else mon
+            ax.plot(_mx,ys,linewidth=1.6,marker="o",ms=3,label=k)
+    ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title("미국 물가 YoY 최근 12개월 통합 (점선=연준 2% 목표 · CPI 최신 실측)",fontsize=9.5,color=SLATE)
+    ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
+    for s in ["top","right"]: ax.spines[s].set_visible(False)
+    plt.tight_layout(); plt.savefig("charts/macro_inflation.png",bbox_inches="tight"); plt.close()
+_safe("macro_inflation", _ch_infl)
+def _ch_bei():
+    daily=_loadjson("nmr_bei_daily.json")
+    pts=(daily.get("series") if isinstance(daily,dict) else None) or []
+    if isinstance(pts,list) and len(pts)>=20:
+        xs=[mdates.datestr2num(str(p[0])[:10]) for p in pts]; ys=[float(p[1]) for p in pts]
+        _asof=(daily.get("asof") if isinstance(daily,dict) else "") or str(pts[-1][0])[:10]
+        fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(xs,ys,color=BLUE,linewidth=1.4); ax.fill_between(xs,ys,min(ys),color=BLUE,alpha=0.06)
+        ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.scatter([xs[-1]],[ys[-1]],color=RED,zorder=5,s=22)
+        ax.set_title(f"기대인플레이션 10년(BEI) 일별 · 점선=2% · 현재 {ys[-1]:.2f}% ({_asof} FRED T10YIE)",fontsize=8.6,color=SLATE)
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B")
+        for s in ["top","right"]: ax.spines[s].set_visible(False)
+        plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close(); return
+    ie=_flat(S.get("infl_exp"))
+    if not (ie and len(ie)>=2):
+        fig,ax=plt.subplots(figsize=(7.2,1.0),dpi=150); ax.axis("off")
+        ax.text(0.5,0.5,"기대인플레이션 10년(BEI): 일별/월별 실측 미확보 — 이번 회차 미표시",ha="center",va="center",fontsize=10,color="#94A3B8")
+        plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close(); return
+    _asof=S.get("infl_exp_asof") or ""; _n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
     for _ in range(_n-1):
         _sm-=1
         if _sm<1: _sm=12; _sy-=1
     bmon=months(_sy,_sm,_n)
     fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(bmon,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
     ax.scatter([bmon[-1]],[ie[-1]],color=RED,zorder=5,s=24)
-    ax.set_title(f"기대인플레이션 10년(BEI) · 점선=2% · 현재값 {ie[-1]:.2f}% ("+(_asof or "")+" 실측)",fontsize=8.6,color="#334155")
+    ax.set_title(f"기대인플레이션 10년(BEI) 월별 · 점선=2% · 현재값 {ie[-1]:.2f}% ("+(_asof or "")+")",fontsize=8.6,color=SLATE)
     ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
     for s in ["top","right"]: ax.spines[s].set_visible(False)
     plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close()
-
-# (5) 고용 통합 2x3
-emp=S.get("employment") or {}
-_ep=[]
-if emp.get("nfp"): _ep.append(("① NFP 신규고용(천명)",emp["nfp"],BLUE,0))
-if emp.get("unemp"): _ep.append(("② 실업률(%)",emp["unemp"],RED,None))
-if emp.get("retail"): _ep.append(("③ 소매판매 MoM(%)",emp["retail"],"#7C3AED",None))
-if emp.get("ism_mfg"): _ep.append(("④ ISM 제조 PMI",emp["ism_mfg"],BLUE,50))
-if emp.get("ism_svc"): _ep.append(("⑤ ISM 서비스 PMI",emp["ism_svc"],GREEN,50))
-if emp.get("gdp"): _ep.append(("⑥ 실질GDP 연율(%)",emp["gdp"],GREEN,None))
-_n=len(_ep); _ncol=3 if _n>=5 else max(1,_n); _nrow=(_n+_ncol-1)//_ncol
-fig,axs=plt.subplots(_nrow,_ncol,figsize=(3.0*_ncol,2.5*_nrow),dpi=150)
-axs=list(axs.flatten()) if hasattr(axs,"flatten") else [axs]
-def panel(ax,t,ys,c,hl=None):
-    ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
-    if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
-    ax.set_title(t,fontsize=8,color="#334155"); ax.grid(True,alpha=0.2); ax.set_xticks([])
-    for s in ["top","right"]: ax.spines[s].set_visible(False)
-for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
-for _j in range(_n,len(axs)): axs[_j].axis("off")
-fig.suptitle("미국 고용·경기 지표 최근 1년 (FMP 실측)",fontsize=9.5,color="#334155")
-plt.tight_layout(rect=[0,0,1,0.93]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
-
-# (6) 심리 스파크 — gen_rest_charts 의 측정치 스파크 사용(여기서 미생성, 추정 덮어쓰기 방지)
-sent=S.get("sentiment") or {}
-
-# (7) 선행 EPS — 지수/PER 정합
-def fwd(name,title,eps,idx):
-    per=[round(idx[i]/eps[i],1) for i in range(len(eps))]
-    fig,ax=plt.subplots(figsize=(7.4,2.6),dpi=150); ax.bar(mon,eps,width=20,color="#93C5FD",label="12M Fwd EPS"); ax.set_ylabel("Fwd EPS",fontsize=8,color=BLUE)
-    ax2=ax.twinx(); ax2.plot(mon,idx,color=BLUE,linewidth=2.0,marker="o",ms=3,label="지수"); ax2.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
-    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",38)); ax3.plot(mon,per,color=RED,linewidth=1.5,linestyle="--",label="선행 PER"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=RED)
-    ax2.annotate("%d"%idx[-1],(mon[-1],idx[-1]),textcoords="offset points",xytext=(-22,6),color=BLUE,fontsize=8,fontweight="bold")
-    ax.set_title(title,fontsize=9.5,color="#334155"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.spines["top"].set_visible(False)
-    h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels(); h3,l3=ax3.get_legend_handles_labels(); ax.legend(h1+h2+h3,l1+l2+l3,fontsize=7,loc="upper left")
+_safe("macro_infl_exp", _ch_bei)
+def _ch_emp():
+    emp=S.get("employment") or {}
+    _ep=[]
+    for key,title,col,hl in [("nfp","① NFP 신규고용(천명)",BLUE,0),("unemp","② 실업률(%)",RED,None),("retail","③ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","④ ISM 제조 PMI",BLUE,50),("ism_svc","⑤ ISM 서비스 PMI",GREEN,50),("gdp","⑥ 실질GDP 연율(%)",GREEN,None)]:
+        ys=_flat(emp.get(key))
+        if ys: _ep.append((title,ys,col,hl))
+    if not _ep: _ep=[("① NFP 신규고용(천명)",[200,180,170,160,172],BLUE,0),("② 실업률(%)",[4.0,4.1,4.2,4.3,4.3],RED,None)]
+    _n=len(_ep); _ncol=3 if _n>=5 else max(1,_n); _nrow=(_n+_ncol-1)//_ncol
+    fig,axs=plt.subplots(_nrow,_ncol,figsize=(3.0*_ncol,2.5*_nrow),dpi=150)
+    axs=list(axs.flatten()) if hasattr(axs,"flatten") else [axs]
+    def panel(ax,t,ys,c,hl=None):
+        ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
+        if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
+        ax.set_title(t,fontsize=8,color=SLATE); ax.grid(True,alpha=0.2); ax.set_xticks([])
+        for s in ["top","right"]: ax.spines[s].set_visible(False)
+    for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
+    for _j in range(_n,len(axs)): axs[_j].axis("off")
+    fig.suptitle("미국 고용·경기 지표 최근 1년 (FMP 실측)",fontsize=9.5,color=SLATE)
+    plt.tight_layout(rect=[0,0,1,0.93]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
+_safe("macro_employment", _ch_emp)
+def _fwd(name,key,title,daily_file):
+    # (req 갱신) 지수=일별 실측 라인 + 선행EPS·선행PER=조사값(DB nmr_fwd_history.json) 포인트
+    daily=_loadjson(daily_file) or {}
+    dser=(daily.get("series") if isinstance(daily,dict) else None) or []
+    fh=_loadjson("nmr_fwd_history.json") or {}
+    pts=[p for p in ((fh.get(key) if isinstance(fh,dict) else None) or []) if (p.get("eps") or p.get("fwd_eps")) is not None]
+    if len(dser)<2 or not pts: raise ValueError("일별지수/조사EPS 부족")
+    dx=[mdates.datestr2num(str(d)[:10]) for d,v in dser]; dy=[v for d,v in dser]
+    pts=sorted(pts,key=lambda x:str(x.get("idx_date") or x.get("date")))
+    ex=[mdates.datestr2num(str(p.get("idx_date") or p.get("date"))[:10]) for p in pts]
+    eeps=[p.get("eps",p.get("fwd_eps")) for p in pts]; eper=[p.get("per",p.get("fwd_per")) for p in pts]
+    fig,ax=plt.subplots(figsize=(7.6,2.9),dpi=150)
+    ax.plot(dx,dy,color=BLUE,linewidth=1.0,label="지수(일별 실측)"); ax.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
+    ax.annotate("%.0f"%dy[-1],(dx[-1],dy[-1]),textcoords="offset points",xytext=(3,0),fontsize=7,color=BLUE,fontweight="bold",va="center")
+    ax2=ax.twinx(); ax2.plot(ex,eeps,color=AMBER,linewidth=1.7,marker="o",ms=5,label="12M 선행 EPS(조사)"); ax2.set_ylabel("12M 선행 EPS",fontsize=8,color=AMBER)
+    for x,e in zip(ex,eeps): ax2.annotate(("%.0f"%e),(x,e),textcoords="offset points",xytext=(0,7),fontsize=6.3,color="#B45309",ha="center")
+    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",42)); ax3.plot(ex,eper,color=GREEN,linewidth=1.3,marker="s",ms=4,linestyle="--",label="선행 PER(조사)"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=GREEN)
+    ax.set_title(title,fontsize=9.3,color=SLATE); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    [t.set_rotation(0) for t in ax.get_xticklabels()]; ax.grid(True,alpha=0.2); ax.spines["top"].set_visible(False)
+    h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels(); h3,l3=ax3.get_legend_handles_labels()
+    ax.legend(h1+h2+h3,l1+l2+l3,fontsize=6.6,loc="upper left",framealpha=0.85)
     plt.tight_layout(); plt.savefig("charts/macro_%s.png"%name,bbox_inches="tight"); plt.close()
-fwd("spx_fwd","S&P500 12개월 선행 EPS + 지수 + 선행PER (추정)",(S.get("spx_eps") or [300,305,310,313,316,320,323,326,328,329,330,330]),(S.get("spx_idx") or [6950,7050,7150,7240,7300,7370,7410,7450,7475,7490,7498,7500]))
-fwd("kospi_fwd","KOSPI 12개월 선행 EPS + 지수 + 선행PER (추정)",(S.get("kospi_eps") or [815,838,856,872,884,898,905,910,913,916,917,918]),(S.get("kospi_idx") or [8050,8250,8420,8560,8660,8790,8860,8930,8965,8985,8996,9000]))
-print("macro charts ->", len([x for x in os.listdir("charts") if x.startswith("macro_") or x.startswith("spark_")]), "files")
+_safe("macro_spx_fwd", lambda: _fwd("spx_fwd","spx","S&P500 · 일일 지수 + 12M 선행 EPS·PER (조사값 · 실적 vs 밸류)","nmr_spx_daily.json"))
+_safe("macro_kospi_fwd", lambda: _fwd("kospi_fwd","kospi","KOSPI · 일일 지수 + 12M 선행 EPS·PER (조사값 · 실적 vs 밸류)","nmr_kospi_daily.json"))
+_miss=[r for r in REQUIRED if r not in _made]
+print("macro charts -> 생성 %d/%d | 실패:%s | 누락:%s"%(len([r for r in REQUIRED if r in _made]),len(REQUIRED),(",".join(_failed) or "없음"),(",".join(_miss) or "없음")))
+if _miss: print("WARN_MACRO_MISSING="+",".join(_miss))

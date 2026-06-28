@@ -52,6 +52,11 @@ def ret(series):
         cand = [p for p in pts if p[0] <= tgt] or [pts[0]]
         base = cand[-1][1]
         out[k] = round((cur / base - 1) * 100, 1) if base else None
+    # (대전제) 현재가셀=1d_pct(D0=최근거래일 전일대비), '1일'컬럼=prev_pct(D-1 일간변동=직전거래일 변동)
+    if len(pts) >= 2 and pts[-2][1]:
+        out['1d_pct'] = round((pts[-1][1] / pts[-2][1] - 1) * 100, 2)
+    if len(pts) >= 3 and pts[-3][1]:
+        out['prev_pct'] = round((pts[-2][1] / pts[-3][1] - 1) * 100, 2)
     return out
 
 def koTrend(r):
@@ -323,6 +328,23 @@ for _r in ((macro.get('sentiment') or {}).get('rows') or []):
     if isinstance(_r, dict) and 'VKOSPI' in str(_r.get('name', '')).upper():
         _r['name'] = 'KSVKOSPI (KOSPI Volatility)'
         if _vk: _reuse(_r, _vk)
+# (req10) VKOSPI 이력 DB(nmr_vkospi_history.json)에서 1주~1년·prev_pct(1일=D-1) 주입 → '-' 제거
+try:
+    _vh = LCF('nmr_vkospi_history.json')
+    if not isinstance(_vh, dict):
+        _vp2 = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json') or [None])[0]
+        _vh = json.load(open(_vp2)) if _vp2 else None
+    if isinstance(_vh, dict):
+        for _r in ((macro.get('sentiment') or {}).get('rows') or []):
+            if isinstance(_r, dict) and 'VKOSPI' in str(_r.get('name','')).upper():
+                for _k in ('1w_pct','1mo_pct','3mo_pct','6mo_pct','1y_pct','prev_pct','1d_pct','chg','prev_close','current'):
+                    if _vh.get(_k) is not None: _r[_k] = _vh[_k]
+                _r['spark'] = 'charts/spark_vkospi.png'
+                _r['trend'] = '실시간(CNBC)+이력(investing.com 실측·일부 추정)'
+                _r['hist_src'] = _vh.get('source','')
+        print('  [req10] VKOSPI 이력 주입: 1년', _vh.get('1y_pct'), '6개월', _vh.get('6mo_pct'), '1주', _vh.get('1w_pct'))
+except Exception as _ve:
+    print('  [req10] VKOSPI 이력 주입 skip:', _ve)
 m['macro'] = macro
 # (REQ3) 실측 정책금리 — nmr_policyrates.json 있으면 추정치 대체
 _pr = L('nmr_policyrates.json')
@@ -397,9 +419,9 @@ if isinstance(_kp, dict) and not _kp.get('coins'):
 
 # news (+ longterm 병합·중복제거·빈event 방어 필터: 2.2 가 "-" 로 새지 않도록)
 news = dict(nw)
-# (req1) Top News 최대 D-1: 발행일이 어제~오늘인 기사만(없으면 원본 유지 — 빈손 방지)
+# (req1) Top News 최대 D-2: 발행일이 그제~오늘인 기사만(없으면 원본 유지 — 빈손 방지)
 try:
-    _dw=now.date().weekday(); _back=(3 if _dw==0 else 2 if _dw==6 else 1)  # 주말→금요일 허용
+    _dw=now.date().weekday(); _back=(4 if _dw==0 else 3 if _dw==6 else 2)  # (req1) D-2까지 · 주말 보정
     _d1 = (now.date() - dt.timedelta(days=_back)).isoformat()
     _tn = news.get('top_news') or []
     _fresh = [x for x in _tn if str(x.get('published_date','')) >= _d1]
@@ -450,6 +472,53 @@ data = {'report_date': RD_ISO,
         'news': news, 'markets': m, 'commodities': com, 'crypto': crd, 'analysis': an,
         'securities': sec, 'global_securities': gs, 'berkshire': n2.get('berkshire', {}), 'ai_trends': n2.get('ai_trends', {})}
 os.makedirs(os.path.join(W, '_market_report_data'), exist_ok=True)
+# (R4 req2/req3) 국채 단일소스화: FMP treasury 일별 → us10y/us2y 일관 블록(1d_pct=D0 전일대비, prev_pct=D-1 일간변동) 강제
+def _ko_trend_bond(o):
+    try:
+        y1=o.get('1y_pct') or 0; m3=o.get('3mo_pct') or 0; m1=o.get('1mo_pct') or 0
+        base = '상승세' if y1>3 else ('하락세' if y1<-3 else '횡보 흐름')
+        return f"{base}(1년 {y1:+.2f}%·3개월 {m3:+.2f}%·1개월 {m1:+.2f}%)"
+    except Exception:
+        return o.get('trend') or '-'
+try:
+    _rates_fin = macro.setdefault('rates', {})
+    _tc = LCF('treasury_consistent.json')
+    for _bk in ('us10y','us2y'):
+        _o = _rates_fin.get(_bk)
+        if not isinstance(_o, dict):
+            _o = {}; _rates_fin[_bk] = _o
+        _src = (_tc.get(_bk) or {}).get('block') if isinstance(_tc, dict) else None
+        if _src:
+            _o['current'] = _src['current']; _o['prev_close'] = _src['prev_close']
+            _o['chg'] = round(_src['current'] - _src['prev_close'], 3)
+            for _hk in ('1d_pct','prev_pct','1w_pct','1mo_pct','3mo_pct','6mo_pct','1y_pct'):
+                _o[_hk] = _src.get(_hk)
+        # 대전제: 현재가셀=1d_pct(D0 전일대비), '1일'컬럼=prev_pct(D-1 일간변동) — 구분 유지
+        _o['spark'] = 'charts/spark_%s.png' % _bk
+        _o['trend'] = _ko_trend_bond(_o)
+    # (req5 갱신) 美 기준금리 = 정책금리 DB 실측 현재값으로 일관화
+    _prdb = LCF('nmr_policyrates_monthly.json')
+    if isinstance(_prdb, dict):
+        _uscur = (_prdb.get('current') or {}).get('미국')
+        if _uscur is not None:
+            _ff = _rates_fin.setdefault('fed_funds', {})
+            _ff['current'] = _uscur
+            print('  [R4] 美 기준금리 실측 반영:', _uscur)
+    try:
+        if isinstance(macro.get('inflation'), dict): macro['inflation']['chart'] = 'charts/macro_inflation.png'
+        if isinstance(macro.get('employment'), dict): macro['employment']['chart'] = 'charts/macro_employment.png'
+        _senf = macro.get('sentiment') or {}
+        if isinstance(_senf.get('spx_fwd'), dict): _senf['spx_fwd']['chart'] = 'charts/macro_spx_fwd.png'
+        if isinstance(_senf.get('kospi_fwd'), dict): _senf['kospi_fwd']['chart'] = 'charts/macro_kospi_fwd.png'
+        print('  [R4] 차트경로 강제: inflation/employment/spx_fwd/kospi_fwd')
+    except Exception as _ce: print('  [R4] 차트경로 강제 skip:', _ce)
+    print('  [R4] 국채 단일소스 강제: us10y', _rates_fin.get('us10y',{}).get('current'),
+          '1d', _rates_fin.get('us10y',{}).get('1d_pct'),
+          '| us2y', _rates_fin.get('us2y',{}).get('current'),
+          '1d', _rates_fin.get('us2y',{}).get('1d_pct'))
+except Exception as _e:
+    print('  [R4] 국채 단일소스 강제 skip(비차단):', _e)
+
 outp = os.path.join(W, '_market_report_data', f'report_data_{RD}.json')
 json.dump(data, open(outp, 'w'), ensure_ascii=False, indent=1)
 print('MERGED →', outp)
