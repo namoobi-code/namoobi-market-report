@@ -88,14 +88,47 @@ def merge_series(old, new):
     oo = old if isinstance(old, list) else []
     return no if len(no) >= len(oo) else oo
 
+def _latest_marker(s):
+    if _pairs(s):
+        ds=[str(p[0])[:10] for p in s if p and p[0] is not None]
+        return max(ds) if ds else None
+    return ('n=%d'%len(s)) if isinstance(s,list) else None
+
 def dbseries(item, fresh, dbdir, prefer_fresh=False):
-    cur = _load('series_' + item, dbdir).get('data')
-    merged = merge_series(cur, fresh)
-    if merged:
-        set_('series_' + item, '', '', dbdir, merged)
-    if prefer_fresh and fresh:
-        return fresh
-    return merged if merged else (cur if cur else fresh)
+    # [변경감지 마커] 조사 실패(null)와 변경없음을 구분: null→unverified(플래그), fresh→마커비교 updated/reused
+    e=_load('series_'+item, dbdir); cur=e.get('data'); cur_marker=e.get('marker')
+    if _empty(fresh):
+        return {'data': cur, 'status':'unverified', 'marker': cur_marker}
+    merged=merge_series(cur, fresh); new_marker=_latest_marker(merged); fm=_latest_marker(fresh)
+    status='updated' if (fm is not None and str(fm)!=str(cur_marker)) else 'reused'
+    if merged: set_('series_'+item, '', new_marker, dbdir, merged)
+    out = fresh if (prefer_fresh and fresh) else merged
+    return {'data': out, 'status': status, 'marker': new_marker}
+
+def merge_rows(old, new, key='name'):
+    # 셀 단위 병합: fresh 셀이 값 있으면 fresh, 없으면(null/-) DB 셀 백필. DB는 null로 덮지 않음.
+    om={str(r.get(key)): r for r in (old or []) if isinstance(r,dict)}
+    out=[]; back=[]
+    for r in (new or []):
+        if not isinstance(r,dict): out.append(r); continue
+        k=str(r.get(key)); base=dict(om.get(k) or {}); merged=dict(base)
+        for f,v in r.items():
+            if v not in (None,'','-'): merged[f]=v
+        for f,bv in base.items():
+            if (r.get(f) in (None,'','-')) and (bv not in (None,'','-')): back.append(k+'.'+f)
+        out.append(merged)
+    seen={str(r.get(key)) for r in out if isinstance(r,dict)}
+    for k,r in om.items():
+        if k not in seen: out.append(r)
+    return out, back
+
+def dbrows(item, fresh, dbdir, key='name'):
+    cur=_load(item, dbdir).get('data') or []
+    if _empty(fresh):
+        return {'data': cur, 'backfilled':[], 'status':'unverified'}
+    merged, back = merge_rows(cur, fresh, key)
+    if merged: set_(item, '', '', dbdir, merged)
+    return {'data': merged, 'backfilled': back, 'status': ('partial' if back else 'ok')}
 
 
 def main():

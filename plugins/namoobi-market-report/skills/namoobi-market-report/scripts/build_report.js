@@ -728,6 +728,7 @@ function renderMacroIndicators(){
   children.push(p(""));
 
   // 3.1.3 고용 — 추세1Y 제거, 통합 그래프 하나
+  if(x._db_unverified&&(((x._db_unverified.rows_backfilled||[]).length)||((x._db_unverified.series_unverified||[]).length))){ const u=x._db_unverified; children.push(p("⚠ 변경 미확인: 당일 미수집 셀 "+(u.rows_backfilled||[]).length+"개"+((u.series_unverified||[]).length?(" · 시계열 "+u.series_unverified.length+"종"):"")+"는 DB 직전값 사용(다음 실행 재조사).",{size:14,color:"DC2626"})); }
   const emp=x.employment||{};
   children.push(h("3.1.3 고용·경기 (금리 간접 영향)",3));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));

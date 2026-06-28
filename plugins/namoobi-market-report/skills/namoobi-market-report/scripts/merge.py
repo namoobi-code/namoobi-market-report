@@ -507,9 +507,16 @@ try:
         vv = [x for x in vv if _re2.match(r"^\d{4}[-.]\d{1,2}", x)]
         return max(vv) if vv else ''
     _ir = (_mc.get('inflation') or {}).get('rows')
-    _mc.setdefault('inflation', {})['rows'] = _ndb.sync('inflation', _ir, _today, _mx(_ir, ['asof', 'release']) or _run_m, _dd)
+    _ri = _ndb.dbrows('inflation', _ir, _dd, 'name')   # [변경감지] 셀단위 DB 백필 — 빈 셀은 DB값(조용한 '-' 방지)
+    _mc.setdefault('inflation', {})['rows'] = _ri.get('data')
     _er = (_mc.get('employment') or {}).get('rows')
-    _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', _er, _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
+    _re = _ndb.dbrows('employment', _er, _dd, 'name')
+    _mc.setdefault('employment', {})['rows'] = _re.get('data')
+    _bk = (_ri.get('backfilled') or []) + (_re.get('backfilled') or [])
+    _macunv = _mc.get('_unverified_series') or []
+    if _bk or _macunv:
+        _mc['_db_unverified'] = {'rows_backfilled': _bk, 'series_unverified': _macunv}
+        print('  [DB화·변경감지] 당일 미수집 → DB 백필(변경 미확인): rows', len(_bk), '| series', _macunv)
     _rt['policy_rates'] = _ndb.sync('policy_rates', _rt.get('policy_rates'), _today, _run_m, _dd)
     _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', _rt.get('fomc_meetings'), _today, _mx(_rt.get('fomc_meetings'), ['date']) or _run_m, _dd)
     _dp = m.get('fomc_dotplot') or {}
