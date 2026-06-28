@@ -120,4 +120,5 @@ kr_series["caps"]=_caps
 print("  [caps] 시총·상장주식수 매일수집:", len(_caps), "종")
 
 json.dump(kr_series, open("nmr_kr_series.json", "w", encoding="utf-8"), ensure_ascii=False)
+json.dump(kr_series.get("themes", {}), open("nmr_themeseries1y.json", "w", encoding="utf-8"), ensure_ascii=False)  # [브리지] gen_rest_charts theme_*
 print(f"WROTE nmr_kr_series.json — themes {len(kr_series['themes'])} stocks {len(kr_series['stocks'])} etfs {len(kr_series['etfs'])} | ok {ok} miss {miss} | daily {sum(len(v) for v in daily.values())}")

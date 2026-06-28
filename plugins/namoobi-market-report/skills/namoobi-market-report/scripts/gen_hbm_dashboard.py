@@ -93,12 +93,21 @@ def _live():
         except Exception: pass
     return {}
 
+def _compat(new, old):  # [견고화] LIVE 스키마가 내장(DEF)과 호환될 때만 적용 — 불일치는 내장값 유지(크래시 방지)
+    if type(new)!=type(old): return False
+    if isinstance(old,list):
+        if old and isinstance(old[0],dict):
+            return bool(new) and isinstance(new[0],dict) and bool(set(new[0]) & set(old[0]))
+        return True
+    if isinstance(old,dict): return bool(set(new) & set(old))
+    return True
 D=dict(DEF); LIVE=_live(); USED_LIVE=False
 if isinstance(LIVE, dict):
     for k,v in LIVE.items():
-        if v not in (None,"",[],{}):
-            D[k]=v
-            if k not in ("asof","source"): USED_LIVE=True
+        if v in (None,"",[],{}): continue
+        if (k in DEF) and not _compat(v, DEF[k]): continue
+        D[k]=v
+        if k not in ("asof","source"): USED_LIVE=True
 
 def _pairs_dt(series):
     out=[]

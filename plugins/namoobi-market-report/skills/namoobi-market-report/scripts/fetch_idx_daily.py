@@ -11,6 +11,8 @@ def y(sym):
 try:
     out={'spx':y("%5EGSPC"),'kospi':y("%5EKS11"),'updated':os.environ.get('NMR_DATE_ISO','')}
     json.dump(out,open(os.path.join(W,'nmr_idx_daily.json'),'w'))
+    json.dump({'series':out['spx']},open(os.path.join(W,'nmr_spx_daily.json'),'w'))   # [브리지] gen_macro_charts macro_spx_fwd
+    json.dump({'series':out['kospi']},open(os.path.join(W,'nmr_kospi_daily.json'),'w'))  # [브리지] macro_kospi_fwd
     print('idx_daily spx',len(out['spx']),'kospi',len(out['kospi']),'spx_last',out['spx'][-1],'kospi_last',out['kospi'][-1])
 except Exception as e:
     print('idx_daily ERR',type(e).__name__,e)
