@@ -207,7 +207,7 @@ MACRO_DEFAULT = json.loads(r'''{
       {"name": "VIX (공포지수)", "current": 17.2, "1w_pct": -5.0, "1mo_pct": -8.0, "3mo_pct": -12.0, "6mo_pct": -6.0, "1y_pct": -10.0, "trend": "안정(추정)", "spark": "charts/spark_vix.png", "meaning": "변동성 예측", "use": "높을수록 등락 심화 → 현금 비중 늘려 관망"},
       {"name": "KSVKOSPI (KOSPI Volatility)", "current": 95.73, "trend": "실시간(CNBC .KSVKOSPI)", "spark": "charts/spark_vkospi.png", "meaning": "코스피200 변동성지수(VKOSPI)", "use": "20대=안정·30↑ 고변동, 급등 시 공포 확대 → 현금 비중 관망"},
       {"name": "달러인덱스 DXY", "current": 98.1, "1w_pct": 0.3, "1mo_pct": -0.5, "3mo_pct": -1.8, "6mo_pct": -3.0, "1y_pct": -4.0, "trend": "약보합(추정)", "spark": "charts/spark_dxy.png", "meaning": "달러 가치", "use": "달러 강세 → 코스피 조정 역사"},
-      {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usdkrw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
+      {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usd_krw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
       {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}
     ],
     "spx_fwd": {"fwd_eps": 330, "fwd_per": 22.7, "asof": "2026-06", "chart": "charts/macro_spx_fwd.png", "note": "출처: LSEG/Yardeni 공개치(월간 캐시) — 추정. 지수 7,500 / EPS 330 → 선행PER 22.7배로 정합"},
@@ -258,17 +258,38 @@ def _macro_canon(macro):
             if all(t in nm for t in ALL) and (not ANY or any(t in nm for t in ANY)) and not any(t in nm for t in NONE):
                 return o
         return None
-    def _canon(section, CAN, valkeys):
+    import re as _re
+    def _infl_interp(name, row):
+        try: v=float(row.get('yoy'))
+        except Exception: return ''
+        if 'BEI' in name or '기대' in name:
+            return ("기대인플레 %.1f%%로 다소 높아 장기금리 상방·성장주 부담" % v) if v>=2.6 else ("기대인플레 %.1f%%로 2%%대 안정 → 증시 우호" % v)
+        if v>=3.5: return "%.1f%%로 높은 수준 — 금리인하 지연 우려로 증시 부담" % v
+        if v>=2.6: return "%.1f%%로 목표(2%%) 상회 — 둔화 확인 시 증시 우호" % v
+        return "%.1f%%로 목표 근접 — 금리인하 기대로 증시 우호" % v
+    def _emp_interp(name, row):
+        s0=str(row.get('value','')); mnum=_re.search(r'-?\d+\.?\d*', s0.replace(',',''))
+        if not mnum: return ''
+        v=float(mnum.group())
+        if 'NFP' in name or '비농업' in name: return ("신규고용 %s — 견조, 과열 시 금리인상 우려" % s0) if v>=150 else ("신규고용 %s — 둔화, 금리인하 명분·증시 양면" % s0)
+        if '실업' in name: return ("실업률 %s — 상승 압력, 인하 기대로 증시 양면" % s0) if v>=4.4 else ("실업률 %s — 낮음, 노동시장 타이트·인하 지연" % s0)
+        if '소매' in name: return ("소비 %s — 견조하나 인플레·금리 자극" % s0) if v>=0 else ("소비 %s — 둔화, 경기 우려·인하 기대" % s0)
+        if 'ISM' in name: return ("%s — 50 상회 확장, 경기민감·반도체 우호" % s0) if v>=50 else ("%s — 50 하회 위축, 경기둔화 우려" % s0)
+        if 'GDP' in name: return ("성장 %s — 견조, 실적 우호" % s0) if v>=2 else ("성장 %s — 둔화, 경기 우려" % s0)
+        return ''
+    def _canon(section, CAN, valkeys, interp_fn=None):
         src = (macro.get(section) or {}).get('rows') or []
         out = []
         for (name, ALL, ANY, NONE, mean, imp, interp) in CAN:
             o = _match(src, ALL, ANY, NONE) or {}
-            row = {'name': name, 'meaning': mean, 'impact': imp, 'interp': interp}
+            row = {'name': name, 'meaning': mean, 'impact': imp}
             for vk in valkeys: row[vk] = o.get(vk)
+            _dyn = interp_fn(name, row) if interp_fn else ''
+            row['interp'] = _dyn or interp
             out.append(row)
         macro.setdefault(section, {})['rows'] = out
-    _canon('inflation', INFL, ['yoy','mom','asof','release'])
-    _canon('employment', EMP, ['value','asof','release','freq'])
+    _canon('inflation', INFL, ['yoy','mom','asof','release'], _infl_interp)
+    _canon('employment', EMP, ['value','asof','release','freq'], _emp_interp)
 _macro_canon(macro)
 
 # 이미 수집된 시세 재사용(중복 fetch 금지): VIX·DXY·원/달러·WTI·美10년물
@@ -314,7 +335,7 @@ _rt3['policy_rates_chart'] = 'charts/macro_policy_rates.png'
 if isinstance(_rt3.get('yield_curve'), dict): _rt3['yield_curve']['chart'] = 'charts/macro_curve.png'
 _um10 = ((m.get('us_markets') or {}).get('us10y') or {})
 if isinstance(_rt3.get('us10y'), dict) and _um10.get('prev_pct') is not None: _rt3['us10y']['prev_pct'] = _um10['prev_pct']
-_spk3 = {'VIX (공포지수)':'charts/spark_vix.png','KSVKOSPI (KOSPI Volatility)':'charts/spark_vkospi.png','달러인덱스 DXY':'charts/spark_dxy.png','원/달러 환율':'charts/spark_usdkrw.png','WTI 유가':'charts/spark_wti.png','미국 10년물 국채금리':'charts/spark_us10y_v2.png'}
+_spk3 = {'VIX (공포지수)':'charts/spark_vix.png','KSVKOSPI (KOSPI Volatility)':'charts/spark_vkospi.png','달러인덱스 DXY':'charts/spark_dxy.png','원/달러 환율':'charts/spark_usd_krw.png','WTI 유가':'charts/spark_wti.png','미국 10년물 국채금리':'charts/spark_us10y_v2.png'}
 for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
     if _r3.get('name') in _spk3: _r3['spark'] = _spk3[_r3['name']]
 _cap3 = LCF('nmr_capex.json')
@@ -370,6 +391,22 @@ if isinstance(_kp, dict) and not _kp.get('coins'):
 
 # news (+ longterm 병합·중복제거·빈event 방어 필터: 2.2 가 "-" 로 새지 않도록)
 news = dict(nw)
+# (req1) Top News 최대 D-1: 발행일이 어제~오늘인 기사만(없으면 원본 유지 — 빈손 방지)
+try:
+    _dw=now.date().weekday(); _back=(3 if _dw==0 else 2 if _dw==6 else 1)  # 주말→금요일 허용
+    _d1 = (now.date() - dt.timedelta(days=_back)).isoformat()
+    _tn = news.get('top_news') or []
+    _fresh = [x for x in _tn if str(x.get('published_date','')) >= _d1]
+    if _fresh: news['top_news'] = _fresh
+except Exception: pass
+# (req2) 2.3 빅테크 이벤트·이벤트캘린더: 지나간(오늘 이전) 항목 제거
+try:
+    _td = now.date().isoformat()
+    for _ek in ('bigtech_events','events_calendar'):
+        _ev = news.get(_ek)
+        if isinstance(_ev, list):
+            news[_ek] = [e for e in _ev if not (e.get('date') and str(e.get('date'))[:10] < _td)]
+except Exception: pass
 lt = (nw.get('events_calendar_longterm') or []) + (n2.get('events_calendar_longterm') or [])
 seen = set(); ltu = []
 for e in lt:
