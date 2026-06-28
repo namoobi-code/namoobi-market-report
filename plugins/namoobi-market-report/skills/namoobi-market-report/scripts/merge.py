@@ -415,6 +415,30 @@ for e in lt:
     if k not in seen: seen.add(k); ltu.append(e)
 news['events_calendar_longterm'] = ltu
 
+# (Big-Arch) 비매일 섹션 DB 동기화 — 신규조사분 있으면 db/<item>.json 저장, 비면 DB값 재사용.
+#   marker=섹션 최신 발표/결정일(변경 시에만 의미). 에이전트는 매 실행 marker 만 싸게 관측해 reuse 면 조사 스킵 가능.
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import nmr_db as _ndb
+    _dd = _ndb._dbdir(); _run_m = RD_ISO[:7]; _today = RD_ISO[:10]
+    _mc = m.get('macro') or {}; _rt = _mc.get('rates') or {}
+    import re as _re2
+    def _mx(rows, ks):
+        vv = [str(r.get(k))[:10] for r in (rows or []) if isinstance(r, dict) for k in ks if r.get(k)]
+        vv = [x for x in vv if _re2.match(r"^\d{4}[-.]\d{1,2}", x)]
+        return max(vv) if vv else ''
+    _ir = (_mc.get('inflation') or {}).get('rows')
+    _mc.setdefault('inflation', {})['rows'] = _ndb.sync('inflation', _ir, _today, _mx(_ir, ['asof', 'release']) or _run_m, _dd)
+    _er = (_mc.get('employment') or {}).get('rows')
+    _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', _er, _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
+    _rt['policy_rates'] = _ndb.sync('policy_rates', _rt.get('policy_rates'), _today, _run_m, _dd)
+    _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', _rt.get('fomc_meetings'), _today, _mx(_rt.get('fomc_meetings'), ['date']) or _run_m, _dd)
+    _dp = m.get('fomc_dotplot') or {}
+    m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
+    m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
+    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading -> db/')
+except Exception as _dbe:
+    print('  [DB] 동기화 skip(비차단):', _dbe)
 data = {'report_date': RD_ISO,
         'metadata': {'report_date': RD_ISO, 'generated_at': now.strftime('%Y-%m-%d %H:%M KST'), 'mode': MODE},
         'news': news, 'markets': m, 'commodities': com, 'crypto': crd, 'analysis': an,

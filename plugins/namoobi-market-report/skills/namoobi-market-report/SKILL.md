@@ -22,6 +22,7 @@ description: |
 
 > **[Big-Arch] 비매일 지표 DB화 (최우선 원칙 · 상세 `references/db-architecture.md`)**: 발표주기가 매일이 아닌 **모든 3.1 매크로 지표**(FOMC 기준금리·6개국 정책금리·FOMC 회의일정·점도표·물가 CPI/CoreCPI/PCE/CorePCE/PPI·고용 6종·Forward EPS/PER·빅테크 CAPEX·메모리/HBM·경기선행지수)는 ① 별도 DB(파일)에 저장하고 ② 매 실행 **변동 여부만** 저렴히 조사해 ③ 변동 시에만 재조사·갱신하며 ④ 변동 없으면 DB값을 그대로 쓴다. 보고서엔 표준 캡션 **"업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"** 를 명시한다(물가는 `, BEI는 실시간` 부기). **매일 실측(DB화 제외)**: 美 국채금리(10Y·2Y)·장단기차(10Y-2Y)·HY 스프레드·기대인플레(BEI)·심리(VIX·KSVKOSPI·DXY·원/달러·WTI·美10Y). Forward EPS/PER·CAPEX·HBM 은 **누적형 DB**(신규 관측치 upsert 로 시계열 계속 업그레이드).
 > **Top News 최신성(req1)**: 1.글로벌 Top News 10 은 발행일이 **전일~당일(D-0~D-1)** 인 기사만 사용(2일 이상 지난 뉴스 금지).
+> **[Big-Arch 구현] 범용 DB**: `scripts/nmr_db.py`(check/get/set/upsert) + `merge.py` 가 매 실행 **물가·고용·정책금리·FOMC회의·점도표·경기선행** 6섹션을 `_market_report_data/db/<item>.json` 에 자동 저장하고, 비면 DB값을 재사용한다(변동 시에만 갱신). 에이전트는 섹션 마커(최신 발표/결정일)를 `nmr_db.py check` 로 1회 관측해 reuse 면 수집 스킵 가능. 점도표·13F·리밸런싱은 기존 `nmr_cache.py` 와 호환.
 
 **공통 소스·폴백**
 - 증시·지수·환율·원자재·美ETF·크립토시계열: **`scripts/fetch_us.py`**(sandbox·stdlib·스레드 병렬, Yahoo+alternative.me, ~4초). 美10년=^TNX, 전체 국채커브·CAPEX·점도표는 USMacroExtras(FMP). 한국 지수/수급/시계열은 fetch_kr.py·fetch_semi.py.

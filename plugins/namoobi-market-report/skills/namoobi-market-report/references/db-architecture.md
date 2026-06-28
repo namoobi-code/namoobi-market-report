@@ -57,3 +57,9 @@
 기존 `nmr_cache.py`(dot_plot·berkshire·index_rebalance·hy_spread·cautions·leading)는 본 DB화의 부분집합이다.
 `nmr_db.py` 는 이를 일반화(섹션 무관 store/check/reuse)하며, 신규 항목(policy_rates·fomc_meetings·inflation·employment)을 추가한다.
 berkshire·index_rebalance 는 3.1 외 섹션이나 동일 메커니즘(변동감지·DB재사용)을 공유한다.
+
+## 구현 상태 (v1.1 — 완료)
+
+- **`scripts/nmr_db.py`**: 범용 DB 모듈 — `check <item> <marker>`(reuse/due) · `get` · `set`(stdin=data) · `upsert`(누적형, keyfield 병합) · `list`. DB=`_market_report_data/db/<item>.json`={marker,as_of,data}.
+- **`scripts/merge.py`**: 매 실행 6개 비매일 섹션(**inflation·employment·policy_rates·fomc_meetings·dot_plot·leading**)을 자동 DB 동기화 — 신규조사분 있으면 `set`(marker=섹션 최신 발표/결정일), **비면 `get` 으로 DB값 재사용**(라이브 실패에도 stale/'-' 금지). 누적형(fwd EPS/PER·CAPEX·HBM)은 기존 전용 DB(nmr_fwd_history·nmr_capex·nmr_hbm) 유지.
+- **에이전트 마커체크(조사 스킵·선택적 최적화)**: 수집 에이전트는 각 섹션의 저렴한 마커(예: 최신 CPI 발표월·FOMC 결정일·통계청 발표월)를 1회 관측해 `nmr_db.py check <item> <marker>` → **reuse 면 그 섹션 수집을 건너뛴다**(merge 가 DB값 사용); due(변경·확인불가)면 조사. 마커 관측 실패=불확실이면 무조건 조사(stale 금지).
