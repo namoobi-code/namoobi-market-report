@@ -221,13 +221,19 @@ _macro = _mac.get('macro') if (isinstance(_mac, dict) and _mac.get('macro')) els
 def _macro_ok(mm):
     try:
         _r = mm.get('rates') or {}
-        return isinstance(_r.get('fed_funds'), dict) and bool((mm.get('inflation') or {}).get('rows')) and bool((mm.get('employment') or {}).get('rows')) and bool((mm.get('sentiment') or {}).get('rows'))
+        return isinstance(_r.get('fed_funds'), dict) and bool((mm.get('inflation') or {}).get('rows')) and bool((mm.get('employment') or {}).get('rows'))
     except Exception:
         return False
 if _macro and not _macro_ok(_macro):
     print('  [macro] nmr_macro 구조 불일치(rates.fed_funds 가 dict 아님/rows 비어있음) -> MACRO_DEFAULT 폴백')
     _macro = None
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
+# (v3.43) 에이전트가 sentiment.rows(심리 6지표 골격)를 안 줘도 inflation/employment 를 살린다 — MACRO_DEFAULT 골격만 주입(merge가 VIX·DXY·KSVKOSPI·원달러·WTI·US10Y 라이브값 주입). spx_fwd/kospi_fwd 는 에이전트값 보존.
+if not ((macro.get('sentiment') or {}).get('rows')):
+    _sd = macro.setdefault('sentiment', {})
+    _sd['rows'] = json.loads(json.dumps(MACRO_DEFAULT['sentiment']['rows']))
+    for _fk in ('spx_fwd', 'kospi_fwd'):
+        if not _sd.get(_fk): _sd[_fk] = MACRO_DEFAULT['sentiment'].get(_fk, {})
 # (Big-Arch req4/20/25) 매크로 표 canonical 정규화 — 행순서·의미·시장영향·해석 고정 + us2y 보강
 def _macro_canon(macro):
     _r = macro.setdefault('rates', {})
