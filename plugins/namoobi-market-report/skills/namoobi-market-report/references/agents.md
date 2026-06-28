@@ -1,3 +1,5 @@
+> **[DB화 v2 · 2026-06] 마커체크 폐지 + 차트 시계열 DB.** 구 '에이전트 마커체크(조사 스킵)'·Phase 1.0(nmr_cache)은 폐지. 비매일 지표는 매 실행 수집 시도 후 통합 DB(merge.py + `nmr_db.dbseries`)가 변동체크·미변동 재사용·**차트 시계열 누적**(`db/series_*.json`)을 담당 — 수집이 부실해도 과거 DB로 차트가 완전해진다. (USMacroExtras·IndexRebalance·NewsBerk·HBM 은 상시 수집, DB가 재사용 판단.)
+
 > **v3.39.0 — 휘발 데이터 carry-forward 계약.** HBMAgent·CapexAgent 는 **연결폴더 `_market_report_data/nmr_hbm.json`·`nmr_capex.json` 영구본을 베이스로 로드 → 새로 조사된 값만 갱신 → 저장**한다(merge.py `LCF()` 가 자동으로 WORK 우선·없으면 영구본·사용분 재저장). 즉 매 실행 값은 개선만 되고, 수집 실패해도 내장 예시·추정 기본값으로 되돌아가지 않는다. (손편집 JSON 은 휘발이므로 금지 — 반드시 에이전트 산출/영구본 경유.)
 
 > **v3.35.0 — 3.1.6 CAPEX 데이터 확장(매출·FCF 실측).** CapexAgent 는 5개사(MSFT·GOOGL·AMZN·META·ORCL) 연도별 **CAPEX·매출·FCF** 를 모두 수집해 `nmr_capex.json` rows 에 `y{YYYY}`(capex)·`rev{YYYY}`·`fcf{YYYY}`·`ratio{YYYY}` 로 저장한다. 출처: FMP `statements` income-statement(revenue)·cashflow-statement(freeCashFlow,capitalExpenditure) 실측(2024~25), FMP `analyst` financial-estimates(revenueAvg) 컨센서스(2026~29E). 전망 FCF=직전 영업현금흐름×(매출_y/매출_25)−CAPEX_y 추정. Capex/매출=CAPEX÷매출. 표는 기업별 4행, 두 차트(gen_capex_chart.py)는 rows 의 capex/rev/fcf 로 그려 표·그래프 100% 일치. ORCL statements 플랜 제한 시 공개치·추정 폴백(표기). 단위 십억$.

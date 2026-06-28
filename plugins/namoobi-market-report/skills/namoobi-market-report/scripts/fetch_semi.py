@@ -57,10 +57,10 @@ etfs_ordered = [
     ("TIGER Fn반도체TOP10", "396500.KS"), ("KODEX 반도체", "091160.KS"), ("KODEX Fn시스템반도체", "395160.KS"),
     ("TIGER 반도체", "091230.KS"), ("TIGER 미국필라델피아반도체나스닥", "381180.KS"), ("ACE AI반도체포커스", "469150.KS"),
     ("TIGER 글로벌AI액티브", "442580.KS"), ("TIGER 반도체TOP10레버리지", "462330.KS"), ("KODEX 미국반도체MV", "390390.KS"),
-    ("KODEX 미국AI테크TOP10", "487230.KS"), ("KODEX 미국반도체레버리지(합성)", "446770.KS"), ("TIGER 미국AI반도체(PHLX)", "497570.KS"),
+    ("KODEX 미국AI테크TOP10", "487230.KS"), ("ACE 글로벌반도체TOP4 Plus", "446770.KS"), ("TIGER 미국AI반도체(PHLX)", "497570.KS"),
     ("ACE 엔비디아밸류체인액티브", "483320.KS"), ("KBSTAR AI&로봇", "469070.KS"), ("BNK 온디바이스AI", "487750.KS"),
     ("SOL 미국AI소프트웨어", "480040.KS"), ("TIGER 미국필라델피아반도체레버리지(합성)", "428510.KS"), ("KOSEF 글로벌AI반도체", "473490.KS"),
-    ("RISE 반도체", "469790.KS"), ("SOL 반도체후공정", "395150.KS"),
+    ("KIWOOM 코리아테크TOP10", "469790.KS"), ("SOL 반도체후공정", "395150.KS"),
 ]
 
 tasks = ([("themes", th, tk, "10y", "1mo", True) for th, (tk, _nm) in themes_etf.items()] +

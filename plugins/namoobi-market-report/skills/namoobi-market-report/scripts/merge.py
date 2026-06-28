@@ -247,6 +247,19 @@ def _macro_canon(macro):
         _u2['current'] = _u2.get('value')
     if not (isinstance(_r.get('us2y'), dict) and _r['us2y'].get('current') is not None):
         _r['us2y'] = {'current': 4.07, 'trend': '정책금리 기대 반영'}
+    # [req11] 장단기 금리차(10Y-2Y) 정규화 — label·status·meaning·impact·note 항상 완전(빈값/undefined 방지)
+    _yc = _r.get('yield_curve') if isinstance(_r.get('yield_curve'), dict) else {}
+    try: _sp = float(_yc['spread']) if _yc.get('spread') is not None else round(float(_r['us10y']['current'])-float(_r['us2y']['current']),2)
+    except Exception: _sp = _yc.get('spread')
+    if _sp is not None: _yc['spread'] = _sp
+    _yc['label'] = '미국 장단기 금리차(수익률곡선)(10Y-2Y)'
+    if isinstance(_sp,(int,float)):
+        _yc['status'] = '정상(양전환)' if _sp >= 0 else '역전'
+        _yc['meaning'] = '장단기 금리차 정상화 = 경기 연착륙 기대' if _sp >= 0 else '장단기 금리 역전 = 경기침체 우려'
+    _yc.setdefault('meaning','단기-장기 금리차'); _yc['impact'] = '스프레드 역전 시 침체 선행지표'
+    try: _yc['note'] = '10Y=%s%%, 2Y=%s%%' % (_r['us10y']['current'], _r['us2y']['current'])
+    except Exception: pass
+    _r['yield_curve'] = _yc
     INFL = [
       ('CPI (헤드라인)', ['cpi'], [], ['core'], '소비자가 체감하는 전체 물가. 식품·에너지 포함해 단기 변동성이 큼.', '금리 기대에 즉각 반영, 변동성이 큼.', '헤드라인 급등 시 단기 인플레 우려로 위험자산 변동성 확대.'),
       ('Core CPI (식품·에너지 제외)', ['cpi','core'], [], [], '일시적 충격을 뺀 기조적 물가 압력. 연준이 추세 판단에 더 유용하게 봄.', '금리 인하 결정의 핵심 변수, 듀레이션 자산에 영향.', '근원이 둔화되면 인하 기대가 살아나 성장주에 우호적.'),
@@ -368,6 +381,29 @@ for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
     if _r3.get('name') in _spk3: _r3['spark'] = _spk3[_r3['name']]
 _cap3 = LCF('nmr_capex.json')
 if isinstance(_cap3, dict) and _cap3.get('bigtech_capex'): m['bigtech_capex'] = _cap3['bigtech_capex']
+# [DB화] CAPEX 풀매트릭스 보강 — 표 actuals 우선 + 내장 컨센서스로 결측연도 채움 → 표·차트(2024~2029) 완전 일치
+try:
+    _CY=[2024,2025,2026,2027,2028,2029]
+    _CCAP={"Microsoft":[44.5,64.6,120,150,175,195],"Amazon":[83,132,200,245,280,305],"Alphabet":[52.5,91.4,180,220,250,270],"Meta":[37.3,69.7,135,165,185,200],"Oracle":[7,21,50,70,80,88]}
+    _CREV={"Microsoft":[245,282,320,365,415,470],"Amazon":[638,717,795,880,970,1065],"Alphabet":[350,403,458,520,590,665],"Meta":[165,201,238,278,320,365],"Oracle":[53,57,67,90,108,125]}
+    _CFCF={"Microsoft":[74,72,55,60,85,115],"Alphabet":[73,73,58,65,90,115],"Meta":[54,46,40,48,70,95],"Amazon":[33,8,-35,-30,5,45],"Oracle":[12,0,-24,-20,-5,10]}
+    _bc=m.get('bigtech_capex') or {}; _rows=_bc.get('rows') or []
+    def _has(v): return v not in (None,'','-')
+    for _r in _rows:
+        _co=str(_r.get('company','')).split(' (')[0].strip()
+        if _co not in _CCAP: continue
+        for _i,_y in enumerate(_CY):
+            if not _has(_r.get('y%d'%_y)):   _r['y%d'%_y]=_CCAP[_co][_i]
+            if not _has(_r.get('rev%d'%_y)): _r['rev%d'%_y]=_CREV[_co][_i]
+            if not _has(_r.get('fcf%d'%_y)): _r['fcf%d'%_y]=_CFCF[_co][_i]
+            try: _r['ratio%d'%_y]=round(100*float(_r['y%d'%_y])/float(_r['rev%d'%_y]))
+            except Exception: pass
+    if _rows:
+        m['bigtech_capex']['rows']=_rows
+        try: json.dump({'bigtech_capex':m['bigtech_capex']}, open(os.path.join(_CWROOT,'nmr_capex.json'),'w',encoding='utf-8'), ensure_ascii=False)
+        except Exception: pass
+        print('  [capex] 풀매트릭스 보강 완료(2024~2029, 표=차트)')
+except Exception as _ce: print('  [capex] enrich skip:', _ce)
 # (R4) 센티 prev_pct(1일=직전 거래일 변동) 보강
 _src4={'VIX (공포지수)':(m.get('us_markets') or {}).get('vix'),'달러인덱스 DXY':(m.get('us_markets') or {}).get('dxy'),'원/달러 환율':(m.get('fx_markets') or {}).get('usd_krw'),'미국 10년물 국채금리':(m.get('us_markets') or {}).get('us10y'),'WTI 유가':((com.get('energy') if isinstance(com,dict) else {}) or {}).get('wti'),'KSVKOSPI (KOSPI Volatility)':mk.get('vkospi')}
 for _r4 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):

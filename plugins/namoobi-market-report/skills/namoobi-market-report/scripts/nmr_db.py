@@ -69,6 +69,35 @@ def sync(item, value, as_of, marker, dbdir, nonempty=None):
     cached = get(item, dbdir)
     return cached if (cached is not None and ne(cached)) else value
 
+# ─────────────────────────────────────────────────────────────
+# [DB화 v2] 차트용 '시계열' 누적 DB — 표(rows)뿐 아니라 차트 series 도 DB에 저장·누적·재사용.
+def _pairs(s):
+    return isinstance(s, list) and len(s) > 0 and isinstance(s[0], (list, tuple)) and len(s[0]) >= 2
+
+def merge_series(old, new):
+    def _m(s):
+        d = {}
+        for p in (s or []):
+            if isinstance(p, (list, tuple)) and len(p) >= 2 and p[0] is not None:
+                d[str(p[0])[:10]] = p[1]
+        return d
+    if _pairs(old) or _pairs(new):
+        d = _m(old); d.update(_m(new))
+        return [[k, d[k]] for k in sorted(d)]
+    no = new if isinstance(new, list) else []
+    oo = old if isinstance(old, list) else []
+    return no if len(no) >= len(oo) else oo
+
+def dbseries(item, fresh, dbdir, prefer_fresh=False):
+    cur = _load('series_' + item, dbdir).get('data')
+    merged = merge_series(cur, fresh)
+    if merged:
+        set_('series_' + item, '', '', dbdir, merged)
+    if prefer_fresh and fresh:
+        return fresh
+    return merged if merged else (cur if cur else fresh)
+
+
 def main():
     a = sys.argv; cmd = a[1] if len(a) > 1 else ''
     if cmd == 'check':

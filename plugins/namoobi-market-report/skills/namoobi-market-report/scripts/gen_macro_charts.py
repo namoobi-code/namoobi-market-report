@@ -25,6 +25,48 @@ def _load_series():
         MAC=d.get("macro",d) or {}; return MAC.get("series",{}) or {}
     return {}
 S=_load_series()
+try:
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import nmr_db as _ndb
+    _DB=_ndb._dbdir(None)
+    _mp=None
+    for _p in ["nmr_macro.json", os.path.join(O,"nmr_macro.json")]:
+        if os.path.exists(_p): _mp=_p; break
+    if _mp and isinstance(S,dict):
+        for _k in ["curve_10_2","us2y_daily","us10y_daily","fed_funds_5y"]:
+            if (_k in S) or _ndb._load("series_"+_k,_DB).get("data"):
+                S[_k]=_ndb.dbseries(_k, S.get(_k), _DB)
+        if _ndb._pairs(S.get("curve_10_2")): S["curve_labels"]=[p[0] for p in S["curve_10_2"]]
+        S["infl_exp"]=_ndb.dbseries("infl_exp", S.get("infl_exp"), _DB, prefer_fresh=True)
+        _infl=S.get("inflation") or {}
+        for _ln in (list(_infl.keys()) or ["CPI","Core CPI","PCE","Core PCE","PPI"]):
+            _infl[_ln]=_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB)
+        if _infl: S["inflation"]=_infl
+        _emp=S.get("employment") or {}
+        for _pn in list(_emp.keys()):
+            _emp[_pn]=_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB)
+        if _emp: S["employment"]=_emp
+        _full=json.load(open(_mp,encoding="utf-8")); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
+        _mm.setdefault("series",{}).update(S)
+        _rr=_mm.setdefault("rates",{})
+        if isinstance(_rr.get("fed_funds"),dict) and not str(_rr["fed_funds"].get("bias") or "").strip(): _rr["fed_funds"]["bias"]="중립"
+        json.dump(_full, open(_mp,"w",encoding="utf-8"), ensure_ascii=False)
+        _ip=os.path.join(O,"nmr_indexseries.json")
+        try: _idx=json.load(open(_ip,encoding="utf-8"))
+        except Exception: _idx={}
+        if _ndb._pairs(S.get("us2y_daily")): _idx["us2y"]=S["us2y_daily"]
+        _vh=None
+        for _vp in [os.path.join(O,"nmr_vkospi_history.json")]+glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json"):
+            try: _vh=json.load(open(_vp)); break
+            except Exception: pass
+        if _vh:
+            _vs=_vh.get("series") if isinstance(_vh,dict) else _vh
+            if _ndb._pairs(_vs): _idx["vkospi"]=_vs
+        json.dump(_idx, open(_ip,"w",encoding="utf-8"), ensure_ascii=False)
+        print("[DB화] 매크로 시계열 누적:", {k:(len(S[k]) if isinstance(S.get(k),list) else 0) for k in ["curve_10_2","us2y_daily","fed_funds_5y","infl_exp"]}, "infl", {k:len(v) for k,v in (S.get("inflation") or {}).items()}, "emp", {k:len(v) for k,v in (S.get("employment") or {}).items()})
+except Exception as _dbe:
+    print("[DB화] 시계열 누적 skip(비차단):", _dbe)
 def _flat(v, default=None):
     if not isinstance(v,(list,tuple)) or len(v)<2: return default
     out=[]
