@@ -311,6 +311,7 @@ function renderKoreaLeading(){ const m=data.markets||{};
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.8 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
+    children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
     { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); } }
@@ -319,7 +320,7 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
   children.push(p("■ FOMC 점도표 (dot plot)",{bold:true,color:"1E40AF",before:140,size:22}));
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
-  children.push(p("업데이트: 분기 SEP(3·6·9·12월 FOMC) 발표 시 변동 체크 → 변동 시에만 갱신, 없으면 기존 자료 유지.",{size:15,italics:true,color:"94A3B8"}));
+  children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
   if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[r.item!=null?r.item:"-",r.jun!=null?r.jun:"-",r.mar!=null?r.mar:"-",r.change!=null?r.change:"-"]),{left:[0]});
   if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
@@ -361,20 +362,21 @@ function renderCapex(){ const m=data.markets||{};
 // (v3.12.0) HY 스프레드 — 3.1.1 금리·통화정책에 통합(하위 블록).
 function renderHY(){ const m=data.markets||{};
   if(m.hy_spread){ const c=m.hy_spread; children.push(p("■ 하이일드(HY) 스프레드",{bold:true,color:"1E40AF",before:140,size:22}));
-    children.push(p("하이일드 스프레드(HY Spread): 하이일드 채권 수익률에서 미국 국채 수익률을 뺀 스프레드가 확대되면 신용시장 위험이 높아지지만, 반대로 안정되거나 좁혀지면 신용시장이 정상화되며 주식시장이 회복되는 경향을 보입니다.",{italics:true,color:"64748B"}));
-    children.push(p("업데이트: 매일 (FRED BAMLH0A0HYM2 · ICE BofA US HY OAS 실측).",{size:15,italics:true,color:"94A3B8"}));
-    const cols=[2200,1300,1200,1200,1200,1200,1700];
-    const hdr=new TableRow({children:["지표 (OAS %)","현재","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
+    children.push(p("의미: 하이일드 스프레드(HY Spread)는 고위험 회사채 수익률과 미국 국채 수익률의 차이로, 시장이 신용위험을 얼마나 크게 보는지 보여주는 지표.",{italics:true,color:"64748B"}));
+    children.push(p("시장영향: HY Spread 확대 = 신용불안·리스크오프·주식 약세 압력, HY Spread 축소 = 신용정상화·리스크온·주식 회복 기대.",{italics:true,color:"64748B"}));
+    const cols=[2000,1180,1080,1080,1080,1080,1080,1420];
+    const hdr=new TableRow({children:["지표 (OAS %)","현재","1일","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
     const lv=(v)=> (v===null||v===undefined)?"-":Number(v).toFixed(2)+"%";
     const col=(v)=>{ if(v===null||v===undefined)return undefined; return Number(v)>Number(c.current)? negativeColor : (Number(v)<Number(c.current)? positiveColor: undefined); };
     const row=new TableRow({children:[
       cell("美 HY OAS",{width:cols[0],bold:true}),
       cell(lv(c.current),{width:cols[1],align:AlignmentType.RIGHT,bold:true}),
-      cell(lv(c.w1),{width:cols[2],align:AlignmentType.RIGHT,color:col(c.w1)}),
-      cell(lv(c.m1),{width:cols[3],align:AlignmentType.RIGHT,color:col(c.m1)}),
-      cell(lv(c.m3),{width:cols[4],align:AlignmentType.RIGHT,color:col(c.m3)}),
-      cell(lv(c.m6),{width:cols[5],align:AlignmentType.RIGHT,color:col(c.m6)}),
-      cell(lv(c.y1),{width:cols[6],align:AlignmentType.RIGHT,color:col(c.y1)})]});
+      cell(lv(c.d1),{width:cols[2],align:AlignmentType.RIGHT,color:col(c.d1)}),
+      cell(lv(c.w1),{width:cols[3],align:AlignmentType.RIGHT,color:col(c.w1)}),
+      cell(lv(c.m1),{width:cols[4],align:AlignmentType.RIGHT,color:col(c.m1)}),
+      cell(lv(c.m3),{width:cols[5],align:AlignmentType.RIGHT,color:col(c.m3)}),
+      cell(lv(c.m6),{width:cols[6],align:AlignmentType.RIGHT,color:col(c.m6)}),
+      cell(lv(c.y1),{width:cols[7],align:AlignmentType.RIGHT,color:col(c.y1)})]});
     children.push(makeTable(cols,[hdr,row]));
     children.push(p("표는 각 시점의 OAS 레벨(%). 과거치가 현재보다 높으면(초록) 그동안 스프레드가 축소(신용 개선)된 것.",{size:18,color:"64748B"}));
     const img=imagePara(c.chart||"charts/hy_oas.png",480,173); if(img)children.push(img);
@@ -648,7 +650,7 @@ function renderMacroIndicators(){
   const M=data.markets||{}; const x=M.macro; if(!x)return;
   children.push(h("3.1 주요지표 (매크로 대시보드)",2));
   children.push(p("증시 방향을 좌우하는 금리·물가·고용·심리 지표를 의미·발표주기·시장영향과 함께 정리한다.",{italics:true,color:"64748B"}));
-  children.push(p("※ 갱신 원칙: 모든 지표는 매일 최신값을 조사·반영. 발표주기가 매일이 아닌 항목(물가·고용·점도표·CAPEX·HBM 등)은 저장 후 매일 변동만 체크하여 변동 시에만 갱신하며, 각 항목에 갱신주기를 표기합니다.",{size:15,italics:true,color:"94A3B8"}));
+  children.push(p("※ UPDATE 원칙: 모든 지표는 매일 최신값을 조사·반영하는 것이 대원칙. 단, 발표주기가 매일이 아닌 모든 지표는 '업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지'로 명시하고, 데이터를 별도 DB(파일)에 저장해 매 실행 변동 여부만 조사하며, 변동이 없으면 DB에 저장된 값을 그대로 사용합니다.",{size:15,italics:true,color:"94A3B8"}));
 
   // 3.1.1 금리·통화정책 (REQ2 순서: 美10년물 → 장단기차 → HY → 기준금리 → FOMC회의 → 점도표)
   const r=x.rates||{};
@@ -666,13 +668,12 @@ function renderMacroIndicators(){
     trow("美 10년물 국채금리",r.us10y); trow("美 2년물 국채금리",r.us2y);
     children.push(makeTable(w,rows));
     children.push(p("의미: 10년물=장기 기준금리 역할 · 2년물=정책금리 기대 민감 · 시장영향: 금리↑ → 기술·성장주 부담·채권↓",{size:16,color:"64748B"}));
-    children.push(p("업데이트: 매일 (Yahoo·FMP 실측). 현재가 옆=당일 전일대비 변동(▲/▼·%), '1일'=직전 거래일의 1일 변동률.",{size:15,italics:true,color:"94A3B8"})); }
+  }
   // [2] 미국 장단기 금리차 (10Y-2Y, 매일 실측)
   if(r.yield_curve){ const yc=r.yield_curve;
     children.push(p("■ "+(yc.label||"미국 장단기 금리차(수익률곡선)(10Y-2Y)"),{bold:true,size:22,color:"1E40AF",before:140}));
     children.push(p((yc.spread>=0?"+":"")+yc.spread+"%p → "+yc.status+"  ("+(yc.note||"")+")",{bold:true,size:22,color:"1E40AF"}));
     children.push(p("의미: "+(yc.meaning||"")+" · 시장영향: "+(yc.impact||""),{size:16,color:"64748B"}));
-    children.push(p("업데이트: 매일 (FRED T10Y2Y 실측, 최근 1년 추이).",{size:15,italics:true,color:"94A3B8"}));
     const cc=imagePara(yc.chart,648,176); if(cc)children.push(cc); }
   // [3] 하이일드(HY) 스프레드 (매일)
   renderHY();
@@ -681,13 +682,12 @@ function renderMacroIndicators(){
     if(r.fed_funds){ const f=r.fed_funds;
     children.push(p("■ FOMC 기준금리(현재): "+f.current+"%   ("+f.decision+" / "+f.bias+")",{bold:true,size:23,color:"1E40AF",before:140}));
     children.push(p("의미: "+f.meaning+" · 발표: "+f.freq+" · 시장영향: "+f.impact,{size:17,color:"64748B"}));
-    children.push(p("업데이트: 매 실행 변동 여부만 체크 → FOMC 결정으로 변동 시에만 갱신, 없으면 기존 자료 유지 (FMP 실측).",{size:15,italics:true,color:"94A3B8"})); }
+    children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"})); }
   if(Array.isArray(r.policy_rates)){
     const w=[2100,1600,1700,4680]; const rows=[hdrRow(["국가","현재 정책금리","기준일","비고"],w)];
     r.policy_rates.forEach((c,i)=>rows.push(new TableRow({children:[cell(c.country,{width:w[0],alt:i%2===0,bold:true}),
       cell(c.rate!=null?c.rate+"%":"-",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.asof||"-",{width:w[2],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.note||"",{width:w[3],alt:i%2===0,size:16})]})));
     children.push(makeTable(w,rows));
-    children.push(p("주요 6개국 정책금리 — 각국 중앙은행 실측치(추정 아님). 업데이트: 매 실행 변동 체크 → 변동 시에만 갱신.",{size:15,italics:true,color:"94A3B8"}));
     const pc=imagePara(r.policy_rates_chart,648,243); if(pc){children.push(pc);} }
   // [5] FOMC 회의 일정·정책방향 (신규 회의 시 갱신)
   if(Array.isArray(r.fomc_meetings)){
@@ -699,7 +699,7 @@ function renderMacroIndicators(){
       cell(mt.note||"",{width:w[2],alt:i%2===0})]})));
     children.push(makeTable(w,rows));
     children.push(p("의미: 연준 정책방향(매파/비둘기파) · 발표: 회의 후 즉시",{size:16,color:"64748B"}));
-    children.push(p("업데이트: 매 실행 신규 FOMC 개최 여부 체크 → 새 회의 있을 때만 갱신, 없으면 기존 자료 유지.",{size:15,italics:true,color:"94A3B8"}));
+    children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
     if(r.fomc_market_impact)children.push(p("시장영향: "+r.fomc_market_impact,{size:17,bold:true,color:"334155"})); }
   // [6] FOMC 점도표
   renderFomcDotplot();
@@ -708,11 +708,11 @@ function renderMacroIndicators(){
   // 3.1.2 물가 — 추세1Y 제거, 통합 그래프 하나
   const inf=x.inflation||{};
   children.push(h("3.1.2 물가·인플레이션 (금리 방향 결정)",3));
-  children.push(p("업데이트: 매일 변동 체크 → 신규 지표 발표 시에만 갱신, 없으면 기존 자료 유지 (FMP·BLS·BEA·시장 실측). 발표주기: 월별(BEI는 실시간).",{size:15,italics:true,color:"94A3B8"}));
+  children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지, BEI는 실시간",{size:15,italics:true,color:"94A3B8"}));
 { const _cl=inf.change_log; if(Array.isArray(_cl)&&_cl.length){ children.push(p("■ 물가 변동 이력 (직전 대비):",{bold:true,size:15,color:"DC2626"})); _cl.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); } }
-    { const w=[920,1380,1320,900,1140,2200,1880];
+    { const w=[860,1060,1020,820,1040,1860,1660,1560];
     const fy=(v)=> (v===null||v===undefined||v==="")?"-":(typeof v==="number"?((v>=0?"+":"")+v+"%"):String(v));
-    const rows=[hdrRow(["지표","최신값 YoY","최신값 MoM","기준월","발표날짜","의미","시장영향"],w)];
+    const rows=[hdrRow(["지표","최신값 YoY","최신값 MoM","기준월","발표날짜","의미","시장영향","해석"],w)];
     (inf.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name||"-",{width:w[0],alt:a,bold:true}),
       cell(fy(o.yoy),{width:w[1],alt:a,align:AlignmentType.CENTER}),
@@ -720,21 +720,23 @@ function renderMacroIndicators(){
       cell(o.asof||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
       cell(o.release||o.release_date||"-",{width:w[4],alt:a,align:AlignmentType.CENTER,size:15}),
       cell(o.meaning||"-",{width:w[5],alt:a,size:14}),
-      cell(o.impact||"-",{width:w[6],alt:a,size:14})]})); });
+      cell(o.impact||"-",{width:w[6],alt:a,size:14}),
+      cell(o.interp||"-",{width:w[7],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
-  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); children.push(p("CPI·Core CPI·PCE·Core PCE·PPI 최근 추이 통합 (YoY %, 실측)",{size:15,color:"94A3B8"})); } }
-  { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표 (별도 표시)",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); children.push(p("10년 국채−TIPS 차이(BEI) 추이 · 점선=2% · 실시간/일별 (FRED 실측)",{size:15,color:"94A3B8"})); } }
+  { const ic=imagePara(inf.chart,660,259); if(ic){ children.push(ic); } }
+  { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표 (별도 표시)",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); } }
   children.push(p(""));
 
   // 3.1.3 고용 — 추세1Y 제거, 통합 그래프 하나
   const emp=x.employment||{};
   children.push(h("3.1.3 고용·경기 (금리 간접 영향)",3));
+  children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
 { const _cl=emp.change_log; if(Array.isArray(_cl)&&_cl.length){ children.push(p("■ 고용 변동 이력 (직전 대비):",{bold:true,size:15,color:"DC2626"})); _cl.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); } }
-    { const w=[1900,1250,1050,1150,2300,2090]; const rows=[hdrRow(["지표","최신 수치","기준","발표일자","의미","시장영향"],w)];
+    { const w=[1700,1080,940,1040,2020,1880,1480]; const rows=[hdrRow(["지표","최신 수치","기준","발표일자","의미","시장영향","해석"],w)];
     (emp.rows||[]).forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name,{width:w[0],alt:a,bold:true}), cell(o.value!=null?String(o.value):"-",{width:w[1],alt:a,align:AlignmentType.CENTER,bold:true}),
       cell(o.asof||"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.release||o.release_date||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
-      cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15})]})); });
+      cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15}), cell(o.interp||"-",{width:w[6],alt:a,size:15})]})); });
     children.push(makeTable(w,rows)); }
     { const ec=imagePara(emp.chart,660,288); if(ec){ children.push(ec); children.push(p("고용·경기 6개 지표 — 주식 관점 중요도 순 (① NFP·실업률 > ③ 소매판매 > ④ ISM제조 > ⑤ ISM서비스 > ⑥ GDP). 월별(GDP만 분기).",{size:15,color:"94A3B8"})); } }
   children.push(p(""));

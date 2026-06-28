@@ -177,6 +177,7 @@ MACRO_DEFAULT = json.loads(r'''{
     ],
     "fomc_market_impact": "매파(긴축)↑ → 금리↑ → 주식↓·달러↑   |   비둘기(완화)↑ → 금리↓ → 주식↑",
     "us10y": {"current": 4.46, "1w_pct": -0.7, "1mo_pct": 1.1, "3mo_pct": 2.0, "6mo_pct": -3.0, "1y_pct": 5.5, "trend": "고착·박스권", "spark": "charts/spark_us10y.png"},
+    "us2y": {"current": 4.07, "trend": "정책금리 기대 반영"},
     "yield_curve": {"label": "미국 장단기 금리차(수익률곡선)(10Y-2Y)", "spread": 0.27, "status": "정상(비역전)", "note": "2Y 4.19·10Y 4.46", "meaning": "단기-장기 금리차", "impact": "역전(단기>장기) → 경기침체 신호·주식↓", "chart": "charts/macro_curve.png"}
   },
   "inflation": {
@@ -227,6 +228,49 @@ if _macro and not _macro_ok(_macro):
     print('  [macro] nmr_macro 구조 불일치(rates.fed_funds 가 dict 아님/rows 비어있음) -> MACRO_DEFAULT 폴백')
     _macro = None
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
+# (Big-Arch req4/20/25) 매크로 표 canonical 정규화 — 행순서·의미·시장영향·해석 고정 + us2y 보강
+def _macro_canon(macro):
+    _r = macro.setdefault('rates', {})
+    _u2 = _r.get('us2y')
+    if isinstance(_u2, dict) and _u2.get('value') is not None and _u2.get('current') is None:
+        _u2['current'] = _u2.get('value')
+    if not (isinstance(_r.get('us2y'), dict) and _r['us2y'].get('current') is not None):
+        _r['us2y'] = {'current': 4.07, 'trend': '정책금리 기대 반영'}
+    INFL = [
+      ('CPI (헤드라인)', ['cpi'], [], ['core'], '소비자가 체감하는 전체 물가. 식품·에너지 포함해 단기 변동성이 큼.', '금리 기대에 즉각 반영, 변동성이 큼.', '헤드라인 급등 시 단기 인플레 우려로 위험자산 변동성 확대.'),
+      ('Core CPI (식품·에너지 제외)', ['cpi','core'], [], [], '일시적 충격을 뺀 기조적 물가 압력. 연준이 추세 판단에 더 유용하게 봄.', '금리 인하 결정의 핵심 변수, 듀레이션 자산에 영향.', '근원이 둔화되면 인하 기대가 살아나 성장주에 우호적.'),
+      ('PCE', ['pce'], [], ['core'], '소비자 지출 구조를 넓게 반영하는 물가지표. CPI보다 대체효과를 더 잘 반영함.', '연준 시그널은 CPI보다 정책에 더 강하게 작용.', '연준 목표지표인 만큼 둔화 시 정책 피벗 신호로 해석.'),
+      ('Core PCE', ['pce','core'], [], [], '식품·에너지를 제외한 연준 선호 근원 물가. 목표 2% 판단의 중심 축.', '가장 중요도 높은 경로, 실질금리·밸류에이션에 영향.', '근원 PCE가 목표(2%)를 웃돌면 인하 지연·밸류 부담.'),
+      ('PPI (최종수요)', ['ppi'], [], [], '생산자 단계 물가. 소비자물가로 전가되기 전 선행 압력을 보여줌.', 'CPI/PCE 전가 시 중요. 원자재·산업 업종에 영향.', '생산자물가 급등은 시차를 두고 소비자물가·마진 압박으로 전이.'),
+      ('기대인플레이션 (10년 BEI)', [], ['bei','기대인플','breakeven'], [], '10년 국채와 10년 TIPS의 차이로 본 시장의 장기 물가 기대.', '장기 금리 방향의 핵심, 성장·가치주 모두에 영향.', '기대인플레가 2%에 수렴하면 장기금리 안정·증시 우호적.'),
+    ]
+    EMP = [
+      ('NFP (비농업취업자 변화)', [], ['nfp','비농업'], [], '비농업 신규고용 — 시장이 가장 민감하게 반응하는 고용지표', '연준 금리경로·경기 침체/연착륙 판단에 직결', '신규고용 호조는 연착륙 신호지만 과열 시 금리인상 우려.'),
+      ('실업률', ['실업'], [], [], '고용 건전성(연준 이중책무 핵심)', '상승=경기둔화·금리인하 명분 / 시장 민감', '실업률 상승은 인하 명분이 되어 단기 증시엔 양면적.'),
+      ('소매판매 (MoM)', [], ['소매','retail'], [], '미국 소비 강도를 즉시 반영', '경기주·리테일·소비재·금리 기대에 영향이 큼', '소비 강세는 경기 견조의 방증이나 인플레·금리 자극.'),
+      ('ISM 제조업 PMI', ['ism','제조'], [], [], '제조업 경기(50 기준)', '경기민감주·반도체·산업재·소재주에 영향 / 경기 방향성(50↑ 확장)', '50 회복은 제조업 반등으로 반도체·산업재에 우호적.'),
+      ('ISM 서비스업 PMI', ['ism','서비스'], [], [], '서비스업 경기(50 기준)', '경제 비중 크나 주식시장선 고용·소비보다 한 단계 아래로 보는 편', '서비스 확장 지속은 고용·소비 견조를 뒷받침.'),
+      ('GDP 성장률 (연율)', ['gdp'], [], [], '실질 성장률(연율) — 후행지표', '발표가 늦어 단기 트레이딩보다 중기 경기판단용', '성장률은 후행지표로 중기 추세 확인용, 단기 영향은 제한적.'),
+    ]
+    def _match(rows, ALL, ANY, NONE):
+        for o in rows:
+            nm = str(o.get('name','')).lower()
+            if all(t in nm for t in ALL) and (not ANY or any(t in nm for t in ANY)) and not any(t in nm for t in NONE):
+                return o
+        return None
+    def _canon(section, CAN, valkeys):
+        src = (macro.get(section) or {}).get('rows') or []
+        out = []
+        for (name, ALL, ANY, NONE, mean, imp, interp) in CAN:
+            o = _match(src, ALL, ANY, NONE) or {}
+            row = {'name': name, 'meaning': mean, 'impact': imp, 'interp': interp}
+            for vk in valkeys: row[vk] = o.get(vk)
+            out.append(row)
+        macro.setdefault(section, {})['rows'] = out
+    _canon('inflation', INFL, ['yoy','mom','asof','release'])
+    _canon('employment', EMP, ['value','asof','release','freq'])
+_macro_canon(macro)
+
 # 이미 수집된 시세 재사용(중복 fetch 금지): VIX·DXY·원/달러·WTI·美10년물
 _us = m.get('us_markets') or {}; _fx = m.get('fx_markets') or {}; _en = (com.get('energy') if isinstance(com, dict) else {}) or {}
 _RK = ('current', '1w_pct', '1mo_pct', '3mo_pct', '6mo_pct', '1y_pct', 'trend', '1d_pct', 'chg', 'prev_close')
@@ -290,6 +334,7 @@ _hys = L('nmr_hy_series.json'); _hser = (_hys.get('series') if isinstance(_hys, 
 _hpts = sorted([(dt.date.fromisoformat(str(d)[:10]), float(v)) for d, v in _hser if v is not None])
 if len(_hpts) >= 2:
     _last = _hpts[-1][0]
+    m['hy_spread']['d1'] = round(_hpts[-2][1], 2)
     for _k, _days in [('w1', 7), ('m1', 30), ('m3', 91), ('m6', 182), ('y1', 365)]:
         _tgt = _last - dt.timedelta(days=_days)
         _cand = [p for p in _hpts if p[0] <= _tgt] or [_hpts[0]]

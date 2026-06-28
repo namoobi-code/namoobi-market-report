@@ -50,7 +50,7 @@
 
 ## 추가 규칙 — 2026-06-26 사용자 피드백 반영 (항상 준수)
 
-- **(REQ1) Top News 최신성**: `top_news` 10개는 발행일이 실행일 기준 **최근 3일 이내**(D-0~D-3)인 기사만 사용. 오래된 기사는 제외(부족하면 같은 기간 추가 검색).
+- **(REQ1) Top News 최신성**: `top_news` 10개는 발행일이 실행일 기준 **최대 하루 전(D-0~D-1)** 이내인 기사만 사용(전일~당일). 2일 이상 지난 기사는 제외(부족하면 같은 기간 추가 검색).
 - **(REQ3) 정책금리 실측 — PolicyRatesAgent**: Phase 1 배치에 PolicyRatesAgent(general-purpose·sonnet) 추가 → 미·한·일·중·유로존·영국 **현재 정책금리 실측치**(추정 금지)를 출처·기준일과 함께 `nmr_policyrates.json`(`{"policy_rates":[{country,rate,asof,source,note}]}`)로 저장. merge.py 가 MACRO_DEFAULT 추정치를 이 실측치로 대체.
 - **(REQ5) 美10년물 '1일' 열**: 현재가와 분리해 '1일'=직전 거래일 종가 대비 1일 변동률(`1d_pct`). 추세 스파크는 `nmr_indexseries.json` us10y 실측(`gen_curve_1y.py`).
 - **(REQ6) 장단기 금리차(10Y-2Y) 1년 차트**: `gen_curve_1y.py` 로 FRED `T10Y2Y`(일별 1년) → `nmr_macro.json` `curve_10_2`(FMP 월별 13개월) → 기존 차트 복사 순으로 `charts/macro_curve_1y.png`. merge 가 yield_curve.chart 를 이 경로로 지정.

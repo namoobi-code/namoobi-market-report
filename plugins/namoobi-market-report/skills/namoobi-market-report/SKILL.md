@@ -20,6 +20,9 @@ description: |
 
 > **원칙: "조용히 미표시(-)·carry-forward·stale 로 넘기지 말 것. 결함이 있으면 발송하지 말고 사용자에게 물어라."** 정상 예제(`D:\claudeCowork\GOODREPORT`) 수준을 못 맞추면 Phase 4.5 게이트에서 멈춘다. 아래는 그동안 반복적으로 깨지던 지점의 확정 규칙이다(상세·스키마는 `references/agents.md`).
 
+> **[Big-Arch] 비매일 지표 DB화 (최우선 원칙 · 상세 `references/db-architecture.md`)**: 발표주기가 매일이 아닌 **모든 3.1 매크로 지표**(FOMC 기준금리·6개국 정책금리·FOMC 회의일정·점도표·물가 CPI/CoreCPI/PCE/CorePCE/PPI·고용 6종·Forward EPS/PER·빅테크 CAPEX·메모리/HBM·경기선행지수)는 ① 별도 DB(파일)에 저장하고 ② 매 실행 **변동 여부만** 저렴히 조사해 ③ 변동 시에만 재조사·갱신하며 ④ 변동 없으면 DB값을 그대로 쓴다. 보고서엔 표준 캡션 **"업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"** 를 명시한다(물가는 `, BEI는 실시간` 부기). **매일 실측(DB화 제외)**: 美 국채금리(10Y·2Y)·장단기차(10Y-2Y)·HY 스프레드·기대인플레(BEI)·심리(VIX·KSVKOSPI·DXY·원/달러·WTI·美10Y). Forward EPS/PER·CAPEX·HBM 은 **누적형 DB**(신규 관측치 upsert 로 시계열 계속 업그레이드).
+> **Top News 최신성(req1)**: 1.글로벌 Top News 10 은 발행일이 **전일~당일(D-0~D-1)** 인 기사만 사용(2일 이상 지난 뉴스 금지).
+
 **공통 소스·폴백**
 - 증시·지수·환율·원자재·美ETF·크립토시계열: **`scripts/fetch_us.py`**(sandbox·stdlib·스레드 병렬, Yahoo+alternative.me, ~4초). 美10년=^TNX, 전체 국채커브·CAPEX·점도표는 USMacroExtras(FMP). 한국 지수/수급/시계열은 fetch_kr.py·fetch_semi.py.
 - 암호화폐: CoinInfo MCP 우선. `get_kimchi_premium` 이 null/부족이면 **CoinDesk MCP `fetch_spot_tick`**(upbit `<SYM>-KRW` + binance `<SYM>-USDT`)로 직접 계산. 공포·탐욕 = `api.alternative.me/fng`. 한국 거래소(업비트·빗썸) API 는 Chrome 차단 → CoinDesk MCP 로만.
