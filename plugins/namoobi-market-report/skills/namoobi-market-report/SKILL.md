@@ -85,7 +85,7 @@ description: |
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·경기선행·증권사 텔레그램 7사, Chrome 불필요)
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(`browser_batch` 3탭 navigate·`javascript_tool` 타깃추출·단계별 screenshot 금지); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
-[Phase 1.5: 차트 생성 (분석 전)]  fetch_idx_daily.py→nmr_fwd_accum.py(일일지수+nmr_spx_daily/nmr_kospi_daily 브리지·선행EPS DB) → gen_macro_charts.py·gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_fwd3.py → charts/*.png
+[Phase 1.5: 차트 생성 (분석 전)]  fetch_idx_daily.py→nmr_fwd_accum.py(일일지수+nmr_spx_daily/nmr_kospi_daily 브리지·선행EPS DB) → fetch_macro.py(결정적 FRED 매크로: 물가·BEI·고용·금리, 다운시 no-clobber→DB백필) → gen_macro_charts.py·gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_fwd3.py → charts/*.png
         ↓
 [Phase 2: AnalysisAgent 단독 호출 · model:opus]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
         ↓
