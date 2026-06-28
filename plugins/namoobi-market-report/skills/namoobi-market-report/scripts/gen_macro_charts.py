@@ -69,8 +69,12 @@ plt.tight_layout(); plt.savefig("charts/macro_curve.png",bbox_inches="tight"); p
 infl=S.get("inflation") or {"CPI":[2.6,2.7,2.8,2.9,3.1,3.3,3.4,3.6,3.8,3.9,4.0,4.17],"Core CPI":[2.9,2.9,3.0,3.0,3.0,3.1,3.1,3.2,3.1,3.1,3.0,3.1],"PCE":[2.3,2.4,2.4,2.5,2.5,2.6,2.6,2.6,2.6,2.7,2.6,2.6],"Core PCE":[2.6,2.6,2.7,2.7,2.7,2.8,2.8,2.8,2.8,2.8,2.8,2.8],"PPI":[1.8,2.0,2.2,2.3,2.4,2.6,2.7,2.8,2.9,3.0,2.9,2.9]}
 fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150)
 for k,v in infl.items():
-    _mx=months(2025,6,len(v)) if len(v)!=12 else mon
-    ax.plot(_mx,v,linewidth=1.6,marker="o",ms=3,label=k)
+    if v and isinstance(v[0],(list,tuple)):   # [["YYYY-MM",val]..] → 실제 날짜축(길이 달라도 정렬)
+        _xs=[mdates.datestr2num(str(p[0])[:7]+"-01") for p in v]; _ys=[p[1] for p in v]
+        ax.plot(_xs,_ys,linewidth=1.6,marker="o",ms=3,label=k)
+    else:
+        _mx=months(2025,6,len(v)) if len(v)!=12 else mon
+        ax.plot(_mx,v,linewidth=1.6,marker="o",ms=3,label=k)
 ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title("미국 물가 YoY 최근 12개월 통합 (점선=연준 2% 목표 · CPI 최신 실측)",fontsize=9.5,color="#334155")
 ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
 for s in ["top","right"]: ax.spines[s].set_visible(False)
