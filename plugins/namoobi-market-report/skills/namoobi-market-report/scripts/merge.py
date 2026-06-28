@@ -170,6 +170,21 @@ if _capm:
     m['semi_ai_etfs'] = sorted(_capov(m.get('semi_ai_etfs') or []), key=_capnk)
     print('  [caps] 시총/AUM 라이브 덮어쓰기·정렬:', len(_capm))
 m['hbm'] = LCF('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
+# (req6) HBM eps_per -> eps_yearly (빌더 표 스키마)
+try:
+    _hb = m.get('hbm') or {}
+    if isinstance(_hb, dict) and not _hb.get('eps_yearly') and isinstance(_hb.get('eps_per'), list):
+        _ey=[]
+        for _o in _hb['eps_per']:
+            if not isinstance(_o, dict): continue
+            _ey.append({'name': _o.get('company') or _o.get('name') or '-',
+                'y2025_eps': _o.get('eps_2025'), 'y2025_per': _o.get('per_2025'),
+                'y2026_eps': _o.get('eps_2026'), 'y2026_per': _o.get('per_2026'),
+                'y2027_eps': _o.get('eps_2027'), 'y2027_per': _o.get('per_2027'),
+                'y2028_eps': _o.get('eps_2028'), 'y2028_per': _o.get('per_2028'),
+                'currency': _o.get('currency') or ''})
+        if _ey: _hb['eps_yearly']=_ey; m['hbm']=_hb; print('  [req6] HBM eps_yearly 매핑:', len(_ey))
+except Exception as _he: print('  [req6] hbm eps_yearly skip:', _he)
 
 # 3.1 주요지표(매크로 대시보드) — nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 오버라이드, 없으면 내장 예시·추정값
 MACRO_DEFAULT = json.loads(r'''{
@@ -329,6 +344,20 @@ def _macro_canon(macro):
     _canon('inflation', INFL, ['yoy','mom','asof','release'], _infl_interp)
     _canon('employment', EMP, ['value','asof','release','freq'], _emp_interp)
 _macro_canon(macro)
+# (req3) ISM 제조/서비스 표값 보강: nmr_macro.ism -> employment.rows value
+try:
+    _ism = macro.get('ism') or {}
+    _emp_rows = (macro.get('employment') or {}).get('rows') or []
+    _ismv = {'제조': (_ism.get('manufacturing') or {}), '서비스': (_ism.get('services') or {})}
+    for _row in _emp_rows:
+        _nm = _row.get('name') or ''
+        if 'ISM' in _nm and (_row.get('value') in (None,'','-')):
+            _k = '제조' if '제조' in _nm else ('서비스' if '서비스' in _nm else None)
+            _iv = _ismv.get(_k, {})
+            if _iv.get('value') is not None:
+                _row['value'] = _iv['value']; _row['asof'] = _iv.get('asof') or _row.get('asof'); _row['release'] = 'ISM (추정)'
+    print('  [req3] ISM 표값 보강 완료')
+except Exception as _ie: print('  [req3] ISM 보강 skip:', _ie)
 
 # 이미 수집된 시세 재사용(중복 fetch 금지): VIX·DXY·원/달러·WTI·美10년물
 _us = m.get('us_markets') or {}; _fx = m.get('fx_markets') or {}; _en = (com.get('energy') if isinstance(com, dict) else {}) or {}
@@ -476,7 +505,6 @@ try:
     _tn = news.get('top_news') or []
     _fresh = [x for x in _tn if str(x.get('published_date','')) >= _d1]
     if _fresh: news['top_news'] = _fresh
-    for _i, _t in enumerate(news.get('top_news') or []): _t['rank'] = _i + 1  # [fix] 신선도 필터 후 rank 1..N 재부여(번호 공백 방지)
 except Exception: pass
 # (req2) 2.3 빅테크 이벤트·이벤트캘린더: 지나간(오늘 이전) 항목 제거
 try:
@@ -507,16 +535,9 @@ try:
         vv = [x for x in vv if _re2.match(r"^\d{4}[-.]\d{1,2}", x)]
         return max(vv) if vv else ''
     _ir = (_mc.get('inflation') or {}).get('rows')
-    _ri = _ndb.dbrows('inflation', _ir, _dd, 'name')   # [변경감지] 셀단위 DB 백필 — 빈 셀은 DB값(조용한 '-' 방지)
-    _mc.setdefault('inflation', {})['rows'] = _ri.get('data')
+    _mc.setdefault('inflation', {})['rows'] = _ndb.sync('inflation', _ir, _today, _mx(_ir, ['asof', 'release']) or _run_m, _dd)
     _er = (_mc.get('employment') or {}).get('rows')
-    _re = _ndb.dbrows('employment', _er, _dd, 'name')
-    _mc.setdefault('employment', {})['rows'] = _re.get('data')
-    _bk = (_ri.get('backfilled') or []) + (_re.get('backfilled') or [])
-    _macunv = _mc.get('_unverified_series') or []
-    if _bk or _macunv:
-        _mc['_db_unverified'] = {'rows_backfilled': _bk, 'series_unverified': _macunv}
-        print('  [DB화·변경감지] 당일 미수집 → DB 백필(변경 미확인): rows', len(_bk), '| series', _macunv)
+    _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', _er, _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
     _rt['policy_rates'] = _ndb.sync('policy_rates', _rt.get('policy_rates'), _today, _run_m, _dd)
     _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', _rt.get('fomc_meetings'), _today, _mx(_rt.get('fomc_meetings'), ['date']) or _run_m, _dd)
     _dp = m.get('fomc_dotplot') or {}
@@ -562,12 +583,31 @@ try:
             _ff = _rates_fin.setdefault('fed_funds', {})
             _ff['current'] = _uscur
             print('  [R4] 美 기준금리 실측 반영:', _uscur)
+    # (req2) fed_funds decision/bias/meaning/freq/impact 누락 보강 — 빌더 undefined 방지
+    _ff2 = _rates_fin.setdefault('fed_funds', {})
+    _ffd = (MACRO_DEFAULT.get('fed_funds') or (MACRO_DEFAULT.get('rates') or {}).get('fed_funds') or {}) if isinstance(MACRO_DEFAULT, dict) else {}
+    _ffdef = {'meaning':'연준 기준금리(정책금리 상단). 모든 자산가격의 할인율 기준',
+              'freq':'연 8회 FOMC','impact':'금리↑ → 주식↓·달러↑·채권가격↓ / 금리↓ → 반대'}
+    for _k in ('meaning','freq','impact'):
+        if not _ff2.get(_k): _ff2[_k] = _ffd.get(_k) or _ffdef[_k]
+    if not _ff2.get('decision'): _ff2['decision'] = '동결'
+    _bias_dp = None
+    try:
+        _dp = (m.get('fomc_dotplot') or {}).get('rows') or []
+        _r26 = next((r for r in _dp if '2026' in str(r.get('year',''))), None)
+        if _r26 and _r26.get('jun') is not None:
+            _diff = round(float(_r26['jun']) - float(_ff2.get('current') or 0), 3)
+            if _diff >= 0.04: _bias_dp = '인상 시사 (점도표 상향)'
+            elif _diff <= -0.04: _bias_dp = '인하 시사 (점도표 하향)'
+    except Exception: pass
+    if _bias_dp: _ff2['bias'] = _bias_dp
+    elif not _ff2.get('bias'): _ff2['bias'] = '중립'
     try:
         if isinstance(macro.get('inflation'), dict): macro['inflation']['chart'] = 'charts/macro_inflation.png'
         if isinstance(macro.get('employment'), dict): macro['employment']['chart'] = 'charts/macro_employment.png'
         _senf = macro.get('sentiment') or {}
-        if isinstance(_senf.get('spx_fwd'), dict): _senf['spx_fwd']['chart'] = 'charts/macro_spx_fwd.png'
-        if isinstance(_senf.get('kospi_fwd'), dict): _senf['kospi_fwd']['chart'] = 'charts/macro_kospi_fwd.png'
+        if isinstance(_senf.get('spx_fwd'), dict): _senf['spx_fwd']['chart'] = 'charts/fwd3_spx.png'
+        if isinstance(_senf.get('kospi_fwd'), dict): _senf['kospi_fwd']['chart'] = 'charts/fwd3_kospi.png'
         print('  [R4] 차트경로 강제: inflation/employment/spx_fwd/kospi_fwd')
     except Exception as _ce: print('  [R4] 차트경로 강제 skip:', _ce)
     print('  [R4] 국채 단일소스 강제: us10y', _rates_fin.get('us10y',{}).get('current'),

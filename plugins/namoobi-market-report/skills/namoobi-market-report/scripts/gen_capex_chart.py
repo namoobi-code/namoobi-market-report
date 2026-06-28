@@ -47,9 +47,12 @@ FCF={"Microsoft":[74,72,55,60,85,115],"Alphabet":[73,73,58,65,90,115],"Meta":[54
 def _report():
     for a in sys.argv[1:]:
         if a.endswith(".json") and os.path.exists(a) and "report_data" in a: return a
+    _dirs=[a for a in sys.argv[1:] if os.path.isdir(a)]
     O=os.environ.get("NMR_OUT") or (sorted(glob.glob("/sessions/*/mnt/outputs"))[-1] if glob.glob("/sessions/*/mnt/outputs") else ".")
-    c=sorted(glob.glob(O+"/_market_report_data/report_data_*.json")) or sorted(glob.glob(O+"/report_data_*.json"))
-    return c[-1] if c else None
+    for _d in _dirs+[O]:
+        c=sorted(glob.glob(_d+"/_market_report_data/report_data_*.json")) or sorted(glob.glob(_d+"/report_data_*.json"))
+        if c: return c[-1]
+    return None
 def _apply(series, years_key, store_years, store):
     """series={'years':[...], '<Co>':[...]} 형태가 온전하면 내장값 덮어쓰기."""
     try:

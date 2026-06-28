@@ -11,8 +11,10 @@ O=os.environ.get("NMR_OUT") or (sorted(glob.glob("/sessions/*/mnt/outputs"))[-1]
 os.makedirs("charts", exist_ok=True)
 BLUE="#1E40AF"; RED="#DC2626"; GREEN="#059669"; AMBER="#D97706"; PURPLE="#7C3AED"; SLATE="#334155"
 def _loadjson(*names):
+    _SD=os.path.dirname(os.path.abspath(__file__))
+    _CW=(sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data"))[:1] or [""])[0]
     for c in names:
-        for p in [c, os.path.join(O,c)]:
+        for p in [c, os.path.join(O,c), os.path.join(_SD,c)]+([os.path.join(_CW,c)] if _CW else []):
             if os.path.exists(p):
                 try: return json.load(open(p,encoding="utf-8"))
                 except Exception: pass
@@ -34,29 +36,21 @@ try:
     for _p in ["nmr_macro.json", os.path.join(O,"nmr_macro.json")]:
         if os.path.exists(_p): _mp=_p; break
     if _mp and isinstance(S,dict):
-        _unv=[]
-        def _dbs2(_key,_fresh,_pf=False):
-            _r=_ndb.dbseries(_key,_fresh,_DB,prefer_fresh=_pf)
-            if isinstance(_r,dict):
-                if _r.get("status")=="unverified": _unv.append(_key)
-                return _r.get("data")
-            return _r
         for _k in ["curve_10_2","us2y_daily","us10y_daily","fed_funds_5y"]:
             if (_k in S) or _ndb._load("series_"+_k,_DB).get("data"):
-                S[_k]=_dbs2(_k, S.get(_k))
+                S[_k]=_ndb.dbseries(_k, S.get(_k), _DB)
         if _ndb._pairs(S.get("curve_10_2")): S["curve_labels"]=[p[0] for p in S["curve_10_2"]]
-        S["infl_exp"]=_dbs2("infl_exp", S.get("infl_exp"), True)
+        S["infl_exp"]=_ndb.dbseries("infl_exp", S.get("infl_exp"), _DB, prefer_fresh=True)
         _infl=S.get("inflation") or {}
         for _ln in (list(_infl.keys()) or ["CPI","Core CPI","PCE","Core PCE","PPI"]):
-            _infl[_ln]=_dbs2("infl_"+_ln.replace(" ","_"), _infl.get(_ln))
+            _infl[_ln]=_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB)
         if _infl: S["inflation"]=_infl
         _emp=S.get("employment") or {}
         for _pn in list(_emp.keys()):
-            _emp[_pn]=_dbs2("emp_"+_pn, _emp.get(_pn))
+            _emp[_pn]=_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB)
         if _emp: S["employment"]=_emp
         _full=json.load(open(_mp,encoding="utf-8")); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
         _mm.setdefault("series",{}).update(S)
-        _mm["_unverified_series"]=_unv
         _rr=_mm.setdefault("rates",{})
         if isinstance(_rr.get("fed_funds"),dict) and not str(_rr["fed_funds"].get("bias") or "").strip(): _rr["fed_funds"]["bias"]="중립"
         json.dump(_full, open(_mp,"w",encoding="utf-8"), ensure_ascii=False)
@@ -129,7 +123,7 @@ def _ch_spark_bonds():
         sv=(tc.get(bk) or {}).get("spark_vals")
         if isinstance(sv,list) and len(sv)>=2: spark(bk, sv, col)
         else:
-            cand=_flat(S.get(bk+"_series") or S.get(bk))
+            cand=_flat(S.get(bk+"_series") or S.get(bk) or S.get(bk+"_daily"))
             if cand and len(cand)>=2: spark(bk, cand, col)
 def _ch_spark_vkospi():
     vh=_loadjson("nmr_vkospi_history.json")
@@ -237,7 +231,7 @@ def _ch_emp():
     emp=S.get("employment") or {}
     _ep=[]
     for key,title,col,hl in [("nfp","① NFP 신규고용(천명)",BLUE,0),("unemp","② 실업률(%)",RED,None),("retail","③ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","④ ISM 제조 PMI",BLUE,50),("ism_svc","⑤ ISM 서비스 PMI",GREEN,50),("gdp","⑥ 실질GDP 연율(%)",GREEN,None)]:
-        ys=_flat(emp.get(key))
+        ys=_flat(emp.get(key) or emp.get({"nfp":"nfp_mom","retail":"retail_mom","gdp":"gdp_ann"}.get(key,key)))
         if ys: _ep.append((title,ys,col,hl))
     if not _ep: _ep=[("① NFP 신규고용(천명)",[200,180,170,160,172],BLUE,0),("② 실업률(%)",[4.0,4.1,4.2,4.3,4.3],RED,None)]
     _n=len(_ep); _ncol=3 if _n>=5 else max(1,_n); _nrow=(_n+_ncol-1)//_ncol
