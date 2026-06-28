@@ -38,16 +38,16 @@ try:
     if _mp and isinstance(S,dict):
         for _k in ["curve_10_2","us2y_daily","us10y_daily","fed_funds_5y"]:
             if (_k in S) or _ndb._load("series_"+_k,_DB).get("data"):
-                S[_k]=_ndb.dbseries(_k, S.get(_k), _DB)
+                S[_k]=(_ndb.dbseries(_k, S.get(_k), _DB) or {}).get('data')
         if _ndb._pairs(S.get("curve_10_2")): S["curve_labels"]=[p[0] for p in S["curve_10_2"]]
-        S["infl_exp"]=_ndb.dbseries("infl_exp", S.get("infl_exp"), _DB, prefer_fresh=True)
+        S["infl_exp"]=(_ndb.dbseries("infl_exp", S.get("infl_exp"), _DB, prefer_fresh=True) or {}).get('data')
         _infl=S.get("inflation") or {}
         for _ln in (list(_infl.keys()) or ["CPI","Core CPI","PCE","Core PCE","PPI"]):
-            _infl[_ln]=_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB)
+            _infl[_ln]=(_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB) or {}).get('data')
         if _infl: S["inflation"]=_infl
         _emp=S.get("employment") or {}
         for _pn in list(_emp.keys()):
-            _emp[_pn]=_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB)
+            _emp[_pn]=(_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB) or {}).get('data')
         if _emp: S["employment"]=_emp
         _full=json.load(open(_mp,encoding="utf-8")); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
         _mm.setdefault("series",{}).update(S)
@@ -215,11 +215,16 @@ def _ch_bei():
         fig,ax=plt.subplots(figsize=(7.2,1.0),dpi=150); ax.axis("off")
         ax.text(0.5,0.5,"기대인플레이션 10년(BEI): 일별/월별 실측 미확보 — 이번 회차 미표시",ha="center",va="center",fontsize=10,color="#94A3B8")
         plt.tight_layout(); plt.savefig("charts/macro_infl_exp.png",bbox_inches="tight"); plt.close(); return
-    _asof=S.get("infl_exp_asof") or ""; _n=len(ie); _t=dt.date.today(); _sy,_sm=_t.year,_t.month
-    for _ in range(_n-1):
-        _sm-=1
-        if _sm<1: _sm=12; _sy-=1
-    bmon=months(_sy,_sm,_n)
+    _asof=S.get("infl_exp_asof") or ""; _n=len(ie)
+    _xvb,_=_xy(S.get("infl_exp"))
+    if _xvb and len(_xvb)==_n:
+        bmon=_xvb
+    else:
+        _t=dt.date.today(); _sy,_sm=_t.year,_t.month
+        for _ in range(_n-1):
+            _sm-=1
+            if _sm<1: _sm=12; _sy-=1
+        bmon=months(_sy,_sm,_n)
     fig,ax=plt.subplots(figsize=(7.2,1.95),dpi=150); ax.plot(bmon,ie,color=BLUE,linewidth=1.8,marker="o",ms=3); ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7)
     ax.scatter([bmon[-1]],[ie[-1]],color=RED,zorder=5,s=24)
     ax.set_title(f"기대인플레이션 10년(BEI) 월별 · 점선=2% · 현재값 {ie[-1]:.2f}% ("+(_asof or "")+")",fontsize=8.6,color=SLATE)
