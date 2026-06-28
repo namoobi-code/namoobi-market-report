@@ -112,6 +112,15 @@ description: |
 1. **날짜·시작시각**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` 로 오늘(KST)과 **워크플로우 시작시각**을 확정. `YYYYMMDD` 압축형도 함께 만든다. 시작시각(사람이 읽는 형식 + epoch)은 Phase 6 소요시간 계산에 쓰므로 아래 3번에서 `$WORK/nmr_start_epoch.txt` 로 기록한다.
 2. **연결 폴더 확인**: D:\claudeCowork 가 세션에 연결돼 있는지 확인. **`request_cowork_directory` 는 절대 호출하지 않는다**(매 실행 권한창의 원인). 미연결이면 outputs 에서 진행하고, Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성·메일 첨부 불가"를 명시한다.
 3. **Chrome**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. 없으면 사용자에게 일반 크롬 창을 열어달라고 요청. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.)
+4-0. **(v3.42 근본해결) 실행 스크립트는 설치본이 아니라 로컬 repo git HEAD 에서 추출 — 마운트 잘림 영구 회피**:
+   D: 마운트가 큰 파일(merge.py·gen_macro_charts.py 등)을 **설치 시점에 간헐적으로 잘라 기록**해 `.remote-plugins` 설치본이 손상될 수 있다(자가점검 SC=2의 실제 원인). 따라서 **매 실행, 로컬 repo(`D:\claudeCowork\namoobi-market-report`)의 git 객체에서 완전한 스크립트를 추출해 그걸로 실행**한다(git show=마운트 미경유·절대 안 잘림):
+   ```bash
+   SRC0="$(dirname "$(find /sessions/*/mnt/.remote-plugins -path '*namoobi-market-report/scripts/build_report.js' 2>/dev/null | head -1)")"
+   RUN="$(python3 "$SRC0/nmr_runsrc.py" 2>/dev/null | sed -n 's/^RUNSRC=//p')"
+   if [ -n "$RUN" ] && [ -f "$RUN/merge.py" ]; then SRC="$RUN"; echo "✅ git HEAD 완전 스크립트로 실행: $SRC"; else SRC="$SRC0"; echo "⚠️ repo 없음 → 설치본 사용(잘림 주의)"; fi
+   ```
+   이후 모든 스크립트 호출은 `$SRC` 를 쓴다. (`nmr_runsrc.py` 가 36파일을 git 에서 추출·무결성검증 후 경로 반환. 자가점검은 참고용이 되고, 실행 자체는 항상 완전판으로 보장.)
+
 4. **빌드 환경 준비 + 무결성 검사·자동복구** — 플러그인 마운트는 읽기 전용이므로 쓰기 가능한 outputs 에 복사해 빌드한다:
 
 ```bash
