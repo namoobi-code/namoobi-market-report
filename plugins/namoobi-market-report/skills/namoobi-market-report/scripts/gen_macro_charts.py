@@ -13,10 +13,14 @@ matplotlib.rcParams["axes.unicode_minus"]=False
 O=os.environ.get("NMR_OUT") or (sorted(glob.glob("/sessions/*/mnt/outputs"))[-1] if glob.glob("/sessions/*/mnt/outputs") else ".")
 os.makedirs("charts", exist_ok=True)
 BLUE="#1E40AF"; RED="#DC2626"; GREEN="#059669"
+MAC={}
 def _load():
+    global MAC
     for c in ["nmr_macro.json", os.path.join(O,"nmr_macro.json")]:
         if os.path.exists(c):
-            try: d=json.load(open(c,encoding="utf-8")); return d.get("macro",d).get("series",{}) or {}
+            try:
+                d=json.load(open(c,encoding="utf-8")); _m=d.get("macro",d); 
+                globals()["MAC"]=_m; return _m.get("series",{}) or {}
             except Exception: pass
     return {}
 S=_load()  # 라이브 series 오버라이드(있으면)
@@ -35,11 +39,40 @@ def spark(name,xs,ys,color=BLUE):
 # (1) 정책금리 6개국 5년 (미국=실측 월별 기본, S 오버라이드 가능)
 _ff_live=S.get("fed_funds_5y"); ff=(_ff_live if (isinstance(_ff_live,list) and len(_ff_live)>=24) else None) or [0.09,0.08,0.07,0.07,0.06,0.08,0.10,0.09,0.08,0.08,0.08,0.08,0.08,0.08,0.20,0.33,0.77,1.21,1.68,2.33,2.56,3.08,3.78,4.10,4.33,4.57,4.65,4.83,5.06,5.08,5.12,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.33,5.13,4.83,4.64,4.48,4.33,4.33,4.33,4.33,4.33,4.33,4.33,4.33,4.22,4.09,3.88,3.72,3.64,3.64,3.64,3.64,3.63]
 ffx=months(2021,1,len(ff))
-fig,ax=plt.subplots(figsize=(7.2,2.8),dpi=150)
+_pr0=(MAC.get("rates") or {}).get("policy_rates") or []
+import re as _re
+def _prate(v):
+    if isinstance(v,(int,float)): return float(v)
+    m=_re.search(r"[\d.]+", str(v or "")); return float(m.group()) if m else None
+_pr=[]
+_src=_pr0
+if not _src:
+    for _pp in ["nmr_policyrates.json", os.path.join(O,"nmr_policyrates.json")]:
+        if os.path.exists(_pp):
+            try: _src=json.load(open(_pp,encoding="utf-8")).get("policy_rates") or []; break
+            except Exception: pass
+for _c in (_src or []):
+    _pr.append({"country":_c.get("country"),"rate":_prate(_c.get("rate"))})
+if not _pr:
+    _pr=[{"country":"미국","rate":3.63},{"country":"영국","rate":4.0},{"country":"중국","rate":3.0},{"country":"한국","rate":2.5},{"country":"유로존","rate":2.15},{"country":"일본","rate":1.0}]
+if _pr:
+    fig,axs=plt.subplots(1,2,figsize=(8.6,2.8),dpi=150,gridspec_kw={"width_ratios":[2,1]})
+    ax=axs[0]
+else:
+    fig,ax=plt.subplots(figsize=(7.2,2.8),dpi=150)
 ax.plot(ffx,ff,color=BLUE,linewidth=1.8,label="미국(실측)")
-ax.set_title("미국 기준금리(실효) 5년 추이 — FMP/FRED 실측",fontsize=9.5,color="#334155")
-ax.legend(fontsize=7,ncol=6,loc="upper center",bbox_to_anchor=(0.5,-0.13)); ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B")
-for s in ["top","right"]: ax.spines[s].set_visible(False)
+ax.set_title("미국 기준금리(실효) 5년 추이 — FMP 실측",fontsize=9.0,color="#334155")
+ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B")
+for _s in ["top","right"]: ax.spines[_s].set_visible(False)
+if _pr:
+    ax2=axs[1]; _nm=[c.get("country","") for c in _pr]; _rt=[c.get("rate") for c in _pr]
+    _cl=["#1E40AF" if n=="미국" else "#94A3B8" for n in _nm]
+    _yp=list(range(len(_nm))); ax2.barh(_yp,[(r or 0) for r in _rt],color=_cl,height=0.62)
+    ax2.set_yticks(_yp); ax2.set_yticklabels(_nm,fontsize=8); ax2.invert_yaxis()
+    ax2.set_title("주요국 현재 정책금리(%)",fontsize=9.0,color="#334155"); ax2.grid(True,axis="x",alpha=0.25)
+    for _i,_r in enumerate(_rt):
+        if _r is not None: ax2.text(_r,_i,(" %.2f"%_r),va="center",fontsize=7,color="#334155")
+    for _s in ["top","right"]: ax2.spines[_s].set_visible(False)
 plt.tight_layout(); plt.savefig("charts/macro_policy_rates.png",bbox_inches="tight"); plt.close()
 
 # (2) 장단기 금리차 10Y-2Y
@@ -54,11 +87,14 @@ if _isdate and len(d)>30:   # 1년 일별 → 날짜축(req1)
     ax.plot(_xd,d,color=BLUE,linewidth=1.5); ax.fill_between(_xd,d,0,color=BLUE,alpha=0.07)
     ax.scatter([_xd[-1]],[d[-1]],color=RED,zorder=5,s=28)
     ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(_xd[-1],d[-1]),textcoords="offset points",xytext=(-40,7),color=RED,fontsize=9,fontweight="bold")
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); [t.set_rotation(0) for t in ax.get_xticklabels()]
     _ttl="미국 장단기 금리차(10Y-2Y) 최대기간 일별 실측 (+정상/-역전)"
 else:                        # 폴백/단기 → 카테고리축
     ax.plot(dl,d,color=BLUE,linewidth=1.8,marker="o",ms=4)
     ax.scatter([dl[-1]],[d[-1]],color=RED,zorder=5,s=28); ax.annotate(("+%.2f%%p"%d[-1]) if d[-1]>=0 else ("%.2f%%p"%d[-1]),(dl[-1],d[-1]),textcoords="offset points",xytext=(-36,7),color=RED,fontsize=9,fontweight="bold")
+    import matplotlib.ticker as _mt
+    ax.xaxis.set_major_locator(_mt.MaxNLocator(nbins=8))
+    [t.set_rotation(30) for t in ax.get_xticklabels()]; [t.set_horizontalalignment("right") for t in ax.get_xticklabels()]
     _ttl="미국 장단기 금리차(수익률곡선)(10Y-2Y) (+면 정상 / -면 역전)"
 ax.axhline(0,color=RED,linewidth=0.9,linestyle="--")
 ax.set_title(_ttl,fontsize=9.0,color="#334155"); ax.grid(True,alpha=0.25); ax.set_ylabel("%p",fontsize=8,color="#64748B")
