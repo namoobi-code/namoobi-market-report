@@ -654,7 +654,15 @@ function renderFactSet(){ const m=data.markets||{}; const fs=m.factset; if(!fs||
   if(r.title){
     children.push(p("■ "+(r.title||"Earnings Insight report"),{bold:true,color:"1E40AF",before:160,size:20}));
     children.push(fsLink("리포트 · "+(r.date||"")+(r.author?(" · "+r.author):""), r.url));
-    (r.key_metrics||[]).forEach(s=>children.push(p("• "+s,{size:16,color:"334155"})));
+    if(Array.isArray(r.full_summary)&&r.full_summary.length){
+      r.full_summary.forEach(sec=>{ if(!sec)return;
+        children.push(p("· "+(sec.section||""),{bold:true,color:"1E3A8A",size:17,before:70}));
+        (sec.points||[]).forEach(pt=>children.push(p("   - "+pt,{size:15,color:"334155"})));
+      });
+    } else {
+      (r.key_metrics||[]).forEach(s=>children.push(p("• "+s,{size:16,color:"334155"})));
+    }
+    if(r.chart){ const _fc=imagePara(r.chart,580,335); if(_fc)children.push(_fc); }
     if(r.next_date) children.push(p("▶ 다음 리포트 발행 예정: "+r.next_date,{bold:true,color:"1E40AF",size:16,before:40}));
   }
   if(fs.source_note) children.push(p(fs.source_note,{size:13,italics:true,color:"94A3B8"}));
