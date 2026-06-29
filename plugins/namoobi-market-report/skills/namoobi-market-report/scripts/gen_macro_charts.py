@@ -234,15 +234,19 @@ def _ch_bei():
 _safe("macro_infl_exp", _ch_bei)
 def _ch_emp():
     emp=S.get("employment") or {}
+    # (req6) 6개 지표 패널을 항상 표시 — 빈 시계열도 자리 유지(미확보 표기)
     _ep=[]
     for key,title,col,hl in [("nfp","① NFP 신규고용(천명)",BLUE,0),("unemp","② 실업률(%)",RED,None),("retail","③ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","④ ISM 제조 PMI",BLUE,50),("ism_svc","⑤ ISM 서비스 PMI",GREEN,50),("gdp","⑥ 실질GDP 연율(%)",GREEN,None)]:
         ys=_flat(emp.get(key) or emp.get({"nfp":"nfp_mom","retail":"retail_mom","gdp":"gdp_ann"}.get(key,key)))
-        if ys: _ep.append((title,ys,col,hl))
-    if not _ep: _ep=[("① NFP 신규고용(천명)",[200,180,170,160,172],BLUE,0),("② 실업률(%)",[4.0,4.1,4.2,4.3,4.3],RED,None)]
-    _n=len(_ep); _ncol=3 if _n>=5 else max(1,_n); _nrow=(_n+_ncol-1)//_ncol
+        _ep.append((title,ys,col,hl))
+    _n=6; _ncol=3; _nrow=2
     fig,axs=plt.subplots(_nrow,_ncol,figsize=(3.0*_ncol,2.5*_nrow),dpi=150)
     axs=list(axs.flatten()) if hasattr(axs,"flatten") else [axs]
     def panel(ax,t,ys,c,hl=None):
+        if not ys:
+            ax.text(0.5,0.5,"데이터 미확보",ha="center",va="center",fontsize=8,color="#94A3B8")
+            ax.set_title(t,fontsize=8,color=SLATE); ax.set_xticks([]); ax.set_yticks([])
+            for s in ["top","right"]: ax.spines[s].set_visible(False); return
         ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
         if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
         ax.set_title(t,fontsize=8,color=SLATE); ax.grid(True,alpha=0.2); ax.set_xticks([])

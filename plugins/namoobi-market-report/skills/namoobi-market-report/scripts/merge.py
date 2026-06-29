@@ -177,12 +177,13 @@ try:
         _ey=[]
         for _o in _hb['eps_per']:
             if not isinstance(_o, dict): continue
+            _g=lambda *ks: next((_o.get(k) for k in ks if _o.get(k) not in (None,'')), None)
             _ey.append({'name': _o.get('company') or _o.get('name') or '-',
-                'y2025_eps': _o.get('eps_2025'), 'y2025_per': _o.get('per_2025'),
-                'y2026_eps': _o.get('eps_2026'), 'y2026_per': _o.get('per_2026'),
-                'y2027_eps': _o.get('eps_2027'), 'y2027_per': _o.get('per_2027'),
-                'y2028_eps': _o.get('eps_2028'), 'y2028_per': _o.get('per_2028'),
-                'currency': _o.get('currency') or ''})
+                'y2025_eps': _g('eps_2025','eps_2025E'), 'y2025_per': _g('per_2025','per_2025E'),
+                'y2026_eps': _g('eps_2026E','eps_2026'), 'y2026_per': _g('per_2026E','per_2026'),
+                'y2027_eps': _g('eps_2027E','eps_2027'), 'y2027_per': _g('per_2027E','per_2027'),
+                'y2028_eps': _g('eps_2028E','eps_2028'), 'y2028_per': _g('per_2028E','per_2028'),
+                'currency': _o.get('currency') or _o.get('unit') or ''})
         if _ey: _hb['eps_yearly']=_ey; m['hbm']=_hb; print('  [req6] HBM eps_yearly 매핑:', len(_ey))
 except Exception as _he: print('  [req6] hbm eps_yearly skip:', _he)
 

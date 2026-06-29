@@ -269,8 +269,12 @@ function renderKoreaExtras(){ const m=data.markets||{};
     children.push(makeTable(RW,retRows(themeItems,null,themeDesc)));
     if(m.korea_themes_comment)children.push(p(m.korea_themes_comment)); children.push(p(""));
     // 반도체/AI 종목·ETF (시총/AUM순)
+    const fmtAUM=(v)=>{ if(v==null||v==="")return "- (시총/AUM 미확인)"; if(/[조억원만]/.test(String(v)))return String(v);
+      const n=(typeof v==="number")?v:parseFloat(String(v).replace(/[^0-9.]/g,"")); if(!isFinite(n)||n<=0)return String(v);
+      if(n>=10000){const jo=Math.floor(n/10000),eok=Math.round(n%10000); return eok?(jo.toLocaleString()+"조 "+eok.toLocaleString()+"억원"):(jo.toLocaleString()+"조원");}
+      return Math.round(n).toLocaleString()+"억원"; };
     const semiDesc=(x)=>[ new TextRun({text:(x.name||"-")+"  ",bold:true,size:20}),
-      new TextRun({text:("시총/AUM: "+(x.aum||"미확인")),size:16,color:"475569"}),
+      new TextRun({text:("시총/AUM: "+fmtAUM(x.aum)),size:16,color:"475569"}),
       new TextRun({text:(x.note?("   — "+x.note):""),size:16,color:"64748B"}) ];
     if(Array.isArray(m.semi_ai_stocks)&&m.semi_ai_stocks.length){
       children.push(p("■ 반도체/AI 대표 국내 종목 (시총순)",{bold:true,color:"1E40AF",before:120}));
@@ -294,7 +298,9 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   const ey=Array.isArray(hbm.eps_yearly)?hbm.eps_yearly:null;
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
     const w=[1500,1760,1760,1760,1760,1200]; const rows=[hdrRow(["종목","2025(실적)","2026(E)","2027(E)","2028(E)","통화"],w)];
-    const cc=(e,pp)=>{ if((e==null||e==="")&&(pp==null||pp===""))return "-"; return ((e!=null&&e!=="")?("EPS "+e):"-")+((pp!=null&&pp!=="")?(" · PER "+pp+"x"):""); };
+    const _fnum=(x)=>(typeof x==="number")?x.toLocaleString():x;
+    const cc=(e,pp)=>{ const he=(e!=null&&e!==""), hp=(pp!=null&&pp!=="");
+      if(!he&&!hp)return "- 컨센서스 미공개"; return (he?("EPS "+_fnum(e)):"EPS -")+(hp?(" · PER "+pp+"x"):" · PER -"); };
     ey.forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name||"-",{width:w[0],alt:a,bold:true}),
       cell(cc(o.y2025_eps,o.y2025_per),{width:w[1],alt:a,size:13,align:AlignmentType.CENTER}),
@@ -303,7 +309,12 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(cc(o.y2028_eps,o.y2028_per),{width:w[4],alt:a,size:13,align:AlignmentType.CENTER}),
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
-    children.push(p("EPS·PER: SK하이닉스·삼성전자=삼성증권 컨센서스(2026-06), Micron=S&P Global 컨센서스. 2026E~2028E 추정치 · 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
+    children.push(p("EPS·PER: 각사 IR 실적·증권사/데이터벤더(FnGuide·MarketScreener·S&P Global) 컨센서스 — 항목별 출처는 아래 참조. 2026E~2028E 추정치 · 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
+  { const srcs=Array.isArray(hbm.sources)?hbm.sources:[]; if(srcs.length){
+    children.push(p("■ HBM·메모리 데이터별 조사 출처 (항목·수치·출처·링크)",{bold:true,color:"1E40AF",before:90,size:18}));
+    srcs.forEach(s=>{ const parts=[new TextRun({text:"• "+(s.item||"-")+(s.value!=null&&s.value!==""?(": "+s.value):"")+"  ("+(s.type||"추정")+" · "+(s.source||"-")+(s.asof?(" · "+s.asof):"")+")  ",size:13,color:"64748B"})];
+      if(s.url) parts.push(new ExternalHyperlink({link:s.url,children:[new TextRun({text:String(s.url).slice(0,84),color:"1155CC",size:12,underline:{type:"single"}})]}));
+      children.push(new Paragraph({children:parts})); }); } }
   children.push(p("")); }
 
 // (v3.31.0) 3.1.8 경기선행지수 — 3.2 한국증시 -> 3.1 매크로 대시보드로 이동.
@@ -322,7 +333,7 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
-  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[r.item!=null?r.item:"-",r.jun!=null?r.jun:"-",r.mar!=null?r.mar:"-",r.change!=null?r.change:"-"]),{left:[0]});
+  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:"-")),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(r.change!=null&&r.change!==""?r.change:"-")]),{left:[0]});
   if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
     f.distribution.forEach(x=>children.push(p("• "+(x.label||"")+": "+(x.count||""),{size:19}))); }
   if(f.policy_rate)children.push(p("현 정책금리: "+f.policy_rate,{bold:true,before:60}));
@@ -634,10 +645,12 @@ function fwdRecentTable(key,unit){ const h=fwdHist(); const arr=(h&&h[key])||[];
   const rows=arr.slice().sort((a,b)=>String(b.eps_date||b.date).localeCompare(String(a.eps_date||a.date))).slice(0,5);
   const w=[2300,2100,1600,3400];
   const epsS=(v)=>v==null?"-":(unit==="$"?("$"+(Math.round(v*100)/100)):((Math.round(v*10)/10)+"p"));
-  const tr=[hdrRow(["선행 EPS (날짜)","선행 PER (날짜)","날짜시점 지수","조사 출처·링크"],w)];
+  const tr=[hdrRow(["선행 EPS (날짜)","선행 PER (날짜)","날짜시점 지수","조사 출처·링크·날짜"],w)];
   rows.forEach((r,i)=>{ const a=i%2===1;
-    const lr = r.link ? new ExternalHyperlink({link:r.link,children:[new TextRun({text:String(r.src||r.link).slice(0,42),color:"1155CC",size:15,underline:{type:"single"}})]}) : new TextRun({text:String(r.src||"-"),size:15,color:"475569"});
-    const lc = new TableCell({borders,width:{size:w[3],type:WidthType.DXA},shading:a?altShading:undefined,margins:{top:40,bottom:40,left:110,right:110},children:[new Paragraph({children:[lr]})]});
+    const _dt = r.published_on||r.date||r.eps_date||"-";
+    const lr = r.link ? new ExternalHyperlink({link:r.link,children:[new TextRun({text:String(r.src||r.link).slice(0,38),color:"1155CC",size:14,underline:{type:"single"}})]}) : new TextRun({text:String(r.src||"-"),size:14,color:"475569"});
+    const ld = new TextRun({text:"  (자료작성일 "+_dt+")",size:13,color:"64748B"});
+    const lc = new TableCell({borders,width:{size:w[3],type:WidthType.DXA},shading:a?altShading:undefined,margins:{top:40,bottom:40,left:110,right:110},children:[new Paragraph({children:[lr,ld]})]});
     tr.push(new TableRow({children:[
       cell(epsS(r.eps)+"  ("+(r.eps_date||"-")+")",{width:w[0],alt:a,size:16}),
       cell((r.per!=null?(r.per+"배"):"-")+"  ("+(r.per_date||"-")+")",{width:w[1],alt:a,size:16}),
@@ -645,7 +658,7 @@ function fwdRecentTable(key,unit){ const h=fwdHist(); const arr=(h&&h[key])||[];
       lc]})); });
   children.push(p("■ 최신 5건 (DB 누적 — 선행EPS·PER·날짜시점 지수·조사 출처)",{bold:true,color:"1E40AF",before:70,size:17}));
   children.push(makeTable(w,tr));
-  children.push(p("DB(nmr_fwd_history.json) 최신 5건 · EPS/PER 한쪽만 조사 시 해당일 일일지수로 보정(EPS×PER=지수) 후 저장 · 매 실행 신규 검색분 누적.",{size:13,color:"94A3B8"})); }
+  children.push(p("DB(nmr_fwd_history.json) 최신 5건 · 출처·링크·날짜(자료작성일)는 표 내 4번째 열에 표기 · EPS/PER 한쪽만 조사 시 해당일 일일지수로 보정(EPS×PER=지수) 후 저장 · 매 실행 신규 검색분 누적.",{size:13,color:"94A3B8"})); }
 function renderMacroIndicators(){
   const M=data.markets||{}; const x=M.macro; if(!x)return;
   children.push(h("3.1 주요지표 (매크로 대시보드)",2));
