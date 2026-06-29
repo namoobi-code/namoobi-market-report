@@ -244,9 +244,7 @@ MACRO_DEFAULT = json.loads(r'''{
       {"name": "달러인덱스 DXY", "current": 98.1, "1w_pct": 0.3, "1mo_pct": -0.5, "3mo_pct": -1.8, "6mo_pct": -3.0, "1y_pct": -4.0, "trend": "약보합(추정)", "spark": "charts/spark_dxy.png", "meaning": "달러 가치", "use": "달러 강세 → 코스피 조정 역사"},
       {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usd_krw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
       {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}
-    ],
-    "spx_fwd": {"fwd_eps": 330, "fwd_per": 22.7, "asof": "2026-06", "chart": "charts/macro_spx_fwd.png", "note": "출처: LSEG/Yardeni 공개치(월간 캐시) — 추정. 지수 7,500 / EPS 330 → 선행PER 22.7배로 정합"},
-    "kospi_fwd": {"fwd_eps": 918, "fwd_per": 9.8, "asof": "2026-06", "chart": "charts/macro_kospi_fwd.png", "note": "출처: 연합인포맥스/WISEfn(월간 캐시) — 추정. 지수 9,000 / EPS 918 → 선행PER 9.8배로 정합"}
+    ]
   }
 }
 ''')
@@ -263,12 +261,10 @@ if _macro and not _macro_ok(_macro):
     print('  [macro] nmr_macro 구조 불일치(rates.fed_funds 가 dict 아님/rows 비어있음) -> MACRO_DEFAULT 폴백')
     _macro = None
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
-# (v3.43) 에이전트가 sentiment.rows(심리 6지표 골격)를 안 줘도 inflation/employment 를 살린다 — MACRO_DEFAULT 골격만 주입(merge가 VIX·DXY·KSVKOSPI·원달러·WTI·US10Y 라이브값 주입). spx_fwd/kospi_fwd 는 에이전트값 보존.
+# (v3.43) 에이전트가 sentiment.rows(심리 6지표 골격)를 안 줘도 inflation/employment 를 살린다 — MACRO_DEFAULT 골격만 주입(merge가 VIX·DXY·KSVKOSPI·원달러·WTI·US10Y 라이브값 주입). (2026-06-29: 3.1.5 spx_fwd/kospi_fwd 제거)
 if not ((macro.get('sentiment') or {}).get('rows')):
     _sd = macro.setdefault('sentiment', {})
     _sd['rows'] = json.loads(json.dumps(MACRO_DEFAULT['sentiment']['rows']))
-    for _fk in ('spx_fwd', 'kospi_fwd'):
-        if not _sd.get(_fk): _sd[_fk] = MACRO_DEFAULT['sentiment'].get(_fk, {})
 # (Big-Arch req4/20/25) 매크로 표 canonical 정규화 — 행순서·의미·시장영향·해석 고정 + us2y 보강
 def _macro_canon(macro):
     _r = macro.setdefault('rates', {})
@@ -606,10 +602,7 @@ try:
     try:
         if isinstance(macro.get('inflation'), dict): macro['inflation']['chart'] = 'charts/macro_inflation.png'
         if isinstance(macro.get('employment'), dict): macro['employment']['chart'] = 'charts/macro_employment.png'
-        _senf = macro.get('sentiment') or {}
-        if isinstance(_senf.get('spx_fwd'), dict): _senf['spx_fwd']['chart'] = 'charts/fwd3_spx.png'
-        if isinstance(_senf.get('kospi_fwd'), dict): _senf['kospi_fwd']['chart'] = 'charts/fwd3_kospi.png'
-        print('  [R4] 차트경로 강제: inflation/employment/spx_fwd/kospi_fwd')
+        print('  [R4] 차트경로 강제: inflation/employment')
     except Exception as _ce: print('  [R4] 차트경로 강제 skip:', _ce)
     print('  [R4] 국채 단일소스 강제: us10y', _rates_fin.get('us10y',{}).get('current'),
           '1d', _rates_fin.get('us10y',{}).get('1d_pct'),

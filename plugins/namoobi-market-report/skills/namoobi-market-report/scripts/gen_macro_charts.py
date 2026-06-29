@@ -94,7 +94,7 @@ def months(sy,sm,n):
         if m>12:m=1;y+=1
     return o
 mon=months(2025,6,12)
-REQUIRED=["macro_policy_rates","macro_curve","macro_inflation","macro_infl_exp","macro_employment","macro_spx_fwd","macro_kospi_fwd"]
+REQUIRED=["macro_policy_rates","macro_curve","macro_inflation","macro_infl_exp","macro_employment"]
 for _r in REQUIRED:
     try: os.remove("charts/%s.png"%_r)
     except OSError: pass
@@ -256,30 +256,7 @@ def _ch_emp():
     fig.suptitle("미국 고용·경기 지표 최근 1년 (FMP 실측)",fontsize=9.5,color=SLATE)
     plt.tight_layout(rect=[0,0,1,0.93]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
 _safe("macro_employment", _ch_emp)
-def _fwd(name,key,title,daily_file):
-    # (req 갱신) 지수=일별 실측 라인 + 선행EPS·선행PER=조사값(DB nmr_fwd_history.json) 포인트
-    daily=_loadjson(daily_file) or {}
-    dser=(daily.get("series") if isinstance(daily,dict) else None) or []
-    fh=_loadjson("nmr_fwd_history.json") or {}
-    pts=[p for p in ((fh.get(key) if isinstance(fh,dict) else None) or []) if (p.get("eps") or p.get("fwd_eps")) is not None]
-    if len(dser)<2 or not pts: raise ValueError("일별지수/조사EPS 부족")
-    dx=[mdates.datestr2num(str(d)[:10]) for d,v in dser]; dy=[v for d,v in dser]
-    pts=sorted(pts,key=lambda x:str(x.get("idx_date") or x.get("date")))
-    ex=[mdates.datestr2num(str(p.get("idx_date") or p.get("date"))[:10]) for p in pts]
-    eeps=[p.get("eps",p.get("fwd_eps")) for p in pts]; eper=[p.get("per",p.get("fwd_per")) for p in pts]
-    fig,ax=plt.subplots(figsize=(7.6,2.9),dpi=150)
-    ax.plot(dx,dy,color=BLUE,linewidth=1.0,label="지수(일별 실측)"); ax.set_ylabel("지수(pt)",fontsize=8,color=BLUE)
-    ax.annotate("%.0f"%dy[-1],(dx[-1],dy[-1]),textcoords="offset points",xytext=(3,0),fontsize=7,color=BLUE,fontweight="bold",va="center")
-    ax2=ax.twinx(); ax2.plot(ex,eeps,color=AMBER,linewidth=1.7,marker="o",ms=5,label="12M 선행 EPS(조사)"); ax2.set_ylabel("12M 선행 EPS",fontsize=8,color=AMBER)
-    for x,e in zip(ex,eeps): ax2.annotate(("%.0f"%e),(x,e),textcoords="offset points",xytext=(0,7),fontsize=6.3,color="#B45309",ha="center")
-    ax3=ax.twinx(); ax3.spines["right"].set_position(("outward",42)); ax3.plot(ex,eper,color=GREEN,linewidth=1.3,marker="s",ms=4,linestyle="--",label="선행 PER(조사)"); ax3.set_ylabel("선행 PER(배)",fontsize=8,color=GREEN)
-    ax.set_title(title,fontsize=9.3,color=SLATE); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
-    [t.set_rotation(0) for t in ax.get_xticklabels()]; ax.grid(True,alpha=0.2); ax.spines["top"].set_visible(False)
-    h1,l1=ax.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels(); h3,l3=ax3.get_legend_handles_labels()
-    ax.legend(h1+h2+h3,l1+l2+l3,fontsize=6.6,loc="upper left",framealpha=0.85)
-    plt.tight_layout(); plt.savefig("charts/macro_%s.png"%name,bbox_inches="tight"); plt.close()
-_safe("macro_spx_fwd", lambda: _fwd("spx_fwd","spx","S&P500 · 일일 지수 + 12M 선행 EPS·PER (조사값 · 실적 vs 밸류)","nmr_spx_daily.json"))
-_safe("macro_kospi_fwd", lambda: _fwd("kospi_fwd","kospi","KOSPI · 일일 지수 + 12M 선행 EPS·PER (조사값 · 실적 vs 밸류)","nmr_kospi_daily.json"))
+# (2026-06-29) 3.1.5 선행EPS/PER 차트(_fwd / macro_spx_fwd / macro_kospi_fwd) 제거됨 — 섹션 삭제
 _miss=[r for r in REQUIRED if r not in _made]
 print("macro charts -> 생성 %d/%d | 실패:%s | 누락:%s"%(len([r for r in REQUIRED if r in _made]),len(REQUIRED),(",".join(_failed) or "없음"),(",".join(_miss) or "없음")))
 if _miss: print("WARN_MACRO_MISSING="+",".join(_miss))

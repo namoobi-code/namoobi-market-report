@@ -7,7 +7,6 @@
 > 4. **고용 NFP**: NFP 시계열 = **FRED PAYEMS 레벨의 전월 차분(천명)**. MoM%·지수값 혼입 절대 금지(과거 0.1·0.0… 오염 사례). employment 6종(nfp·unemp·retail·ism_mfg·ism_svc·gdp) ~24개월. 오염된 `db/series_emp_nfp.json` 발견 시 클린값으로 덮어쓴다. **gen_macro_charts 는 6패널 항상**(빈건 '데이터 미확보').
 > 5. **美2년물**: `us2y_daily` 1년 시계열(FMP treasury year2)을 `macro.series.us2y_daily` 로 제공. **gen_macro_charts 는 `NMR_OUT="$WORK"` 로 실행**해야 us2y 가 `$WORK/nmr_indexseries.json` 에 주입돼 스파크가 10년물과 다른 정상 모양이 된다.
 > 6. **KSVKOSPI**: 메인세션 Claude in Chrome 으로 `https://kr.investing.com/indices/kospi-volatility` 파싱. **성과 라벨은 "달"**(1일/1주/1달/3달/6달/1년) — "개월" 아님(파서 라벨 주의!). current·prev_close·anchors(1d/1w/1mo/3mo/6mo/1y)+23일 시계열 → `nmr_vkospi_history.json`. `nmr_reasons.py` 가 KSVKOSPI 행에 주입(빌더 day1pct 용 `prev_pct` 포함).
-> 7. **선행EPS/PER**: **data_asof(실제 기준일) ≠ published_on(자료작성·발행일) 구별** 저장. DB 점 {eps,eps_date,per,per_date,idx,idx_date,src,link,published_on}. 한쪽만이면 EPS×PER=지수 보정. **출처·링크·날짜는 3.1.5 표 4번째 칼럼('조사 출처·링크·날짜')에 표기 — 표 밑 별도 리스트 금지**.
 > 8. **CAPEX**: **웹서치 실측+컨센서스** → `nmr_capex.json`(MSFT 2026E≈190 캘린더연 컨센서스 등 GOODREPORT 수준; 90 같은 FY부분배분 금지). actual(2024~25)·estimate(2026~29E) 분리표기.
 > 9. **HBM**: 항목별 출처링크 `sources[]`(item·value·source·url·asof·type) → build 가 3.1.7 표·그래프 아래 렌더. eps_per 키는 `eps_2026E`(E접미사) — merge 가 `eps_yearly`(y2026_eps) 로 매핑.
 > 10. **nmr_reasons.py**: merge 직후·build 직전 1회 실행(SKILL Phase 4) — 위 1·2·4(발표일)·6 을 report_data 에 주입. **누락 시 결측이 "-"로 새어 req0 위반**.
@@ -16,18 +15,14 @@
 
 > **v3.35.0 — 3.1.6 CAPEX 데이터 확장(매출·FCF 실측).** CapexAgent 는 5개사(MSFT·GOOGL·AMZN·META·ORCL) 연도별 **CAPEX·매출·FCF** 를 모두 수집해 `nmr_capex.json` rows 에 `y{YYYY}`(capex)·`rev{YYYY}`·`fcf{YYYY}`·`ratio{YYYY}` 로 저장한다. 출처: FMP `statements` income-statement(revenue)·cashflow-statement(freeCashFlow,capitalExpenditure) 실측(2024~25), FMP `analyst` financial-estimates(revenueAvg) 컨센서스(2026~29E). 전망 FCF=직전 영업현금흐름×(매출_y/매출_25)−CAPEX_y 추정. Capex/매출=CAPEX÷매출. 표는 기업별 4행, 두 차트(gen_capex_chart.py)는 rows 의 capex/rev/fcf 로 그려 표·그래프 100% 일치. ORCL statements 플랜 제한 시 공개치·추정 폴백(표기). 단위 십억$.
 
-> **v3.33.0 — 3.1.5 출처 링크 정책(검증).** 각 선행EPS/PER 점의 link 는 수치가 실제로 보이는 1차 출처여야 한다. S&P500: FactSet Earnings Insight 주간 PDF(`https://advantage.factset.com/.../EarningsInsight_MMDDYY.pdf`, 보고일=금요일). KOSPI: 출처 증권사 리포트 PDF(예: 대신 money2.daishin.com Strategy/Weekly, 신한 open.shinhansec.com). MacroAgent 는 매 실행 spx_fwd/kospi_fwd 에 fwd_eps·fwd_per·**asof(풀날짜)**·**link(URL)**·src 를 채운다. nmr_fwd_accum.py 가 eps_date 풀날짜 키로 upsert(월만 있으면 skip), SPX 는 link 미제공 시 날짜에서 FactSet PDF URL 자동 생성. 둘 다 있으면 지수=EPS×PER, 한쪽만이면 nmr_idx_daily 의 해당일 종가로 보정.
 
-> **v3.32.0 — 3.1.5 DB schema2 + 일일지수.** 선행EPS/PER DB(`_market_report_data/nmr_fwd_history.json`) 점 스키마: `{eps,eps_date,per,per_date,idx,idx_date,src,link}`. **날짜시점 지수**(idx)=그 날짜의 실측 일일 종가(`fetch_idx_daily.py`→`nmr_idx_daily.json`, ^GSPC/^KS11 2년). MacroAgent 는 spx_fwd/kospi_fwd 에 가능하면 `link`(조사 출처 URL)도 담는다. `nmr_fwd_accum.py` 가 매 실행 월키로 upsert하며 **EPS or PER 한쪽만 있으면 해당일 일일지수로 보정**(eps=idx/per 또는 per=idx/eps). 통합차트는 지수=일일선, EPS/PER=조사시점 포인트. 보고서엔 지수별 **최신 5건 표**(EPS·PER·지수·링크) 표시. (DB·nmr_idx_daily 는 런타임 데이터 — 저장소 커밋 안 함.)
 
-> **v3.30.0 — 3.1.5 선행EPS/PER DB 누적.** MacroAgent 가 매 실행 수집하는 S&P500(FactSet)·KOSPI(FnGuide) 12M 선행 P/E·선행EPS(`nmr_macro.json` sentiment.spx_fwd/kospi_fwd)를, 파이프라인이 `nmr_fwd_accum.py` 로 시리즈 파일(`nmr_spx/kospi_fwd_series.json`)과 함께 `_market_report_data/nmr_fwd_history.json`(DB·연결폴더·영구)에 **월 키로 병합**(신규 추가·기존 갱신)한다 → 시계열이 매일 누적·향상. `gen_fwd3.py` 가 이 DB 를 읽어 지수/EPS/PER **단일 통합차트(3중 Y축, 지수=선행EPS×선행PER 복원)** 를 그린다. (`nmr_fwd_history.json` 은 런타임 데이터 — 저장소에 커밋하지 않음.)
 
 ## 추가 규칙 — 2026-06-26 (라운드6) 변동이력·표 정비
 
 - **변동이력(빨간색, 표 위)**: nmr_changelog.py 가 비일간 지표(정책금리·물가·고용·CAPEX) 최종값을 `_market_report_data/nmr_valcache.json` 에 저장 → 매 실행 직전값과 비교, 변경분만 change_log 로 부착(merge 후·build 전 실행). build 가 각 표 **위에 빨간색**으로 렌더(변경 없으면 미표시).
 - 3.1.4 심리표 우측열 헤더 = '시장 영향'.
 - KSVKOSPI: investing.com 1년 일별(nmr_vkospi_hist.json)로 현재·1주~1년·스파크 산출.
-- 3.1.5: nmr_fwd.json(SPX eps+idx, KOSPI idx) → gen_macro2 가 선행EPS·지수·선행PER 오버레이(KOSPI 선행EPS 미확보 시 지수만).
 - 3.1.6 CAPEX change_log 표 위. 3.1.7 gen_hbm_dashboard EPS패널 제거 + nmr_hbm_eps.json 3사 연도별 EPS/PER 표(2025~2028E, build).
 - 3.1.3 GDP 분기 별도 차트(nmr_gdp.json, gen_macro2). 고용 통합차트는 월별 5종.
 
@@ -356,7 +351,7 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 **수집**
 - **FMP `economics-indicators`**(name=): `federalFunds`(현재 기준금리)·`CPI`(지수→YoY/MoM)·`unemploymentRate`·`totalNonfarmPayroll`(전월차→신규고용)·`retailSales`(MoM)·`realGDP`(전기比 연율)·(보너스 `consumerSentiment`). **FMP `treasury-rates`** 최근일 `year2`·`year10` → `yield_curve`(10Y-2Y)·`us10y`.
 - **FRED CSV**(Chrome 동일출처 `fredgraph.csv` — 3.3.3 HY OAS 와 동일 패턴): Core CPI=`CPILFESL`·PCE=`PCEPI`·Core PCE=`PCEPILFE`·PPI=`PPIFIS`·10Y 기대인플레=`T10YIE`(월별 12개+YoY/현재값).
-- **추정**(무료 실시간 API 없음): ISM 제조/서비스 PMI·한·중 정책금리 → WebSearch 추정, **'추정' 표기**. **★S&P500/KOSPI 12M 선행 EPS·선행PER 은 뉴스 출처 금지(필수): S&P500 = FactSet(또는 Bloomberg·Yardeni) 12개월 선행 P/E, KOSPI = FnGuide·증권사 리포트 12개월 선행 P/E 를 받아 '선행EPS = 지수 ÷ 선행PER' 로 산출**한다. `spx_fwd`·`kospi_fwd` 에 `fwd_per`·`fwd_eps`·`idx`·`asof`·`source`(FactSet/FnGuide)를 저장하고, 월별 `series.spx_eps`/`kospi_eps`·`spx_idx`/`kospi_idx`는 현재값=벤더 실측·과거=보간이면 캡션에 '보간추정' 명시. 확인 불가 시 빈값. **(v3.22) KSVKOSPI(코스피 변동성지수)는 추정 금지. ★중요: investing.com 페이지는 샌드박스 urllib·Claude-in-Chrome 에서 403/차단되므로 `fetch_us.py` 직접파싱이 깨진다 → MacroAgent 가 `web_fetch`(차단 안 됨)로 `https://kr.investing.com/indices/kospi-volatility`(현재/전일/1일/1년)와 `.../kospi-volatility-historical-data`(일별 종가표→스파크·1주~6개월)를 받아 `nmr_markets.json` 의 vkospi(current·prev_close·chg·1d_pct·1y_pct·anchors)에 주입한다. web_fetch 도 실패 시 `fetch_us.py` 의 CNBC `.KSVKOSPI` + 일별캐시(`nmr_vkospi_history.json`) 폴백. merge 가 'KSVKOSPI (KOSPI Volatility)' 행에 주입.**
+- **추정**(무료 실시간 API 없음): ISM 제조/서비스 PMI·한·중 정책금리 → WebSearch 추정, **'추정' 표기**. **(v3.22) KSVKOSPI(코스피 변동성지수)는 추정 금지. ★중요: investing.com 페이지는 샌드박스 urllib·Claude-in-Chrome 에서 403/차단되므로 `fetch_us.py` 직접파싱이 깨진다 → MacroAgent 가 `web_fetch`(차단 안 됨)로 `https://kr.investing.com/indices/kospi-volatility`(현재/전일/1일/1년)와 `.../kospi-volatility-historical-data`(일별 종가표→스파크·1주~6개월)를 받아 `nmr_markets.json` 의 vkospi(current·prev_close·chg·1d_pct·1y_pct·anchors)에 주입한다. web_fetch 도 실패 시 `fetch_us.py` 의 CNBC `.KSVKOSPI` + 일별캐시(`nmr_vkospi_history.json`) 폴백. merge 가 'KSVKOSPI (KOSPI Volatility)' 행에 주입.**
 - **재사용(수집 금지)**: VIX·DXY·원/달러·WTI·美10년물·**KSVKOSPI(CNBC .KSVKOSPI)** = `fetch_us.py` 산출 → `merge.py` 가 주입.
 
-**반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment·spx_eps·spx_idx·kospi_eps·kospi_idx) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).
+**반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).
