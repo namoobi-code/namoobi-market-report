@@ -636,7 +636,30 @@ function markStance(s){ s=String(s||""); if(s.includes("매파"))return negative
 
 function hdrRow(labels,w){ return new TableRow({children:labels.map((x,i)=>cell(x,{width:w[i],header:true,align:AlignmentType.CENTER}))}); }
 
-// (2026-06-29) 3.1.5 선행EPS/PER 리더(fwdHist/fwdRecentTable) 제거됨 — 섹션 삭제
+// (2026-06-29) 3.1.5 = Earnings Insight (FactSet): 블로그 최신글 + 주간 리포트 첫장 요약 (DB: nmr_factset.json)
+function fsLink(text,url){ if(!url||!HAS_LINK) return p(text,{size:14,color:"475569"});
+  return new Paragraph({spacing:{after:60},children:[new TextRun({text:text+"  ",size:14,color:"475569"}),
+    new ExternalHyperlink({link:url,children:[new TextRun({text:url,color:"1155CC",size:12,underline:{type:"single"}})]})]}); }
+function renderFactSet(){ const m=data.markets||{}; const fs=m.factset; if(!fs||(!fs.blog&&!fs.report))return;
+  children.push(h("3.1.5 Earnings Insight (FactSet)",3));
+  children.push(p("FactSet Earnings Insight 의 최신 블로그 포스트와 주간 리포트 첫 장을 요약한다. 원문 그래프·표는 출처 링크에서 확인(저작권상 본 보고서에는 사실 요약·수치만 수록).",{italics:true,color:"64748B"}));
+  const b=fs.blog||{};
+  if(b.title){
+    children.push(p("■ "+(b.title_ko||b.title),{bold:true,color:"1E40AF",before:120,size:20}));
+    if(b.title_ko) children.push(p(b.title,{italics:true,color:"64748B",size:14}));
+    children.push(fsLink("블로그 포스트 · "+(b.date||"")+(b.author?(" · "+b.author):""), b.url));
+    (b.summary||[]).forEach(s=>children.push(p("• "+s,{size:16,color:"334155"})));
+  }
+  const r=fs.report||{};
+  if(r.title){
+    children.push(p("■ "+(r.title||"Earnings Insight report"),{bold:true,color:"1E40AF",before:160,size:20}));
+    children.push(fsLink("리포트 · "+(r.date||"")+(r.author?(" · "+r.author):""), r.url));
+    (r.key_metrics||[]).forEach(s=>children.push(p("• "+s,{size:16,color:"334155"})));
+    if(r.next_date) children.push(p("▶ 다음 리포트 발행 예정: "+r.next_date,{bold:true,color:"1E40AF",size:16,before:40}));
+  }
+  if(fs.source_note) children.push(p(fs.source_note,{size:13,italics:true,color:"94A3B8"}));
+  children.push(p(""));
+}
 function renderMacroIndicators(){
   const M=data.markets||{}; const x=M.macro; if(!x)return;
   children.push(h("3.1 주요지표 (매크로 대시보드)",2));
@@ -749,7 +772,7 @@ function renderMacroIndicators(){
       cell(o.meaning||"-",{width:w[1],alt:i%2===1,size:17}),cell(o.use||"-",{width:w[2],alt:i%2===1,size:17})]})));
     children.push(makeTable(w,rows)); }
   children.push(p(""));
-  // 3.1.5 (지수·Forward EPS·PER) 섹션 제거됨 — 2026-06-29 (번호 비움; 새 섹션 재작성 예정)
+  renderFactSet();   // 3.1.5 Earnings Insight (FactSet) — 블로그 최신글 + Earnings Insight 리포트 요약(DB: nmr_factset.json)
   renderCapex();
   renderHBM();
   renderKoreaLeading();

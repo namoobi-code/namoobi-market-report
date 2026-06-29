@@ -170,6 +170,7 @@ if _capm:
     m['semi_ai_etfs'] = sorted(_capov(m.get('semi_ai_etfs') or []), key=_capnk)
     print('  [caps] 시총/AUM 라이브 덮어쓰기·정렬:', len(_capm))
 m['hbm'] = LCF('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
+m['factset'] = LCF('nmr_factset.json')  # 3.1.5 Earnings Insight (FactSet) DB: 블로그 최신글 + 리포트 첫장 요약 (없으면 {} → 섹션 자동 생략)
 # (req6) HBM eps_per -> eps_yearly (빌더 표 스키마)
 try:
     _hb = m.get('hbm') or {}
