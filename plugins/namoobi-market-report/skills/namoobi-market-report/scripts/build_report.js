@@ -293,9 +293,9 @@ function renderKoreaExtras(){ const m=data.markets||{};
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
   const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",660,560);
-  if(img){ children.push(p("메모리 가격·HBM 출하/시장규모·ASP·점유율·HBM:DDR5 격차 대시보드. 비-실시간 지표는 추정치이며 매일 변동 체크 후 변동 시 갱신.",{italics:true,color:"64748B"})); children.push(img);
-    children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·실적 컨센서스·언론, AI Research",{size:15,color:"94A3B8"}));
-    children.push(p("데이터 갱신: 무료 실시간 API 부재 — 분기 실적·가이던스 발표 시 갱신, 그 외 DB(nmr_hbm.json) 재사용(매 실행 변동 여부만 체크). 항목별 출처·링크는 아래 표 참조.",{size:13,italics:true,color:"94A3B8"})); }
+  if(img){ children.push(p("메모리 가격·HBM 출하/시장규모·ASP·점유율·HBM:DDR5 격차 6개 패널 대시보드. 무료 일별 시세 API가 없어 추정치다.",{italics:true,color:"64748B"})); children.push(img);
+    children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·각사 IR·컨센서스, AI Research",{size:15,color:"94A3B8"}));
+    children.push(p("갱신 주기·확인처(6종 그래프 모두 매일 변동 대상 아님) — ① 스팟가격·ASP: TrendForce/DRAMeXchange 보고(월~분기) ② 출하량·시장규모·점유율: 각사 IR 분기 실적 + Counterpoint(분기) ③ HBM:DDR5 격차: 위 항목 종속 계산. 체크 방법: 매 실행 시 각사 최신 분기 실적 발표일(SK하이닉스·삼성=1·4·7·10월 말, Micron=3·6·9·12월) 및 TrendForce 최신 보고일을 마커로 비교 → 신규 발표 시에만 갱신, 그 외 DB(nmr_hbm.json) 재사용.",{size:13,italics:true,color:"94A3B8"})); }
   const ey=Array.isArray(hbm.eps_yearly)?hbm.eps_yearly:null;
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
     const w=[1500,1760,1760,1760,1760,1200]; const rows=[hdrRow(["종목","2025(실적)","2026(E)","2027(E)","2028(E)","통화"],w)];
@@ -310,12 +310,7 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(cc(o.y2028_eps,o.y2028_per),{width:w[4],alt:a,size:13,align:AlignmentType.CENTER}),
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
-    children.push(p("EPS·PER: 각사 IR 실적·증권사/데이터벤더(FnGuide·MarketScreener·S&P Global) 컨센서스 — 항목별 출처는 아래 참조. 2026E~2028E 추정치 · 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
-  { const srcs=Array.isArray(hbm.sources)?hbm.sources:[]; if(srcs.length){
-    children.push(p("■ HBM·메모리 데이터별 조사 출처 (항목·수치·출처·링크)",{bold:true,color:"1E40AF",before:90,size:18}));
-    srcs.forEach(s=>{ const parts=[new TextRun({text:"• "+(s.item||"-")+(s.value!=null&&s.value!==""?(": "+s.value):"")+"  ("+(s.type||"추정")+" · "+(s.source||"-")+(s.asof?(" · "+s.asof):"")+")  ",size:13,color:"64748B"})];
-      if(s.url) parts.push(new ExternalHyperlink({link:s.url,children:[new TextRun({text:String(s.url).slice(0,84),color:"1155CC",size:12,underline:{type:"single"}})]}));
-      children.push(new Paragraph({children:parts})); }); } }
+    children.push(p("EPS·PER 갱신 주기·확인처 — EPS(직전 회계연도)=각사 IR 실적발표(분기 확정), EPS(차기연도 E)=애널리스트 컨센서스(Investing.com·MarketScreener·FnGuide, 수시 갱신), PER=현재주가÷EPS(주가는 매 실행 갱신). 체크 방법: 매 실행 시 각사 최신 분기 실적 발표일과 컨센서스 변경을 확인해 변동 시 갱신, 그 외 DB(nmr_hbm.json) 재사용. 2026E~2028E 추정 · 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
   children.push(p("")); }
 
 // (v3.31.0) 3.1.8 경기선행지수 — 3.2 한국증시 -> 3.1 매크로 대시보드로 이동.
@@ -368,8 +363,10 @@ function renderCapex(){ const m=data.markets||{};
     children.push(p("단위: 십억 달러(USD). CAPEX·매출·FCF 모두 연도별 조사값 — 2024~2025=FMP 실측(capitalExpenditure·revenue·freeCashFlow) · 2026~2029(E)=매출 애널리스트 컨센서스·CAPEX 회사 가이던스·FCF(직전 영업CF×매출성장−CAPEX) 추정. Capex/매출=CAPEX÷매출. ORCL은 FMP 플랜 제한으로 공개치·추정. 아래 두 차트는 이 표값으로 그려집니다.",{size:13,color:"94A3B8"}));
     if(cx.source_actual) children.push(p("출처(실적 2024·2025): "+cx.source_actual,{size:13,color:"64748B"}));
     if(cx.source_estimates) children.push(p("출처(전망 2026E~): "+cx.source_estimates,{size:13,color:"64748B"}));
-    children.push(fsLink("FMP cashflow-statement API (실적 1차 출처)","https://site.financialmodelingprep.com/financial-statements"));
-    children.push(p("데이터 갱신: 실적값은 분기 실적시즌에 FMP·각사 IR(10-K/8-K)로 갱신, 전망은 회사 가이던스·IB 컨센서스 변동 시 갱신 — 그 외에는 DB(nmr_capex.json) 재사용(매 실행 변동 여부만 체크). 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
+    children.push(p("갱신 주기 — 분기 실적시즌(1·4·7·10월) 중심이며 매일 변동 대상이 아님: ① 실적값(2024·2025)=각사 분기 실적·SEC 10-K/8-K 공시 발표 시 갱신 ② 전망값(2026E~)=각사 실적 컨퍼런스콜의 CAPEX 가이던스 + 애널리스트 컨센서스(FMP analyst-estimates) 변경 시 갱신. 체크 방법: 매 실행 시 각사 최신 분기 실적 발표일을 마커로 직전과 비교해 변동분만 재조사, 그 외 DB(nmr_capex.json) 재사용. 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
+    children.push(p("확인처 — 1차 출처: 각사 SEC 공시(EDGAR 10-K/8-K) · 데이터 API: FMP(Financial Modeling Prep)",{size:13,color:"64748B"}));
+    children.push(fsLink("SEC EDGAR 기업 공시검색 (10-K/8-K 원문)","https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=10-K"));
+    children.push(fsLink("FMP API 문서 (financial-statements · analyst-estimates)","https://site.financialmodelingprep.com/developer/docs"));
     { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",660,289);
       if(c1){ children.push(c1); children.push(p("빅테크 CAPEX 합계(스택)·매출 대비 비율 추이",{size:15,color:"94A3B8"})); }
       const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",660,266);
