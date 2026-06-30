@@ -29,18 +29,18 @@ os.makedirs("charts", exist_ok=True)
 OUT_STACK="charts/capex_stack_ratio.png"; OUT_FCF="charts/capex_fcf.png"
 
 EST_FROM=2026
-COMPANIES=["Amazon","Microsoft","Alphabet","Meta","Oracle"]
-COLORS={"Amazon":"#1F3A5F","Microsoft":"#E8833A","Alphabet":"#2BA98E","Meta":"#5B6CE0","Oracle":"#9B4DCA"}
-KLABEL={"Amazon":"아마존","Microsoft":"마이크로소프트","Alphabet":"알파벳","Meta":"메타","Oracle":"오라클"}
+COMPANIES=["Amazon","Microsoft","Alphabet","Oracle"]
+COLORS={"Amazon":"#1F3A5F","Microsoft":"#E8833A","Alphabet":"#2BA98E","Oracle":"#9B4DCA"}
+KLABEL={"Amazon":"아마존","Microsoft":"마이크로소프트","Alphabet":"알파벳","Oracle":"오라클"}
 
 # ---- 내장 기본 데이터(십억 달러) ----
 YEARS=[2023,2024,2025,2026,2027,2028,2029]
 CAPEX={"Microsoft":[28,44,65,120,150,175,195],"Amazon":[53,83,132,200,245,280,305],
-       "Alphabet":[32,53,91,180,220,250,270],"Meta":[27,37,70,135,165,185,200],"Oracle":[9,7,21,50,70,80,88]}
+       "Alphabet":[32,53,91,180,220,250,270],"Oracle":[9,7,21,50,70,80,88]}
 REV={"Microsoft":[212,245,282,320,365,415,470],"Amazon":[575,638,717,795,880,970,1065],
-     "Alphabet":[307,350,403,458,520,590,665],"Meta":[135,165,201,238,278,320,365],"Oracle":[50,53,57,67,90,108,125]}
+     "Alphabet":[307,350,403,458,520,590,665],"Oracle":[50,53,57,67,90,108,125]}
 FCF_YEARS=[2024,2025,2026,2027,2028,2029]
-FCF={"Microsoft":[74,72,55,60,85,115],"Alphabet":[73,73,58,65,90,115],"Meta":[54,46,40,48,70,95],
+FCF={"Microsoft":[74,72,55,60,85,115],"Alphabet":[73,73,58,65,90,115],
      "Amazon":[33,8,-35,-30,5,45],"Oracle":[12,0,-24,-20,-5,10]}
 
 # ---- 선택: report_data 라이브 오버라이드 ----
@@ -133,7 +133,7 @@ def chart_stack(ax):
     ax.set_title(f"치솟는 빅테크 CAPEX — 매출 대비 비중 최대 {max(ratio)}%까지 상승", fontsize=11, color=INK, fontweight="bold", pad=30, loc="left")
 
 def chart_fcf(ax):
-    x=list(range(len(FCF_YEARS))); order=[c for c in ["Microsoft","Alphabet","Meta","Amazon","Oracle"] if c in FCF]
+    x=list(range(len(FCF_YEARS))); order=[c for c in ["Microsoft","Alphabet","Amazon","Oracle"] if c in FCF]
     est_x=next((i for i,y in enumerate(FCF_YEARS) if y>=EST_FROM), len(FCF_YEARS))
     ax.axvspan(est_x-0.5, len(FCF_YEARS)-0.5, color="#F1F5F9", zorder=0)
     ymax=max(max(FCF[c]) for c in order); ymin=min(min(FCF[c]) for c in order)
