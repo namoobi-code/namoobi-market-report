@@ -118,7 +118,7 @@ def _pairs_dt(series):
     return out
 
 # ================= 렌더 =================
-fig=plt.figure(figsize=(15.2,8.8), dpi=150)
+fig=plt.figure(figsize=(15.0,10.0), dpi=150)
 fig.suptitle("반도체 주가 체크용 HBM 지표 대시보드 (출하·시장규모 / ASP / 점유율)", fontsize=21, fontweight="bold", y=0.987)
 _src=D.get("source") or "TrendForce·실적 컨센서스·언론 종합"
 _tag="추정치" if USED_LIVE else "예시·추정 데이터"
@@ -131,7 +131,7 @@ def cad(k):
     return "  ▪ "+_CAD.get(k,"추정")+(" · 최종 갱신 "+a if a else " (예시값)")
 fig.text(0.5,0.962, f"※ 아래 모든 수치는 {_tag}입니다 — 에이전트 웹리서치({_src}) 기준, 확인 불가 항목은 미표기('추정' 표기)",
          ha="center", fontsize=10.5, color="#B45309")
-gs=fig.add_gridspec(2,2, top=0.90, bottom=0.07, left=0.06, right=0.97, hspace=0.95, wspace=0.20, height_ratios=[1,1])
+gs=fig.add_gridspec(2,2, top=0.915, bottom=0.06, left=0.045, right=0.985, hspace=0.62, wspace=0.15, height_ratios=[1,1])
 def style(ax):
     for s in ["top","right"]: ax.spines[s].set_visible(False)
     ax.grid(**GRID)
