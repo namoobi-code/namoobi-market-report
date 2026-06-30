@@ -298,6 +298,10 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
     children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_hbm.json) 재사용. 확인처: 스팟가격·ASP=TrendForce/DRAMeXchange, 출하량·시장규모·점유율=각사 IR + Counterpoint, HBM:DDR5 격차=종속 계산. (값은 수시 변동 가능 — 매일 마커 비교)",{size:13,italics:true,color:"94A3B8"}));
     if(hbm.current_anchors) children.push(p("현재 현물 앵커("+(hbm.asof||"")+"): "+hbm.current_anchors,{size:13,color:"475569"}));
     if(hbm.series_note) children.push(p("※ "+hbm.series_note,{size:12,italics:true,color:"94A3B8"})); }
+  { const ff=imagePara("charts/hbm_free.png",660,210);  // (req17/18) 무료 공개 시점값 전용 그래프 (DB·내장예시 미사용)
+    if(ff){ children.push(p("■ 무료 공개 출처 전용 그래프 (DB·내장예시 미사용 — TrendForce 보도·언론 인용 시점값만)",{bold:true,color:"1E40AF",before:130,size:18}));
+      children.push(ff);
+      children.push(p("유료 월별 시계열(TrendForce DataTrack) 대신 무료로 확인된 시점값만 표시. DDR5 16Gb 칩 $6.84(25-09)→$24.83(25-11)→$27.2(25-12 계약), HBM3E:DDR5 프리미엄 4~5배(25)→1~2배(26E 수렴). 참고: 2026년 DDR5 계약가 추가 급등(+80~95% 1Q·+58~63% 2Q QoQ), 16GB 모듈 소매 ~$240(26-06). 출처: TrendForce 보도자료·Counterpoint·Tom\u0027s Hardware.",{size:12,color:"94A3B8"})); } }
   const ey=Array.isArray(hbm.eps_yearly)?hbm.eps_yearly:null;
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
     const w=[1500,1760,1760,1760,1760,1200]; const rows=[hdrRow(["종목","2025(실적)","2026(E)","2027(E)","2028(E)","통화"],w)];
