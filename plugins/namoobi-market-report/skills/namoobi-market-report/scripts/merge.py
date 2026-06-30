@@ -179,12 +179,17 @@ try:
         for _o in _hb['eps_per']:
             if not isinstance(_o, dict): continue
             _g=lambda *ks: next((_o.get(k) for k in ks if _o.get(k) not in (None,'')), None)
-            _ey.append({'name': _o.get('company') or _o.get('name') or '-',
+            _row={'name': _o.get('company') or _o.get('name') or '-',
                 'y2025_eps': _g('eps_2025','eps_2025E'), 'y2025_per': _g('per_2025','per_2025E'),
                 'y2026_eps': _g('eps_2026E','eps_2026'), 'y2026_per': _g('per_2026E','per_2026'),
                 'y2027_eps': _g('eps_2027E','eps_2027'), 'y2027_per': _g('per_2027E','per_2027'),
                 'y2028_eps': _g('eps_2028E','eps_2028'), 'y2028_per': _g('per_2028E','per_2028'),
-                'currency': _o.get('currency') or _o.get('unit') or ''})
+                'currency': _o.get('currency') or _o.get('unit') or ''}
+            # (req16) eps_cur/eps_next 를 year_cur/year_next 컬럼에 매핑 (eps_2025 평면키 없을 때 — '컨센서스 미공개' 재발방지)
+            _yc=str(_hb.get('year_cur') or 2025); _yn=str(_hb.get('year_next') or 2026)
+            if _o.get('eps_cur') is not None and _row.get('y%s_eps'%_yc) is None: _row['y%s_eps'%_yc]=_o.get('eps_cur'); _row['y%s_per'%_yc]=_o.get('per_cur')
+            if _o.get('eps_next') is not None and _row.get('y%s_eps'%_yn) is None: _row['y%s_eps'%_yn]=_o.get('eps_next'); _row['y%s_per'%_yn]=_o.get('per_next')
+            _ey.append(_row)
         if _ey: _hb['eps_yearly']=_ey; m['hbm']=_hb; print('  [req6] HBM eps_yearly 매핑:', len(_ey))
 except Exception as _he: print('  [req6] hbm eps_yearly skip:', _he)
 
