@@ -109,6 +109,7 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Header
   AlignmentType, LevelFormat, HeadingLevel, BorderStyle, WidthType, ShadingType, PageNumber, PageBreak, ExternalHyperlink, ImageRun } = docx;
 const HAS_IMG = typeof ImageRun !== 'undefined' && !!ImageRun;
 function imagePara(relOrAbs, w, hgt){ try{
+  if(w>=450){ const _k=792/w; w=Math.round(w*_k); hgt=Math.round(hgt*_k); }  // 풀폭 차트 좌우 꽉 채움(콘텐츠 792px·비율 유지)
   const cands=[relOrAbs, path.join(__dirname,relOrAbs), path.join(process.cwd(),relOrAbs)];
   for(const fp of cands){ if(fp && relOrAbs && fs.existsSync(fp) && fs.statSync(fp).isFile() && HAS_IMG){
     return new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:60,after:120},
@@ -175,7 +176,8 @@ function cell(text,opts={}){ return new TableCell({ borders, width:{size:opts.wi
   shading:opts.header?headerShading:(opts.fill?{fill:opts.fill,type:ShadingType.CLEAR,color:"auto"}:(opts.alt?altShading:undefined)), margins:{top:80,bottom:80,left:120,right:120},
   children:[new Paragraph({alignment:opts.align??AlignmentType.LEFT, children:opts.runs||[cellRun(text,opts)]})] }); }
 let tableCount=0;
-function makeTable(cw,rows){ tableCount++; const total=cw.reduce((a,b)=>a+b,0); return new Table({width:{size:total,type:WidthType.DXA},columnWidths:cw,rows}); }
+const CONTENT_W=11880; // 페이지 12240 - 좌우 margin(180*2). 모든 표를 이 폭으로 꽉 채움(비율 유지)
+function makeTable(cw,rows){ tableCount++; const t0=cw.reduce((a,b)=>a+b,0)||1; const k=CONTENT_W/t0; const cw2=cw.map(x=>Math.max(1,Math.round(x*k))); const total=cw2.reduce((a,b)=>a+b,0); return new Table({width:{size:total,type:WidthType.DXA},columnWidths:cw2,rows}); }
 // ===== (v3.6.0) 추가 섹션 렌더러 — 데이터 없으면 자동 생략 =====
 function simpleTable(w,header,body,opts){ opts=opts||{}; const leftCols=opts.left||[header.length-1];
   const rows=[header,...body].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:w[j],header:i===0,alt:i>0&&i%2===0,
@@ -969,7 +971,7 @@ const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData
     {id:"Heading2",name:"Heading 2",basedOn:"Normal",next:"Normal",quickFormat:true,run:{size:28,bold:true,font:FONT,color:"1E40AF"},paragraph:{spacing:{before:240,after:140},outlineLevel:1}},
     {id:"Heading3",name:"Heading 3",basedOn:"Normal",next:"Normal",quickFormat:true,run:{size:24,bold:true,font:FONT,color:"334155"},paragraph:{spacing:{before:180,after:100},outlineLevel:2}}]},
   numbering:{config:[{reference:"bullets",levels:[{level:0,format:LevelFormat.BULLET,text:"•",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
-  sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:360,bottom:1080,left:360}}},
+  sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:180,bottom:1080,left:180}}},
     headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:`글로벌 금융시장 종합 시황 보고서 | ${reportDate}`,size:18,color:"64748B"})]})]})},
     footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Page ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.CURRENT],size:18,color:"64748B"}),new TextRun({text:" / ",size:18,color:"64748B"}),new TextRun({children:[PageNumber.TOTAL_PAGES],size:18,color:"64748B"}),new TextRun({text:"  |  v3.6.26",size:18,color:"64748B"})]})]})},
     children }] });
