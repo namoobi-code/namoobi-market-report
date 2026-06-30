@@ -28,12 +28,13 @@ if not _f:
 if _f:
     fm.fontManager.addfont(_f[0]); matplotlib.rcParams["font.family"]="NanumBarunGothic"
 matplotlib.rcParams["axes.unicode_minus"]=False
+matplotlib.rcParams.update({"font.size":14,"axes.titlesize":20,"axes.labelsize":15,"xtick.labelsize":13.5,"ytick.labelsize":13.5,"legend.fontsize":12.5})
 
 C_SPOT="#7C4DFF"; C_DDR5="#F5A623"; C_DDR4="#4A90E2"; C_NAND="#2E9E5B"
 C_SHIP="#4A90E2"; C_MKT="#2E9E5B"; C_HBM3E="#F5A623"; C_HBM4="#7C4DFF"
 C_SAMS="#4A90E2"; C_SK="#F5A623"; C_MICRON="#2E9E5B"; C_ETC="#9CA3AF"; C_GAP="#E2342E"
 GRID=dict(alpha=0.18, linewidth=0.8)
-LEG=dict(fontsize=8.5, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.5, borderpad=0.4)
+LEG=dict(fontsize=12.5, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.5, borderpad=0.4)
 
 # ================= 내장 기본(예시·추정) =================
 def _mser(start_ym, vals):
@@ -118,8 +119,8 @@ def _pairs_dt(series):
     return out
 
 # ================= 렌더 =================
-fig=plt.figure(figsize=(15.0,10.0), dpi=150)
-fig.suptitle("반도체 주가 체크용 HBM 지표 대시보드 (출하·시장규모 / ASP / 점유율)", fontsize=21, fontweight="bold", y=0.987)
+fig=plt.figure(figsize=(15.0,10.6), dpi=150)
+fig.suptitle("반도체 주가 체크용 HBM 지표 대시보드 (출하·시장규모 / ASP / 점유율)", fontsize=22, fontweight="bold", y=0.974)
 _src=D.get("source") or "TrendForce·실적 컨센서스·언론 종합"
 _tag="추정치" if USED_LIVE else "예시·추정 데이터"
 # 차트별 갱신 주기·최종 갱신일 라벨
@@ -129,25 +130,25 @@ _AM=D.get("asof_map") or {}; _ASOF=D.get("asof","")
 def cad(k):
     a=_AM.get(k) or ((_ASOF) if _ASOF and _ASOF!="예시·추정" else None)
     return "  ▪ "+_CAD.get(k,"추정")+(" · 최종 갱신 "+a if a else " (예시값)")
-fig.text(0.5,0.962, f"※ 아래 모든 수치는 {_tag}입니다 — 에이전트 웹리서치({_src}) 기준, 확인 불가 항목은 미표기('추정' 표기)",
-         ha="center", fontsize=10.5, color="#B45309")
-gs=fig.add_gridspec(2,2, top=0.915, bottom=0.06, left=0.045, right=0.985, hspace=0.62, wspace=0.15, height_ratios=[1,1])
+fig.text(0.5,0.917, f"※ 모든 수치는 {_tag} — 확인 불가 항목은 미표기('추정' 표기)",
+         ha="center", fontsize=11.5, color="#B45309")
+gs=fig.add_gridspec(2,2, top=0.875, bottom=0.115, left=0.062, right=0.992, hspace=0.92, wspace=0.26, height_ratios=[1,1])
 def style(ax):
     for s in ["top","right"]: ax.spines[s].set_visible(False)
     ax.grid(**GRID)
-def caption(ax, text, y=-0.40):
-    ax.text(0.0,y, textwrap.fill("[해석] "+text, width=46), transform=ax.transAxes,
-            ha="left", va="top", fontsize=9.5, color="#475569", linespacing=1.4)
+def caption(ax, text, y=-0.24):
+    ax.text(0.0,y, textwrap.fill("[해석] "+text, width=42), transform=ax.transAxes,
+            ha="left", va="top", fontsize=13, color="#475569", linespacing=1.4)
 
 # 패널3 — 출하량 + 시장규모
 ax3=fig.add_subplot(gs[0,0]); shp=D["hbm_shipment"]; mkt=D["hbm_market"]
 sx=[r[0] for r in shp]; sy=[r[1] for r in shp]
 ax3.bar(sx,sy,width=0.55,color=C_SHIP,alpha=0.85,zorder=2,label="HBM 출하량(십억Gb)")
-ax3.set_title("HBM 출하량 / 시장규모", fontsize=13, fontweight="bold"); ax3.set_ylabel("출하량 (십억Gb)")
+ax3.set_title("HBM 출하량 / 시장규모", fontsize=18, fontweight="bold"); ax3.set_ylabel("출하량 (십억Gb)")
 ax3.set_ylim(top=max(sy)*1.25); ax3.set_xticks(sx)
 ax3b=ax3.twinx(); mx=[r[0] for r in mkt]; my=[r[1] for r in mkt]
 ax3b.plot(mx,my,color=C_MKT,marker="o",ms=6,lw=2.2,zorder=3,label="HBM 시장규모($B)"); ax3b.set_ylabel("시장규모($B)"); ax3b.set_ylim(top=max(my)*1.18)
-for x,v in zip(mx,my): ax3b.annotate(f"${v:.1f}B",(x,v),textcoords="offset points",xytext=(0,8),ha="center",fontsize=9,color=C_MKT,fontweight="bold")
+for x,v in zip(mx,my): ax3b.annotate(f"${v:.1f}B",(x,v),textcoords="offset points",xytext=(0,8),ha="center",fontsize=12.5,color=C_MKT,fontweight="bold")
 ax3.spines["top"].set_visible(False); ax3b.spines["top"].set_visible(False); ax3.grid(**GRID)
 ax3.legend(ax3.get_legend_handles_labels()[0]+ax3b.get_legend_handles_labels()[0],
            ax3.get_legend_handles_labels()[1]+ax3b.get_legend_handles_labels()[1], loc="upper left", **LEG)
@@ -157,11 +158,11 @@ caption(ax3, "출하량과 시장규모가 함께 늘면 수요가 실적으로 
 ax4=fig.add_subplot(gs[0,1]); h3=D["hbm3e_price"]; h4=D["hbm4_price"]
 ax4.plot([r[0] for r in h3],[r[1] for r in h3],color=C_HBM3E,marker="o",ms=6,lw=2.2,label="HBM3E")
 ax4.plot([r[0] for r in h4],[r[1] for r in h4],color=C_HBM4,marker="o",ms=6,lw=2.2,ls="--",label="HBM4")
-ax4.set_title("HBM 가격: HBM3E / HBM4", fontsize=13, fontweight="bold")
+ax4.set_title("HBM 가격: HBM3E / HBM4", fontsize=18, fontweight="bold")
 _ally=[r[1] for r in h3]+[r[1] for r in h4]; ax4.set_ylim(top=max(_ally)*1.16)
 ax4.set_xticks(sorted(set([r[0] for r in h3]+[r[0] for r in h4])))
-for x,v in zip([r[0] for r in h3],[r[1] for r in h3]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,-16),ha="center",fontsize=9,color=C_HBM3E,fontweight="bold")
-for x,v in zip([r[0] for r in h4],[r[1] for r in h4]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,9),ha="center",fontsize=9,color=C_HBM4,fontweight="bold")
+for x,v in zip([r[0] for r in h3],[r[1] for r in h3]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,-16),ha="center",fontsize=12.5,color=C_HBM3E,fontweight="bold")
+for x,v in zip([r[0] for r in h4],[r[1] for r in h4]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,9),ha="center",fontsize=12.5,color=C_HBM4,fontweight="bold")
 style(ax4); ax4.legend(loc="upper left", **LEG)
 caption(ax4, "HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다."+cad("hbmprice"))
 
@@ -173,13 +174,14 @@ ax5.bar(xpos,sk,width=0.55,bottom=sams,color=C_SK,label="SK hynix")
 b2=[a+b for a,b in zip(sams,sk)]; ax5.bar(xpos,mic,width=0.55,bottom=b2,color=C_MICRON,label="Micron")
 b3=[a+b for a,b in zip(b2,mic)]; ax5.bar(xpos,etc,width=0.55,bottom=b3,color=C_ETC,label="기타(중국 CXMT 등)")
 for i in xpos:
-    if etc[i]: ax5.annotate(f"{etc[i]}%",(i,b3[i]+etc[i]/2),ha="center",va="center",fontsize=7.5,color="white",fontweight="bold")
-ax5.set_title("HBM 점유율 (합계 100%)", fontsize=13, fontweight="bold"); ax5.set_ylabel("점유율 (%)")
+    for _v,_yc in [(sams[i],sams[i]/2),(sk[i],sams[i]+sk[i]/2),(mic[i],b2[i]+mic[i]/2),(etc[i],b3[i]+etc[i]/2)]:
+        if _v and _v>=1: ax5.annotate(f"{_v:.0f}%",(i,_yc),ha="center",va="center",fontsize=11.5,color="white",fontweight="bold")
+ax5.set_title("HBM 점유율 (합계 100%)", fontsize=18, fontweight="bold"); ax5.set_ylabel("점유율 (%)")
 ax5.set_xticks(xpos); ax5.set_xticklabels(lbl); ax5.set_ylim(0,128)
-style(ax5); ax5.legend(loc="upper center", ncol=4, fontsize=7.6, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.4, columnspacing=0.8, borderpad=0.4)
+style(ax5); ax5.legend(loc="upper center", ncol=4, fontsize=12, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.4, columnspacing=0.8, borderpad=0.4)
 caption(ax5, "점유율↑ 기업이 호황 이익을 더 가져갈 가능성. 나머지는 기타(중국 CXMT 등 신규)."+cad("share"))
 
 os.makedirs("charts", exist_ok=True)
 OUT="charts/hbm_dashboard.png"
-plt.savefig(OUT, dpi=150, bbox_inches="tight", facecolor="white"); plt.close()
+plt.savefig(OUT, dpi=150, facecolor="white"); plt.close()
 print("hbm dashboard ->", os.path.abspath(OUT), os.path.getsize(OUT), "bytes | live_override:", USED_LIVE)

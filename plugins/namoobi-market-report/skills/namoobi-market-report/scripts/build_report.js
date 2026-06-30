@@ -294,7 +294,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
 // (v3.12.0) 3.1.6 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
-  const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",768,512);
+  const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",744,526);
   if(img){ children.push(p("HBM 출하량·시장규모 / HBM ASP(HBM3E·HBM4) / 점유율 3개 패널. (DRAM 현물지수·메모리 칩가격·HBM:DDR5 격차 패널은 무료 시계열 데이터 미확보로 제외)",{italics:true,color:"64748B"})); children.push(img);
     children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·각사 IR·컨센서스, AI Research",{size:15,color:"94A3B8"}));
     children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_hbm.json) 재사용. 확인처: 출하량·시장규모=TrendForce/각사 IR, 점유율=Counterpoint/TrendForce, HBM ASP=TrendForce/언론(공개 범위치). (값은 수시 변동 가능 — 매일 마커 비교)",{size:13,italics:true,color:"94A3B8"}));
