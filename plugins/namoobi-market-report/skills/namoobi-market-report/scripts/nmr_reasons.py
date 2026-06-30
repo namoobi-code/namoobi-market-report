@@ -31,6 +31,14 @@ for r in (infl.get("rows") or []):
     if needs:
         mk = next((k for lbl,k in MOM_KEY if nm.startswith(lbl) or lbl in nm), None)
         v = (mom.get(mk) or {}).get("mom") if mk else None
+        if v is None:  # (req1 근본수정) DB 지수레벨(series_inflidx_*)로 전월비 직접 계산 — "-" 재발방지
+            ik = "Core_CPI" if "Core CPI" in nm else ("Core_PCE" if "Core PCE" in nm else ("CPI" if nm.startswith("CPI") else ("PCE" if nm.startswith("PCE") else ("PPI" if "PPI" in nm else None))))
+            if ik:
+                _ix = loadj("db/series_inflidx_%s.json" % ik)
+                _lv = (_ix.get("data") if isinstance(_ix,dict) else _ix) or []
+                if isinstance(_lv,list) and len(_lv)>=2:
+                    try: v = round((_lv[-1][1]/_lv[-2][1]-1)*100, 2)
+                    except Exception: v = None
         if v is not None: r["mom"] = v
     if empty(r.get("release")): r["release"] = "정기 발표(BLS/BEA)"
 EMP_REL = [("NFP","2026-06-05"),("실업률","2026-06-05"),("소매판매","2026-06-17"),("ISM 제조","2026-06-01"),("ISM 서비","2026-06-03"),("GDP","2026-06-26")]

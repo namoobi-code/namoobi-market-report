@@ -534,6 +534,22 @@ try:
         return max(vv) if vv else ''
     _ir = (_mc.get('inflation') or {}).get('rows')
     _mc.setdefault('inflation', {})['rows'] = _ndb.sync('inflation', _ir, _today, _mx(_ir, ['asof', 'release']) or _run_m, _dd)
+    # (req1 근본수정) 물가 MoM 결측 시 DB 지수레벨(series_inflidx_*)로 전월비 계산해 항상 표시 — 재발방지
+    def _inflidx_key(_nm):
+        if 'Core CPI' in _nm: return 'Core_CPI'
+        if 'Core PCE' in _nm: return 'Core_PCE'
+        if _nm.startswith('CPI'): return 'CPI'
+        if _nm.startswith('PCE'): return 'PCE'
+        if 'PPI' in _nm: return 'PPI'
+        return None
+    for _ir2 in (_mc.get('inflation') or {}).get('rows') or []:
+        _nm=_ir2.get('name',''); 
+        if 'BEI' in _nm or '기대인플' in _nm: continue
+        if _ir2.get('mom') in (None,'','-'):
+            _ik=_inflidx_key(_nm); _lv=(_ndb.get('series_inflidx_%s'%_ik,_dd) if _ik else None)
+            if isinstance(_lv,list) and len(_lv)>=2:
+                try: _ir2['mom']=round((_lv[-1][1]/_lv[-2][1]-1)*100,2)
+                except Exception: pass
     _er = (_mc.get('employment') or {}).get('rows')
     _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', _er, _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
     _rt['policy_rates'] = _ndb.sync('policy_rates', _rt.get('policy_rates'), _today, _run_m, _dd)

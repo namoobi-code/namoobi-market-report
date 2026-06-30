@@ -294,7 +294,8 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
   const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",660,560);
   if(img){ children.push(p("메모리 가격·HBM 출하/시장규모·ASP·점유율·HBM:DDR5 격차 대시보드. 비-실시간 지표는 추정치이며 매일 변동 체크 후 변동 시 갱신.",{italics:true,color:"64748B"})); children.push(img);
-    children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·실적 컨센서스·언론, AI Research",{size:15,color:"94A3B8"})); }
+    children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·실적 컨센서스·언론, AI Research",{size:15,color:"94A3B8"}));
+    children.push(p("데이터 갱신: 무료 실시간 API 부재 — 분기 실적·가이던스 발표 시 갱신, 그 외 DB(nmr_hbm.json) 재사용(매 실행 변동 여부만 체크). 항목별 출처·링크는 아래 표 참조.",{size:13,italics:true,color:"94A3B8"})); }
   const ey=Array.isArray(hbm.eps_yearly)?hbm.eps_yearly:null;
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
     const w=[1500,1760,1760,1760,1760,1200]; const rows=[hdrRow(["종목","2025(실적)","2026(E)","2027(E)","2028(E)","통화"],w)];
@@ -365,6 +366,10 @@ function renderCapex(){ const m=data.markets||{};
     });
     children.push(makeTable(w,rows));
     children.push(p("단위: 십억 달러(USD). CAPEX·매출·FCF 모두 연도별 조사값 — 2024~2025=FMP 실측(capitalExpenditure·revenue·freeCashFlow) · 2026~2029(E)=매출 애널리스트 컨센서스·CAPEX 회사 가이던스·FCF(직전 영업CF×매출성장−CAPEX) 추정. Capex/매출=CAPEX÷매출. ORCL은 FMP 플랜 제한으로 공개치·추정. 아래 두 차트는 이 표값으로 그려집니다.",{size:13,color:"94A3B8"}));
+    if(cx.source_actual) children.push(p("출처(실적 2024·2025): "+cx.source_actual,{size:13,color:"64748B"}));
+    if(cx.source_estimates) children.push(p("출처(전망 2026E~): "+cx.source_estimates,{size:13,color:"64748B"}));
+    children.push(fsLink("FMP cashflow-statement API (실적 1차 출처)","https://site.financialmodelingprep.com/financial-statements"));
+    children.push(p("데이터 갱신: 실적값은 분기 실적시즌에 FMP·각사 IR(10-K/8-K)로 갱신, 전망은 회사 가이던스·IB 컨센서스 변동 시 갱신 — 그 외에는 DB(nmr_capex.json) 재사용(매 실행 변동 여부만 체크). 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
     { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",660,289);
       if(c1){ children.push(c1); children.push(p("빅테크 CAPEX 합계(스택)·매출 대비 비율 추이",{size:15,color:"94A3B8"})); }
       const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",660,266);
@@ -665,6 +670,18 @@ function renderFactSet(){ const m=data.markets||{}; const fs=m.factset; if(!fs||
     if(r.chart){ const _fc=imagePara(r.chart,580,335); if(_fc)children.push(_fc); }
     if(r.next_date) children.push(p("▶ 다음 리포트 발행 예정: "+r.next_date,{bold:true,color:"1E40AF",size:16,before:40}));
   }
+  // (req4) 투자자 입장에서 중요도 — Earnings Insight 지표별 가이드
+  children.push(p("▣ 투자자 입장에서 중요도 (Earnings Insight 핵심 지표)",{bold:true,color:"1E40AF",before:180,size:19}));
+  [
+    ["① Earnings Revisions ★★★★★","실적 전망 상향 여부 — 애널리스트가 미래 EPS(주당순이익) 전망을 상향/하향 조정한 내용 (예: 삼성전자 올해 EPS 전망 10% 상향)"],
+    ["② Earnings Growth ★★★★★","이익 증가 속도 — 순이익·EPS 증가율 (예: 전년 대비 EPS +25%)"],
+    ["③ Forward Estimates & Valuation ★★★★★","현재 주가가 비싼지 싼지 — 미래 예상 실적 기반 밸류에이션 (대표: Forward P/E 선행 PER·EV/EBITDA·PEG)"],
+    ["④ Targets & Ratings ★★★★","시장 전문가 의견 — 목표주가·투자등급 (예: Target $250 / Buy·Overweight·Hold·Underperform·Sell)"],
+    ["⑤ Revenue Growth ★★★★","매출 성장 — 매출액 증가율 (예: 전년 대비 매출 +15%)"],
+    ["⑥ Net Profit Margin ★★★★","수익 효율성 — 순이익률 = 순이익÷매출×100 (예: 매출 100억·순이익 15억 → 15%)"],
+    ["⑦ Earnings Guidance ★★★","회사 공식 전망 — 회사가 직접 제시하는 미래 실적 전망 (예: 2026년 매출 10조원 예상)"]
+  ].forEach(x=>{ children.push(p(x[0],{bold:true,size:16,color:"334155",before:50})); children.push(p("   "+x[1],{size:14,color:"475569"})); });
+  children.push(p("※ 주식 투자 관점에서는 특히 Earnings Revisions(실적 추정치 상향)와 Forward P/E(선행 PER)를 가장 먼저 보는 경우가 많습니다. 이는 향후 6~12개월 주가 방향과 연관성이 큰 지표로 평가됩니다.",{italics:true,bold:true,color:"1E3A8A",size:15,before:90}));
   if(fs.source_note) children.push(p(fs.source_note,{size:13,italics:true,color:"94A3B8"}));
   children.push(p(""));
 }

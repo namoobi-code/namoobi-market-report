@@ -41,13 +41,23 @@ try:
                 S[_k]=(_ndb.dbseries(_k, S.get(_k), _DB) or {}).get('data')
         if _ndb._pairs(S.get("curve_10_2")): S["curve_labels"]=[p[0] for p in S["curve_10_2"]]
         S["infl_exp"]=(_ndb.dbseries("infl_exp", S.get("infl_exp"), _DB, prefer_fresh=True) or {}).get('data')
+        if isinstance(S.get("infl_exp"),list):  # (req2) 월/일 혼합 방지 — 일별(YYYY-MM-DD)만
+            _dd=[p for p in S["infl_exp"] if len(str(p[0]))==10]
+            if len(_dd)>=20: S["infl_exp"]=_dd
+        try:  # (req2) BEI 일별 차트 파일 보장 — _ch_bei 가 우선 사용해 월/일 혼합 차트 방지
+            _bp=os.path.join(O,"nmr_bei_daily.json")
+            if not os.path.exists(_bp):
+                _bd=[p for p in (S.get("infl_exp") or []) if len(str(p[0]))==10]
+                if len(_bd)>=20: json.dump({"asof":str(_bd[-1][0]),"source":"FRED T10YIE (10Y BEI, daily)","series":_bd}, open(_bp,"w",encoding="utf-8"), ensure_ascii=False)
+        except Exception: pass
         _infl=S.get("inflation") or {}
         for _ln in (list(_infl.keys()) or ["CPI","Core CPI","PCE","Core PCE","PPI"]):
             _infl[_ln]=(_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB) or {}).get('data')
         if _infl: S["inflation"]=_infl
         _emp=S.get("employment") or {}
-        for _pn in list(_emp.keys()):
-            _emp[_pn]=(_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB) or {}).get('data')
+        for _pn in ["nfp","unemp","retail","gdp","ism_mfg","ism_svc","nfp_mom","retail_mom","gdp_ann"]:  # (req3) nmr_macro 에 series.employment 없어도 DB 시계열 항상 로드
+            _v=(_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB) or {}).get('data')
+            if _v: _emp[_pn]=_v
         if _emp: S["employment"]=_emp
         _full=json.load(open(_mp,encoding="utf-8")); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
         _mm.setdefault("series",{}).update(S)
