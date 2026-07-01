@@ -269,6 +269,7 @@ if _macro and not _macro_ok(_macro):
     print('  [macro] nmr_macro 구조 불일치(rates.fed_funds 가 dict 아님/rows 비어있음) -> MACRO_DEFAULT 폴백')
     _macro = None
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
+_MDEF = not bool(_macro)  # (fix) MacroAgent 부재 시 MACRO_DEFAULT 예시값이 DB를 덮어쓰지 않도록 — DB값 재사용(get)
 # (v3.43) 에이전트가 sentiment.rows(심리 6지표 골격)를 안 줘도 inflation/employment 를 살린다 — MACRO_DEFAULT 골격만 주입(merge가 VIX·DXY·KSVKOSPI·원달러·WTI·US10Y 라이브값 주입). (2026-06-29: 3.1.5 spx_fwd/kospi_fwd 제거)
 if not ((macro.get('sentiment') or {}).get('rows')):
     _sd = macro.setdefault('sentiment', {})
@@ -482,6 +483,13 @@ if len(_hpts) >= 2:
         _tgt = _last - dt.timedelta(days=_days)
         _cand = [p for p in _hpts if p[0] <= _tgt] or [_hpts[0]]
         m['hy_spread'][_k] = round(_cand[-1][1], 2)
+# (fix req3) HY 현재값이 비면 시계열 최신점으로 채움 — 3.2.3 '-' 방지
+if _hpts and m['hy_spread'].get('current') is None:
+    _hcur = round(_hpts[-1][1], 2)
+    m['hy_spread']['current'] = _hcur; m['hy_spread']['hy_oas'] = _hcur
+    m['hy_spread']['asof'] = str(_hpts[-1][0])
+    m['us_credit'] = dict(m.get('us_credit') or {})
+    m['us_credit'].setdefault('hy_oas', _hcur); m['us_credit'].setdefault('asof', str(_hpts[-1][0]))
 m['index_rebalance'] = {k: v for k, v in rb.items() if k != 'latest_change_date'}
 
 crd = dict(cr); crd['charts'] = {'btc': 'charts/coin_btc.png', 'eth': 'charts/coin_eth.png', 'xrp': 'charts/coin_xrp.png', 'sol': 'charts/coin_sol.png', 'fng': 'charts/fng_1y.png'}
@@ -542,7 +550,7 @@ try:
         vv = [x for x in vv if _re2.match(r"^\d{4}[-.]\d{1,2}", x)]
         return max(vv) if vv else ''
     _ir = (_mc.get('inflation') or {}).get('rows')
-    _mc.setdefault('inflation', {})['rows'] = _ndb.sync('inflation', _ir, _today, _mx(_ir, ['asof', 'release']) or _run_m, _dd)
+    _mc.setdefault('inflation', {})['rows'] = _ndb.sync('inflation', (_ir if not _MDEF else None), _today, _mx(_ir, ['asof', 'release']) or _run_m, _dd)
     # (req1 근본수정) 물가 MoM 결측 시 DB 지수레벨(series_inflidx_*)로 전월비 계산해 항상 표시 — 재발방지
     def _inflidx_key(_nm):
         if 'Core CPI' in _nm: return 'Core_CPI'
@@ -560,9 +568,9 @@ try:
                 try: _ir2['mom']=round((_lv[-1][1]/_lv[-2][1]-1)*100,2)
                 except Exception: pass
     _er = (_mc.get('employment') or {}).get('rows')
-    _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', _er, _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
-    _rt['policy_rates'] = _ndb.sync('policy_rates', _rt.get('policy_rates'), _today, _run_m, _dd)
-    _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', _rt.get('fomc_meetings'), _today, _mx(_rt.get('fomc_meetings'), ['date']) or _run_m, _dd)
+    _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', (_er if not _MDEF else None), _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
+    _rt['policy_rates'] = _ndb.sync('policy_rates', (_rt.get('policy_rates') if not _MDEF else None), _today, _run_m, _dd)
+    _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', (_rt.get('fomc_meetings') if not _MDEF else None), _today, _mx(_rt.get('fomc_meetings'), ['date']) or _run_m, _dd)
     _dp = m.get('fomc_dotplot') or {}
     m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
     m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
@@ -590,6 +598,18 @@ try:
         if not isinstance(_o, dict):
             _o = {}; _rates_fin[_bk] = _o
         _src = (_tc.get(_bk) or {}).get('block') if isinstance(_tc, dict) else None
+        # (fix req1) 에이전트/시계열 최신값 우선 — stale carry-forward 로 덮어쓰지 않음
+        _bser = (macro.get('series') or {}).get(_bk+'_daily')
+        if _o.get('current') is not None and _bser:
+            try:
+                _fr = ret(_bser)
+                for _hk in ('1w_pct','1mo_pct','3mo_pct','6mo_pct','1y_pct','1d_pct','prev_pct'):
+                    if _fr.get(_hk) is not None: _o[_hk] = _fr[_hk]
+                _sp2 = sorted([(dt.date.fromisoformat(str(a)[:10]), float(b)) for a,b in _bser if b is not None])
+                if len(_sp2) >= 2:
+                    _o['prev_close'] = round(_sp2[-2][1],3); _o['chg'] = round(_o['current'] - _sp2[-2][1], 3)
+            except Exception: pass
+            _src = None
         if _src:
             _o['current'] = _src['current']; _o['prev_close'] = _src['prev_close']
             _o['chg'] = round(_src['current'] - _src['prev_close'], 3)
@@ -598,6 +618,15 @@ try:
         # 대전제: 현재가셀=1d_pct(D0 전일대비), '1일'컬럼=prev_pct(D-1 일간변동) — 구분 유지
         _o['spark'] = 'charts/spark_%s.png' % _bk
         _o['trend'] = _ko_trend_bond(_o)
+    # (fix req2) 장단기 금리차(10Y-2Y) 매일 실측 = us10y - us2y
+    _u10c=(_rates_fin.get('us10y') or {}).get('current'); _u2c=(_rates_fin.get('us2y') or {}).get('current')
+    if _u10c is not None and _u2c is not None:
+        _spd=round(_u10c-_u2c,2)
+        _rates_fin['yield_curve']={'spread':_spd,'label':'미국 장단기 금리차(수익률곡선)(10Y-2Y)',
+            'status':('정상(양전환)' if _spd>=0 else '역전(침체 선행 신호)'),
+            'note':'10Y=%.2f%%, 2Y=%.2f%%'%(_u10c,_u2c),
+            'meaning':'장단기 금리차 정상화 = 경기 연착륙 기대','impact':'스프레드 역전 시 침체 선행지표',
+            'chart':'charts/macro_curve.png','asof':(_rates_fin.get('us10y') or {}).get('asof')}
     # (req5 갱신) 美 기준금리 = 정책금리 DB 실측 현재값으로 일관화
     _prdb = LCF('nmr_policyrates_monthly.json')
     if isinstance(_prdb, dict):

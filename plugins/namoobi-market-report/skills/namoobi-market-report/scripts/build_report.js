@@ -573,7 +573,7 @@ function trendRow(name,m,i){ const alt=i%2===1; return new TableRow({children:[
 function trendHeaderRow(){ return new TableRow({children:["지수","현재치","1일","1주","1개월","3개월","6개월","1년","추세 평가"].map((x,i)=>cell(x,{width:tw[i],header:true,align:AlignmentType.CENTER}))}); }
 function renderMarketBlock(title,obj,labels,exclude){ if(!obj)return; children.push(h(title,2)); const rows=[trendHeaderRow()]; let i=0;
   for(const [k,v] of Object.entries(obj)){ if(exclude&&exclude.includes(k))continue; rows.push(trendRow((labels&&labels[k])||k.toUpperCase(),v,i)); i++; } children.push(makeTable(tw,rows)); children.push(p("")); }
-function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; let fp=null; if(!relPath)return cell("-",{width:width,alt:alt,align:AlignmentType.CENTER});
+function imgCellSpark(relPath,width,alt,iw,ih){ iw=iw||84; ih=ih||28; try{var _mxpx=Math.floor(((width||1200)-150)/1440*96); if(_mxpx>=24&&iw>_mxpx){ih=Math.max(12,Math.round(ih*_mxpx/iw));iw=_mxpx;}}catch(e){} let fp=null; if(!relPath)return cell("-",{width:width,alt:alt,align:AlignmentType.CENTER});
   const cands=[relPath, path.join(__dirname,relPath), path.join(process.cwd(),relPath)];
   for(const c of cands){ try{ if(c&&relPath&&fs.existsSync(c)&&fs.statSync(c).isFile()){fp=c;break;} }catch(e){} }
   if(fp&&HAS_IMG){ return new TableCell({borders,width:{size:width,type:WidthType.DXA},
@@ -820,7 +820,7 @@ children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("4. 원자재 종합 - 에너지·금속·희토류·농산물",1));
 if (data.commodities) {
   renderMarketBlockC("4.1 에너지",data.commodities.energy,{wti:"WTI 원유",brent:"Brent 원유",natgas:"천연가스"},null,data.commodities.energy_comment);
-  renderMarketBlockC("4.2 금속",data.commodities.metals,{gold:"금",silver:"은",copper:"구리",platinum:"백금"},null,data.commodities.metals_comment);
+  renderMarketBlockC("4.2 금속",(function(_mm){var _o={};for(var _k in (_mm||{}))if(_k!=="rare_earth")_o[_k]=_mm[_k];return _o;})(data.commodities.metals),{gold:"금",silver:"은",copper:"구리",platinum:"백금"},null,data.commodities.metals_comment);
   renderMarketBlockC("4.3 농산물",data.commodities.agriculture,{corn:"옥수수",soybean:"대두",wheat:"밀"},null,data.commodities.agri_comment);
   if(data.commodities.commentary){ children.push(h("4.4 원자재 종합 코멘트",2)); children.push(p(data.commodities.commentary)); }
   renderStrategicMetals();
@@ -863,7 +863,7 @@ if (data.crypto) {
   if (Array.isArray(c.top_gainers) && c.top_gainers.length) {
     children.push(h("6.4 24h Top Gainers / Losers",2)); const g=(c.top_gainers||[]).slice(0,5),l=(c.top_losers||[]).slice(0,5),mx=Math.max(g.length,l.length);
     const gr=[["순위","Top Gainer","변동","Top Loser","변동"]];
-    for(let i=0;i<mx;i++){ gr.push([String(i+1),g[i]?g[i].symbol:"-",g[i]?fmtPct(g[i].change_pct):"-",l[i]?l[i].symbol:"-",l[i]?fmtPct(l[i].change_pct):"-"]); }
+    for(let i=0;i<mx;i++){ const _gp=g[i]?(g[i].change_pct!=null?g[i].change_pct:g[i].change_percent):null; const _lp=l[i]?(l[i].change_pct!=null?l[i].change_pct:l[i].change_percent):null; gr.push([String(i+1),g[i]?(g[i].symbol||g[i].name||"-"):"-",g[i]?fmtPct(_gp):"-",l[i]?(l[i].symbol||l[i].name||"-"):"-",l[i]?fmtPct(_lp):"-"]); }
     children.push(makeTable([1000,2400,1900,2400,1660],gr.map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc,{width:[1000,2400,1900,2400,1660][j],header:i===0,alt:i>0&&i%2===0,align:AlignmentType.CENTER,color:(j===2&&i>0)?positiveColor:(j===4&&i>0)?negativeColor:undefined}))})))); }
 
 }

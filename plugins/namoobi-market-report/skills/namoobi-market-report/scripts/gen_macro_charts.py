@@ -35,7 +35,7 @@ try:
     _mp=None
     for _p in ["nmr_macro.json", os.path.join(O,"nmr_macro.json")]:
         if os.path.exists(_p): _mp=_p; break
-    if _mp and isinstance(S,dict):
+    if isinstance(S,dict):  # (fix) DB 시계열은 nmr_macro.json 없어도 항상 로드
         for _k in ["curve_10_2","us2y_daily","us10y_daily","fed_funds_5y"]:
             if (_k in S) or _ndb._load("series_"+_k,_DB).get("data"):
                 S[_k]=(_ndb.dbseries(_k, S.get(_k), _DB) or {}).get('data')
@@ -59,11 +59,11 @@ try:
             _v=(_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB) or {}).get('data')
             if _v: _emp[_pn]=_v
         if _emp: S["employment"]=_emp
-        _full=json.load(open(_mp,encoding="utf-8")); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
+        _full=(json.load(open(_mp,encoding="utf-8")) if _mp else {}); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
         _mm.setdefault("series",{}).update(S)
         _rr=_mm.setdefault("rates",{})
         if isinstance(_rr.get("fed_funds"),dict) and not str(_rr["fed_funds"].get("bias") or "").strip(): _rr["fed_funds"]["bias"]="중립"
-        json.dump(_full, open(_mp,"w",encoding="utf-8"), ensure_ascii=False)
+        if _mp: json.dump(_full, open(_mp,"w",encoding="utf-8"), ensure_ascii=False)
         _ip=os.path.join(O,"nmr_indexseries.json")
         try: _idx=json.load(open(_ip,encoding="utf-8"))
         except Exception: _idx={}

@@ -63,6 +63,23 @@ houses(d.global_securities,'GlobalIB','weekly7');
 { const ev=(d.news&&d.news.events_calendar)||[]; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const r0=new Date(ref.toDateString()); let pst=0; ev.forEach(e=>{ const x=new Date(String((e&&e.date)||'').slice(0,10)); if(!isNaN(x)&&x<r0) pst++; }); if(pst) warnings.push('[req12] events_calendar past-dated entries: '+pst); }
 
 { const u=(m.macro&&m.macro._db_unverified)||null; if(u){ const n=((u.rows_backfilled||[]).length)+((u.series_unverified||[]).length); if(n) warnings.push("[req13] 변경 미확인(당일 미수집·DB 백필): "+n+"건 — 조용히 통과 아님, 다음 실행 재조사 권고"); } }
+// req14: macro daily cells present (US10Y/US2Y/fed_funds current) -- catches stale/"-" macro (req1/req4)
+{ const r=(m.macro&&m.macro.rates)||{}; const u10=r.us10y||{},u2=r.us2y||{},ff=r.fed_funds||{};
+  if(u10.current==null) problems.push('[req14] 3.1.1 US10Y current missing');
+  if(u2.current==null) problems.push('[req14] 3.1.1 US2Y current missing');
+  if(ff.current==null) problems.push('[req14] 3.1.1 FOMC fed_funds current missing');
+  if(ff.asof){ const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const a=new Date(String(ff.asof).slice(0,10)); if(!isNaN(a)&&Math.floor((ref-a)/86400000)>70) problems.push('[req14] FOMC fed_funds asof stale: '+ff.asof); } }
+// req15: HY spread current present (not "-") -- catches req3
+{ const hy=m.hy_spread||{}; if(hy.current==null&&hy.hy_oas==null) problems.push('[req15] 3.2.3 HY spread current missing'); }
+// req16: FOMC past meetings must be actual (no estimate marker) -- catches req5
+{ const fm=((m.macro&&m.macro.rates)||{}).fomc_meetings||[]; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); let est=0;
+  const EST=/\uCD94\uC815|estimate|\(E\)/;
+  fm.forEach(x=>{ const dt=new Date(String((x&&x.date)||'').slice(0,10)); const nt=String((x&&(x.note||x.stance))||''); if(!isNaN(dt)&&dt<ref&&EST.test(nt)) est++; });
+  if(est) problems.push('[req16] FOMC past meetings marked estimate (need actual decisions): '+est); }
+// req17: yield curve data present -- catches req2 at data level
+{ const yc=(((m.macro||{}).rates||{}).yield_curve)||{}; if(!yc||typeof yc!=='object'||yc.spread==null) problems.push('[req17] 3.1.1 yield_curve(10Y-2Y) data empty'); }
+// req18: macro charts must exist (curve/employment/inflation) -- catches req6/req7 regressions
+['macro_curve.png','macro_employment.png','macro_inflation.png'].forEach(c=>{ if(!cExists('charts/'+c)) problems.push('[req18] macro chart missing/broken: '+c); });
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);
