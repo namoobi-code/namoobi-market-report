@@ -121,6 +121,8 @@ for t in (semi.get('korea_themes') or []):
         if ds.get('chg') is not None: r['chg'] = ds['chg']
         if ds.get('1d_pct') is not None: r['1d_pct'] = ds['1d_pct']
         if ds.get('prev_close') is not None: r['prev_close'] = ds['prev_close']
+        # (req3 fix) 테마 series 는 월봉 → ret()의 prev_pct 는 '전월' 변동이라 '1일'칸 왜곡(예:+29.98%). 일봉 prev_pct 로 덮어써 '1일'=직전거래일 변동으로 교정.
+        if ds.get('prev_pct') is not None: r['prev_pct'] = ds['prev_pct']
     trows.append(r)
 m['korea_theme_rows'] = trows; m['korea_themes_comment'] = semi.get('korea_themes_comment') or ''
 m['korea_theme_etfs'] = theme_etf  # 빌더 fallback (테마→대표ETF명)
@@ -434,7 +436,9 @@ try:
     _CREV={"Microsoft":[245,282,329,384,455,535],"Amazon":[638,717,824,933,1064,1189],"Alphabet":[350,403,486,580,680,788],"Meta":[165,201,253,302,352,406],"Oracle":[53,57,67,89,104,120]}
     _CFCF={"Microsoft":[74,72,-31,-29,-15,4],"Alphabet":[73,73,13,-13,-3,16],"Meta":[54,46,11,-1,3,14],"Amazon":[33,8,-39,-63,-72,-73],"Oracle":[12,0,-24,-59,-57,-56]}
     _bc=m.get('bigtech_capex') or {}; _rows=_bc.get('rows') or []
-    def _has(v): return v not in (None,'','-')
+    _rows=[_r for _r in _rows if str(_r.get('company','')).split(' (')[0].strip() not in ('Meta','META','Meta Platforms')]  # (req2) Meta 삭제
+    _bc['rows']=_rows
+    def _has(v): return v not in (None,'','-') and str(v).strip() not in ('미공개','미확인','미상','N/A','n/a','-','TBD','tbd')
     for _r in _rows:
         _co=str(_r.get('company','')).split(' (')[0].strip()
         if _co not in _CCAP: continue
