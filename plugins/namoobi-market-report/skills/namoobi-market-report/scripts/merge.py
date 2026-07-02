@@ -195,6 +195,49 @@ try:
         if _ey: _hb['eps_yearly']=_ey; m['hbm']=_hb; print('  [req6] HBM eps_yearly 매핑:', len(_ey))
 except Exception as _he: print('  [req6] hbm eps_yearly skip:', _he)
 
+# (req4-fix) HBM eps_yearly 필드단위 carry-forward — 이번 실행의 '순수 수치'는 쓰고 DB(db/hbm_eps.json) 갱신,
+#   결측·다중출처 장문·'미확인' 등 비수치는 마지막 정상 DB값으로 보완한다. (통째 덮어써 2027E/2028E/PER 를 잃던 문제 방지)
+try:
+    import re as _re_hb
+    _hb2 = m.get('hbm') or {}
+    _hep = os.path.join(_CWROOT, 'db', 'hbm_eps.json')
+    try:
+        _sd = json.load(open(_hep, encoding='utf-8')); _store = _sd.get('data') if (isinstance(_sd, dict) and 'data' in _sd) else (_sd or {})
+    except Exception: _store = {}
+    if not isinstance(_store, dict): _store = {}
+    def _norm_hbm(n): return _re_hb.sub(r'\s*\(.*$', '', str(n)).strip()
+    def _hbm_num(v):
+        if isinstance(v, (int, float)): return float(v)
+        if v is None: return None
+        sv = str(v).strip()
+        for ch in [',', '₩', '$', '%', '배', 'x', 'X', ' ']: sv = sv.replace(ch, '')
+        try: return float(sv)
+        except Exception: return None
+    _flds = ['y2025_eps','y2025_per','y2026_eps','y2026_per','y2027_eps','y2027_per','y2028_eps','y2028_per']
+    _cur = _hb2.get('eps_yearly') if isinstance(_hb2.get('eps_yearly'), list) else []
+    _curmap = { _norm_hbm(o.get('name')): o for o in _cur if isinstance(o, dict) }
+    _names = list(_store.keys()) + [k for k in _curmap if k not in _store]
+    _merged = []
+    for _k in _names:
+        _so = dict(_store.get(_k) or {}); _co = _curmap.get(_k) or {}
+        _row = {'name': _co.get('name') or _k, 'currency': (_co.get('currency') or _so.get('currency') or '')}
+        for _f in _flds:
+            _cv = _co.get(_f)
+            if _hbm_num(_cv) is not None:
+                _row[_f] = _cv; _so[_f] = _cv        # 순수 수치 → 채택 + DB 갱신
+            else:
+                _row[_f] = _so.get(_f)               # 비수치/결측 → DB 보완
+        _so['currency'] = _row['currency']
+        _merged.append(_row); _store[_k] = _so
+    if _merged:
+        _hb2['eps_yearly'] = _merged; m['hbm'] = _hb2
+        try:
+            os.makedirs(os.path.dirname(_hep), exist_ok=True)
+            json.dump({'as_of': RD_ISO, 'source': 'field-level carry-forward', 'data': _store}, open(_hep, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        except Exception: pass
+        print('  [req4-fix] HBM eps_yearly carry-forward:', len(_merged), '개사 (비수치·결측은 DB 보완)')
+except Exception as _hce: print('  [req4-fix] hbm carry-forward skip:', _hce)
+
 # 3.1 주요지표(매크로 대시보드) — nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 오버라이드, 없으면 내장 예시·추정값
 MACRO_DEFAULT = json.loads(r'''{
   "rates": {
@@ -350,6 +393,18 @@ def _macro_canon(macro):
     _canon('inflation', INFL, ['yoy','mom','asof','release'], _infl_interp)
     _canon('employment', EMP, ['value','asof','release','freq'], _emp_interp)
 _macro_canon(macro)
+# (req2/req3-fix 재발방지) release 칸이 기관명(BLS·BEA·Census·ISM·FRED 등)만인 경우 DB 저장 전에 비운다.
+#   → DB 가 기관명으로 오염돼 다음 실행 seed 로 재전파되는 것을 차단. 표시값은 nmr_reasons 가 날짜/라벨로 채운다.
+import re as _re_rel
+def _bad_rel(v):
+    if v in (None,'','-'): return True
+    sv=str(v)
+    if _re_rel.search(r'\d{4}[-.\/]\d', sv): return False
+    if ('정기 발표' in sv) or ('실시간' in sv): return False
+    return True
+for _sec in ('inflation','employment'):
+    for _rr in ((macro.get(_sec) or {}).get('rows') or []):
+        if _bad_rel(_rr.get('release')): _rr['release']=''
 # (req3) ISM 제조/서비스 표값 보강: nmr_macro.ism -> employment.rows value
 try:
     _ism = macro.get('ism') or {}
@@ -513,6 +568,14 @@ if isinstance(_kp, dict) and not _kp.get('coins'):
 
 # news (+ longterm 병합·중복제거·빈event 방어 필터: 2.2 가 "-" 로 새지 않도록)
 news = dict(nw)
+# (req1-fix 재발방지) nmr_news.json 이 bigtech_events 등을 중첩 'news' 키 아래로 저장한 경우 상위로 hoist.
+#   build_report 는 data.news.bigtech_events(한 겹)를 읽으므로, 한 겹 더 들어가면 2.3 섹션이 통째로 누락된다.
+_nested_news = news.pop('news', None)
+if isinstance(_nested_news, dict):
+    for _nk, _nv in _nested_news.items():
+        if not news.get(_nk):
+            news[_nk] = _nv
+    print('  [req1-fix] 중첩 news 키 hoist:', list(_nested_news.keys()))
 # (req1) Top News 최대 D-2: 발행일이 그제~오늘인 기사만(없으면 원본 유지 — 빈손 방지)
 try:
     _dw=now.date().weekday(); _back=(4 if _dw==0 else 3 if _dw==6 else 2)  # (req1) D-2까지 · 주말 보정

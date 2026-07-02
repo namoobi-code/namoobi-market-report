@@ -1,6 +1,6 @@
 {
   "name": "namoobi-market-report",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "글로벌 금융시장 종합 시황 보고서를 자동 생성(docx)·발송하는 워크플로우. 서브에이전트가 병렬로 뉴스·시장데이터·증권사/IB 리서치를 수집하고 docx 보고서를 빌드한 뒤 Claude in Chrome 으로 로그인된 Gmail 에서 직접 발송한다. 상세 변경이력은 skills/namoobi-market-report/CHANGELOG.md 참조.",
   "author": {
     "name": "namoobi (AI Research)"

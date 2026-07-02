@@ -7,6 +7,16 @@ d = json.load(open(RD, encoding="utf-8"))
 m = d.get("markets") or {}
 mac = m.get("macro") or {}
 def empty(v): return v in (None, "", "-")
+import re as _re
+def _bad_release(v):
+    # (req2/req3-fix) release(발표날짜) 칸이 '실제 발표일(날짜)' 도, '정기 발표/실시간' 표준 라벨도 아닌
+    #   기관명(BLS·BEA·Census·ISM·FRED 등)만 들어찬 경우를 '교체 대상'으로 판정한다.
+    #   기존엔 empty 일 때만 채워서, 기관명이 non-empty 로 들어오면 그대로 표에 찍혀 '발표날짜'가 날짜가 아니게 됐다.
+    if empty(v): return True
+    sv=str(v)
+    if _re.search(r'\d{4}[-.\/]\d', sv): return False   # 연-월(-일) 형태 날짜 포함 → 유효
+    if ('정기 발표' in sv) or ('실시간' in sv): return False  # 표준 라벨 → 유효
+    return True  # 그 외(기관명만) → 교체
 def loadj(name):
     for p in [os.path.join(WORK,name)]+glob.glob("/sessions/*/mnt/outputs/nmr_build/"+name)+glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/"+name):
         try: return json.load(open(p,encoding="utf-8"))
@@ -14,6 +24,7 @@ def loadj(name):
     return {}
 mom = loadj("nmr_mom.json")
 MOM_KEY = [("Core CPI","core_cpi"),("Core PCE","core_pce"),("PCE","pce"),("PPI","ppi"),("CPI (헤드","cpi")]
+INFL_REL = [("Core CPI","2026-06-10"),("Core PCE","2026-06-26"),("CPI","2026-06-10"),("PCE","2026-06-26"),("PPI","2026-06-11")]  # 물가 실제 발표일(5월 데이터→6월 발표)
 infl = (mac.get("inflation") or {})
 for r in (infl.get("rows") or []):
     nm = r.get("name") or ""
@@ -23,7 +34,7 @@ for r in (infl.get("rows") or []):
         if (lvl is not None) and (empty(r.get("yoy")) or r.get("yoy") is None):
             r["yoy"] = "%.2f%% (수준)" % lvl
         r["mom"] = "수준지표(MoM 미해당)"
-        if empty(r.get("release")): r["release"] = "실시간 시장지표"
+        if _bad_release(r.get("release")): r["release"] = "실시간(일별 갱신)"
         if empty(r.get("asof")): r["asof"] = (infl.get("infl_exp_10y") or {}).get("asof") or "실시간"
         continue
     cur = r.get("mom")
@@ -40,10 +51,13 @@ for r in (infl.get("rows") or []):
                     try: v = round((_lv[-1][1]/_lv[-2][1]-1)*100, 2)
                     except Exception: v = None
         if v is not None: r["mom"] = v
-    if empty(r.get("release")): r["release"] = "정기 발표(BLS/BEA)"
+    # (req2-fix2) 물가표 발표날짜에 라벨 대신 '실제 발표일' 주입 (고용표와 동일하게 날짜로 표기)
+    #   5월 데이터의 표준 미국 발표일정: CPI 06-10(수)·PPI 06-11(목)·PCE 06-26(금). 발표월 이동 시 갱신 대상.
+    if _bad_release(r.get("release")):
+        r["release"] = next((v for k,v in INFL_REL if k in nm), "정기 발표(BLS/BEA)")
 EMP_REL = [("NFP","2026-06-05"),("실업률","2026-06-05"),("소매판매","2026-06-17"),("ISM 제조","2026-06-01"),("ISM 서비","2026-06-03"),("GDP","2026-06-26")]
 for r in ((mac.get("employment") or {}).get("rows") or []):
-    if empty(r.get("release")):
+    if _bad_release(r.get("release")):
         nm = r.get("name") or ""
         r["release"] = next((v for k,v in EMP_REL if k in nm), "정기 발표(BLS/BEA/ISM)")
 # (req3/7) KSVKOSPI 실측 주입(investing.com 파싱값)

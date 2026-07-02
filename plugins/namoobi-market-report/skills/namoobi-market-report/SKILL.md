@@ -12,7 +12,7 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (plugin v1.10.1 · SKILL v3.41.0)
+# Namoobi Market Report (plugin v1.11.0 · SKILL v3.42.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
