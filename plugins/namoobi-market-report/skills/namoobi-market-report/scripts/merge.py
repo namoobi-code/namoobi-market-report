@@ -637,7 +637,13 @@ try:
     _dp = m.get('fomc_dotplot') or {}
     m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
     m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
-    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading -> db/')
+    # (v3.43) 3.1.9 OECD CLI — 신규 스크랩(nmr_oecd_cli.json, KOSIS 자료갱신일 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
+    _oc = L('nmr_oecd_cli.json')
+    _oc_ok = isinstance(_oc, dict) and _oc.get('months') and _oc.get('series')
+    m['oecd_cli'] = _ndb.sync('oecd_cli', (_oc if _oc_ok else None), _today,
+                              ((_oc or {}).get('data_updated') or _run_m) if _oc_ok else _run_m, _dd)
+    if isinstance(m.get('oecd_cli'), dict): m['oecd_cli']['chart'] = 'charts/oecd_cli.png'
+    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli -> db/')
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)
 data = {'report_date': RD_ISO,

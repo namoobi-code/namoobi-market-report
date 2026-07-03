@@ -89,6 +89,8 @@ function validate(d) {
   needChart(M.korea_investors&&M.korea_investors.kospi, "charts/kospi_tech.png","3.2.1 코스피 일봉 캔들");
   needChart(M.korea_investors&&M.korea_investors.kosdaq, "charts/kosdaq_tech.png","3.2.1 코스닥 일봉 캔들");
   needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.1.8 경기선행지수 차트");
+  if (!M.oecd_cli || !Array.isArray((M.oecd_cli||{}).months) || !M.oecd_cli.months.length) warn.push("oecd_cli 비어있음 → 3.1.9 OECD 경기선행지수 누락(db/oecd_cli.json 확인)");
+  needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.9 OECD CLI 통합 차트");
   needChart(M.hy_spread, "charts/hy_oas.png","3.3.3 HY 스프레드 차트");
   (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.2.3 반도체 종목 추세("+((x&&x.name)||i)+")"));
   (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.2.3 반도체 ETF 추세("+((x&&x.name)||i)+")"));
@@ -322,10 +324,40 @@ function renderKoreaLeading(){ const m=data.markets||{};
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.8 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
+    children.push(p("• 구성항목: 재고순환지표(제조업), 기계류내수출하지수, 건설수주액(실질), 소비자기대지수, 구인구직비율, 장단기금리차, 코스피지수, 수출입물가비율, 순상품교역조건 등",{size:16,color:"475569"}));
+    children.push(p("• 주식 선행 관점: OECD CLI(3.1.9)는 더 앞단의 \u201c방향 신호\u201d, 통계청 선행종합지수 순환변동치는 그 신호를 국내 경기 데이터로 한 번 더 다듬은 \u201c확인 신호\u201d로 함께 본다.",{size:16,color:"475569"}));
     children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
     { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); } }
+// (v3.43.0) 3.1.9 OECD 경기선행지수(CLI) — 통합 DB(db/oecd_cli.json), KOSIS 자료갱신일 변동 시에만 재수집·차트 재생성.
+function renderOecdCli(){ const m=data.markets||{}; const oc=m.oecd_cli;
+  if(!oc||!Array.isArray(oc.months)||!oc.months.length)return;
+  children.push(h("3.1.9 OECD 경기선행지수 (OECD Composite Leading Indicators, CLI)",3));
+  children.push(p("업데이트:매 실행 변동 여부만 체크(KOSIS 자료갱신일 기준), 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
+  const nC=Object.keys(oc.series||{}).length;
+  const img=imagePara(oc.chart||"charts/oecd_cli.png",700,394);
+  if(img){ children.push(img);
+    children.push(p("전 국가 통합 그래프 — X축: 월별 총기간("+oc.months[0]+" ~ "+oc.months[oc.months.length-1]+"), Y축: 지수(진폭조정) · "+nC+"개국 · 기준선 100 · 대한민국 굵은 선 · 출처: "+(oc.source||"OECD · KOSIS(DT_2STES045)")+((oc.data_updated||oc.data_downloaded)?(" · 자료갱신일 "+(oc.data_updated||oc.data_downloaded)):""),{size:15,color:"94A3B8"})); }
+  children.push(p("OECD 경기선행지수(CLI)는 경제의 방향성을 미리 예측하는 지표로, 경제활동의 전환점을 감지하는 데 사용됩니다. 이 지수는 OECD(경제협력개발기구)가 개발한 것으로, 경제 성장이나 둔화의 신호를 미리 파악하는 데 도움을 줍니다.",{italics:true,color:"64748B"}));
+  children.push(p("1. OECD 경기선행지수란?",{bold:true,color:"1E40AF",before:100,size:20}));
+  children.push(p("미래의 경기 변동을 예측하기 위해 여러 개별 경제 지표들을 종합하여 만든 지수로, 일반적으로 6~9개월 후의 경기 변화를 예측하는 데 활용됩니다.",{size:18}));
+  children.push(p("단순한 경제 성장률이 아니라 경기의 전환점(고점·저점)을 예측하는 것이 목적입니다. 즉, 경제가 확장 국면에서 둔화 국면으로 전환하거나, 반대로 침체에서 회복 국면으로 전환하는 시점을 미리 감지하려는 것입니다.",{size:18}));
+  children.push(p("2. 경기선행지수 구성 요소",{bold:true,color:"1E40AF",before:100,size:20}));
+  children.push(p("• 신규 주문 지수: 제조업·서비스업 신규 주문량 변화    • 재고 수준: 재고 증가 또는 감소",{size:18}));
+  children.push(p("• 소비자·기업 신뢰 지수: 소비자와 기업의 경제 전망    • 금융 지표: 장·단기 금리 차이, 주가 변동 등",{size:18}));
+  children.push(p("• 수출입 데이터: 무역량·교역 조건 변화    • 산업 생산 지표: 공장 가동률, 제조업 생산량 등",{size:18}));
+  children.push(p("이러한 개별 지표들을 종합하여 산출하며, 각국 경제 특성에 맞는 지표가 선택됩니다.",{size:17,color:"475569"}));
+  children.push(p("3. 해석 방법 (기준점 100)",{bold:true,color:"1E40AF",before:100,size:20}));
+  children.push(p("• 100 초과: 경기 확장 가능성이 큼 (경제 성장 국면)    • 100 이하: 경기 둔화 또는 수축 가능성",{size:18}));
+  children.push(p("• 전월 대비 상승: 경기 개선 신호    • 전월 대비 하락: 경기 둔화 신호",{size:18}));
+  children.push(p("보통 100을 넘어서면서 상승하면 성장 국면 진입, 100을 밑돌면서 하락하면 경기 둔화·침체 가능성이 커진다고 해석합니다.",{size:17,color:"475569"}));
+  children.push(p("4. 한계",{bold:true,color:"1E40AF",before:100,size:20}));
+  children.push(p("• 완벽한 예측이 아님: 과거 데이터·통계 기반이라 실제 경기 변화가 예상보다 늦거나 빠를 수 있음",{size:18}));
+  children.push(p("• 단기 급변 반영 어려움: 급격한 경제 충격(코로나19 팬데믹·금융위기 등)에 대한 즉각적 반응이 제한적",{size:18}));
+  children.push(p("• 국가별 차이: 각국 경제 구조가 달라 동일한 지수라도 해석이 다를 수 있음",{size:18}));
+  children.push(p("")); }
+
 // (v3.6.30) 3.2.2 FOMC 점도표(dot plot) — 데이터(markets.fomc_dotplot) 없으면 자동 생략.
 function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; if(!f||typeof f!=="object")return;
   if(!(Array.isArray(f.rows)&&f.rows.length)&&!f.summary)return;
@@ -802,6 +834,7 @@ function renderMacroIndicators(){
   renderCapex();
   renderHBM();
   renderKoreaLeading();
+  renderOecdCli();   // 3.1.9 OECD 경기선행지수(CLI) — 통합 차트 + 설명(DB: db/oecd_cli.json)
 }
 
 if (data.markets) {

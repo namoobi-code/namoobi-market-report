@@ -80,6 +80,9 @@ houses(d.global_securities,'GlobalIB','weekly7');
 { const yc=(((m.macro||{}).rates||{}).yield_curve)||{}; if(!yc||typeof yc!=='object'||yc.spread==null) problems.push('[req17] 3.1.1 yield_curve(10Y-2Y) data empty'); }
 // req18: macro charts must exist (curve/employment/inflation) -- catches req6/req7 regressions
 ['macro_curve.png','macro_employment.png','macro_inflation.png'].forEach(c=>{ if(!cExists('charts/'+c)) problems.push('[req18] macro chart missing/broken: '+c); });
+// req19: 3.1.9 OECD CLI - DB-seeded unified chart (all countries, monthly). Data present => chart must exist.
+if(m.oecd_cli&&Array.isArray(m.oecd_cli.months)&&m.oecd_cli.months.length){ if(!cExists((m.oecd_cli.chart)||'charts/oecd_cli.png')) problems.push('[req19] 3.1.9 OECD CLI chart missing/broken: charts/oecd_cli.png (run gen_cli_chart.py)'); }
+else warnings.push('[req19] 3.1.9 oecd_cli data missing (db/oecd_cli.json seed) - section omitted');
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);
