@@ -1,4 +1,4 @@
-# 3.1.9 OECD 경기선행지수(CLI) 통합 차트 — 모든 나라 1장 (v3.43)
+# 3.1.8 OECD 경기선행지수(CLI) 통합 차트 — 모든 나라 1장 (v3.43)
 # 출력: charts/oecd_cli.png
 # 입력 우선순위:
 #   1) <O>/nmr_oecd_cli.json  (이번 실행 KOSIS 신규 스크랩분 — Chrome, 자료갱신일 변경 시에만 생성)

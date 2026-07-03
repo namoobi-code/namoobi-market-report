@@ -79,7 +79,7 @@ function validate(d) {
   if (d.global_securities && !gsK.some(k=>d.global_securities[k])) issues.push("global_securities 5사 평탄 키 없음 → 8장 전체 누락");
   if (d.crypto && !d.crypto.charts) warn.push("crypto.charts 없음 → 6.2 코인차트 섹션 생략됨 (coin_*.png 생성 확인)");
   if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.2.3 HY 표/그래프 비거나 누락"); }
-  if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.8 경기선행지수 누락(통계청 KOSIS 수집 필요)");
+  if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.9 경기선행지수 누락(통계청 KOSIS 수집 필요)");
   if (M.fx_markets){ const need=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'];
     const miss=need.filter(k=>{try{return !fs.existsSync('charts/spark_'+k+'.png');}catch(e){return true;}});
     if(miss.length===need.length) warn.push("환율 추세 스파크라인 전무 → 5장 추세열 빈칸(nmr_series2.fx 시계열 수집 필요)"); }
@@ -88,9 +88,9 @@ function validate(d) {
   const needChart=(cond,file,msg)=>{ if(cond){ try{ if(!fs.existsSync(file)) issues.push("[차트누락] "+msg+" → "+file+" 없음 (데이터는 있으나 차트 미생성 — 사용자 확인 필요)"); }catch(e){ issues.push("[차트누락] "+msg);} } };
   needChart(M.korea_investors&&M.korea_investors.kospi, "charts/kospi_tech.png","3.2.1 코스피 일봉 캔들");
   needChart(M.korea_investors&&M.korea_investors.kosdaq, "charts/kosdaq_tech.png","3.2.1 코스닥 일봉 캔들");
-  needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.1.8 경기선행지수 차트");
-  if (!M.oecd_cli || !Array.isArray((M.oecd_cli||{}).months) || !M.oecd_cli.months.length) warn.push("oecd_cli 비어있음 → 3.1.9 OECD 경기선행지수 누락(db/oecd_cli.json 확인)");
-  needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.9 OECD CLI 통합 차트");
+  needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.1.9 경기선행지수 차트");
+  if (!M.oecd_cli || !Array.isArray((M.oecd_cli||{}).months) || !M.oecd_cli.months.length) warn.push("oecd_cli 비어있음 → 3.1.8 OECD 경기선행지수 누락(db/oecd_cli.json 확인)");
+  needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.8 OECD CLI 통합 차트");
   needChart(M.hy_spread, "charts/hy_oas.png","3.3.3 HY 스프레드 차트");
   (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.2.3 반도체 종목 추세("+((x&&x.name)||i)+")"));
   (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.2.3 반도체 ETF 추세("+((x&&x.name)||i)+")"));
@@ -319,21 +319,21 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
     children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_hbm.json) 재사용. EPS(직전 회계연도)=각사 IR 실적, EPS(차기연도 E, 수시 변동)=애널리스트 컨센서스(Investing.com·MarketScreener·FnGuide), PER=현재주가÷EPS(주가 매 실행 갱신). 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
   children.push(p("")); }
 
-// (v3.31.0) 3.1.8 경기선행지수 — 3.2 한국증시 -> 3.1 매크로 대시보드로 이동.
+// (v3.31.0→v3.43.1) 3.1.9 경기선행지수(국내 순환변동치) — 3.1.8 OECD CLI 다음(확인 신호).
 function renderKoreaLeading(){ const m=data.markets||{};
-  if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.8 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
+  if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.9 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
     children.push(p("• 구성항목: 재고순환지표(제조업), 기계류내수출하지수, 건설수주액(실질), 소비자기대지수, 구인구직비율, 장단기금리차, 코스피지수, 수출입물가비율, 순상품교역조건 등",{size:16,color:"475569"}));
-    children.push(p("• 주식 선행 관점: OECD CLI(3.1.9)는 더 앞단의 \u201c방향 신호\u201d, 통계청 선행종합지수 순환변동치는 그 신호를 국내 경기 데이터로 한 번 더 다듬은 \u201c확인 신호\u201d로 함께 본다.",{size:16,color:"475569"}));
+    children.push(p("• 주식 선행 관점: OECD CLI(3.1.8)는 더 앞단의 \u201c방향 신호\u201d, 통계청 선행종합지수 순환변동치는 그 신호를 국내 경기 데이터로 한 번 더 다듬은 \u201c확인 신호\u201d로 함께 본다.",{size:16,color:"475569"}));
     children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
     { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); } }
-// (v3.43.0) 3.1.9 OECD 경기선행지수(CLI) — 통합 DB(db/oecd_cli.json), KOSIS 자료갱신일 변동 시에만 재수집·차트 재생성.
+// (v3.43.1) 3.1.8 OECD 경기선행지수(CLI) — 통합 DB(db/oecd_cli.json), KOSIS 자료갱신일 변동 시에만 재수집·차트 재생성. (3.1.9 국내 순환변동치보다 앞 — 방향 신호→확인 신호 순)
 function renderOecdCli(){ const m=data.markets||{}; const oc=m.oecd_cli;
   if(!oc||!Array.isArray(oc.months)||!oc.months.length)return;
-  children.push(h("3.1.9 OECD 경기선행지수 (OECD Composite Leading Indicators, CLI)",3));
+  children.push(h("3.1.8 OECD 경기선행지수 (OECD Composite Leading Indicators, CLI)",3));
   children.push(p("업데이트:매 실행 변동 여부만 체크(KOSIS 자료갱신일 기준), 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   const nC=Object.keys(oc.series||{}).length;
   const img=imagePara(oc.chart||"charts/oecd_cli.png",700,394);
@@ -833,8 +833,8 @@ function renderMacroIndicators(){
   renderFactSet();   // 3.1.5 Earnings Insight (FactSet) — 블로그 최신글 + Earnings Insight 리포트 요약(DB: nmr_factset.json)
   renderCapex();
   renderHBM();
-  renderKoreaLeading();
-  renderOecdCli();   // 3.1.9 OECD 경기선행지수(CLI) — 통합 차트 + 설명(DB: db/oecd_cli.json)
+  renderOecdCli();   // 3.1.8 OECD 경기선행지수(CLI) — 통합 차트 + 설명(DB: db/oecd_cli.json)
+  renderKoreaLeading();   // 3.1.9 경기선행지수 순환변동치 — 국내 확인 신호
 }
 
 if (data.markets) {
