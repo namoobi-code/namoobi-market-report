@@ -355,3 +355,9 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 - **재사용(수집 금지)**: VIX·DXY·원/달러·WTI·美10년물·**KSVKOSPI(CNBC .KSVKOSPI)** = `fetch_us.py` 산출 → `merge.py` 가 주입.
 
 **반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).
+
+## (v3.46.0) M7OutlookAgent — 3.1.20 미국 빅테크(M7) 실적 전망 (`nmr_m7.json`, 매일)
+**목적**: 3.1.20 표(가이던스·애널리스트 추정치 변화 시장 신호)를 매일 갱신. 대상 7종목 = AAPL·MSFT·NVDA·GOOGL·AMZN·META·TSLA.
+**수집(매 실행·매일)**: 종목별 ① 현재가·52주 변화 ② 컨센서스 투자의견 분포·평균 목표주가(FMP `analyst` grades-summary·price-target-consensus/summary — 무료플랜 미국 대형주 가용) ③ 최근 1개월/1분기/1년 평균 목표주가 흐름 = 목표주가 리비전 추세(price-target-summary) ④ 최근 등급 변경(upgrades/downgrades). 가이던스·연간 추정치 변화와 최신 증권사 리포트는 WebSearch(회사 실적발표·FactSet·언론). **추정 금지·확인값만**, 뉴스 단독 수치 패딩 금지.
+**신호 판정**: 추정치·목표주가 상향=긍정 / 실적 호조에도 목표주가 하향·디레이팅=경계 / 이익 모멘텀·의견 악화=위험 / 안정=중립.
+**출력** `$WORK/nmr_m7.json` = `{as_of, rows:[{name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance,signal}]}` → merge 가 `markets.m7_outlook` 로 주입(빌더 `renderM7Outlook`, 3.1.10 뒤). **미수집이어도 비차단** — 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더. **호출**: Phase 1 병렬 배치 포함, `model:"sonnet"`.

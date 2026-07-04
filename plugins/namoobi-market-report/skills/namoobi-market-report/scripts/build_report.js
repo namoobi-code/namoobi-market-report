@@ -899,6 +899,7 @@ function renderMacroIndicators(){
   renderOecdCli();   // 3.1.8 OECD 경기선행지수(CLI) — 통합 차트 + 설명(DB: db/oecd_cli.json)
   renderKoreaLeading();   // 3.1.9 경기선행지수 순환변동치 — 국내 확인 신호
   renderCustoms();   // 3.1.10 관세청 수출 잠정치 — 그룹막대 2종(전체·반도체)
+  renderM7Outlook();   // 3.1.20 미국 빅테크(M7) 실적 전망 — 가이던스·추정치 변화 시장 신호 (매일)
 }
 
 // (v3.44) 3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계 — DB: db/customs.json, 변경 시에만 재수집·차트 재생성
@@ -918,6 +919,43 @@ function renderCustoms(){ const m=data.markets||{}; const cs=m.customs;
   { const im=imagePara(cs.chart_semi||"charts/수출_반도체_24개월.png",700,285);
     if(im){ children.push(im); children.push(p("반도체 수출액 최근 24개월 — 월별 1~10/1~20/1~말일 누계(천 달러)",{size:15,color:"94A3B8"})); } }
   children.push(p("10일 단위 잠정치: 1~10일분은 11일, 1~20일분은 21일, 1~말일분은 익월 1일 공표. 전월까지는 정정·취하를 반영해 현행화(당월은 잠정치).",{italics:true,color:"64748B",size:17}));
+  children.push(p(""));
+}
+
+// (v3.46.0) 3.1.20 미국 빅테크(M7) 실적 전망 — 가이던스·애널리스트 추정치 변화 시장 신호.
+// 매일 실측(DB 아님): 시세·목표주가·투자의견·리비전은 매 실행 갱신, 가이던스·연간 추정치는 실적 때 갱신.
+// 데이터(markets.m7_outlook) 없으면 내장 스냅샷으로 항상 렌더(비차단). 라이브는 merge 가 nmr_m7.json→markets.m7_outlook 로 주입.
+const M7_OUTLOOK_DEFAULT = { as_of: "2026-07-03 종가", rows: [
+  {name:"Alphabet",ticker:"GOOGL",price:"359.91",chg52:"+103.6%",consensus:"강력 매수",consensus_detail:"2SB/69B/11H/1S",target:"432.3",upside:"+20.1%",revision:"상향",revision_detail:"353→422→416",guidance:"클라우드 +63%로 capex 정당화",signal:"긍정"},
+  {name:"Amazon",ticker:"AMZN",price:"242.67",chg52:"+8.6%",consensus:"강력 매수",consensus_detail:"0SB/84B/9H/1S",target:"312.9",upside:"+28.9%",revision:"상향",revision_detail:"298→315→330",guidance:"AWS +28%(3년 최고)로 정당화",signal:"긍정"},
+  {name:"NVIDIA",ticker:"NVDA",price:"194.83",chg52:"+23.1%",consensus:"강력 매수",consensus_detail:"2SB/58B/16H/3S",target:"301.6",upside:"+54.8%",revision:"상향",revision_detail:"277→318",guidance:"가이던스 상회·Blackwell 초과수요",signal:"긍정"},
+  {name:"Apple",ticker:"AAPL",price:"308.63",chg52:"+47.0%",consensus:"매수",consensus_detail:"1SB/69B/34H/7S",target:"315.1",upside:"+2.1%",revision:"완만 상향",revision_detail:"301→327→338",guidance:"가이던스 유지·capex 논쟁 밖",signal:"중립"},
+  {name:"Microsoft",ticker:"MSFT",price:"390.49",chg52:"-21.5%",consensus:"매수(약화)",consensus_detail:"0SB/66B/16H/0S",target:"561.1",upside:"+43.7%",revision:"하향",revision_detail:"590→537→400*",guidance:"capex ~$190B>컨센·FCF 감소",signal:"경계"},
+  {name:"Meta",ticker:"META",price:"582.90",chg52:"-18.9%",consensus:"매수(약화)",consensus_detail:"2SB/50B/11H/2S",target:"828.2",upside:"+42.1%",revision:"하향",revision_detail:"845→768",guidance:"capex 상향·2027 $200B설",signal:"경계"},
+  {name:"Tesla",ticker:"TSLA",price:"393.45",chg52:"+33.9%",consensus:"보유",consensus_detail:"0SB/32B/34H/15S",target:"423.4",upside:"+7.6%",revision:"정체·하향",revision_detail:"440→437→430",guidance:"인도 +25%나 마진 불확실",signal:"위험"}
+]};
+function renderM7Outlook(){ const m=data.markets||{};
+  const src=(m.m7_outlook&&Array.isArray(m.m7_outlook.rows)&&m.m7_outlook.rows.length)?m.m7_outlook:M7_OUTLOOK_DEFAULT;
+  const rows0=src.rows||[]; if(!rows0.length) return;
+  children.push(h("3.1.20 미국 빅테크(M7) 실적 전망 (가이던스·애널리스트 추정치 변화)",3));
+  children.push(p("업데이트:매일 — 시세·목표주가·투자의견·리비전은 매 실행 실측, 가이던스·연간 추정치는 실적 발표 시 갱신",{size:15,italics:true,color:"94A3B8"}));
+  children.push(p("이익 추정치·목표주가의 방향(상향/하향)과 가이던스 변화를 섹터·시장의 선행 신호로 읽는다. 가이던스 하향·추정치 조정 = 하락의 직접 신호.",{size:16,color:"475569"}));
+  const w=[1050,1150,1350,1300,1560,1960,1040];
+  const revC=r=>{const t=String(r||"");return t.includes("상향")?positiveColor:(t.includes("하향")?negativeColor:mixedColor);};
+  const sigC=s=>{const t=String(s||"");return t.includes("긍정")?positiveColor:(t.includes("위험")?negativeColor:(t.includes("경계")?mixedColor:"64748B"));};
+  const rows=[hdrRow(["기업","현재가·52주","컨센서스","평균목표주가·여력","목표주가 리비전","최근 가이던스","신호"],w)];
+  rows0.forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
+    cell("",{width:w[0],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.name||"-",{bold:true,size:18}),new TextRun({text:o.ticker||"",size:14,color:"64748B",break:1})]}),
+    cell("",{width:w[1],alt:a,align:AlignmentType.CENTER,runs:[cellRun(o.price!=null?String(o.price):"-",{bold:true,size:19}),new TextRun({text:o.chg52||"",size:15,color:markSign(o.chg52),break:1})]}),
+    cell("",{width:w[2],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.consensus||"-",{bold:true,size:16}),new TextRun({text:o.consensus_detail||"",size:13,color:"64748B",break:1})]}),
+    cell("",{width:w[3],alt:a,align:AlignmentType.CENTER,runs:[cellRun(o.target!=null?String(o.target):"-",{bold:true,size:19}),new TextRun({text:(o.upside||"")+" 여력",size:15,color:markSign(o.upside),break:1})]}),
+    cell("",{width:w[4],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.revision||"-",{bold:true,size:16,color:revC(o.revision)}),new TextRun({text:o.revision_detail||"",size:13,color:"64748B",break:1})]}),
+    cell(o.guidance||"-",{width:w[5],alt:a,size:16}),
+    cell(o.signal||"-",{width:w[6],alt:a,align:AlignmentType.CENTER,bold:true,color:sigC(o.signal)})]})); });
+  children.push(makeTable(w,rows));
+  children.push(p("신호 판정: 추정치·목표주가 상향=긍정 / 실적 호조에도 목표주가 하향·디레이팅=경계 / 이익 모멘텀·의견 악화=위험 / 안정=중립.",{size:15,color:"94A3B8"}));
+  children.push(p("핵심: 2026년 M7 이익 추정치는 상향(S&P500 EPS 성장 기대 14%→18%, IT 섹터 Q2 EPS +8.7%)이나, 조정은 추정치가 아니라 AI capex 수익화 의문에 따른 밸류에이션·목표주가 디레이팅에서 발생. 구글·아마존·엔비디아=긍정, MS·메타=경계, 테슬라=위험, 애플=중립.",{size:16,color:"475569"}));
+  children.push(p("출처: 회사 실적발표·Refinitiv/LSEG I/B/E/S·Bloomberg·FactSet·증권사 리포트 · 데이터 기준 "+(src.as_of||"직전 미국 종가")+" · 정보 제공 목적(투자 자문 아님).",{size:15,color:"94A3B8"}));
   children.push(p(""));
 }
 

@@ -322,3 +322,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
   "sources": [{"label": "TrendForce 3Q26 전망", "url": "https://www.trendforce.com/presscenter/news/20260703-13134.html"}]
 }
 ```
+
+## (v3.46.0) 추가 필드 — 3.1.20 미국 빅테크(M7) 실적 전망 (markets.m7_outlook)
+`markets.m7_outlook` = {as_of, rows[]} — `build_report.js renderM7Outlook` 가 3.1.20 표(3.1.10 뒤)를 렌더. 없으면 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더(비차단). `M7OutlookAgent` 가 `nmr_m7.json` 으로 저장하면 `merge.py` 가 `markets.m7_outlook` 로 전달(라이브 오버라이드).
+rows[] = {name, ticker, price, chg52("+x%"/"-x%"), consensus, consensus_detail(예 "0SB/66B/16H/0S"), target, upside("+x%"), revision("상향"/"하향"/"완만 상향"/"정체·하향"), revision_detail("1Y→1Q→1M" 평균목표주가), guidance, signal("긍정"/"경계"/"위험"/"중립")}. 매일 갱신(시세·목표주가·의견·리비전 매 실행 실측, 가이던스·연간 추정치는 실적 때).

@@ -39,6 +39,7 @@ nw = L('nmr_news.json'); gs = L('nmr_globalsec.json'); um = L('nmr_usmacro.json'
 n2 = L('nmr_news2.json'); semi = L('nmr_semi.json'); krs = L('nmr_kr_series.json'); ohlcv = L('nmr_kr_ohlcv.json')
 inv = L('nmr_kr_invest.json'); lead = L('nmr_leading.json'); sec = L('nmr_securities.json'); an = L('nmr_analysis.json')
 tr = L('nmr_trendtext.json')
+m7o = L('nmr_m7.json')  # (v3.46) 3.1.20 미국 빅테크(M7) 실적전망 라이브 데이터(있으면 내장 스냅샷 대체)
 
 def san(s): return str(s).replace('/', '_').replace(' ', '_')
 
@@ -67,6 +68,7 @@ def koTrend(r):
     return t + f" ({s})"
 
 m = {}
+if isinstance(m7o, dict) and m7o.get('rows'): m['m7_outlook'] = m7o  # 3.1.20 라이브 오버라이드
 for k in ('korea', 'us_markets', 'asia_markets', 'europe_markets', 'fx_markets', 'fx_usd'):
     m[k] = mk.get(k, {})
 for grp, td in [('asia_markets', tr.get('asia', {})), ('europe_markets', tr.get('europe', {})), ('fx_markets', tr.get('fx', {}))]:
