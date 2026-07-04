@@ -381,9 +381,15 @@ function renderCapex(){ const m=data.markets||{};
   if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.1.6 AI 빅테크 자본지출(CAPEX)",3));
     if(Array.isArray(cx.change_log)&&cx.change_log.length){ children.push(p("■ CAPEX 변동 이력 (매일 체크 · 변경분):",{bold:true,size:14,color:"DC2626"})); cx.change_log.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); }
     // (v3.35) 기업별 4행: CAPEX / 매출 / Capex매출 / FCF — 표값으로 두 차트 구동
-    const YR=["2024","2025","2026","2027","2028","2029"]; const HD=["2024","2025","2026E","2027E","2028E","2029E"];
-    const w=[2050,1175,1175,1175,1175,1175,1175];
-    const num=(v)=>(v===null||v===undefined||v==="")?"-":(typeof v==="number"?(Number.isInteger(v)?String(v):v.toFixed(1)):String(v));
+    const YR0=["2024","2025","2026","2027","2028","2029"]; const HD0=["2024","2025","2026E","2027E","2028E","2029E"];
+    // (req8) 핵심지표(CAPEX/FCF) 전무한 (전망)연도 컬럼 드롭 + 확인불가/미확인/미공개 정규화
+    const _bad=(t)=>t.includes("확인불가")||t.includes("미확인")||t.includes("미공개");
+    const _cellHas=(v)=>{const t=(v==null?"":String(v)).trim();return t!==""&&t!=="-"&&!_bad(t);};
+    const _keep=YR0.map((y,i)=>i).filter(i=>cx.rows.some(r=>["y","fcf"].some(pfx=>_cellHas(r[pfx+YR0[i]]))));
+    const YR=_keep.map(i=>YR0[i]); const HD=_keep.map(i=>HD0[i]);
+    const _cw=Math.max(820,Math.round(7050/Math.max(1,YR.length)));
+    const w=[2050].concat(YR.map(()=>_cw));
+    const num=(v)=>{let t=(v===null||v===undefined||v==="")?"-":(typeof v==="number"?(Number.isInteger(v)?String(v):v.toFixed(1)):String(v));return _bad(String(t))?"-":t;};
     const rows=[hdrRow(["항목 (십억 $)"].concat(HD),w)];
     cx.rows.forEach((r,ci)=>{ const a=ci%2===1;
       rows.push(new TableRow({children:[cell(r.company||"-",{width:w[0],alt:a,bold:true})].concat(
@@ -391,7 +397,7 @@ function renderCapex(){ const m=data.markets||{};
       rows.push(new TableRow({children:[cell("   └ 매출",{width:w[0],alt:a,size:16,color:"475569"})].concat(
         YR.map((y,j)=>cell(num(r["rev"+y]),{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16})))}));
       rows.push(new TableRow({children:[cell("   └ Capex/매출",{width:w[0],alt:a,size:16,color:"475569"})].concat(
-        YR.map((y,j)=>{const v=r["ratio"+y];return cell(v==null?"-":v+"%",{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16,color:"1D4ED8"});}))}));
+        YR.map((y,j)=>{const v=r["ratio"+y];return cell((v==null||v===""||_bad(String(v)))?"-":v+"%",{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16,color:"1D4ED8"});}))}));
       rows.push(new TableRow({children:[cell("   └ FCF",{width:w[0],alt:a,size:16,color:"475569"})].concat(
         YR.map((y,j)=>{const v=r["fcf"+y];return cell(num(v),{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16,color:(typeof v==="number"&&v<0)?"DC2626":"0F172A"});}))}));
     });
@@ -681,6 +687,7 @@ function fsLink(text,url){ if(!url||!HAS_LINK) return p(text,{size:14,color:"475
 function renderFactSet(){ const m=data.markets||{}; const fs=m.factset; if(!fs||(!fs.blog&&!fs.report))return;
   children.push(h("3.1.5 Earnings Insight (FactSet)",3));
   children.push(p("FactSet Earnings Insight 의 최신 블로그 포스트와 주간 리포트 첫 장을 요약한다. 원문 그래프·표는 출처 링크에서 확인(저작권상 본 보고서에는 사실 요약·수치만 수록).",{italics:true,color:"64748B"}));
+  children.push(fsLink("출처(토픽 페이지) · FactSet Insight — Earnings", (fs.topic_url||"https://insight.factset.com/topic/earnings")));
   const b=fs.blog||{};
   if(b.title){
     children.push(p("■ "+(b.title_ko||b.title),{bold:true,color:"1E40AF",before:120,size:20}));
@@ -765,7 +772,7 @@ function renderMacroIndicators(){
   if(Array.isArray(r.fomc_meetings)){
     children.push(p("■ FOMC 회의 일정·정책방향 (최근 1년 · 최신순)",{bold:true,color:"1E40AF",before:140,size:22}));
     const w=[2200,2300,5580]; const rows=[hdrRow(["회의일","정책방향","결정·코멘트"],w)];
-    r.fomc_meetings.slice().reverse().forEach((mt,i)=>rows.push(new TableRow({children:[
+    r.fomc_meetings.slice().sort((a,b)=>String(b&&b.date||"").localeCompare(String(a&&a.date||""))).forEach((mt,i)=>rows.push(new TableRow({children:[
       cell(mt.date,{width:w[0],alt:i%2===0,align:AlignmentType.CENTER,bold:true}),
       cell(mt.stance,{width:w[1],alt:i%2===0,align:AlignmentType.CENTER,bold:true,color:markStance(mt.stance)}),
       cell(mt.note||"",{width:w[2],alt:i%2===0})]})));

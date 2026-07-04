@@ -246,8 +246,24 @@ def _ch_emp():
     emp=S.get("employment") or {}
     # (req6) 6개 지표 패널을 항상 표시 — 빈 시계열도 자리 유지(미확보 표기)
     _ep=[]
-    for key,title,col,hl in [("nfp","① NFP 신규고용(천명)",BLUE,0),("unemp","② 실업률(%)",RED,None),("retail","③ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","④ ISM 제조 PMI",BLUE,50),("ism_svc","⑤ ISM 서비스 PMI",GREEN,50),("gdp","⑥ 실질GDP 연율(%)",GREEN,None)]:
-        ys=_flat(emp.get(key) or emp.get({"nfp":"nfp_mom","retail":"retail_mom","gdp":"gdp_ann"}.get(key,key)))
+    # (req2/3/6) 레벨 시계열을 변화값으로 정규화 — NFP=전월차(월 신규고용), 소매=전월비%, GDP=연율%만(레벨 혼입 제거)
+    def _empdisp(key):
+        lvl=[v for v in _flat(emp.get(key)) if isinstance(v,(int,float))]
+        if key=="nfp":
+            if lvl and max(abs(v) for v in lvl)>5000:  # PAYEMS 레벨 → 전월차(천명)
+                return [round(lvl[i]-lvl[i-1],1) for i in range(1,len(lvl))]
+            return lvl or [v for v in _flat(emp.get("nfp_mom")) if isinstance(v,(int,float))]
+        if key=="retail":
+            if lvl and max(abs(v) for v in lvl)>1000:  # 소매판매 레벨 → 전월비 %
+                return [round((lvl[i]/lvl[i-1]-1)*100,2) for i in range(1,len(lvl)) if lvl[i-1]]
+            return lvl or [v for v in _flat(emp.get("retail_mom")) if isinstance(v,(int,float))]
+        if key=="gdp":  # 연율(%) 값만 유지(레벨/이상치 제거)
+            g=[v for v in lvl if abs(v)<50]
+            ga=[v for v in _flat(emp.get("gdp_ann")) if isinstance(v,(int,float)) and abs(v)<50]
+            return g if len(g)>=2 else (ga or g)
+        return lvl
+    for key,title,col,hl in [("nfp","① NFP 월 신규고용(천명)",BLUE,0),("unemp","② 실업률(%)",RED,None),("retail","③ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","④ ISM 제조 PMI",BLUE,50),("ism_svc","⑤ ISM 서비스 PMI",GREEN,50),("gdp","⑥ 실질GDP 연율(%)",GREEN,None)]:
+        ys=_empdisp(key)
         _ep.append((title,ys,col,hl))
     _n=6; _ncol=3; _nrow=2
     fig,axs=plt.subplots(_nrow,_ncol,figsize=(3.0*_ncol,2.5*_nrow),dpi=150)
