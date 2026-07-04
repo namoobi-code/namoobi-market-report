@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # fetch_asia_etf.py — 3.4.1 아시아 주요 ETF (한국 상장) 시세·추세 수집
-import urllib.request, json, datetime as dt, concurrent.futures as cf, sys, os
+# sandbox·stdlib·스레드 병렬, Yahoo <code>.KS 일봉 2년. merge.py ret() 동일 산출.
+# 야후에 ETF 이력이 없는 종목은 PROXY(기초지수)로 수익률·추세·스파크라인을 대체하고 현재가는 ETF 실값 유지.
+# 출력: nmr_asia_etf.json (그룹별 rows) + nmr_asia_etf_series.json (스파크라인 {code:[[date,close]..]})
+import urllib.request, urllib.parse, json, datetime as dt, concurrent.futures as cf, sys, os
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36"}
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
+
+# code: (group, name, desc)  — 그룹 순서: asia/china/japan/taiwan/india/vietnam
 ASIA_ETF = {
  "277540": ("asia",  "ACE 아시아TOP50S&P",          "한국·대만·홍콩·싱가포르 아시아 핵심 대형주 통합 대표(S&P Asia 50)"),
  "192090": ("china", "TIGER 차이나CSI300",           "중국 본토 대형주 300(상하이·선전 A주)"),
@@ -20,15 +25,21 @@ ASIA_ETF = {
  "245710": ("vietnam","ACE 베트남VN30(합성)",         "베트남 호치민 성장 신흥시장(VN30)"),
 }
 GROUP_ORDER = ["asia", "china", "japan", "taiwan", "india", "vietnam"]
-def fetch(code):
-    u = f"https://query1.finance.yahoo.com/v8/finance/chart/{code}.KS?range=2y&interval=1d"
+# 야후 ETF 캔들 이력 미제공 → 기초지수로 수익률·추세·스파크라인 대체(현재가는 ETF 실값 유지)
+PROXY = {"253990": ("^TWII", "기초지수 TAIEX(대만 가권지수) 기준")}
+
+def fetch_series(ysym):
+    u = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(ysym)}?range=2y&interval=1d"
     d = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=15))
-    r = d["chart"]["result"][0]
-    ts = r["timestamp"]; cl = r["indicators"]["quote"][0]["close"]
-    pts = [[dt.datetime.utcfromtimestamp(t).date().isoformat(), round(float(c),2)] for t,c in zip(ts,cl) if c is not None]
-    meta = r.get("meta", {}); ft = meta.get("firstTradeDate")
+    r = d["chart"]["result"][0]; meta = r.get("meta", {})
+    ts = r.get("timestamp"); pts = []
+    if ts:
+        cl = r["indicators"]["quote"][0]["close"]
+        pts = [[dt.datetime.utcfromtimestamp(t).date().isoformat(), round(float(c),2)] for t,c in zip(ts,cl) if c is not None]
+    ft = meta.get("firstTradeDate")
     first = dt.datetime.utcfromtimestamp(ft).date().isoformat() if ft else None
-    return pts, (meta.get("longName") or meta.get("shortName") or ""), first
+    return pts, meta, first
+
 def ret(series):
     pts = [(dt.date.fromisoformat(str(x[0])[:10]), float(x[1])) for x in series if x[1] is not None]
     if len(pts) < 2: return {}
@@ -42,6 +53,7 @@ def ret(series):
     if len(pts) >= 3 and pts[-3][1]:
         out["prev_pct"]=round((pts[-2][1]/pts[-3][1]-1)*100,2)
     return out
+
 def koTrend(r):
     y=r.get("1y_pct"); m3=r.get("3mo_pct"); m1=r.get("1mo_pct")
     if y is not None:
@@ -51,31 +63,49 @@ def koTrend(r):
     if m3 is not None: return f"3개월 {m3:+.0f}% "+("상승" if m3>=0 else "조정")+" (상장 후)"
     if m1 is not None: return f"1개월 {m1:+.0f}% "+("반등" if m1>=0 else "조정")+" (상장 후)"
     return "상장 초기"
+
 def work(item):
     code,(grp,name,desc)=item
     try:
-        pts,ynm,first=fetch(code); r=ret(pts)
-        r.update({"code":code,"symbol":code,"name":name,"desc":desc,"weight":None,"listed":first,"yahoo_name":ynm})
-        r["trend"]=koTrend(r); return code,grp,r,pts,None
+        pts, meta, first = fetch_series(code+".KS")
+        cur = meta.get("regularMarketPrice")
+        proxy = PROXY.get(code)
+        if proxy and len(pts) < 2:
+            psym, pnote = proxy
+            ppts, _, _ = fetch_series(psym)
+            r = ret(ppts)
+            if cur is not None: r["current"] = round(float(cur), 2)   # ETF 실 현재가 유지
+            r.pop("chg", None); r.pop("prev_close", None)             # 지수 절대변동은 ₩가격과 무의미 → 제거
+            series = ppts
+            desc = desc + " · 수익률·추세=" + pnote + "(야후 ETF 이력 미제공)"
+        else:
+            r = ret(pts); series = pts
+        r.update({"code":code,"symbol":code,"name":name,"desc":desc,"weight":None,"listed":first,
+                  "yahoo_name":meta.get("longName") or meta.get("shortName") or ""})
+        r["trend"]=koTrend(r)
+        return code,grp,r,series,None
     except Exception as e:
         return code,grp,None,None,str(e)[:120]
+
 groups={g:[] for g in GROUP_ORDER}; series={}; rows_flat=[]
 with cf.ThreadPoolExecutor(max_workers=10) as ex:
     for code,grp,r,pts,err in ex.map(work, ASIA_ETF.items()):
         if err or r is None: print(f"ERR {code}: {err}"); continue
-        groups[grp].append(r); series[code]=pts; rows_flat.append(r)
+        groups[grp].append(r)
+        if pts: series[code]=pts
+        rows_flat.append(r)
 order={c:i for i,c in enumerate(ASIA_ETF)}
 for g in groups: groups[g].sort(key=lambda r: order[r["code"]])
 ys=[r["1y_pct"] for r in rows_flat if r.get("1y_pct") is not None]
 avg=round(sum(ys)/len(ys),1) if ys else None
-comment=(f"아시아 국가·테마 ETF {len(rows_flat)}종 1년 평균 {avg:+.1f}%. 합성·환헤지(H) 상품과 신규 상장(1년 미만) ETF는 장기 수익률이 '-'로 표시된다." if avg is not None else f"아시아 국가·테마 ETF {len(rows_flat)}종.")
+comment=(f"아시아 국가·테마 ETF {len(rows_flat)}종(1년 수익률 산출 {len(ys)}종 평균 {avg:+.1f}%). 합성·환헤지(H)·신규 상장(1년 미만) ETF는 기초시장과 괴리가 있을 수 있고, 야후 이력 미제공 종목은 기초지수로 수익률을 대체한다." if avg is not None else f"아시아 국가·테마 ETF {len(rows_flat)}종.")
 asof=dt.date.today().isoformat(); out={"asof":asof,"comment":comment}; out.update(groups)
 os.makedirs(OUT,exist_ok=True)
 json.dump(out, open(os.path.join(OUT,"nmr_asia_etf.json"),"w"), ensure_ascii=False, indent=1)
 json.dump(series, open(os.path.join(OUT,"nmr_asia_etf_series.json"),"w"), ensure_ascii=False)
 def pc(v): return "   -  " if v is None else f"{v:+6.1f}"
-print(f"{'code':6s} {'name':30s} {'현재가':>9s} {'1일':>7s} {'1주':>7s} {'1개월':>7s} {'3개월':>7s} {'6개월':>7s} {'1년':>7s}  상장")
+print(f"{'code':6s} {'name':28s} {'현재가':>9s} {'1일':>7s} {'1주':>7s} {'1개월':>7s} {'3개월':>7s} {'6개월':>7s} {'1년':>7s}")
 for g in GROUP_ORDER:
     for r in groups[g]:
-        print(f"{r['code']:6s} {r['name'][:30]:30s} {r['current']:>9,.0f} {pc(r.get('prev_pct'))} {pc(r.get('1w_pct'))} {pc(r.get('1mo_pct'))} {pc(r.get('3mo_pct'))} {pc(r.get('6mo_pct'))} {pc(r.get('1y_pct'))}  {r.get('listed')}")
-print(f"\n총 {len(rows_flat)}종 · 1년평균 {avg}% · asof {asof}")
+        print(f"{r['code']:6s} {r['name'][:28]:28s} {r['current']:>9,.0f} {pc(r.get('prev_pct'))} {pc(r.get('1w_pct'))} {pc(r.get('1mo_pct'))} {pc(r.get('3mo_pct'))} {pc(r.get('6mo_pct'))} {pc(r.get('1y_pct'))}")
+print(f"\n총 {len(rows_flat)}종 · 1년평균 {avg}% · series {len(series)}개 · asof {asof}")
