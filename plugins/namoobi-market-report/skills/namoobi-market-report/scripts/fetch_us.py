@@ -69,8 +69,17 @@ IDX = {'kospi':'^KS11','kosdaq':'^KQ11','sp500':'^GSPC','nasdaq':'^IXIC','dow':'
 FX = {'usd_krw':'KRW=X','eur_krw':'EURKRW=X','jpy_krw':'JPYKRW=X','cny_krw':'CNYKRW=X','hkd_krw':'HKDKRW=X',
       'usd_eur':'EUR=X','usd_jpy':'JPY=X','usd_cny':'CNY=X'}
 COMM = {'wti':'CL=F','brent':'BZ=F','natgas':'NG=F','gold':'GC=F','silver':'SI=F','copper':'HG=F',
-        'platinum':'PL=F','rare_earth':'REMX','corn':'ZC=F','soybean':'ZS=F','wheat':'ZW=F'}
+        'platinum':'PL=F','rare_earth':'REMX','corn':'ZC=F','soybean':'ZS=F','wheat':'ZW=F',
+        # (v3.46) 4.3 농산물 확장: 기후충격(설탕·커피·오렌지주스) + 비용/종합(CRB·BDI 프록시) + 농업ETF(DBA) + 비료/농기계 대장주(DE·NTR)
+        'sugar':'SB=F','coffee':'KC=F','orange':'OJ=F',
+        'crb':'^TRCCRB','bdi':'BDRY','dba':'DBA','de':'DE','ntr':'NTR'}
 STRAT = {'lit':'LIT','remx':'REMX','ura':'URA','urnm':'URNM'}
+# (v3.46) 4.4 비철금속 — 배터리/우라늄/전략광물 3개 테마 밸류체인. key=스파크키 → 야후 티커.
+#  우라늄 선물 무료피드 부재→SRUUF(Sprott 실물 우라늄)로 근사, 탄산리튬 현물은 EastMoney GFEX 碳酸锂 主连 선물(fetch_lithium)로 추세 수집.
+NF = {'lit':'LIT','tsla':'TSLA','kodex_batt':'305720.KS','sruuf':'SRUUF','ura':'URA','nlr':'NLR',
+      'hanaro_nuke':'434730.KS','copper':'HG=F','copx':'COPX','remx':'REMX','kodex_copper':'138910.KS'}
+# (사용자요청 v3.47) 4.1 에너지 — 국내 상장 에너지 관련 ETF: 전통 화석연료(KODEX 미국S&P500에너지 합성) · 넥스트에너지 전력망/인프라(KODEX 미국AI전력핵심인프라). key=스파크키 → 야후 티커(.KS)
+ENERGY_ETF = {'kodex_energy':'218420.KS','kodex_aipower':'487230.KS'}
 # US ETF: symbol -> (group, name, desc, weight)
 ETF = {
  'SPY':('index','SPDR S&P 500 ETF','S&P500 추종 대표 ETF',None),'VOO':('index','Vanguard S&P 500','저비용 S&P500',None),
@@ -90,12 +99,29 @@ ETF = {
  'MAGS':('theme','Roundhill Magnificent 7','매그니피센트7 동일가중',None),
  'GLD':('defensive','SPDR Gold','금 현물·헷지',None),'TLT':('defensive','iShares 20Y+ Treasury','미국 장기채',None),
  'IEF':('defensive','iShares 7-10Y Treasury','미국 중기채',None)}
+# (v3.7.x) 3.5.1 유럽 주요 ETF: dispSym -> (yahoo_ticker, name, desc, region). 국내상장(.KS)+미국상장 병행 —
+#   유럽 자금흐름을 국내물(원화·환헤지)과 미국물(달러) 양쪽으로 교차 확인. 한국물(코스피/K방산 등) 제외.
+EUETF = {
+ '195930':('195930.KS','TIGER 유로스탁스50(합성 H)','유로존 대형 50 (EURO STOXX 50, 환헤지)','국내'),
+ '245350':('245350.KS','TIGER 유로스탁스배당30','유로존 고배당 30 (Select Dividend)','국내'),
+ '411860':('411860.KS','KIWOOM 독일DAX','독일 DAX 40 (제조·수출·화학)','국내'),
+ '456250':('456250.KS','KODEX 유럽명품TOP10 STOXX','유럽 명품 10 (에르메스·LVMH 등)','국내'),
+ '400570':('400570.KS','KODEX 유럽탄소배출권선물ICE(H)','EU 탄소배출권 선물 (정책·대체자산)','국내'),
+ '496770':('496770.KS','PLUS 글로벌방산','미국+유럽 방산 10 (재무장 수혜)','국내'),
+ '0102X0':('0102X0.KS','ACE 유럽방산TOP10','유럽 방산 10 (라인메탈 등, 신규상장)','국내'),
+ 'VGK':('VGK','Vanguard FTSE Europe','광역 유럽(영국·스위스 포함) 대표','미국'),
+ 'EUFN':('EUFN','iShares MSCI Europe Financials','유럽 은행·금융 (자금흐름 핵심신호)','미국'),
+ 'EWG':('EWG','iShares MSCI Germany','독일 단일국','미국'),
+ 'EWQ':('EWQ','iShares MSCI France','프랑스 단일국','미국'),
+ 'EWU':('EWU','iShares MSCI United Kingdom','영국 단일국','미국'),
+}
 CRYPTO = {'btc':'BTC-USD','eth':'ETH-USD','xrp':'XRP-USD','sol':'SOL-USD'}
 
 # ===== 병렬 fetch =====
 wk_tickers = {}  # name->ticker for weekly
-for d in (IDX, FX, COMM, STRAT): wk_tickers.update({v: v for v in d.values()})
+for d in (IDX, FX, COMM, STRAT, NF, ENERGY_ETF): wk_tickers.update({v: v for v in d.values()})
 for s in ETF: wk_tickers[s] = s
+for _euv in EUETF.values(): wk_tickers[_euv[0]] = _euv[0]  # 유럽 ETF 티커(.KS/미국) 주봉·일봉 수집 등록
 def fetch_wk(tk): return tk, yfetch(tk, '1y', '1wk')
 def fetch_dy(tk): return tk, yfetch(tk, '1y', '1d')
 RES = {}
@@ -259,9 +285,10 @@ json.dump(idxs, open('nmr_indexseries.json', 'w'), ensure_ascii=False)
 # ===== nmr_series2.json =====
 series2 = {
  'fx': {k: S(FX[k]) for k in ('usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw','usd_jpy','usd_cny','usd_eur')},
- 'commodities': {k: S(COMM[k]) for k in ('wti','brent','natgas','gold','silver','copper','platinum','rare_earth','corn','soybean','wheat')},
- 'strat_etf': {k: S(STRAT[k]) for k in STRAT},
+ 'commodities': {k: S(COMM[k]) for k in ('wti','brent','natgas','gold','silver','copper','platinum','rare_earth','corn','soybean','wheat','sugar','coffee','orange','crb','bdi','dba','de','ntr')},
+ 'strat_etf': {k: S(v) for k, v in NF.items()},  # (v3.46) 4.4 비철금속 12행 스파크(탄산리튬은 시계열 없음)
 }
+series2['commodities'].update({k: S(v) for k, v in ENERGY_ETF.items()})  # (사용자요청) 4.1 에너지 ETF(KODEX) 스파크라인용 1년 주봉 시계열
 if len(series2['fx'].get('cny_krw') or []) < 2:
     series2['fx']['cny_krw'] = _cross('KRW=X', 'CNY=X')
 json.dump(series2, open('nmr_series2.json', 'w'), ensure_ascii=False)
@@ -273,18 +300,96 @@ def grpc(label, names, mp):
     a1 = sum(r['1mo_pct'] or 0 for r in rs) / len(rs); ay = sum(r['1y_pct'] or 0 for r in rs) / len(rs)
     tone = '강세' if ay > 0 else '약세'
     return f"{label} 군은 최근 1개월 평균 {a1:+.1f}%, 1년 {ay:+.1f}%로 {tone} 흐름이다."
-energy = block({'wti':'CL=F','brent':'BZ=F','natgas':'NG=F'})
+energy = block({'wti':'CL=F','brent':'BZ=F','natgas':'NG=F', **ENERGY_ETF})  # (사용자요청) WTI·천연가스 + 국내 에너지 ETF 2종(전통 화석연료·AI 전력망 인프라)
 metals = block({'gold':'GC=F','silver':'SI=F','copper':'HG=F','platinum':'PL=F','rare_earth':'REMX'})
-agri = block({'corn':'ZC=F','soybean':'ZS=F','wheat':'ZW=F'})
-strat_etf_rows = []
-for k, sym in STRAT.items():
-    r = R(sym); r['name'] = sym; r['trend'] = trend(r); add_day(r, sym); strat_etf_rows.append(r)
+agri = block({'corn':'ZC=F','soybean':'ZS=F','wheat':'ZW=F',
+              'sugar':'SB=F','coffee':'KC=F','orange':'OJ=F',
+              'crb':'^TRCCRB','bdi':'BDRY','dba':'DBA','de':'DE','ntr':'NTR'})
+# ===== (v3.46) 4.4 비철금속 (배터리·우라늄·전략광물 밸류체인) =====
+def nfrow(name, key, note, suffix=None):
+    sym = NF.get(key); r = R(sym) if sym else {}
+    if sym: add_day(r, sym)
+    r['name'] = name; r['note'] = note; r['spark'] = key
+    if suffix: r['curSuffix'] = suffix
+    r['trend'] = trend(r) if r.get('1y_pct') is not None else ''
+    return r
+def nfspot(name, note, suffix):  # 시계열 없는 현물 참고행(최종 폴백)
+    return {'name': name, 'note': note, 'spark': None, 'curSuffix': suffix, 'current': None, 'trend': ''}
+# (v3.47) 탄산리튬 현물 추세 — GFEX 碳酸锂 主连(EastMoney kline, secid=225.lcm) 무료 일봉 시계열 → 1일~1년 추세+스파크.
+#  history(push2his)는 버스트에 스로틀 → 재시도, 실패 시 realtime(push2, 별도 엣지)로 현재가만, 그래도 없으면 null.
+def fetch_lithium():
+    import urllib.request as _u, time as _t
+    def _g(url, tries=4):
+        for _i in range(tries):
+            try: return _u.urlopen(_u.Request(url, headers={'User-Agent':'Mozilla/5.0','Referer':'https://quote.eastmoney.com/'}), timeout=15).read().decode('utf-8','replace')
+            except Exception: _t.sleep(2)
+        return None
+    ser = []
+    _raw = _g('https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=225.lcm&fields1=f1,f2,f3&fields2=f51,f52,f53,f54,f55,f56,f57&klt=101&fqt=0&end=20500101&lmt=400')
+    if _raw:
+        try:
+            _kl = (json.loads(_raw).get('data') or {}).get('klines') or []
+            ser = [[x.split(',')[0], round(float(x.split(',')[2]), 2)] for x in _kl if x and ',' in x]
+        except Exception: ser = []
+    cur = None
+    if not ser:
+        _r = _g('https://push2.eastmoney.com/api/qt/stock/get?secid=225.lcm&fields=f43', tries=3)
+        try:
+            _v = (json.loads(_r).get('data') or {}).get('f43') if _r else None
+            cur = float(_v) if _v not in (None, '-', 0) else None
+        except Exception: cur = None
+    return ser, cur
+_li_ser, _li_cur = fetch_lithium()
+if _li_ser:
+    li_row = ret([[d, v] for d, v in _li_ser]); li_row['name'] = '탄산리튬 (Lithium Carbonate)'
+    li_row['note'] = '중국 배터리급 현물(GFEX 碳酸锂 主连 선물, EastMoney)'; li_row['spark'] = 'lithium'; li_row['curSuffix'] = ' CNY/톤'
+    if len(_li_ser) >= 2 and _li_ser[-2][1]: li_row['1d_pct'] = round((_li_ser[-1][1] / _li_ser[-2][1] - 1) * 100, 2)
+    li_row['trend'] = trend(li_row)
+elif _li_cur:
+    li_row = {'name': '탄산리튬 (Lithium Carbonate)', 'note': '중국 배터리급 현물(GFEX 碳酸锂 主连) — 시계열 일시 미확보, 현재가만', 'spark': None, 'curSuffix': ' CNY/톤', 'current': _li_cur, 'trend': ''}
+else:
+    li_row = nfspot('탄산리튬 (Lithium Carbonate)', '중국 배터리급 현물 — 무료 시계열 일시 미확보(참고치)', ' CNY/톤')
+try:  # 스파크용 시계열 주입(있을 때만)
+    if _li_ser: series2['strat_etf']['lithium'] = _li_ser; json.dump(series2, open('nmr_series2.json', 'w'), ensure_ascii=False)
+except Exception: pass
+nonferrous = {'groups': [
+ {'title': '배터리 & 전기차 (Battery & EV)',
+  'desc': '전기차 침투율 둔화(캐즘) 우려와 각국의 정책(보조금·관세)에 따라 변동성이 큰 섹터입니다. 광물 가격과 전방 수요(완성차 판매량)를 동시에 체크해야 합니다.',
+  'core': '탄산리튬 가격 (Lithium Carbonate)',
+  'core_desc': '배터리 원가의 핵심으로, 리튬 가격의 반등 여부가 국내 2차전지 소재주(양극재)들의 실적(판가)·투심 회복의 핵심입니다.',
+  'rows': [
+    li_row,
+    nfrow('LIT (Global X Lithium & Battery Tech ETF)', 'lit', '글로벌 리튬 채굴~배터리 셀 제조 전체 밸류체인 자금 흐름'),
+    nfrow('테슬라 (TSLA)', 'tsla', '글로벌 전기차 수요·자율주행(SW) 전환의 바로미터'),
+    nfrow('KODEX 2차전지산업', 'kodex_batt', 'LG에너지솔루션 등 셀 메이커·에코프로 등 소재기업 센티먼트', ' 원'),
+  ]},
+ {'title': '우라늄 & 원자력 (Uranium & Nuclear Power)',
+  'desc': '우라늄 공급 부족과 원전 가동 연장 기조에 따른 가격 추이가 관련주 랠리의 근본 배경입니다.',
+  'core': '우라늄 선물 가격 (Uranium Futures)',
+  'core_desc': '우라늄 공급 부족·원전 수명 연장 기조에 따른 가격 추이가 관련주 랠리의 근본 배경입니다.',
+  'rows': [
+    nfrow('우라늄 (SRUUF · Sprott 실물 우라늄, 선물 근사)', 'sruuf', '무료 우라늄 선물 피드 부재 → 실물 우라늄 트러스트로 근사'),
+    nfrow('URA (Global X Uranium ETF)', 'ura', '글로벌 우라늄 채굴·원전 장비 기업 — 우라늄 테마 대장 ETF'),
+    nfrow('NLR (VanEck Uranium+Nuclear Energy ETF)', 'nlr', '발전소 포함 원자력 에너지 밸류체인 전반'),
+    nfrow('HANARO 원자력iSelect', 'hanaro_nuke', '두산에너빌리티 등 한국 원전 시공·기자재 수출 모멘텀(체코·폴란드)', ' 원'),
+  ]},
+ {'title': '전략 광물 & 에너지 인프라 (Strategic Minerals)',
+  'desc': "일명 '닥터 코퍼'. 경기를 선행할 뿐 아니라 전력망·전기차·AI 데이터센터 등 거의 모든 미래 산업에 필수적인 전략 광물입니다.",
+  'core': '구리 선물 (Copper Futures - COMEX)',
+  'core_desc': '경기 선행 지표(닥터 코퍼)이자 전력망·전기차·AI 데이터센터 등 미래 산업 전반에 필수적인 전략 광물입니다.',
+  'rows': [
+    nfrow('구리 선물 (Copper Futures, COMEX)', 'copper', '경기·전력·전기차·AI 인프라 수요를 선행하는 지표(닥터 코퍼)', ' $/lb'),
+    nfrow('COPX (Global X Copper Miners ETF)', 'copx', '글로벌 주요 구리 채굴 기업 — 구리가격 상승 수혜 추적'),
+    nfrow('REMX (VanEck Rare Earth/Strategic Metals ETF)', 'remx', '희토류·리튬·코발트 등 전략광물 채굴·정제(중국 외 공급망 트렌드)'),
+    nfrow('KODEX 구리선물(H)', 'kodex_copper', '환헤지된 구리 선물 가격 추종', ' 원'),
+  ]},
+], 'comment': '한국은 전략광물을 직접 채굴하는 기업보다 구리·전력을 다루는 전선·산전(産電) 기업을 함께 모니터링하는 것이 유리합니다.'}
 commod = {
  'energy': energy, 'metals': metals, 'agriculture': agri,
- 'strategic_metals': {'etf': strat_etf_rows},
- 'energy_comment': grpc('에너지', ['wti','brent','natgas'], energy),
+ 'nonferrous': nonferrous,
+ 'energy_comment': grpc('에너지', ['wti','natgas','kodex_energy','kodex_aipower'], energy),
  'metals_comment': grpc('금속', ['gold','silver','copper','platinum'], metals),
- 'agri_comment': grpc('농산물', ['corn','soybean','wheat'], agri),
+ 'agri_comment': grpc('농산물', ['corn','soybean','wheat','sugar','coffee','orange'], agri),
  'series': {k: S(v) for k, v in {**COMM, **STRAT}.items() if k != 'rare_earth'},
 }
 json.dump(commod, open('nmr_commod.json', 'w'), ensure_ascii=False)
@@ -302,6 +407,20 @@ if nidx:
     avg = sum(x['1y_pct'] for x in nidx) / len(nidx)
     usetf['comment'] = f"미국 지수 ETF 1년 평균 {avg:+.1f}%. 분배금 큰 ETF(SCHD·JEPI·TLT·IEF)는 가격수익률 기준이라 총수익률 대비 낮게 표시됨."
 json.dump(usetf, open('nmr_usetf.json', 'w'), ensure_ascii=False)
+
+# (v3.7.x) 3.5.1 유럽 주요 ETF — 국내상장(.KS)+미국상장. 별도 파일 nmr_euetf.json 산출(merge 가 markets.europe_etfs 로 주입).
+euetf = {'items': [], 'comment': '', 'asof': dt.date.today().isoformat()}
+for _dsym, (_tk, _name, _desc, _region) in EUETF.items():
+    _r = R(_tk); add_day(_r, _tk)
+    euetf['items'].append({'symbol': _dsym, 'name': _name, 'desc': _desc, 'region': _region, **_r, 'trend': trend(_r)})
+    etfseries[_dsym] = S(_tk)  # 3.5.1 추세(1Y) 스파크라인용 (charts/spark_etf_<dsym>.png)
+_euok = [x for x in euetf['items'] if x.get('1y_pct') is not None]
+if _euok:
+    _eavg = sum(x['1y_pct'] for x in _euok) / len(_euok)
+    euetf['comment'] = (f"유럽 익스포저 ETF {len(_euok)}종 1년 평균 {_eavg:+.1f}%. 국내상장분(.KS)은 원화·환헤지, "
+                        f"미국상장분은 달러 기준이라 환효과가 다르게 반영됨(주봉 가격수익률·분배금 제외).")
+json.dump(euetf, open('nmr_euetf.json', 'w'), ensure_ascii=False)
+
 json.dump(etfseries, open('nmr_etfseries.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_crypto_series.json =====
@@ -322,4 +441,5 @@ print('markets ok-fields:', ok(markets), '| sp500', markets['us_markets']['sp500
 print('indexseries:', {k: len(v) for k, v in idxs.items()})
 print('commod: wti', energy['wti'].get('current'), '| gold', metals['gold'].get('current'), '| strat', len(strat_etf_rows))
 print('usetf: idx', len(usetf['index']), 'sector', len(usetf['sector']), 'theme', len(usetf['theme']), 'def', len(usetf['defensive']), '| etfseries', len(etfseries))
+print('euetf(3.5.1):', len(euetf['items']), 'items |', ', '.join(f"{x['symbol']}={x.get('current')}" for x in euetf['items']))
 print('crypto: btc', len(cs.get('btc', [])), 'fng', len(cs.get('fng', [])))

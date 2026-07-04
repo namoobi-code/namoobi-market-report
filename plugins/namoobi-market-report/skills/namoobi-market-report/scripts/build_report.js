@@ -511,6 +511,18 @@ function renderAsiaEtfs(){ const e=data.markets&&data.markets.asia_etfs; if(!e||
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
   children.push(p("")); }
+// (v3.7.x) 3.5.1 주요 유럽 ETF — 국내상장(.KS)+미국상장 유럽 익스포저. 3.5 유럽 증시(지수표) 직후 서브섹션(아시아 3.4.1과 동형). 데이터(markets.europe_etfs) 없으면 자동 생략.
+function renderEuropeEtfs(){ const e=data.markets&&data.markets.europe_etfs; if(!e)return;
+  const items=Array.isArray(e)?e:(Array.isArray(e.items)?e.items:[]); if(!items.length)return;
+  children.push(h("3.5.1 주요 유럽 ETF (지역·국가·섹터·테마)",3));
+  children.push(p("유럽 광역·독일·프랑스·영국·유럽 은행/금융·방산·명품·탄소배출권 등 유럽 익스포저 ETF 의 현재가와 1일~1년 수익률·1년 추세를 정리한다. 국내 상장분(.KS)과 미국 상장분을 함께 보아 유럽 자금흐름을 교차 확인한다. 수익률은 주봉 종가 기준 가격수익률(분배금 제외)이며, 신규 상장 ETF 는 6개월·1년 값이 빌 수 있다. 태그 [국내]는 원화(₩)·환헤지, [미국]은 달러($) 기준.",{italics:true,color:"64748B"}));
+  const its=items.map(function(x){ var sym=String(x.symbol||x.ticker||"-"); var tag=x.region?("["+x.region+"·"+sym+"]"):("["+sym+"]");
+    return {desc:[new TextRun({text:(x.name||sym),bold:true,size:18,color:"1D4ED8"}),new TextRun({text:"  "+tag+(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
+      m:x,current:x.current,curPrefix:(x.region==="국내"?"₩":"$"),trend:String(x.trend||"-"),chart:"charts/spark_etf_"+sym+".png"}; });
+  children.push(makeTable(TR2,trend2Rows(its)));
+  if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
+  if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
+  children.push(p("")); }
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
   if(!r.sp500&&!r.nasdaq100)return;
   children.push(h("3.3.2 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
@@ -574,14 +586,20 @@ function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebala
   if(r.comment)children.push(p("종합: "+String(r.comment),{bold:true,color:"0F766E"}));
   if(r.asof)children.push(p("기준: "+String(r.asof),{size:16,color:"94A3B8"}));
   children.push(p("")); }
-function renderStrategicMetals(){ const sm=data.commodities&&data.commodities.strategic_metals; if(!sm)return;
-  children.push(h("4.5 전략광물·배터리 금속 (리튬·니켈·코발트·우라늄·희토류·흑연)",2));
-  if(Array.isArray(sm.etf)&&sm.etf.length){ children.push(p("① ETF 프록시 가격 추세",{bold:true,color:"1E40AF"}));
-    const etfKeys=["lit","remx","ura","urnm"]; const its=sm.etf.map((e,i)=>({desc:[new TextRun({text:(e.name||e.symbol||"-"),bold:true,size:20})],m:e,current:e.current,chart:"charts/spark_"+(etfKeys[i]||"")+".png"})); children.push(makeTable(TR2,trend2Rows(its)));
-    if(sm.etf_comment)children.push(p(sm.etf_comment)); }
-  if(Array.isArray(sm.spot)&&sm.spot.length){ children.push(p("② 주요 현물·실물 가격 현황",{bold:true,color:"1E40AF"}));
-    simpleTable([1800,2400,5880],["품목","최근 가격","추세·코멘트"],sm.spot.map(s=>[s.item??"-",s.price??"-",s.comment??"-"]),{left:[2]}); }
-  if(sm.comment)children.push(p(sm.comment)); children.push(p("")); }
+// (v3.46) 4.4 비철금속 — 배터리·우라늄·전략광물 3개 테마 그룹 × 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가). 구 4.5 전략광물·배터리 금속 대체.
+function renderNonFerrous(){ const nf=data.commodities&&data.commodities.nonferrous; if(!nf)return;
+  children.push(h("4.4 비철금속 (배터리·우라늄·전략광물 밸류체인)",2));
+  (nf.groups||[]).forEach(g=>{
+    children.push(p(String(g.title||""),{bold:true,size:24,color:"1E40AF",before:160}));
+    if(g.desc)children.push(p(String(g.desc)));
+    if(g.core)children.push(p("▸ 핵심 모니터링 원자재: "+String(g.core),{bold:true,size:20,color:"0F766E"}));
+    if(g.core_desc)children.push(p(String(g.core_desc),{size:19,color:"334155"}));
+    const its=(g.rows||[]).map(r=>{ const desc=[new TextRun({text:String(r.name||"-"),bold:true,size:20})]; if(r.note)desc.push(new TextRun({text:"  — "+r.note,size:16,color:"64748B"}));
+      return {desc:desc,m:r,current:r.current,curSuffix:r.curSuffix,chart:r.spark?("charts/spark_"+r.spark+".png"):null,trend:r.trend}; });
+    children.push(makeTable(TR2,trend2Rows(its))); children.push(p("")); });
+  if(nf.comment)children.push(p("종합: "+String(nf.comment),{bold:true,color:"0F766E"}));
+  children.push(p("범례: 추세(1Y)=최근 1년 주봉 스파크라인(초록=상승·빨강=하락). 탄산리튬은 GFEX 碳酸锂 主连 선물(EastMoney) 기준.",{italics:true,color:"94A3B8",size:16}));
+  children.push(p("")); }
 
 const children = []; let __cut31=-1;
 children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:2400,after:240},children:[new TextRun({text:"글로벌 금융시장 종합 시황 보고서",bold:true,size:48,color:"1E3A8A"})]}));
@@ -712,6 +730,42 @@ function renderMarketBlockC(title,obj,labels,prev,comment){ if(!obj)return; chil
   for(const [k,v] of Object.entries(obj)){ if(v===null||typeof v!=="object")continue; const ch=prev&&prev[k]!==undefined&&prev[k]!==null&&Number(prev[k])!==Number(v&&v.current);
     items.push({desc:[new TextRun({text:((labels&&labels[k])||k.toUpperCase()),bold:true,size:20})],m:v,current:v&&v.current,chart:"charts/spark_"+k+".png",changed:ch}); }
   children.push(makeTable(TR2,trend2Rows(items))); if(comment)children.push(p("추세 평가: "+comment,{bold:true,color:"0F766E"})); children.push(p("")); }
+// (v3.46) 4.3 농산물 — 그룹(핵심곡물·기후충격·비용종합) + 농업ETF + 비료/농기계 대장주. 각 소그룹은 trend2 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세1Y/추세평가).
+const AGRI_LAB={corn:"옥수수",soybean:"대두",wheat:"소맥(밀)",sugar:"설탕",coffee:"커피",orange:"오렌지주스",
+  crb:"CRB 상품지수 (프록시 ^TRCCRB)",bdi:"BDI 운임 (프록시 BDRY ETF)",
+  dba:"DBA · Invesco DB Agriculture",de:"디어 (DE)",ntr:"뉴트리엔 (NTR)"};
+function renderAgriculture(){ const a=data.commodities&&data.commodities.agriculture; if(!a)return;
+  children.push(h("4.3 농산물",2));
+  simpleTable([2500,3200,5460],["그룹","포함 항목","모니터링 목적"],[
+    ["Core Macro (핵심 곡물)","옥수수·대두·소맥","글로벌 식품 인플레이션 및 사료 가치 사슬 전가 흐름 파악"],
+    ["Climate Shock (기후 충격)","설탕·커피·오렌지주스","공급망 교란으로 인한 기술적 CPI 노이즈 체크"],
+    ["Macro Cost (비용·종합)","CRB 상품지수·BDI 운임 (프록시)","원자재 종합 압력 및 실질 수입 물가 선행 흐름 파악"],
+  ],{left:[1,2]});
+  children.push(p(""));
+  function agriTbl(keys){ const items=[]; for(const k of keys){ const v=a[k]; if(!v||typeof v!=="object")continue;
+    items.push({desc:[new TextRun({text:AGRI_LAB[k]||k.toUpperCase(),bold:true,size:20})],m:v,current:v.current,chart:"charts/spark_"+k+".png"}); }
+    if(items.length) children.push(makeTable(TR2,trend2Rows(items))); }
+  children.push(h("4.3.1 핵심 곡물 (Core Macro)",3));
+  children.push(p("옥수수·대두·소맥 — 글로벌 식품 인플레이션 및 사료 가치 사슬 전가 흐름을 파악한다.",{italics:true,color:"64748B"}));
+  agriTbl(['corn','soybean','wheat']);
+  children.push(h("4.3.2 기후 충격 (Climate Shock)",3));
+  children.push(p("설탕·커피·오렌지주스 — 이상기후·공급망 교란이 만드는 기술적 CPI 노이즈를 체크한다.",{italics:true,color:"64748B"}));
+  agriTbl(['sugar','coffee','orange']);
+  children.push(h("4.3.3 비용·종합 (Macro Cost)",3));
+  children.push(p("CRB 상품지수·BDI 운임 — 원자재 종합 압력과 실질 수입 물가의 선행 흐름을 파악한다.",{italics:true,color:"64748B"}));
+  children.push(p("※ 프록시(대리지표) 안내 — 보고 싶은 원지표(CRB 식품 지수·BDI 원지수)는 무료 실시간 데이터가 없어, 방향이 거의 같이 움직이는 아래 대체 지표로 근사한다. 완전히 같은 값이 아니라 '추세를 대신 보여주는 근사치'다.",{italics:true,color:"64748B",size:18}));
+  children.push(p("▸ CRB 식품 지수 → ^TRCCRB(로이터/CoreCommodity CRB 상품지수): '식품만' 뽑은 하위지수는 유료라, 식품·에너지·금속을 아우르는 전체 CRB 상품지수로 근사한다. 식품 단독은 아니지만 원자재 전반의 물가 압력 방향은 함께 움직인다.",{color:"475569",size:18}));
+  children.push(p("▸ BDI 운임 → BDRY(건화물선 운임 선물 ETF): 발틱운임지수(BDI) 원지수는 발틱거래소 유료 데이터라, 같은 건화물선 운임 선물에 투자하는 ETF로 대체한다. 등락 방향은 거의 함께 가지만, 지수 레벨(수천 포인트)이 아니라 ETF 가격($12 수준)이므로 절대 수치가 아닌 등락률·추세로만 읽는다.",{color:"475569",size:18}));
+  agriTbl(['crb','bdi']);
+  children.push(h("4.3.4 농업 ETF (DBA)",3));
+  agriTbl(['dba']);
+  children.push(reportBullet("글로벌 농업·상품 ETF (Invesco DB Agriculture Fund · DBA): 개별 농산물 가격을 하나씩 확인하기 번거로울 때, 주요 농산물 선물 바스켓의 전체적인 자금 유입·유출 흐름을 한 눈에 보여주는 유용한 지표다."));
+  children.push(h("4.3.5 비료·농기계 글로벌 대장주 (DE·NTR)",3));
+  agriTbl(['de','ntr']);
+  children.push(reportBullet("비료·농기계 글로벌 대장주 (디어 DE, 뉴트리엔 NTR): 곡물 가격이 상승하면 농가 소득이 증가하고, 이는 곧 트랙터(농기계)와 비료 수요 증가로 이어진다. 농산물 랠리가 주식 시장의 실적으로 어떻게 연결되는지 확인하는 핵심 척도다."));
+  const c=data.commodities.agri_comment; if(c){ children.push(p("추세 평가: "+c,{bold:true,color:"0F766E"})); }
+  children.push(p(""));
+}
 function renderBerkshire(){ const b=data.berkshire; if(!b)return;
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록A] 워런 버핏 · 버크셔 해서웨이 보유 종목 변동 (13F)",1));
@@ -971,15 +1025,32 @@ if (data.markets) {
   renderMarketBlockC("3.4 아시아 증시",data.markets.asia_markets,{nikkei:"닛케이 225",shanghai:"상하이종합",hsi:"홍콩 항셍",taiwan:"대만 가권",sensex:"인도 센섹스",vietnam:"베트남 (VNM)"});
   renderAsiaEtfs();
   renderMarketBlockC("3.5 유럽 증시",data.markets.europe_markets,{stoxx50:"유로 스톡스 50",dax:"독일 DAX",ftse:"영국 FTSE 100"});
+  renderEuropeEtfs();  // 3.5.1 주요 유럽 ETF (국내상장+미국상장) — 아시아 3.4.1과 동형
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("4. 원자재 종합 - 에너지·금속·희토류·농산물",1));
 if (data.commodities) {
-  renderMarketBlockC("4.1 에너지",data.commodities.energy,{wti:"WTI 원유",brent:"Brent 원유",natgas:"천연가스"},null,data.commodities.energy_comment);
+  (function(){ var e=data.commodities.energy||{};   // (사용자요청 v3.47) 4.1 에너지 = WTI·천연가스 + 국내 에너지 ETF 2종 통합 추세표(Brent 제외·두바이유 생략)
+    children.push(h("4.1 에너지",2));
+    children.push(p("전통 유종·천연가스와 국내 상장 에너지 ETF(전통 화석연료 · AI 전력망 인프라)를 한 표에서 본다. $ 표기는 국제 선물(USD), 원 표기는 국내 상장 ETF(KRW).",{italics:true,color:"64748B",size:16}));
+    var EN_ORDER=["wti","natgas","kodex_energy","kodex_aipower"];
+    var EN_NAME={wti:"WTI 원유",natgas:"천연가스",kodex_energy:"KODEX 미국S&P500에너지(합성)",kodex_aipower:"KODEX 미국AI전력핵심인프라"};
+    var EN_DESC={
+      wti:"서부텍사스산 원유. NYMEX에서 거래되는 WTI(Western Texas Intermediate) 선물 최근월물 가격으로, 세계 3대 유종 중 하나이며 국제 유가를 선도하는 지표 (계약단위 1,000 배럴)",
+      natgas:"NYMEX에서 거래되는 천연가스 선물 최근월물 가격. 지하에서 자연적으로 발생하는 가연성 가스 (계약단위 10,000 MMBtu)",
+      kodex_energy:"전통 에너지(화석연료) 기업 · S&P500 에너지 섹터 합성 추종 ETF (218420)",
+      kodex_aipower:"넥스트 에너지(전력망/인프라) · 미국 AI 전력 핵심 인프라 ETF (487230)"};
+    var eits=[];
+    EN_ORDER.forEach(function(k){ var v=e[k]; if(!v||typeof v!=="object")return; var kr=(k==="kodex_energy"||k==="kodex_aipower");
+      eits.push({desc:[new TextRun({text:EN_NAME[k],bold:true,size:20}),new TextRun({text:EN_DESC[k],size:14,color:"64748B",break:1})],
+        m:v,current:v.current,curPrefix:kr?"":"$",curSuffix:kr?" 원":"",chart:"charts/spark_"+k+".png"}); });
+    if(eits.length){ children.push(makeTable(TR2,trend2Rows(eits)));
+      if(data.commodities.energy_comment)children.push(p("추세 평가: "+data.commodities.energy_comment,{bold:true,color:"0F766E"})); }
+    children.push(p("")); })();
   renderMarketBlockC("4.2 금속",(function(_mm){var _o={};for(var _k in (_mm||{}))if(_k!=="rare_earth")_o[_k]=_mm[_k];return _o;})(data.commodities.metals),{gold:"금",silver:"은",copper:"구리",platinum:"백금"},null,data.commodities.metals_comment);
-  renderMarketBlockC("4.3 농산물",data.commodities.agriculture,{corn:"옥수수",soybean:"대두",wheat:"밀"},null,data.commodities.agri_comment);
-  if(data.commodities.commentary){ children.push(h("4.4 원자재 종합 코멘트",2)); children.push(p(data.commodities.commentary)); }
-  renderStrategicMetals();
+  renderAgriculture();
+  renderNonFerrous();
+  if(data.commodities.commentary){ children.push(h("원자재 종합 코멘트",2)); children.push(p(data.commodities.commentary)); }
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("5. 주요 환율 단·중·장기 추세",1));

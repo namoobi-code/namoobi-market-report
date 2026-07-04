@@ -479,6 +479,7 @@ if isinstance(_rt.get('us10y'), dict): _rt['us10y']['spark'] = 'charts/spark_us1
 
 m['us_etfs'] = ue
 m['asia_etfs'] = LCF('nmr_asia_etf.json')  # 3.4.1 아시아 주요 ETF(한국상장) — fetch_asia_etf.py 산출(없으면 {} → 섹션 자동 생략)
+m['europe_etfs'] = LCF('nmr_euetf.json')  # 3.5 유럽 주요 ETF(국내상장+미국상장) — fetch_us.py 산출(없으면 {} → 섹션 자동 생략)
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})
 # (R3 실측화 wiring) 정책금리차트=미국 실효금리, 곡선=최대기간, us10y prev_pct, 센티 스파크(측정치), capex 실측
 _rt3 = (m.get('macro') or {}).get('rates') or {}

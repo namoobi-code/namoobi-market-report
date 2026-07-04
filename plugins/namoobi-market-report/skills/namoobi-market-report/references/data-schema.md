@@ -89,7 +89,7 @@ jpy_krw 는 100엔 기준으로 환산해 넣는다. 환율 섹션에는 us_mark
 {
   "energy":      {"wti": {}, "brent": {}, "natgas": {}},
   "metals":      {"gold": {}, "silver": {}, "copper": {}, "platinum": {}, "rare_earth": {}},
-  "agriculture": {"corn": {}, "soybean": {}, "wheat": {}},
+  "agriculture": {"corn": {}, "soybean": {}, "wheat": {}, "sugar": {}, "coffee": {}, "orange": {}, "crb": {}, "bdi": {}, "dba": {}, "de": {}, "ntr": {}},
   "commentary":  "원자재 종합 코멘트"
 }
 ```
@@ -196,6 +196,15 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
   ```
   `weight` 는 sector 그룹만(S&P500 비중). 빌더(renderUSEtfs)가 4개 그룹 표로 렌더하며 추세(1년) 셀은 `charts/spark_etf_<symbol>.png`. 신생 ETF 는 3·6개월 null 허용. 없으면 3.2.2 섹션 자동 생략(기존 CAPEX 는 3.2.3).
 - `nmr_etfseries.json`: {SYMBOL:[["YYYY-MM-DD",close]..]} (또는 [close..]) — 29종 1년 주봉 종가. `gen_rest_charts.py` 가 `charts/spark_etf_<SYMBOL>.png` 생성.
+
+## (v3.7.x) 추가 필드 — 3.5.1 주요 유럽 ETF  [3.5 유럽 증시(지수표) 하위 서브섹션 · 아시아 3.4.1과 동형]
+
+- `markets.europe_etfs`: {items:[], comment:str, asof:str} — 유럽 익스포저 ETF 12종. 국내상장(.KS) 7종(TIGER 유로스탁스50/배당30, KIWOOM 독일DAX, KODEX 유럽명품TOP10·유럽탄소배출권, PLUS 글로벌방산, ACE 유럽방산TOP10) + 미국상장 5종(VGK 광역유럽, EUFN 유럽은행·금융, EWG 독일, EWQ 프랑스, EWU 영국). 한국물(코스피/K방산 등) 제외. 각 item:
+  ```json
+  {"symbol":"EUFN","name":"iShares MSCI Europe Financials","desc":"유럽 은행·금융","region":"미국",
+   "current":39.86,"1w_pct":1.2,"1mo_pct":6.7,"3mo_pct":12.0,"6mo_pct":18.0,"1y_pct":25.5,"prev_pct":0.3,"chg":0.1,"1d_pct":0.25,"trend":"완만한 상승세(...)"}
+  ```
+  `region`="국내"(원화 ₩·환헤지)/"미국"(달러 $). `fetch_us.py` 의 `EUETF` 맵이 야후(.KS/미국티커)로 수집→`nmr_euetf.json` 산출, `merge.py` 가 `LCF` 로 `markets.europe_etfs` 주입. 빌더(renderEuropeEtfs)가 3.5 유럽 증시(지수표) 직후 3.5.1 서브섹션(h3)으로 TR2 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가)를 렌더(아시아 3.4.1과 동형). 추세(1Y) 셀=`charts/spark_etf_<symbol>.png`(etfseries 에 편입되어 자동 생성). 신규상장(0102X0 ACE 유럽방산 '25.9)은 6·12개월 null/축소 허용. 데이터 없으면 3.5.1 자동 생략. 멤버십/티커 변경 시 fetch_us.py 의 `EUETF` 맵 갱신.
 
 ## (v3.6.9) 추가 필드 — 3.2.3 미국 지수 정기 리밸런싱
 
