@@ -954,6 +954,7 @@ function renderMacroIndicators(){
   renderKoreaLeading();   // 3.1.9 경기선행지수 순환변동치 — 국내 확인 신호
   renderCustoms();   // 3.1.10 관세청 수출 잠정치 — 그룹막대 2종(전체·반도체)
   renderM7Outlook();   // 3.1.20 미국 빅테크(M7) 실적 전망 — 가이던스·추정치 변화 시장 신호 (매일)
+  renderDerivPositioning();   // 3.1.21 파생시장 포지셔닝→현물 선행신호 (스냅샷·z매트릭스·활성신호·해석)
 }
 
 // (v3.44) 3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계 — DB: db/customs.json, 변경 시에만 재수집·차트 재생성
@@ -979,6 +980,69 @@ function renderCustoms(){ const m=data.markets||{}; const cs=m.customs;
 // (v3.46.0) 3.1.20 미국 빅테크(M7) 실적 전망 — 가이던스·애널리스트 추정치 변화 시장 신호.
 // 매일 실측(DB 아님): 시세·목표주가·투자의견·리비전은 매 실행 갱신, 가이던스·연간 추정치는 실적 때 갱신.
 // 데이터(markets.m7_outlook) 없으면 내장 스냅샷으로 항상 렌더(비차단). 라이브는 merge 가 nmr_m7.json→markets.m7_outlook 로 주입.
+// (v3.47.0) 3.1.21 파생시장 포지셔닝 → 현물 선행신호 — 파생·수급 지표 z-score 스냅샷.
+// 라이브(merge markets.deriv_positioning = nmr_deriv_positioning.json) 있으면 대체, 없으면 아래 내장 스냅샷으로 비차단 렌더.
+const DERIV_POS_DEFAULT = {
+  asof: "가격 2026-07-02 · 미국 COT 2026-06-23(주간) · KOSPI200 수급 2026-07-03 · 미국 옵션 2026-07-04",
+  index: [
+    {name:"S&P 500", close:"7,483.24", ret1:"+0.00%", ret5:"+1.71%"},
+    {name:"Nasdaq 100", close:"29,329.21", ret1:"-1.61%", ret5:"-0.38%"},
+    {name:"KOSPI200", close:"1,219.62", ret1:"-8.67%", ret5:"-16.13%"}
+  ],
+  rows: [
+    {label:"선물 베이시스 (bp)", cells:[{v:"+60",z:0.88},{v:"+77",z:1.14},{v:"+174",z:2.84}]},
+    {label:"레버리지(美)/외국인(韓) 순", cells:[{v:"-373,468 계약",z:0.72},{v:"-51,062 계약",z:-0.90},{v:"-43,706 억원",z:-1.06}]},
+    {label:"자산운용(美)/기관(韓) 순", cells:[{v:"992,729 계약",z:-0.23},{v:"62,908 계약",z:-1.50},{v:"-20,825 억원",z:-1.44}]},
+    {label:"선물 OI 변화", cells:[{v:"-599,666 (주)",z:-2.34},{v:"-79,358 (주)",z:-2.40},{v:"+4,676 (5일)",z:0.64}]},
+    {label:"풋콜비율 (OI)", cells:[{v:"4.63",z:null},{v:"1.72",z:null},{v:"2.86",z:null}]},
+    {label:"IV 스큐", cells:[{v:"+0.028",z:null},{v:"+0.048",z:null},{v:"+7.0",z:-0.36}]},
+    {label:"딜러 감마 (GEX)", cells:[{v:"-0.45bn",z:null},{v:"-0.29bn",z:null},{v:"—",z:-0.20}]}
+  ],
+  signals: [
+    "S&P500 선물 OI 변화 z=-2.34 → 디레버리징(청산)",
+    "나스닥 자산운용/기관 순 z=-1.50 → 리얼머니 축소(하방 경계)",
+    "나스닥 선물 OI 변화 z=-2.40 → 디레버리징(청산)",
+    "KOSPI200 선물 베이시스 z=+2.84 → 선물 프리미엄 확대(과매도 반등/위험선호)"
+  ],
+  market_us: "선물은 위험선호(베이시스 프리미엄)이나 포지셔닝은 방어적 — 양 지수 OI 급감(z≈-2.3~-2.4·디레버리징), 나스닥 자산운용 순매수 z=-1.50(리얼머니 축소·검증 5일 -1.16%·적중 82%), 딜러 GEX 음수(숏감마·변동성 확대).",
+  market_kr: "실제 지수 -8.7%(5일 -16.1%) 급락·외국인/기관 동반 순매도인데 선물 베이시스 극단 프리미엄(z=+2.84). 검증상 베이시스 z≥+1.5는 5일 +3.77%·적중 78% 반등 신호 → 가격·수급 약세 vs 베이시스 반등의 상충. 확정은 외국인 순매수 전환(5일 +5.83%·적중 87%) 확인.",
+  synthesis: "미국=가격 프리미엄 vs 포지셔닝 방어의 괴리, 한국=현물·수급 급락 vs 선물 극단 프리미엄의 상충. 전반적으로 신중, 한국 베이시스는 과매도 되돌림 가능성. 옵션 지표(PCR·IV스큐·미국 GEX)는 표본 부족으로 참고. 리서치용·투자권유 아님."
+};
+function renderDerivPositioning(){ const m=data.markets||{};
+  const dp=(m.deriv_positioning&&typeof m.deriv_positioning==="object"&&Array.isArray(m.deriv_positioning.rows)&&m.deriv_positioning.rows.length)?m.deriv_positioning:DERIV_POS_DEFAULT;
+  if(!dp||!Array.isArray(dp.rows)||!dp.rows.length)return;
+  children.push(h("3.1.21 파생시장 포지셔닝 기반 현물 선행신호 분석",3));
+  children.push(p("선물 베이시스·순포지션/수급·풋콜비율·IV 스큐·딜러 감마(GEX)를 롤링 z-score(60거래일)로 표준화한 현재 스냅샷. |z|≥1.5는 통계적으로 이례적인 신호.",{size:15,italics:true,color:"94A3B8"}));
+  if(dp.asof)children.push(p("기준일 — "+dp.asof,{size:14,color:"64748B"}));
+  if(Array.isArray(dp.index)&&dp.index.length){
+    children.push(p("① 지수 현황 (종가·수익률)",{bold:true,size:18,color:"1E40AF",before:100}));
+    const iw=[3000,2360,2000,2000]; const ir=[hdrRow(["지수","종가","1일","5일"],iw)];
+    dp.index.forEach((r,i)=>{const a=i%2===1; ir.push(new TableRow({children:[
+      cell(r.name||"-",{width:iw[0],alt:a,bold:true,size:15}),
+      cell(r.close||"-",{width:iw[1],alt:a,size:15,align:AlignmentType.CENTER}),
+      cell(r.ret1||"-",{width:iw[2],alt:a,size:15,align:AlignmentType.CENTER}),
+      cell(r.ret5||"-",{width:iw[3],alt:a,size:15,align:AlignmentType.CENTER})]}));});
+    children.push(makeTable(iw,ir)); }
+  children.push(p("② 지표별 현재값 · z-스코어  (굵은 셀=|z|≥1.5 신호; 파랑=양수·빨강=음수)",{bold:true,size:18,color:"1E40AF",before:120}));
+  const zw=[2760,2200,2200,2200]; const zr=[hdrRow(["지표","S&P 500","Nasdaq 100","KOSPI200"],zw)];
+  const fz=(c)=>{ const z=(c&&c.z!=null&&!isNaN(c.z))?Number(c.z):null; const sig=(z!=null&&Math.abs(z)>=1.5);
+    return {t:String((c&&c.v)||"-")+"  (z "+(z==null?"—":((z>=0?"+":"")+z.toFixed(2)))+")", s:sig, c:sig?(z>=0?"1D4ED8":"B91C1C"):"0F172A"}; };
+  dp.rows.forEach((r,i)=>{const a=i%2===1; const cs=(r.cells||[]).map(fz);
+    zr.push(new TableRow({children:[cell(r.label||"-",{width:zw[0],alt:a,bold:true,size:14})].concat(
+      cs.map((x,j)=>cell(x.t,{width:zw[j+1],alt:a,align:AlignmentType.CENTER,size:13,bold:x.s,color:x.c})))}));});
+  children.push(makeTable(zw,zr));
+  const sg=Array.isArray(dp.signals)?dp.signals:[];
+  children.push(p("③ 활성 신호 (|z|≥1.5)",{bold:true,size:18,color:(sg.length?"B91C1C":"1E40AF"),before:100}));
+  if(sg.length)sg.forEach(s=>children.push(p("• "+s,{size:16,bold:true,color:"B45309"})));
+  else children.push(p("현재 |z|≥1.5 신호 없음",{size:16,color:"334155"}));
+  if(dp.market_us){ children.push(p("④ 시장해석",{bold:true,size:18,color:"1E40AF",before:100}));
+    children.push(p("· 미국: "+dp.market_us,{size:16,color:"334155"})); }
+  if(dp.market_kr)children.push(p("· KOSPI200: "+dp.market_kr,{size:16,color:"334155"}));
+  if(dp.synthesis){ children.push(p("⑤ 종합",{bold:true,size:18,color:"1E40AF",before:80}));
+    children.push(p(dp.synthesis,{size:16})); }
+  children.push(p("데이터: yfinance · CFTC COT · 네이버 투자자별 매매동향 · data.go.kr(파생상품·지수 시세) · 파이프라인 deriv_signals/. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
+  children.push(p("")); }
+
 const M7_OUTLOOK_DEFAULT = { as_of: "2026-07-03 종가", rows: [
   {name:"Alphabet",ticker:"GOOGL",price:"359.91",chg52:"+103.6%",consensus:"강력 매수",consensus_detail:"2SB/69B/11H/1S",target:"432.3",upside:"+20.1%",revision:"상향",revision_detail:"353→422→416",guidance:"클라우드 +63%로 capex 정당화",signal:"긍정"},
   {name:"Amazon",ticker:"AMZN",price:"242.67",chg52:"+8.6%",consensus:"강력 매수",consensus_detail:"0SB/84B/9H/1S",target:"312.9",upside:"+28.9%",revision:"상향",revision_detail:"298→315→330",guidance:"AWS +28%(3년 최고)로 정당화",signal:"긍정"},

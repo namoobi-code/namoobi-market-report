@@ -1,5 +1,10 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.47.0 (plugin 1.16.0) — 3.1.21 파생시장 포지셔닝 기반 현물 선행신호 분석 신설 (매일)
+- **신설 3.1.21**: 3.1.20 뒤. KOSPI200·S&P500·Nasdaq100의 선물 베이시스·순포지션/수급(美 COT / 韓 외국인·기관)·풋콜비율·IV스큐·딜러감마(GEX)를 z-score(60거래일)로 표준화한 스냅샷(① 지수현황 ② 값·z 매트릭스 ③ 활성신호 ④ 시장해석 ⑤ 종합).
+- **파이프라인**: `deriv_signals/`(daily_update.py→DB, export_snapshot.py→nmr_deriv_positioning.json) → merge `markets.deriv_positioning` → 빌더 `renderDerivPositioning`. 미수집 시 내장 DERIV_POS_DEFAULT 비차단. 데이터=yfinance·CFTC COT·네이버 수급·data.go.kr(파생·지수).
+- **선행성 검증**: 신호일→1/3/5일 현물수익률 hit·IC (예: 외국인 순매수 z≥+1.5 → 5일 +5.83%·적중 87%, KOSPI200 베이시스 z≥+1.5 → +3.77%·78%).
+
 ## v3.46.0 (plugin 1.15.0, 2026-07-04) — 3.1.20 미국 빅테크(M7) 실적 전망 신설 (가이던스·애널리스트 추정치 변화 시장 신호, 매일)
 - **신설 3.1.20**: 3.1.10 뒤에 미국 빅테크 7종목(AAPL·MSFT·NVDA·GOOGL·AMZN·META·TSLA) 실적 전망 표. 컬럼=기업·현재가/52주·컨센서스·평균목표주가/여력·목표주가 리비전(1M/1Q/1Y)·최근 가이던스·신호. 신호 색=긍정(초록)/경계(주황)/위험(빨강)/중립(회색).
 - **관점**: 가이던스·이익 추정치/목표주가 리비전을 섹터·시장 하락의 선행·직접 신호로 읽음(추정치 하향·목표주가 컷=경계/위험). 데이터 소스=회사 실적발표·Refinitiv/LSEG I/B/E/S·Bloomberg·FactSet·증권사 리포트.

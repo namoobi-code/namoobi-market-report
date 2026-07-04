@@ -66,7 +66,13 @@ def _num(s):
 
 
 def ingest_cot(con, years):
-    import cot_reports as cot, os, tempfile
+    try:
+        import cot_reports as cot
+    except Exception as e:
+        print("  cot_reports 미설치 → 미국 COT 포지셔닝 skip:", repr(e)[:60])
+        log(con, "ingest_cot", 0, "cot_reports missing")
+        return 0
+    import os, tempfile
     _cwd = os.getcwd(); _tmp = tempfile.mkdtemp(prefix="cot_")
     os.chdir(_tmp)                      # COT 임시파일이 사용자 폴더를 어지럽히지 않도록
     frames = []

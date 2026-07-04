@@ -361,3 +361,13 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 **수집(매 실행·매일)**: 종목별 ① 현재가·52주 변화 ② 컨센서스 투자의견 분포·평균 목표주가(FMP `analyst` grades-summary·price-target-consensus/summary — 무료플랜 미국 대형주 가용) ③ 최근 1개월/1분기/1년 평균 목표주가 흐름 = 목표주가 리비전 추세(price-target-summary) ④ 최근 등급 변경(upgrades/downgrades). 가이던스·연간 추정치 변화와 최신 증권사 리포트는 WebSearch(회사 실적발표·FactSet·언론). **추정 금지·확인값만**, 뉴스 단독 수치 패딩 금지.
 **신호 판정**: 추정치·목표주가 상향=긍정 / 실적 호조에도 목표주가 하향·디레이팅=경계 / 이익 모멘텀·의견 악화=위험 / 안정=중립.
 **출력** `$WORK/nmr_m7.json` = `{as_of, rows:[{name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance,signal}]}` → merge 가 `markets.m7_outlook` 로 주입(빌더 `renderM7Outlook`, 3.1.10 뒤). **미수집이어도 비차단** — 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더. **호출**: Phase 1 병렬 배치 포함, `model:"sonnet"`.
+
+
+## DerivPositioningAgent — 3.1.21 파생시장 포지셔닝 (v3.47, Phase 1, model:sonnet)
+
+역할: 파생·수급 포지셔닝 z-score 스냅샷을 매일 산출.
+
+1) `deriv_signals/` 에서 `python daily_update.py` 실행 — 무료 소스(yfinance 현물·선물·VIX·옵션, CFTC COT, 네이버 투자자별 매매동향, data.go.kr 파생상품·지수시세)로 `deriv_signals.db` 갱신. data.go.kr 키는 `deriv_signals/secrets.env` 의 `DATA_GO_KR_KEY`(gitignore).
+2) `python export_snapshot.py <실행폴더>/nmr_deriv_positioning.json` — DB에서 지수현황·z매트릭스·활성신호·해석 산출.
+3) merge 가 `markets.deriv_positioning` 로 로드 → 빌더 `renderDerivPositioning`. 미수집 시 내장 스냅샷(DERIV_POS_DEFAULT)으로 비차단.
+※ COT는 주간(화요일 기준·금요일 공표)이라 미국 순포지션만 주간, 나머지(현물·베이시스·수급·옵션)는 일별.

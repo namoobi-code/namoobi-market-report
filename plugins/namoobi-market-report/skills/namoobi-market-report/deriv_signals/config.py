@@ -15,19 +15,41 @@ OUT_DIR = BASE_DIR / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
 
 # ── data.go.kr(공공데이터포털) 파생상품시세정보 API 키 ──
-# 우선순위: 환경변수 DATA_GO_KR_KEY → secrets.env 파일(gitignore). 없으면 KOSPI200 선물/옵션 수집 skip.
+# 우선순위: 환경변수(DATA_GO_KR_KEY 또는 SECRETS_ENV 경로) → 로컬 secrets.env →
+#           상위 디렉터리들의 secrets.env / SECURITY/secrets.env (예: 저장소 상위 SECURITY 폴더).
+# 없으면 KOSPI200 선물/옵션(data.go.kr) 수집만 skip(나머지는 정상).
+def _find_secrets():
+    import os
+    exp = os.environ.get("SECRETS_ENV") or os.environ.get("DATA_GO_KR_SECRETS")
+    if exp and Path(exp).is_file():
+        return Path(exp)
+    for anc in [BASE_DIR, *BASE_DIR.parents]:
+        for c in (anc / "secrets.env", anc / "SECURITY" / "secrets.env"):
+            try:
+                if c.is_file():
+                    return c
+            except Exception:
+                pass
+    return None
+
+
 def _load_datago_key():
     import os
     k = os.environ.get("DATA_GO_KR_KEY")
     if k:
         return k.strip()
-    f = BASE_DIR / "secrets.env"
-    if f.exists():
-        for line in f.read_text(encoding="utf-8").splitlines():
-            if line.strip().startswith("DATA_GO_KR_KEY"):
-                return line.split("=", 1)[1].strip()
+    f = _find_secrets()
+    if f:
+        try:
+            for line in f.read_text(encoding="utf-8").splitlines():
+                t = line.strip()
+                if t.startswith("DATA_GO_KR_KEY") and "=" in t:
+                    return t.split("=", 1)[1].strip()
+        except Exception:
+            pass
     return None
 
+SECRETS_PATH = _find_secrets()          # 해석된 secrets.env 경로(없으면 None) — 디버그용
 DATA_GO_KR_KEY = _load_datago_key()
 
 # ── 백필/윈도우 파라미터 ───────────────────────────────

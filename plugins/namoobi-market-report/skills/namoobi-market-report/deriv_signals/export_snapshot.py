@@ -1,0 +1,154 @@
+# -*- coding: utf-8 -*-
+"""
+export_snapshot.py — deriv_signals.db → nmr_deriv_positioning.json
+3.1.21 파생 포지셔닝 섹션 렌더러(build_report.js renderDerivPositioning)가 읽는 스키마로
+현재 스냅샷(지수현황·z매트릭스·활성신호·간이 해석)을 내보낸다.
+
+사용:  python export_snapshot.py [출력경로]     # 기본 ./nmr_deriv_positioning.json
+전제:  같은 폴더의 deriv_signals.db (daily_update.py 실행으로 최신화). 없으면 아무 것도 안 함(비차단).
+"""
+import sqlite3, json, math, os, sys
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+DB = os.path.join(BASE, "deriv_signals.db")
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), "nmr_deriv_positioning.json")
+
+if not os.path.exists(DB):
+    print("export_snapshot: DB 없음 → skip:", DB); sys.exit(0)
+
+con = sqlite3.connect(DB)
+
+def one(q, a=()):
+    r = con.execute(q, a).fetchone()
+    return r
+
+
+def _last(tbl, iid, order="date"):
+    cur = con.execute(f"SELECT * FROM {tbl} WHERE id=? ORDER BY {order} DESC LIMIT 1", (iid,))
+    r = cur.fetchone()
+    if not r:
+        return {}
+    return dict(zip([d[0] for d in cur.description], r))
+
+
+def num(v):
+    try:
+        return None if v is None else float(v)
+    except Exception:
+        return None
+
+
+def fmt_comma(v, suffix=""):
+    v = num(v)
+    return "-" if v is None else (f"{v:+,.0f}{suffix}")
+
+
+def zval(v):
+    v = num(v)
+    return None if v is None or math.isnan(v) else round(v, 2)
+
+
+IDS = [("SPX", "S&P 500"), ("NDX", "Nasdaq 100"), ("KOSPI200", "KOSPI200")]
+
+# 지수 현황
+index = []
+for iid, name in IDS:
+    ind = _last("indicators_daily", iid)
+    if not ind:
+        continue
+    g = con.execute("SELECT spot_close FROM indicators_daily WHERE id=? ORDER BY date", (iid,)).fetchall()
+    closes = [x[0] for x in g if x[0] is not None]
+    ret5 = ((closes[-1] / closes[-6] - 1) * 100) if len(closes) > 6 else None
+    r1 = num(ind.get("spot_ret"))
+    index.append({
+        "name": name,
+        "close": ("-" if ind.get("spot_close") is None else f"{ind['spot_close']:,.2f}"),
+        "ret1": ("-" if r1 is None else f"{r1*100:+.2f}%"),
+        "ret5": ("-" if ret5 is None else f"{ret5:+.2f}%"),
+    })
+
+# 옵션 스냅샷(미국) / KR 파생 최신
+usopt = {r[0]: dict(zip(["id", "pcr_oi", "iv_skew_25d", "gex"], r)) for r in
+         con.execute("SELECT id,pcr_oi,iv_skew_25d,gex FROM options_daily").fetchall()}
+kr = _last("kr_derivatives_daily", "KOSPI200")
+kr_pcr = one("SELECT pcr_oi FROM kr_derivatives_daily WHERE id='KOSPI200' AND pcr_oi IS NOT NULL ORDER BY date DESC LIMIT 1")
+kr_pcr = kr_pcr[0] if kr_pcr else None
+
+I = {iid: _last("indicators_daily", iid) for iid, _ in IDS}
+Z = {iid: _last("zscores_daily", iid) for iid, _ in IDS}
+
+
+def cellv(v_str, zscore):
+    return {"v": v_str, "z": zval(zscore)}
+
+
+def gbn(iid):
+    g = usopt.get(iid, {}).get("gex")
+    return "n/a" if g is None else f"{g/1e9:+.2f}bn"
+
+
+rows = [
+    {"label": "선물 베이시스 (bp)", "cells": [
+        cellv(("-" if I['SPX'].get('basis_bp') is None else f"{I['SPX']['basis_bp']:+.0f}"), Z['SPX'].get('z_basis_bp')),
+        cellv(("-" if I['NDX'].get('basis_bp') is None else f"{I['NDX']['basis_bp']:+.0f}"), Z['NDX'].get('z_basis_bp')),
+        cellv(("-" if I['KOSPI200'].get('basis_bp') is None else f"{I['KOSPI200']['basis_bp']:+.0f}"), Z['KOSPI200'].get('z_basis_bp'))]},
+    {"label": "레버리지(美)/외국인(韓) 순", "cells": [
+        cellv(fmt_comma(I['SPX'].get('lev_net'), " 계약"), Z['SPX'].get('z_lev_net')),
+        cellv(fmt_comma(I['NDX'].get('lev_net'), " 계약"), Z['NDX'].get('z_lev_net')),
+        cellv(fmt_comma(I['KOSPI200'].get('lev_net'), " 억원"), Z['KOSPI200'].get('z_lev_net'))]},
+    {"label": "자산운용(美)/기관(韓) 순", "cells": [
+        cellv(fmt_comma(I['SPX'].get('asset_mgr_net'), " 계약"), Z['SPX'].get('z_asset_mgr_net')),
+        cellv(fmt_comma(I['NDX'].get('asset_mgr_net'), " 계약"), Z['NDX'].get('z_asset_mgr_net')),
+        cellv(fmt_comma(I['KOSPI200'].get('asset_mgr_net'), " 억원"), Z['KOSPI200'].get('z_asset_mgr_net'))]},
+    {"label": "선물 OI 변화", "cells": [
+        cellv(fmt_comma(I['SPX'].get('oi_chg_w'), " (주)"), Z['SPX'].get('z_oi_chg_w')),
+        cellv(fmt_comma(I['NDX'].get('oi_chg_w'), " (주)"), Z['NDX'].get('z_oi_chg_w')),
+        cellv(fmt_comma(I['KOSPI200'].get('oi_chg_w'), " (5일)"), Z['KOSPI200'].get('z_oi_chg_w'))]},
+    {"label": "풋콜비율 (OI)", "cells": [
+        cellv(("-" if usopt.get('SPX', {}).get('pcr_oi') is None else f"{usopt['SPX']['pcr_oi']:.2f}"), None),
+        cellv(("-" if usopt.get('NDX', {}).get('pcr_oi') is None else f"{usopt['NDX']['pcr_oi']:.2f}"), None),
+        cellv(("-" if kr_pcr is None else f"{kr_pcr:.2f}"), Z['KOSPI200'].get('z_pcr_oi'))]},
+    {"label": "IV 스큐", "cells": [
+        cellv(("-" if usopt.get('SPX', {}).get('iv_skew_25d') is None else f"{usopt['SPX']['iv_skew_25d']:+.3f}"), None),
+        cellv(("-" if usopt.get('NDX', {}).get('iv_skew_25d') is None else f"{usopt['NDX']['iv_skew_25d']:+.3f}"), None),
+        cellv(("-" if kr.get('iv_skew_25d') is None else f"{kr['iv_skew_25d']:+.1f}"), Z['KOSPI200'].get('z_iv_skew_25d'))]},
+    {"label": "딜러 감마 (GEX)", "cells": [
+        cellv(gbn('SPX'), None), cellv(gbn('NDX'), None), cellv("—", Z['KOSPI200'].get('z_gex'))]},
+]
+
+# 활성 신호 (|z|>=1.5)
+TAG = {("basis_bp", 1): "선물 프리미엄 확대(과매도 반등/위험선호)", ("basis_bp", -1): "선물 디스카운트(하락 압력)",
+       ("lev_net", 1): "매수 쏠림(추세 동조)", ("lev_net", -1): "매도·이탈",
+       ("asset_mgr_net", 1): "리얼머니 매수 확대", ("asset_mgr_net", -1): "리얼머니 축소(하방 경계)",
+       ("oi_chg_w", 1): "신규 유입(추세 강화)", ("oi_chg_w", -1): "디레버리징(청산)",
+       ("pcr_oi", 1): "공포·헤지(컨트라리안 반등)", ("pcr_oi", -1): "안주·탐욕",
+       ("iv_skew_25d", 1): "하방 헤지 급증(방어)", ("iv_skew_25d", -1): "위험선호 회복",
+       ("gex", 1): "롱감마(변동성 억제)", ("gex", -1): "숏감마(변동성 확대)"}
+NM = {"SPX": "S&P500", "NDX": "나스닥", "KOSPI200": "KOSPI200"}
+LB = {"basis_bp": "선물 베이시스", "lev_net": "레버리지/외국인 순", "asset_mgr_net": "자산운용/기관 순",
+      "oi_chg_w": "선물 OI 변화", "pcr_oi": "풋콜비율", "iv_skew_25d": "IV 스큐", "gex": "딜러 감마"}
+signals = []
+for iid, _ in IDS:
+    z = Z[iid]
+    for col in ["basis_bp", "lev_net", "asset_mgr_net", "oi_chg_w", "pcr_oi", "iv_skew_25d", "gex"]:
+        zv = zval(z.get("z_" + col))
+        if zv is not None and abs(zv) >= 1.5:
+            d = 1 if zv > 0 else -1
+            signals.append(f"{NM[iid]} {LB[col]} z={zv:+.2f} → {TAG[(col, d)]}")
+
+asof_price = one("SELECT max(date) FROM prices_daily WHERE id='SPX'")[0]
+asof_cot = one("SELECT max(report_date) FROM positioning_weekly WHERE id='SPX'")[0]
+asof_flow = one("SELECT max(report_date) FROM positioning_weekly WHERE id='KOSPI200'")[0]
+asof_usopt = one("SELECT max(date) FROM options_daily")[0]
+
+out = {
+    "asof": f"가격 {asof_price} · 미국 COT {asof_cot}(주간) · KOSPI200 수급 {asof_flow} · 미국 옵션 {asof_usopt}",
+    "index": index, "rows": rows, "signals": signals,
+    "market_us": "베이시스 프리미엄이나 포지셔닝은 방어적(선물 OI 감소·리얼머니 축소·딜러 감마 확인).",
+    "market_kr": "현물·수급과 선물 베이시스 신호가 엇갈리면 방향 미확정 — 외국인 순매수 전환이 핵심 트리거.",
+    "synthesis": "지표들이 같은 방향으로 극단(|z|≥1.5)일 때 신뢰도↑. 옵션 지표(PCR·IV스큐·미국 GEX)는 표본 축적 후 신뢰. 리서치용·투자권유 아님.",
+}
+con.close()
+with open(OUT, "w", encoding="utf-8") as f:
+    json.dump(out, f, ensure_ascii=False, indent=2)
+print("export_snapshot: wrote", OUT, "| signals:", len(signals))

@@ -335,3 +335,20 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 ## (v3.46.0) 추가 필드 — 3.1.20 미국 빅테크(M7) 실적 전망 (markets.m7_outlook)
 `markets.m7_outlook` = {as_of, rows[]} — `build_report.js renderM7Outlook` 가 3.1.20 표(3.1.10 뒤)를 렌더. 없으면 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더(비차단). `M7OutlookAgent` 가 `nmr_m7.json` 으로 저장하면 `merge.py` 가 `markets.m7_outlook` 로 전달(라이브 오버라이드).
 rows[] = {name, ticker, price, chg52("+x%"/"-x%"), consensus, consensus_detail(예 "0SB/66B/16H/0S"), target, upside("+x%"), revision("상향"/"하향"/"완만 상향"/"정체·하향"), revision_detail("1Y→1Q→1M" 평균목표주가), guidance, signal("긍정"/"경계"/"위험"/"중립")}. 매일 갱신(시세·목표주가·의견·리비전 매 실행 실측, 가이던스·연간 추정치는 실적 때).
+
+
+## nmr_deriv_positioning.json — 3.1.21 파생 포지셔닝 스냅샷 (v3.47)
+
+`deriv_signals/export_snapshot.py` 가 `deriv_signals.db` 에서 산출. 빌더 `renderDerivPositioning` 스키마.
+
+```json
+{
+  "asof": "가격 YYYY-MM-DD · 미국 COT YYYY-MM-DD(주간) · KOSPI200 수급 YYYY-MM-DD · 미국 옵션 YYYY-MM-DD",
+  "index": [{"name":"S&P 500","close":"7,483.24","ret1":"+0.00%","ret5":"+1.71%"}],
+  "rows":  [{"label":"선물 베이시스 (bp)","cells":[{"v":"+60","z":0.88},{"v":"+77","z":1.14},{"v":"+174","z":2.84}]}],
+  "signals": ["KOSPI200 선물 베이시스 z=+2.84 → 선물 프리미엄 확대(과매도 반등)"] ,
+  "market_us": "…", "market_kr": "…", "synthesis": "…"
+}
+```
+
+- `rows[].cells` 순서 = S&P500 / Nasdaq100 / KOSPI200. `z`=null 이면 렌더러가 `z —`(표본 축적 전, 미국 옵션 등).

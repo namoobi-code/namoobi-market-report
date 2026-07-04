@@ -1,4 +1,4 @@
 pandas>=2.0
 numpy>=1.24
 yfinance>=0.2.40
-cot_reports>=0.1.4
+cot_reports          # 미국 COT(선물 포지셔닝). PyPI 최신이 0.1.3이라 버전 미지정. 미설치여도 파이프라인은 동작(해당 부분만 skip)
