@@ -236,7 +236,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 
 - `rates`: `fed_funds{current,decision,bias,meaning,freq,impact}` · `policy_rates[{country,rate,asof,note}]`(6개국) · `policy_rates_chart` · `fomc_meetings[{date,stance,note}]`(빌더가 **최신순** 렌더, stance 에 '매파'=빨강/'비둘기'=초록) · `fomc_market_impact` · `us10y{current,1w_pct,1mo_pct,3mo_pct,6mo_pct,1y_pct,trend,spark}` · `yield_curve{label,spread,status,note,meaning,impact,chart}`(10Y-2Y).
 - `inflation`: `chart`(통합 YoY) · `rows[{name,yoy,mom,asof,meaning,impact}]`(CPI·Core CPI·PCE·Core PCE·PPI) · `infl_exp_10y{current,trend,chart,meaning,freq,impact}`(표 없이 현재값+차트+해설).
-- `employment`: `chart`(통합 6패널) · `rows[{name,value,asof,meaning,freq,impact}]`(NFP·실업률·GDP·ISM 제조/서비스·소매판매).
+- `employment`: `chart`(통합 7패널, 맨앞=초기 실업수당 청구건수) · `rows[{name,value,asof,release,meaning,freq,impact,interp}]`(초기 실업수당 청구건수·NFP·실업률·GDP·ISM 제조/서비스·소매판매). 표 컬럼=지표·최신수치·기준·발표일자·의미·시장영향·예상영향(interp). 청구건수=FRED `ICSA` 주간(만 건), series.employment.jobless 로 차트.
 - `sentiment`: `rows[{name,current,1w_pct,1mo_pct,3mo_pct,6mo_pct,1y_pct,trend,spark,meaning,use}]`(VIX·KSVKOSPI·DXY·원/달러·WTI).
 - **재사용**: `merge.py` 가 `sentiment.rows` 의 VIX·DXY·원/달러·WTI·**KSVKOSPI**(CNBC `.KSVKOSPI`) 와 `rates.us10y` 를 `fetch_us.py` 시세(`us_markets`/`fx_markets`/`commodities.energy`/`vkospi`)로 채움(중복수집 금지).
 - **차트**: `gen_macro_charts.py` → `charts/macro_policy_rates.png`·`macro_curve.png`·`macro_inflation.png`·`macro_employment.png`·`macro_infl_exp.png` + `charts/spark_{us10y,vix,vkospi,dxy,usdkrw,wti}.png`. 시계열 라이브 오버라이드는 `nmr_macro.json` 의 `macro.series.{fed_funds_5y,curve_10_2,inflation,infl_exp,employment,sentiment}`.
@@ -296,9 +296,29 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
       {"name": "KSVKOSPI (KOSPI Volatility)", "current": 95.73, "trend": "실시간(CNBC .KSVKOSPI)", "spark": "charts/spark_vkospi.png", "meaning": "코스피200 변동성지수(VKOSPI)", "use": "20대=안정·30↑ 고변동, 급등 시 공포 확대 → 현금 비중 관망"},
       {"name": "달러인덱스 DXY", "current": 98.1, "1w_pct": 0.3, "1mo_pct": -0.5, "3mo_pct": -1.8, "6mo_pct": -3.0, "1y_pct": -4.0, "trend": "약보합(추정)", "spark": "charts/spark_dxy.png", "meaning": "달러 가치", "use": "달러 강세 → 코스피 조정 역사"},
       {"name": "원/달러 환율", "current": 1380, "1w_pct": 0.2, "1mo_pct": 0.5, "3mo_pct": 1.0, "6mo_pct": 1.5, "1y_pct": 2.0, "trend": "원화 약세(추정)", "spark": "charts/spark_usdkrw.png", "meaning": "외국인 수급 영향", "use": "1,400원↑ → 외국인 이탈 가속"},
-      {"name": "WTI 유가", "current": 71.5, "1w_pct": 1.5, "1mo_pct": -2.0, "3mo_pct": -5.0, "6mo_pct": -3.0, "1y_pct": -8.0, "trend": "박스권(추정)", "spark": "charts/spark_wti.png", "meaning": "인플레 압력", "use": "급등 → 인플레 → 금리상승 → 성장주 부담"}
-    ]
-  }
-}
+      {"name": "WTI 유가", "current":
+```
 
+## nmr_semi_cycle.json — 3.1.7B 반도체 사이클→코스피 점검판 (v3.45, DB화 `db/semi_cycle.json`)
+
+3대 조기경보 신호/코스피 쏠림이 **변동될 때만** 생성(미변동이면 DB 재사용). 모든 수치 '추정·비실시간' 명시. `status`=안전 / 주의(둔화) / 경보 중 하나 — 빌더가 초록/주황/빨강으로 렌더. marker=`asof`.
+
+```json
+{
+  "asof": "YYYY-MM-DD",
+  "phase": "AI 슈퍼사이클 상승 국면",
+  "phase_peak": "예상 고점 ~YYYY 1분기(밴드 …)",
+  "headline": "핵심 한 줄 — 왜 지금 코스피가 반도체 사이클에 취약한가.",
+  "read_panel": ["읽는 방법: ①업황→②사이클→③코스피민감도→④확인법", "하강=대형주 압박↔상승=지수견인(양날의 검)", "확인 소스(업체 발표+시장조사)"],
+  "kospi_weight": "삼성+SK하이닉스 합산 시총 비중·지수 민감도(삼성 +2%≈코스피 +0.4%)",
+  "warning_now": ["재고 8주 상향 돌파", "계약가 QoQ 0%↓ 전환", "CAPEX 증가율 재급등(+40%↑)"],
+  "signals": [
+    {"name": "재고주수 (공급자 DRAM)", "value": "약 3주", "status": "안전", "threshold": "8주 초과 시 경보", "note": "글럿 31주(2023 1Q)→현재 ~3주"},
+    {"name": "DRAM 계약가 상승률 (QoQ)", "value": "+13~18% (3Q26E)", "status": "주의(둔화)", "threshold": "0% 아래 전환 시 하락 진입", "note": "1Q26 +90~95%→2Q +58~63%→3Q +13~18%"},
+    {"name": "CAPEX 증가율 (SK하이닉스·YoY)", "value": "+10%대 (2026E)", "status": "안전", "threshold": "재급등(+40%↑) 시 공급과잉 경보", "note": "2023 -56%→2024 +93%→2025 +72%→2026E +10%대"}
+  ],
+  "signal_summary": "3개 중 2개 이상 경보면 고점·하강 신호. 현재 노란불 1개(계약가 모멘텀)뿐 → 상승 후반.",
+  "read_monitor": "재고=낮을수록 안전(8주 경보), 계약가=폭 급둔화(마이너스 전환이 경보), CAPEX=증가율 급등이 공급과잉 선행 경보.",
+  "sources": [{"label": "TrendForce 3Q26 전망", "url": "https://www.trendforce.com/presscenter/news/20260703-13134.html"}]
+}
 ```

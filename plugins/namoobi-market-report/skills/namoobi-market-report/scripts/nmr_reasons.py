@@ -55,7 +55,7 @@ for r in (infl.get("rows") or []):
     #   5월 데이터의 표준 미국 발표일정: CPI 06-10(수)·PPI 06-11(목)·PCE 06-26(금). 발표월 이동 시 갱신 대상.
     if _bad_release(r.get("release")):
         r["release"] = next((v for k,v in INFL_REL if k in nm), "정기 발표(BLS/BEA)")
-EMP_REL = [("NFP","2026-06-05"),("실업률","2026-06-05"),("소매판매","2026-06-17"),("ISM 제조","2026-06-01"),("ISM 서비","2026-06-03"),("GDP","2026-06-26")]
+EMP_REL = [("실업수당","정기 발표(매주 목)"),("청구","정기 발표(매주 목)"),("NFP","2026-06-05"),("실업률","2026-06-05"),("소매판매","2026-06-17"),("ISM 제조","2026-06-01"),("ISM 서비","2026-06-03"),("GDP","2026-06-26")]
 for r in ((mac.get("employment") or {}).get("rows") or []):
     if _bad_release(r.get("release")):
         nm = r.get("name") or ""

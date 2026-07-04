@@ -8,7 +8,7 @@
 > 5. **美2년물**: `us2y_daily` 1년 시계열(FMP treasury year2)을 `macro.series.us2y_daily` 로 제공. **gen_macro_charts 는 `NMR_OUT="$WORK"` 로 실행**해야 us2y 가 `$WORK/nmr_indexseries.json` 에 주입돼 스파크가 10년물과 다른 정상 모양이 된다.
 > 6. **KSVKOSPI**: 메인세션 Claude in Chrome 으로 `https://kr.investing.com/indices/kospi-volatility` 파싱. **성과 라벨은 "달"**(1일/1주/1달/3달/6달/1년) — "개월" 아님(파서 라벨 주의!). current·prev_close·anchors(1d/1w/1mo/3mo/6mo/1y)+23일 시계열 → `nmr_vkospi_history.json`. `nmr_reasons.py` 가 KSVKOSPI 행에 주입(빌더 day1pct 용 `prev_pct` 포함).
 > 8. **CAPEX**: **웹서치 실측+컨센서스** → `nmr_capex.json`(MSFT 2026E≈190 캘린더연 컨센서스 등 GOODREPORT 수준; 90 같은 FY부분배분 금지). actual(2024~25)·estimate(2026~29E) 분리표기.
-> 9. **HBM**: 항목별 출처링크 `sources[]`(item·value·source·url·asof·type) → build 가 3.1.7 표·그래프 아래 렌더. eps_per 키는 `eps_2026E`(E접미사) — merge 가 `eps_yearly`(y2026_eps) 로 매핑.
+> 9. **HBM**: 항목별 출처링크 `sources[]`(item·value·source·url·asof·type) → build 가 3.1.7A 표·그래프 아래 렌더. eps_per 키는 `eps_2026E`(E접미사) — merge 가 `eps_yearly`(y2026_eps) 로 매핑.
 > 10. **nmr_reasons.py**: merge 직후·build 직전 1회 실행(SKILL Phase 4) — 위 1·2·4(발표일)·6 을 report_data 에 주입. **누락 시 결측이 "-"로 새어 req0 위반**.
 
 > **v3.39.0 — 휘발 데이터 carry-forward 계약.** HBMAgent·CapexAgent 는 **연결폴더 `_market_report_data/nmr_hbm.json`·`nmr_capex.json` 영구본을 베이스로 로드 → 새로 조사된 값만 갱신 → 저장**한다(merge.py `LCF()` 가 자동으로 WORK 우선·없으면 영구본·사용분 재저장). 즉 매 실행 값은 개선만 되고, 수집 실패해도 내장 예시·추정 기본값으로 되돌아가지 않는다. (손편집 JSON 은 휘발이므로 금지 — 반드시 에이전트 산출/영구본 경유.)
@@ -23,7 +23,7 @@
 - **변동이력(빨간색, 표 위)**: nmr_changelog.py 가 비일간 지표(정책금리·물가·고용·CAPEX) 최종값을 `_market_report_data/nmr_valcache.json` 에 저장 → 매 실행 직전값과 비교, 변경분만 change_log 로 부착(merge 후·build 전 실행). build 가 각 표 **위에 빨간색**으로 렌더(변경 없으면 미표시).
 - 3.1.4 심리표 우측열 헤더 = '시장 영향'.
 - KSVKOSPI: investing.com 1년 일별(nmr_vkospi_hist.json)로 현재·1주~1년·스파크 산출.
-- 3.1.6 CAPEX change_log 표 위. 3.1.7 gen_hbm_dashboard EPS패널 제거 + nmr_hbm_eps.json 3사 연도별 EPS/PER 표(2025~2028E, build).
+- 3.1.6 CAPEX change_log 표 위. 3.1.7A gen_hbm_dashboard EPS패널 제거 + nmr_hbm_eps.json 3사 연도별 EPS/PER 표(2025~2028E, build).
 - 3.1.3 GDP 분기 별도 차트(nmr_gdp.json, gen_macro2). 고용 통합차트는 월별 5종.
 
 ---

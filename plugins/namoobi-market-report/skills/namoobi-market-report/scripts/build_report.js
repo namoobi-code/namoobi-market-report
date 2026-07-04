@@ -296,7 +296,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
  }
 // (v3.12.0) 3.1.6 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
-  children.push(h("3.1.7 반도체 주가 체크용 메모리+HBM 지표",3));
+  children.push(h("3.1.7A 반도체 주가 체크용 메모리+HBM 지표",3));
   const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",744,526);
   if(img){ children.push(p("HBM 출하량·시장규모 / HBM ASP(HBM3E·HBM4) / 점유율 3개 패널. (DRAM 현물지수·메모리 칩가격·HBM:DDR5 격차 패널은 무료 시계열 데이터 미확보로 제외)",{italics:true,color:"64748B"})); children.push(img);
     children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·각사 IR·컨센서스, AI Research",{size:15,color:"94A3B8"}));
@@ -318,6 +318,44 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
     children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_hbm.json) 재사용. EPS(직전 회계연도)=각사 IR 실적, EPS(차기연도 E, 수시 변동)=애널리스트 컨센서스(Investing.com·MarketScreener·FnGuide), PER=현재주가÷EPS(주가 매 실행 갱신). 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
+  children.push(p("")); }
+
+// (v3.45.0) 3.1.7B 반도체 사이클 → 코스피 점검판 — DB화(db/semi_cycle.json), 매 실행 3대 신호 변동체크·미변동 재사용. 차트 없음(비차단·데이터 없으면 자동 생략).
+function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
+  if(!sc||typeof sc!=="object"||(!sc.headline&&!(Array.isArray(sc.signals)&&sc.signals.length)))return;
+  children.push(h("3.1.7B 반도체 사이클 → 코스피 점검판",3));
+  children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
+  if(sc.phase) children.push(p("현재 국면: "+sc.phase+(sc.phase_peak?("  ·  "+sc.phase_peak):""),{bold:true,size:20,color:"1E40AF",before:60}));
+  if(sc.headline){ children.push(p("■ 핵심 한 줄",{bold:true,size:20,color:"1E40AF",before:100}));
+    children.push(p(sc.headline,{size:18})); }
+  const rp=Array.isArray(sc.read_panel)?sc.read_panel:(sc.read_panel?[sc.read_panel]:[]);
+  if(rp.length){ children.push(p("■ 읽는 방법",{bold:true,size:20,color:"1E40AF",before:100}));
+    rp.forEach(x=>children.push(p("• "+x,{size:17,color:"334155"}))); }
+  if(sc.kospi_weight) children.push(p("※ 코스피 쏠림: "+sc.kospi_weight,{size:15,italics:true,color:"475569"}));
+  const wn=Array.isArray(sc.warning_now)?sc.warning_now:[];
+  if(wn.length){ children.push(p("■ 지금 봐야 할 조기 경보 신호",{bold:true,size:20,color:"B91C1C",before:100}));
+    wn.forEach(x=>children.push(p("• "+x,{size:17,bold:true,color:"B45309"}))); }
+  const sg=Array.isArray(sc.signals)?sc.signals:[];
+  if(sg.length){ children.push(p("■ 메모리 사이클 조기경보 점검",{bold:true,size:20,color:"1E40AF",before:120}));
+    const sw=[2600,1900,1150,2560,2950];
+    const st=(s)=>{ const t=String(s||""); if(/경보|위험|하강|red/i.test(t))return "B91C1C"; if(/주의|둔화|yellow|amber/i.test(t))return "B45309"; return "15803D"; };
+    const rows=[hdrRow(["지표","현재값","판정","경보 임계선","비고"],sw)];
+    sg.forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
+      cell(o.name||"-",{width:sw[0],alt:a,bold:true,size:15}),
+      cell(o.value||"-",{width:sw[1],alt:a,size:15,align:AlignmentType.CENTER}),
+      cell(o.status||"-",{width:sw[2],alt:a,size:15,align:AlignmentType.CENTER,color:st(o.status)}),
+      cell(o.threshold||"-",{width:sw[3],alt:a,size:14}),
+      cell(o.note||"-",{width:sw[4],alt:a,size:14})]})); });
+    children.push(makeTable(sw,rows)); }
+  if(sc.signal_summary) children.push(p("→ "+sc.signal_summary,{size:17,bold:true,color:"1E40AF",before:60}));
+  if(sc.read_monitor){ children.push(p("■ 읽는 방법 (조기경보 점검)",{bold:true,size:20,color:"1E40AF",before:100}));
+    children.push(p(sc.read_monitor,{size:17,color:"334155"})); }
+  const src=Array.isArray(sc.sources)?sc.sources:[];
+  if(src.length){ const runs=[new TextRun({text:"자료: ",size:14,color:"94A3B8"})];
+    src.forEach((s,i)=>{ if(i)runs.push(new TextRun({text:" · ",size:14,color:"94A3B8"}));
+      runs.push((HAS_LINK&&s&&s.url)?new ExternalHyperlink({link:String(s.url),children:[new TextRun({text:String(s.label||s.url),size:14,color:"1D4ED8",underline:{}})]}):new TextRun({text:String((s&&(s.label||s.url))||""),size:14,color:"64748B"})); });
+    children.push(new Paragraph({spacing:{before:80,after:80},children:runs})); }
+  children.push(p("기준: "+(sc.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce/DRAMeXchange·각사 IR·시장조사(Counterpoint 등)·AI Research. 확인처: 계약가·현물가·DXI·재고주수=TrendForce, 실적·CAPEX=삼성·SK하이닉스 IR(마이크론 분기 선행).",{size:13,italics:true,color:"94A3B8"}));
   children.push(p("")); }
 
 // (v3.31.0→v3.43.1) 3.1.9 경기선행지수(국내 순환변동치) — 3.1.8 OECD CLI 다음(확인 신호).
@@ -820,7 +858,7 @@ function renderMacroIndicators(){
       cell(o.asof||"-",{width:w[2],alt:a,align:AlignmentType.CENTER}), cell(o.release||o.release_date||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:15}),
       cell((o.meaning||"-")+(o.freq?(" · "+o.freq):""),{width:w[4],alt:a,size:15}), cell(o.impact||"-",{width:w[5],alt:a,size:15}), cell(o.interp||"-",{width:w[6],alt:a,size:15})]})); });
     children.push(makeTable(w,rows)); }
-    { const ec=imagePara(emp.chart||'charts/macro_employment.png',660,288); if(ec){ children.push(ec); children.push(p("고용·경기 6개 지표 — 주식 관점 중요도 순 (① NFP·실업률 > ③ 소매판매 > ④ ISM제조 > ⑤ ISM서비스 > ⑥ GDP). 월별(GDP만 분기).",{size:15,color:"94A3B8"})); } }
+    { const ec=imagePara(emp.chart||'charts/macro_employment.png',660,556); if(ec){ children.push(ec); children.push(p("고용·경기 7개 지표 (① 초기 실업수당 청구건수=주간 조기신호, ② NFP·③ 실업률 > ④ 소매판매 > ⑤ ISM제조 > ⑥ ISM서비스 > ⑦ GDP). 청구건수만 주간, 나머지 월별(GDP만 분기).",{size:15,color:"94A3B8"})); } }
   children.push(p(""));
 
   // 3.1.4 심리 — 6개월 추가
@@ -842,6 +880,7 @@ function renderMacroIndicators(){
   renderFactSet();   // 3.1.5 Earnings Insight (FactSet) — 블로그 최신글 + Earnings Insight 리포트 요약(DB: nmr_factset.json)
   renderCapex();
   renderHBM();
+  renderSemiCycle();   // 3.1.7B 반도체 사이클→코스피 점검판 (DB: db/semi_cycle.json)
   renderOecdCli();   // 3.1.8 OECD 경기선행지수(CLI) — 통합 차트 + 설명(DB: db/oecd_cli.json)
   renderKoreaLeading();   // 3.1.9 경기선행지수 순환변동치 — 국내 확인 신호
   renderCustoms();   // 3.1.10 관세청 수출 잠정치 — 그룹막대 2종(전체·반도체)

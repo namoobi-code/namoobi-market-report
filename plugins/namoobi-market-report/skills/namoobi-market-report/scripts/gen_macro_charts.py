@@ -55,7 +55,7 @@ try:
             _infl[_ln]=(_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB) or {}).get('data')
         if _infl: S["inflation"]=_infl
         _emp=S.get("employment") or {}
-        for _pn in ["nfp","unemp","retail","gdp","ism_mfg","ism_svc","nfp_mom","retail_mom","gdp_ann"]:  # (req3) nmr_macro 에 series.employment 없어도 DB 시계열 항상 로드
+        for _pn in ["jobless","nfp","unemp","retail","gdp","ism_mfg","ism_svc","nfp_mom","retail_mom","gdp_ann"]:  # (req3) nmr_macro 에 series.employment 없어도 DB 시계열 항상 로드 (jobless=초기 실업수당 청구, 주간)
             _v=(_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB) or {}).get('data')
             if _v: _emp[_pn]=_v
         if _emp: S["employment"]=_emp
@@ -262,12 +262,16 @@ def _ch_emp():
             ga=[v for v in _flat(emp.get("gdp_ann")) if isinstance(v,(int,float)) and abs(v)<50]
             return g if len(g)>=2 else (ga or g)
         return lvl
-    for key,title,col,hl in [("nfp","① NFP 월 신규고용(천명)",BLUE,0),("unemp","② 실업률(%)",RED,None),("retail","③ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","④ ISM 제조 PMI",BLUE,50),("ism_svc","⑤ ISM 서비스 PMI",GREEN,50),("gdp","⑥ 실질GDP 연율(%)",GREEN,None)]:
+    for key,title,col,hl in [("jobless","① 초기 실업수당 청구건수(만 건)",AMBER,None),("nfp","② NFP 월 신규고용(천명)",BLUE,0),("unemp","③ 실업률(%)",RED,None),("retail","④ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","⑤ ISM 제조 PMI",BLUE,50),("ism_svc","⑥ ISM 서비스 PMI",GREEN,50),("gdp","⑦ 실질GDP 연율(%)",GREEN,None)]:
         ys=_empdisp(key)
         _ep.append((title,ys,col,hl))
-    _n=6; _ncol=3; _nrow=2
-    fig,axs=plt.subplots(_nrow,_ncol,figsize=(3.0*_ncol,2.5*_nrow),dpi=150)
-    axs=list(axs.flatten()) if hasattr(axs,"flatten") else [axs]
+    # 7패널 3/2/2 배치(맨앞=초기 실업수당 청구건수): 1행 ①②③, 2행 ④⑤, 3행 ⑥⑦ (6열 그리드에 colspan 2/3/3)
+    _n=7
+    fig=plt.figure(figsize=(9.0,7.6),dpi=150)
+    _gs=fig.add_gridspec(3,6)
+    axs=[fig.add_subplot(_gs[0,0:2]),fig.add_subplot(_gs[0,2:4]),fig.add_subplot(_gs[0,4:6]),
+         fig.add_subplot(_gs[1,0:3]),fig.add_subplot(_gs[1,3:6]),
+         fig.add_subplot(_gs[2,0:3]),fig.add_subplot(_gs[2,3:6])]
     def panel(ax,t,ys,c,hl=None):
         if not ys:
             ax.text(0.5,0.5,"데이터 미확보",ha="center",va="center",fontsize=8,color="#94A3B8")
@@ -279,8 +283,9 @@ def _ch_emp():
         for s in ["top","right"]: ax.spines[s].set_visible(False)
     for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
     for _j in range(_n,len(axs)): axs[_j].axis("off")
-    fig.suptitle("미국 고용·경기 지표 최근 1년 (FMP 실측)",fontsize=9.5,color=SLATE)
-    plt.tight_layout(rect=[0,0,1,0.93]); plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
+    fig.suptitle("미국 고용·경기 지표 최근 1년 (초기 실업수당 청구=주간·나머지 월간)",fontsize=9.5,color=SLATE)
+    fig.subplots_adjust(top=0.90,bottom=0.06,left=0.07,right=0.97,hspace=0.62,wspace=0.6)
+    plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
 _safe("macro_employment", _ch_emp)
 # (2026-06-29) 3.1.5 선행EPS/PER 차트(_fwd / macro_spx_fwd / macro_kospi_fwd) 제거됨 — 섹션 삭제
 _miss=[r for r in REQUIRED if r not in _made]

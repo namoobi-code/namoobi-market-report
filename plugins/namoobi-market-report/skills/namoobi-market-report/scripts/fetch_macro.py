@@ -33,7 +33,8 @@ def _get(sid, cosd='2023-01-01'):
 
 IDS = {'CPIAUCSL':'2023-01-01','CPILFESL':'2023-01-01','PCEPI':'2023-01-01','PCEPILFE':'2023-01-01','PPIFIS':'2023-01-01',
        'T10YIE':'2025-06-01','DGS2':'2024-06-01','DGS10':'2024-06-01','DFF':'2021-06-01','FEDFUNDS':'2021-06-01',
-       'UNRATE':'2024-06-01','PAYEMS':'2024-06-01','RSAFS':'2024-06-01','A191RL1Q225SBEA':'2023-01-01'}
+       'UNRATE':'2024-06-01','PAYEMS':'2024-06-01','RSAFS':'2024-06-01','A191RL1Q225SBEA':'2023-01-01',
+       'ICSA':'2025-06-01'}
 D = {}; _fails = 0; _items = list(IDS.items())
 for _idx, (k, cosd) in enumerate(_items):
     D[k] = _get(k, cosd)
@@ -93,7 +94,15 @@ unrate = D.get('UNRATE', []); payems = D.get('PAYEMS', []); retail = D.get('RSAF
 nfpc = nfp_chg(payems); retm = mom(retail)
 series['employment'] = {'nfp': nfpc, 'unemp': [[d[:7], v] for d, v in unrate],
                         'retail': retm, 'gdp': [[d[:7], v] for d, v in gdp], 'ism_mfg': [], 'ism_svc': []}
+# 초기 실업수당 청구건수(주간·계절조정 ICSA) — 만 건 단위로 시계열 저장(주간 발표=매주 목). 노동시장 둔화 조기신호.
+icsa = D.get('ICSA', [])
+series['employment']['jobless'] = [[d, round(v/10000.0, 2)] for d, v in icsa]
+_jc = icsa[-1] if icsa else [None, None]
+_jc_val = ('%.1f만 건' % (_jc[1]/10000.0)) if _jc[1] else None
+try: _jc_rel = (dt.date.fromisoformat(_jc[0]) + dt.timedelta(days=5)).isoformat() if _jc[0] else None  # 주 종료(토)+5일=발표(목)
+except Exception: _jc_rel = None
 emp_rows = [
+ {'name':'초기 실업수당 청구건수','value': _jc_val,'asof': (_jc[0] or None),'release': _jc_rel,'freq':'주간(매주 목)'},
  {'name':'NFP (비농업취업자 변화)','value': ('%d천명'%nfpc[-1][1] if nfpc else None),'asof': (nfpc[-1][0] if nfpc else None),'freq':'월간'},
  {'name':'실업률','value': (last(unrate)[1] if unrate else None),'asof': (last(unrate)[0][:7] if unrate else None),'freq':'월간'},
  {'name':'소매판매 (MoM)','value': (retm[-1][1] if retm else None),'asof': (retm[-1][0] if retm else None),'freq':'월간'},
@@ -127,4 +136,4 @@ except Exception: pass
 json.dump({'macro': macro}, open(_mpath, 'w', encoding='utf-8'), ensure_ascii=False)
 print('fetch_macro OK — infl', {k: len(v) for k, v in infl_lines.items()}, '| BEI', len(bei), '| curve', len(curve),
       '| fed_funds_5y', len(series['fed_funds_5y']), '| emp', {k: len(v) for k, v in series['employment'].items()})
-print('  rows: 물가', sum(1 for r in infl_rows if r['yoy'] is not None), '/6 채움 · 고용', sum(1 for r in emp_rows if r['value'] is not None), '/6 채움 (ISM 2개는 FRED 부재→DB 백필)')
+print('  rows: 물가', sum(1 for r in infl_rows if r['yoy'] is not None), '/6 채움 · 고용', sum(1 for r in emp_rows if r['value'] is not None), '/7 채움 (ISM 2개는 FRED 부재→DB 백필)')

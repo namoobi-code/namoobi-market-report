@@ -280,6 +280,7 @@ MACRO_DEFAULT = json.loads(r'''{
   "employment": {
     "chart": "charts/macro_employment.png",
     "rows": [
+      {"name": "초기 실업수당 청구건수", "value": "21.5만 건", "asof": "2026-06-27", "release": "2026-07-02", "meaning": "노동시장 둔화 조기신호", "freq": "주간(매주 목)", "impact": "청구건수 증가(고용둔화 신호)는 경기와 소비둔화 우려로 주가에 악영향을 줄 수 있음"},
       {"name": "NFP (비농업 신규고용)", "value": "+172K", "asof": "2026-05", "meaning": "신규 일자리 수", "freq": "매월 첫째 금요일", "impact": "NFP↑(강세) → 금리↑ → 주식↓·달러↑"},
       {"name": "실업률", "value": "4.3%", "asof": "2026-05", "meaning": "실직자 비율", "freq": "매월 첫째 금요일", "impact": "실업률↑ → 금리↓ 기대 → 주가↑"},
       {"name": "GDP (전기比 연율)", "value": "+1.6%", "asof": "26Q1", "meaning": "경제 전체 성장률", "freq": "분기별", "impact": "GDP↑ → 경기성장·실적 개선 가능성"},
@@ -347,8 +348,9 @@ def _macro_canon(macro):
       ('기대인플레이션 (10년 BEI)', [], ['bei','기대인플','breakeven'], [], '10년 국채와 10년 TIPS의 차이로 본 시장의 장기 물가 기대.', '장기 금리 방향의 핵심, 성장·가치주 모두에 영향.', '기대인플레가 2%에 수렴하면 장기금리 안정·증시 우호적.'),
     ]
     EMP = [
+      ('초기 실업수당 청구건수', [], ['실업수당','청구','jobless','claims'], [], '노동시장 둔화 조기신호', '청구건수 증가(고용둔화 신호)는 경기와 소비둔화 우려로 주가에 악영향을 줄 수 있음', '청구건수 증가는 고용 둔화 조기신호로 증시에 부담(감소는 우호).'),
       ('NFP (비농업취업자 변화)', [], ['nfp','비농업'], [], '비농업 신규고용 — 시장이 가장 민감하게 반응하는 고용지표', '연준 금리경로·경기 침체/연착륙 판단에 직결', '신규고용 호조는 연착륙 신호지만 과열 시 금리인상 우려.'),
-      ('실업률', ['실업'], [], [], '고용 건전성(연준 이중책무 핵심)', '상승=경기둔화·금리인하 명분 / 시장 민감', '실업률 상승은 인하 명분이 되어 단기 증시엔 양면적.'),
+      ('실업률', ['실업'], [], ['수당','청구'], '고용 건전성(연준 이중책무 핵심)', '상승=경기둔화·금리인하 명분 / 시장 민감', '실업률 상승은 인하 명분이 되어 단기 증시엔 양면적.'),
       ('소매판매 (MoM)', [], ['소매','retail'], [], '미국 소비 강도를 즉시 반영', '경기주·리테일·소비재·금리 기대에 영향이 큼', '소비 강세는 경기 견조의 방증이나 인플레·금리 자극.'),
       ('ISM 제조업 PMI', ['ism','제조'], [], [], '제조업 경기(50 기준)', '경기민감주·반도체·산업재·소재주에 영향 / 경기 방향성(50↑ 확장)', '50 회복은 제조업 반등으로 반도체·산업재에 우호적.'),
       ('ISM 서비스업 PMI', ['ism','서비스'], [], [], '서비스업 경기(50 기준)', '경제 비중 크나 주식시장선 고용·소비보다 한 단계 아래로 보는 편', '서비스 확장 지속은 고용·소비 견조를 뒷받침.'),
@@ -373,6 +375,7 @@ def _macro_canon(macro):
         s0=str(row.get('value','')); mnum=_re.search(r'-?\d+\.?\d*', s0.replace(',',''))
         if not mnum: return ''
         v=float(mnum.group())
+        if '실업수당' in name or '청구' in name: return ("청구 %s — 낮은 수준, 노동시장 견조·증시 우호" % s0) if v<23 else (("청구 %s — 증가세, 고용둔화·경기우려로 증시 부담" % s0) if v>=25 else ("청구 %s — 보합권, 고용 완만 둔화 관망" % s0))
         if 'NFP' in name or '비농업' in name: return ("신규고용 %s — 견조, 과열 시 금리인상 우려" % s0) if v>=150 else ("신규고용 %s — 둔화, 금리인하 명분·증시 양면" % s0)
         if '실업' in name: return ("실업률 %s — 상승 압력, 인하 기대로 증시 양면" % s0) if v>=4.4 else ("실업률 %s — 낮음, 노동시장 타이트·인하 지연" % s0)
         if '소매' in name: return ("소비 %s — 견조하나 인플레·금리 자극" % s0) if v>=0 else ("소비 %s — 둔화, 경기 우려·인하 기대" % s0)
@@ -654,8 +657,13 @@ try:
                              ((_cs or {}).get('marker') or _run_m) if _cs_ok else _run_m, _dd)
     if isinstance(m.get('customs'), dict):
         m['customs']['chart_total'] = 'charts/수출_전체_24개월.png'
-        m['customs']['chart_semi'] = 'charts/수출_반도체_24개월.png' 
-    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs -> db/')
+        m['customs']['chart_semi'] = 'charts/수출_반도체_24개월.png'
+    # (v3.45) 3.1.7B 반도체 사이클→코스피 점검판 — 신규 조사분(nmr_semi_cycle.json, 3대 신호/코스피 쏠림 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
+    _sci = L('nmr_semi_cycle.json')
+    _sc_ok = isinstance(_sci, dict) and (_sci.get('signals') or _sci.get('headline'))
+    m['semi_cycle'] = _ndb.sync('semi_cycle', (_sci if _sc_ok else None), _today,
+                                ((_sci or {}).get('asof') or _run_m) if _sc_ok else _run_m, _dd)
+    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs/semi_cycle -> db/')
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)
 data = {'report_date': RD_ISO,
