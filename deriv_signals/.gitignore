@@ -1,0 +1,6 @@
+secrets.env
+*.db
+*.db-journal
+__pycache__/
+outputs/*.jpg
+cot_*/
