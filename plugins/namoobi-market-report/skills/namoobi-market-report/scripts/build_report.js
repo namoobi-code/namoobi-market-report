@@ -322,6 +322,7 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
 // (v3.31.0→v3.43.1) 3.1.9 경기선행지수(국내 순환변동치) — 3.1.8 OECD CLI 다음(확인 신호).
 function renderKoreaLeading(){ const m=data.markets||{};
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.9 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
+    children.push(fsLink("출처 · 국가데이터처 e-나라지표 「산업활동동향」 선행종합지수 순환변동치(2020=100)", (m.korea_leading_source||"https://www.index.go.kr/unity/potal/main/EachDtlPageDetail.do?idx_cd=1057")));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
     children.push(p("• 구성항목: 재고순환지표(제조업), 기계류내수출하지수, 건설수주액(실질), 소비자기대지수, 구인구직비율, 장단기금리차, 코스피지수, 수출입물가비율, 순상품교역조건 등",{size:16,color:"475569"}));

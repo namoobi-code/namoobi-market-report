@@ -495,9 +495,13 @@ try:
     _rows=[_r for _r in _rows if str(_r.get('company','')).split(' (')[0].strip() not in ('Meta','META','Meta Platforms')]  # (req2) Meta 삭제
     _bc['rows']=_rows
     def _has(v): return v not in (None,'','-') and str(v).strip() not in ('미공개','미확인','미상','N/A','n/a','-','TBD','tbd')
+    _ALIAS={'MSFT':'Microsoft','MICROSOFT':'Microsoft','GOOGL':'Alphabet','GOOG':'Alphabet','ALPHABET':'Alphabet','GOOGLE':'Alphabet','AMZN':'Amazon','AMAZON':'Amazon','META':'Meta','FB':'Meta','ORCL':'Oracle','ORACLE':'Oracle'}
+    _DISP={'Microsoft':'Microsoft (MSFT)','Alphabet':'Alphabet (GOOGL)','Amazon':'Amazon (AMZN)','Oracle':'Oracle (ORCL)','Meta':'Meta (META)'}
     for _r in _rows:
         _co=str(_r.get('company','')).split(' (')[0].strip()
+        _co=_ALIAS.get(_co.upper(), _co)   # (req8-fix) 티커명(MSFT/GOOGL/AMZN/ORCL)도 정규화 → 컨센서스 매트릭스 매칭·2027~2029 carry-forward
         if _co not in _CCAP: continue
+        _r['company']=_DISP.get(_co, _r.get('company'))   # 표시명 통일(직전 회차와 동일: 'Microsoft (MSFT)')
         for _i,_y in enumerate(_CY):
             if not _has(_r.get('y%d'%_y)):   _r['y%d'%_y]=_CCAP[_co][_i]
             if not _has(_r.get('rev%d'%_y)): _r['rev%d'%_y]=_CREV[_co][_i]
