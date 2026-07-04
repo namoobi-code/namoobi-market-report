@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+# fetch_asia_etf.py — 3.4.1 아시아 주요 ETF (한국 상장) 시세·추세 수집
+import urllib.request, json, datetime as dt, concurrent.futures as cf, sys, os
+UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36"}
+OUT = sys.argv[1] if len(sys.argv) > 1 else "."
+ASIA_ETF = {
+ "277540": ("asia",  "ACE 아시아TOP50S&P",          "한국·대만·홍콩·싱가포르 아시아 핵심 대형주 통합 대표(S&P Asia 50)"),
+ "192090": ("china", "TIGER 차이나CSI300",           "중국 본토 대형주 300(상하이·선전 A주)"),
+ "099140": ("china", "KODEX 차이나H",                "본토 기업의 홍콩 상장주(H주·HSCEI)"),
+ "371160": ("china", "TIGER 차이나항셍테크",          "중국 빅테크(항셍테크)"),
+ "414780": ("china", "TIGER 차이나과창판STAR50(합성)", "중국 기술·혁신주(과창판 STAR50)"),
+ "256750": ("china", "KODEX 차이나심천ChiNext(합성)",  "중국 성장주·창업판(선전 ChiNext)"),
+ "241180": ("japan", "TIGER 일본니케이225",           "일본 대형주(닛케이225·가격가중)"),
+ "101280": ("japan", "KODEX 일본TOPIX100",           "일본 시총가중 대표(TOPIX100)—밸류업 수혜 금융·내수"),
+ "465660": ("japan", "TIGER 일본반도체FACTSET",       "일본 반도체 소부장(소재·부품·장비)"),
+ "253990": ("taiwan","TIGER 대만TAIEX파생(H)",        "대만 전체시장 대표(가권지수·환헤지)"),
+ "453950": ("taiwan","TIGER TSMC밸류체인FACTSET",     "대만 반도체 핵심 밸류체인(TSMC·파운드리·팹리스)"),
+ "453870": ("india", "TIGER 인도니프티50",            "인도 대형 금융·IT·소비주(Nifty50)"),
+ "479730": ("india", "TIGER 인도빌리언컨슈머",         "인도 핵심 소비재 B2C 20종(자동차·럭셔리·생필품)"),
+ "245710": ("vietnam","ACE 베트남VN30(합성)",         "베트남 호치민 성장 신흥시장(VN30)"),
+}
+GROUP_ORDER = ["asia", "china", "japan", "taiwan", "india", "vietnam"]
+def fetch(code):
+    u = f"https://query1.finance.yahoo.com/v8/finance/chart/{code}.KS?range=2y&interval=1d"
+    d = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=15))
+    r = d["chart"]["result"][0]
+    ts = r["timestamp"]; cl = r["indicators"]["quote"][0]["close"]
+    pts = [[dt.datetime.utcfromtimestamp(t).date().isoformat(), round(float(c),2)] for t,c in zip(ts,cl) if c is not None]
+    meta = r.get("meta", {}); ft = meta.get("firstTradeDate")
+    first = dt.datetime.utcfromtimestamp(ft).date().isoformat() if ft else None
+    return pts, (meta.get("longName") or meta.get("shortName") or ""), first
+def ret(series):
+    pts = [(dt.date.fromisoformat(str(x[0])[:10]), float(x[1])) for x in series if x[1] is not None]
+    if len(pts) < 2: return {}
+    pts.sort(); cur = pts[-1][1]; last = pts[-1][0]
+    out = {"current": round(cur, 2)}
+    for k, days in [("1w_pct",7),("1mo_pct",30),("3mo_pct",91),("6mo_pct",182),("1y_pct",365)]:
+        tgt = last - dt.timedelta(days=days); cand = [p for p in pts if p[0] <= tgt]
+        out[k] = round((cur/cand[-1][1]-1)*100, 1) if cand and cand[-1][1] else None
+    if len(pts) >= 2 and pts[-2][1]:
+        out["1d_pct"]=round((pts[-1][1]/pts[-2][1]-1)*100,2); out["chg"]=round(cur-pts[-2][1],2); out["prev_close"]=round(pts[-2][1],2)
+    if len(pts) >= 3 and pts[-3][1]:
+        out["prev_pct"]=round((pts[-2][1]/pts[-3][1]-1)*100,2)
+    return out
+def koTrend(r):
+    y=r.get("1y_pct"); m3=r.get("3mo_pct"); m1=r.get("1mo_pct")
+    if y is not None:
+        s="강세" if y>0 else "약세"; t=f"1년 {y:+.0f}%"
+        if m3 is not None: t+=f", 3개월 {m3:+.0f}%"+(" 가속" if (m3 or 0)>0 and y>0 else (" 조정" if (m3 or 0)<0 else ""))
+        return t+f" ({s})"
+    if m3 is not None: return f"3개월 {m3:+.0f}% "+("상승" if m3>=0 else "조정")+" (상장 후)"
+    if m1 is not None: return f"1개월 {m1:+.0f}% "+("반등" if m1>=0 else "조정")+" (상장 후)"
+    return "상장 초기"
+def work(item):
+    code,(grp,name,desc)=item
+    try:
+        pts,ynm,first=fetch(code); r=ret(pts)
+        r.update({"code":code,"symbol":code,"name":name,"desc":desc,"weight":None,"listed":first,"yahoo_name":ynm})
+        r["trend"]=koTrend(r); return code,grp,r,pts,None
+    except Exception as e:
+        return code,grp,None,None,str(e)[:120]
+groups={g:[] for g in GROUP_ORDER}; series={}; rows_flat=[]
+with cf.ThreadPoolExecutor(max_workers=10) as ex:
+    for code,grp,r,pts,err in ex.map(work, ASIA_ETF.items()):
+        if err or r is None: print(f"ERR {code}: {err}"); continue
+        groups[grp].append(r); series[code]=pts; rows_flat.append(r)
+order={c:i for i,c in enumerate(ASIA_ETF)}
+for g in groups: groups[g].sort(key=lambda r: order[r["code"]])
+ys=[r["1y_pct"] for r in rows_flat if r.get("1y_pct") is not None]
+avg=round(sum(ys)/len(ys),1) if ys else None
+comment=(f"아시아 국가·테마 ETF {len(rows_flat)}종 1년 평균 {avg:+.1f}%. 합성·환헤지(H) 상품과 신규 상장(1년 미만) ETF는 장기 수익률이 '-'로 표시된다." if avg is not None else f"아시아 국가·테마 ETF {len(rows_flat)}종.")
+asof=dt.date.today().isoformat(); out={"asof":asof,"comment":comment}; out.update(groups)
+os.makedirs(OUT,exist_ok=True)
+json.dump(out, open(os.path.join(OUT,"nmr_asia_etf.json"),"w"), ensure_ascii=False, indent=1)
+json.dump(series, open(os.path.join(OUT,"nmr_asia_etf_series.json"),"w"), ensure_ascii=False)
+def pc(v): return "   -  " if v is None else f"{v:+6.1f}"
+print(f"{'code':6s} {'name':30s} {'현재가':>9s} {'1일':>7s} {'1주':>7s} {'1개월':>7s} {'3개월':>7s} {'6개월':>7s} {'1년':>7s}  상장")
+for g in GROUP_ORDER:
+    for r in groups[g]:
+        print(f"{r['code']:6s} {r['name'][:30]:30s} {r['current']:>9,.0f} {pc(r.get('prev_pct'))} {pc(r.get('1w_pct'))} {pc(r.get('1mo_pct'))} {pc(r.get('3mo_pct'))} {pc(r.get('6mo_pct'))} {pc(r.get('1y_pct'))}  {r.get('listed')}")
+print(f"\n총 {len(rows_flat)}종 · 1년평균 {avg}% · asof {asof}")

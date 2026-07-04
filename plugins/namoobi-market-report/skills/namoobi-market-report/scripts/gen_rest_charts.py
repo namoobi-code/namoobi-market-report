@@ -135,3 +135,12 @@ try:
 except FileNotFoundError as e:
     print("⚠️ NMR_BLOCK nmr_kr_series.json/report_data 없음 — 반도체/테마 추세차트 생략(수집 필요):", e)
 import os; print("total chart files:", len([f for f in os.listdir('charts') if f.endswith('.png')]))
+
+# (3.4.1) 아시아 주요 ETF(한국상장) 1Y 스파크라인 — nmr_asia_etf_series.json {code:[[date,close]..]} → charts/spark_aetf_<code>.png
+try:
+    ae=json.load(open(O+"/nmr_asia_etf_series.json")); nae=0
+    for code,series in ae.items():
+        if series and spark(series, f"charts/spark_aetf_{code}.png"): nae+=1
+    print("asia etf sparklines:", nae, "of", len(ae))
+except FileNotFoundError:
+    print("nmr_asia_etf_series.json 없음 — 아시아 ETF 스파크라인 생략")

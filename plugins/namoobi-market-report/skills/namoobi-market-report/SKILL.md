@@ -12,7 +12,7 @@ description: |
   예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
 ---
 
-# Namoobi Market Report (plugin v1.13.0 · SKILL v3.44.0)
+# Namoobi Market Report (plugin v1.13.0 · SKILL v3.46.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -44,6 +44,7 @@ description: |
 **3.3.2 FOMC 점도표** — 2026·2027·2028말·장기중립 각 행에 **jun·mar 중간값 모두**(빈칸 금지).
 **3.3.3 HY 스프레드** — FRED `BAMLH0A0HYM2` **월별** series(Chrome 동일출처 `fredgraph.csv`) → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한, 초과 시 한계 명시).
 **3.3.x 미국 ETF·리밸런싱** — `us_etfs` 30종(③ 테마에 **DRAM=Roundhill Memory ETF** 항상 포함). S&P500·나스닥100 정기 리밸런싱(편입/편출·일정·룰변경).
+**3.4.1 아시아 주요 ETF (한국 상장 · v3.46 신설)** — 3.4 아시아 증시 표 바로 뒤에 한국거래소 상장 아시아 국가·테마 대표 ETF 14종을 6그룹(① 아시아 통합·② 중국·③ 일본·④ 대만·⑤ 인도·⑥ 베트남)으로 묶어 `us_etfs` 와 동일한 추세표(현재가·1일·1주·1개월·3개월·6개월·1년·추세(1Y 스파크라인)·추세평가)로 렌더한다. 시세=야후 `<코드>.KS` 일봉 2년 → `scripts/fetch_asia_etf.py`(sandbox·stdlib·스레드 병렬, Phase 1 bash 병렬)가 merge.py `ret()` 동일 산출로 `nmr_asia_etf.json`(그룹별 rows)+`nmr_asia_etf_series.json`(스파크라인) 생성. merge `m['asia_etfs']=LCF('nmr_asia_etf.json')` → 빌더 `renderAsiaEtfs`(3.4 뒤, 데이터 없으면 자동 생략). 차트=`gen_rest_charts.py` 가 `charts/spark_aetf_<코드>.png` 생성. 종목: ACE 아시아TOP50S&P(277540)·TIGER 차이나CSI300(192090)·KODEX 차이나H(099140)·TIGER 차이나항셍테크(371160)·TIGER 차이나과창판STAR50합성(414780)·KODEX 차이나심천ChiNext합성(256750)·TIGER 일본니케이225(241180)·KODEX 일본TOPIX100(101280)·TIGER 일본반도체FACTSET(465660)·TIGER 대만TAIEX선물H(253990,야후 이력없어 현재가만·수익률 '-')·TIGER TSMC밸류체인FACTSET(453950,대만 반도체 밸류체인)·TIGER 인도니프티50(453870)·TIGER 인도빌리언컨슈머(479730)·ACE 베트남VN30합성(245710). 추정 금지·이력 없으면 '-'(비차단).
 **5 환율 스파크라인** — 원화 5쌍(usd/eur/jpy/cny/hkd_krw) 1년 주봉.
 **6.2/6.3 코인** — BTC·ETH·XRP·SOL 1년 + 공포·탐욕 1년 차트. 김프 4종(특히 SOL) 항상 채움.
 **7 한국 주요 증권사(10) = 텔레그램 7 + Chrome 3** — 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램** `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요). 삼성·미래에셋·한투는 **메인세션 Claude in Chrome — `browser_batch` 로 3탭 navigate 를 묶고 `javascript_tool` 타깃추출(단계별 screenshot 금지·토큰 절감)**(공개 리서치 페이지 정상 접속됨 — 삼성=`samsungpop … research_pop.jsp#bm`(팝업'확인'), 미래에셋=`miraeasset … list.do?categoryId=1521`, 한투=`koreainvestment … Strategy.jsp?jkGubun=99`·`34`; 상세 URL `references/agents.md`. get_page_text 덤프 금지; "미확인/로그인전용" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
@@ -86,7 +87,7 @@ description: |
 [Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합) · 수집 에이전트 model:sonnet]
   ├─ News / Crypto(정성: CoinInfo) / Macro(FMP economics·treasury + FRED → nmr_macro.json)
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (상시 수집 — DB가 변동체크·재사용) USMacroExtras·IndexRebalance·NewsBerk·HBM
-  ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·경기선행·증권사 텔레그램 7사, Chrome 불필요)
+  ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_asia_etf.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·경기선행·증권사 텔레그램 7사, Chrome 불필요)
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(`browser_batch` 3탭 navigate·`javascript_tool` 타깃추출·단계별 screenshot 금지) + KOSIS OECD CLI 자료갱신일 체크 1탭(3.1.8 — reuse면 스킵); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_macro_charts.py·gen_cli_chart.py → charts/*.png
@@ -175,7 +176,7 @@ python3 "$SRC/nmr_selfcheck.py" "$SRC" "$TOKP"; SC=$?
 
 핵심 규칙:
 - **(v3.16 모델 티어링) 서브에이전트 `model` 인자를 반드시 명시한다.** 수집 에이전트(News·Crypto·Macro·KoreaSemiTheme·GlobalSecurities·USMacroExtras·IndexRebalance·NewsBerk·HBM)는 전부 **`model:"sonnet"`**, 종합·추론하는 AnalysisAgent(Phase 2)만 **`model:"opus"`**. 미지정 시 부모(Opus) 상속이라 토큰·지연이 커지므로 누락 금지 — 수집은 검색→추출→저장 작업이라 Sonnet 으로 충분하고 "추정 금지·도구값만" 규칙으로 품질이 유지된다.
-- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose · model:sonnet): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED CSV → nmr_macro.json)** + **(상시 수집 — DB가 변동체크·재사용)** USMacroExtras(점도표 due 또는 CAPEX 창)·IndexRebalance(리밸런싱 due)·NewsBerk(ai_trends 때문에 상시, 단 13F 서브태스크는 berkshire due일 때만)·HBM(분기 창). **마커 reuse·창밖이면 해당 에이전트 미발행·캐시 재사용.** **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py`·`fetch_customs.py`(3.1.10 관세청 수출 잠정치 — 매일 최근4개월 해시로 변경체크, 변경시만 전체백필) 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(`browser_batch` 로 3탭 navigate 묶고 `javascript_tool` 타깃추출, 단계별 screenshot 금지·get_page_text 덤프 금지); 텔레그램 7사(신한·키움·메리츠·하나·교보·유안타·현대차)는 `fetch_brokers_tele.py`.** 같은 Chrome 배치에 **KOSIS OECD CLI 자료갱신일 체크 1탭**을 추가한다(3.1.8 규칙 — `nmr_db.py check oecd_cli <자료갱신일>` reuse면 그대로, due면 전체기간 시계열 추출→`nmr_oecd_cli.json`).
+- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose · model:sonnet): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED CSV → nmr_macro.json)** + **(상시 수집 — DB가 변동체크·재사용)** USMacroExtras(점도표 due 또는 CAPEX 창)·IndexRebalance(리밸런싱 due)·NewsBerk(ai_trends 때문에 상시, 단 13F 서브태스크는 berkshire due일 때만)·HBM(분기 창). **마커 reuse·창밖이면 해당 에이전트 미발행·캐시 재사용.** **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py`·`fetch_customs.py`(3.1.10 관세청 수출 잠정치 — 매일 최근4개월 해시로 변경체크, 변경시만 전체백필)·`fetch_asia_etf.py`(3.4.1 아시아 ETF 14종) 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(`browser_batch` 로 3탭 navigate 묶고 `javascript_tool` 타깃추출, 단계별 screenshot 금지·get_page_text 덤프 금지); 텔레그램 7사(신한·키움·메리츠·하나·교보·유안타·현대차)는 `fetch_brokers_tele.py`.** 같은 Chrome 배치에 **KOSIS OECD CLI 자료갱신일 체크 1탭**을 추가한다(3.1.8 규칙 — `nmr_db.py check oecd_cli <자료갱신일>` reuse면 그대로, due면 전체기간 시계열 추출→`nmr_oecd_cli.json`).
 - AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**(general-purpose · model:opus). 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
 - **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
 - **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
