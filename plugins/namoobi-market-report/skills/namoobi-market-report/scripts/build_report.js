@@ -91,6 +91,7 @@ function validate(d) {
   needChart(Array.isArray(M.korea_leading)&&M.korea_leading.length, "charts/leading_cycle.png","3.1.9 경기선행지수 차트");
   if (!M.oecd_cli || !Array.isArray((M.oecd_cli||{}).months) || !M.oecd_cli.months.length) warn.push("oecd_cli 비어있음 → 3.1.8 OECD 경기선행지수 누락(db/oecd_cli.json 확인)");
   needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.8 OECD CLI 통합 차트");
+  if(M.customs&&M.customs.series){ needChart(true,"charts/수출_전체_24개월.png","3.1.10 수출 전체 차트"); needChart(true,"charts/수출_반도체_24개월.png","3.1.10 수출 반도체 차트"); }
   needChart(M.hy_spread, "charts/hy_oas.png","3.3.3 HY 스프레드 차트");
   (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.2.3 반도체 종목 추세("+((x&&x.name)||i)+")"));
   (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.2.3 반도체 ETF 추세("+((x&&x.name)||i)+")"));
@@ -843,6 +844,27 @@ function renderMacroIndicators(){
   renderHBM();
   renderOecdCli();   // 3.1.8 OECD 경기선행지수(CLI) — 통합 차트 + 설명(DB: db/oecd_cli.json)
   renderKoreaLeading();   // 3.1.9 경기선행지수 순환변동치 — 국내 확인 신호
+  renderCustoms();   // 3.1.10 관세청 수출 잠정치 — 그룹막대 2종(전체·반도체)
+}
+
+// (v3.44) 3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계 — DB: db/customs.json, 변경 시에만 재수집·차트 재생성
+function renderCustoms(){ const m=data.markets||{}; const cs=m.customs;
+  if(!cs||!cs.series||!Array.isArray(cs.months)||!cs.months.length) return;
+  children.push(h("3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계",3));
+  children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
+  const lat=cs.latest||{}, pm=lat.pm||{}, p10=lat.p10||{}, p20=lat.p20||{};
+  const ym=lat.yyyymm?(lat.yyyymm.slice(0,4)+"-"+lat.yyyymm.slice(4,6)):"";
+  const fmt=v=>(v==null?"-":Number(v).toLocaleString("en-US"));
+  simpleTable([2600,2400,2400,2400],["구분("+ym+")","1~10일","1~20일","1~말일"],
+    [["전체 수출액",fmt(p10.total),fmt(p20.total),fmt(pm.total)],
+     ["반도체",fmt(p10.semiconductor),fmt(p20.semiconductor),fmt(pm.semiconductor)]],{left:[0]});
+  children.push(p("단위: 천 달러 · 누계(1~10 / 1~20 / 1~말일) · 잠정치 · 출처: "+(cs.source||"관세청 data.go.kr(15157908)"),{size:15,color:"94A3B8"}));
+  { const im=imagePara(cs.chart_total||"charts/수출_전체_24개월.png",700,285);
+    if(im){ children.push(im); children.push(p("전체 수출액 최근 24개월 — 월별 1~10/1~20/1~말일 누계(천 달러)",{size:15,color:"94A3B8"})); } }
+  { const im=imagePara(cs.chart_semi||"charts/수출_반도체_24개월.png",700,285);
+    if(im){ children.push(im); children.push(p("반도체 수출액 최근 24개월 — 월별 1~10/1~20/1~말일 누계(천 달러)",{size:15,color:"94A3B8"})); } }
+  children.push(p("10일 단위 잠정치: 1~10일분은 11일, 1~20일분은 21일, 1~말일분은 익월 1일 공표. 전월까지는 정정·취하를 반영해 현행화(당월은 잠정치).",{italics:true,color:"64748B",size:17}));
+  children.push(p(""));
 }
 
 if (data.markets) {

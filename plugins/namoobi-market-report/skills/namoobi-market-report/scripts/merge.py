@@ -647,7 +647,15 @@ try:
     m['oecd_cli'] = _ndb.sync('oecd_cli', (_oc if _oc_ok else None), _today,
                               ((_oc or {}).get('data_updated') or _run_m) if _oc_ok else _run_m, _dd)
     if isinstance(m.get('oecd_cli'), dict): m['oecd_cli']['chart'] = 'charts/oecd_cli.png'
-    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli -> db/')
+    # (v3.44) 3.1.10 관세청 수출 잠정치 — 신규 백필(nmr_customs.json, 변경 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
+    _cs = L('nmr_customs.json')
+    _cs_ok = isinstance(_cs, dict) and _cs.get('series') and _cs.get('months')
+    m['customs'] = _ndb.sync('customs', (_cs if _cs_ok else None), _today,
+                             ((_cs or {}).get('marker') or _run_m) if _cs_ok else _run_m, _dd)
+    if isinstance(m.get('customs'), dict):
+        m['customs']['chart_total'] = 'charts/수출_전체_24개월.png'
+        m['customs']['chart_semi'] = 'charts/수출_반도체_24개월.png' 
+    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs -> db/')
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)
 data = {'report_date': RD_ISO,

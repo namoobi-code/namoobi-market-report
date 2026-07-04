@@ -83,6 +83,8 @@ houses(d.global_securities,'GlobalIB','weekly7');
 // req19: 3.1.8 OECD CLI - DB-seeded unified chart (all countries, monthly). Data present => chart must exist.
 if(m.oecd_cli&&Array.isArray(m.oecd_cli.months)&&m.oecd_cli.months.length){ if(!cExists((m.oecd_cli.chart)||'charts/oecd_cli.png')) problems.push('[req19] 3.1.8 OECD CLI chart missing/broken: charts/oecd_cli.png (run gen_cli_chart.py)'); }
 else warnings.push('[req19] 3.1.8 oecd_cli data missing (db/oecd_cli.json seed) - section omitted');
+if(m.customs&&m.customs.series&&Array.isArray(m.customs.months)&&m.customs.months.length){ if(!cExists((m.customs.chart_total)||'charts/수출_전체_24개월.png')||!cExists((m.customs.chart_semi)||'charts/수출_반도체_24개월.png')) problems.push('[req] 3.1.10 관세청 수출 잠정치 차트 missing: charts/수출_전체_24개월.png|charts/수출_반도체_24개월.png (run gen_customs_chart.py)'); }
+else warnings.push('[req] 3.1.10 customs data missing (db/customs.json seed) - section omitted');
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);
