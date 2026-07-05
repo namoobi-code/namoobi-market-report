@@ -29,15 +29,41 @@ def _f(x):
 
 
 # ── 가격(현물/선물/VIX) ─────────────────────────────
+def _daum_close(ticker, start, end):
+    # (req 2026-07-05) Yahoo 가 한국상장 ETF(.KS/.KQ) 이력을 최신 1점만 주는 문제 → finance.daum.net 일봉 폴백.
+    import urllib.request as _u, json as _j
+    code = str(ticker).split(".")[0]
+    if not (str(ticker).endswith(".KS") or str(ticker).endswith(".KQ")):
+        return pd.Series(dtype=float)
+    try:
+        u = "https://finance.daum.net/api/charts/A%s/days?limit=520&adjusted=true" % code
+        rq = _u.Request(u, headers={"Referer": "https://finance.daum.net/quotes/A%s" % code,
+                                    "User-Agent": "Mozilla/5.0", "X-Requested-With": "XMLHttpRequest"})
+        d = _j.loads(_u.urlopen(rq, timeout=15).read().decode("utf-8", "replace")).get("data", [])
+        idx, val = [], []
+        for p in d:
+            tp = p.get("tradePrice"); dt = str(p.get("date"))[:10]
+            if not tp or not dt: continue
+            if (start and dt < start) or (end and dt > end): continue
+            idx.append(dt); val.append(float(tp))
+        return pd.Series(val, index=idx).dropna()
+    except Exception:
+        return pd.Series(dtype=float)
+
+
 def _close(ticker, start, end):
     df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=False)
-    if df is None or len(df) == 0:
-        return pd.Series(dtype=float)
-    c = df["Close"]
-    if isinstance(c, pd.DataFrame):
-        c = c.iloc[:, 0]
-    c.index = pd.to_datetime(c.index).strftime("%Y-%m-%d")
-    return c.dropna()
+    c = None
+    if df is not None and len(df):
+        c = df["Close"]
+        if isinstance(c, pd.DataFrame):
+            c = c.iloc[:, 0]
+        c.index = pd.to_datetime(c.index).strftime("%Y-%m-%d")
+        c = c.dropna()
+    if (c is None or len(c) < 5) and (str(ticker).endswith(".KS") or str(ticker).endswith(".KQ")):
+        d = _daum_close(ticker, start, end)   # (fix) 한국상장 ETF 이력은 Daum 폴백
+        if len(d) >= 5: return d
+    return c if c is not None else pd.Series(dtype=float)
 
 
 def ingest_prices(con, start, end):
