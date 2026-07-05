@@ -109,12 +109,12 @@ try{
     if(miss) warnings.push('['+sec+'] country ETF trend charts missing '+miss+'/'+it.length);
   });
 }catch(e){}
-// (v3.51) [AppC] AI value-chain 43 stocks -- data present => count + spark coverage; absent => warning (section omitted)
+// (v3.51) [AppC] AI value-chain stocks -- data present => count + spark coverage; absent => warning (section omitted). (v3.52.1) 43->46 (ORCL/007660/AMKR)
 try{
   const ac=m.appendix_c||{}; const rows=(ac&&ac.rows)||{}; let n=0,miss=0;
   Object.keys(rows).forEach(g=>{(Array.isArray(rows[g])?rows[g]:[]).forEach(x=>{ n++; const sym=String((x&&(x.code||x.symbol))||'').replace(/\./g,'_'); if(!cExists('charts/spark_c_'+sym+'.png')) miss++; });});
   if(!n) warnings.push('[AppC] appendix_c data missing (fetch_appc.py) - section omitted');
-  else { if(n<43) warnings.push('[AppC] AI value-chain rows '+n+'<43 (v3.51: check fetch_appc.py)');
+  else { if(n<46) warnings.push('[AppC] AI value-chain rows '+n+'<46 (v3.52.1: check fetch_appc.py)');
          if(miss>Math.max(1,Math.floor(n*0.2))) warnings.push('[AppC] value-chain spark charts missing '+miss+'/'+n+' (gen_rest_charts spark_c_*)'); }
 }catch(e){}
 // req20 (2026-07-05): 3.1.6 FactSet — "매 실행 변동 체크·미변동 유지" 동작 보장.

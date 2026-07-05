@@ -700,7 +700,7 @@ if (data.analysis && data.analysis.summary) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("목   차",1));
-["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)"].forEach(t=>children.push(p(t,{size:22,after:40})));
+["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)"].forEach(t=>children.push(p(t,{size:22,after:40})));
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("1. 글로벌 Top News 10",1));
@@ -1366,9 +1366,37 @@ function renderAppendixC(){ const e=data.markets&&data.markets.appendix_c; if(!e
     children.push(p("추세 평가: AI 반도체 밸류체인 "+tot+"종(1년 수익률 산출 "+ys.length+"종) 1년 평균 "+(a>=0?"+":"")+a.toFixed(1)+"%. 통화가 서로 달라 수익률은 현지통화 기준이며, 환율 효과는 반영되지 않는다.",{bold:true,color:"0F766E"})); }
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
   children.push(p("")); }
+// (v3.52) [부록D] AI 반도체 밸류체인 관계도(해자 지도) — 정적 이미지 3장. 원본=repo assets/appd_valuechain_{1..3}.png
+// (assets/gen_appd_valuechain.py 로 종목 구성 변경 시에만 재생성). charts/ 미존재 시 repo에서 무결성(IEND) 검증·git show 폴백 후 복사. 없으면 자동 생략(비차단).
+function renderAppendixD(){ try{
+  const cp=require('child_process');
+  function pngOk(b){ return b&&b.length>1000&&b[0]===0x89&&b.slice(-8).toString('latin1').indexOf('IEND')>=0; }
+  function loadOne(i){
+    const rel='charts/appd_valuechain_'+i+'.png';
+    try{ if(fs.existsSync(rel)){ const b0=fs.readFileSync(rel); if(pngOk(b0))return {rel:rel,buf:b0}; } }catch(e){}
+    let src=''; try{ src=cp.execSync("find /sessions -maxdepth 7 -path '*namoobi-market-report/assets/appd_valuechain_"+i+".png' 2>/dev/null | head -1").toString().trim(); }catch(e){}
+    if(!src)return null;
+    let b=null; try{ b=fs.readFileSync(src); }catch(e){}
+    if(!pngOk(b)){ try{ const repo=src.replace(/\/assets\/appd_valuechain_[0-9]\.png$/,''); b=cp.execSync('git -C "'+repo+'" show HEAD:assets/appd_valuechain_'+i+'.png',{maxBuffer:16*1024*1024}); }catch(e){} }
+    if(!pngOk(b))return null;
+    try{ if(!fs.existsSync('charts'))fs.mkdirSync('charts'); fs.writeFileSync(rel,b); }catch(e){ return null; }
+    return {rel:rel,buf:b};
+  }
+  const imgs=[1,2,3].map(loadOne);
+  if(!imgs.some(Boolean))return;
+  children.push(new Paragraph({children:[new PageBreak()]}));
+  children.push(h("[부록D] AI 반도체 밸류체인 관계도 (해자 지도)",1));
+  children.push(p("[부록C] 개별종목이 '왜 중요한지'를 한 장의 흐름으로 정리한 관계도. 돈은 위(빅테크 CAPEX)에서 아래로 흐르고, 칩은 아래에서 위로 올라간다. 파란 배지=독점·준독점(대체재 사실상 없음), 황색 배지=과점·복점·양강. 시세와 무관한 구조 설명용 정적 이미지(종목 구성 변경 시 assets/gen_appd_valuechain.py 로 재생성).",{italics:true,color:"64748B"}));
+  imgs.forEach(function(o,k){ if(!o)return;
+    const W=o.buf.readUInt32BE(16), H=o.buf.readUInt32BE(20);
+    const img=imagePara(o.rel,700,Math.round(700*H/Math.max(W,1)));
+    if(img){ if(k>0)children.push(new Paragraph({children:[new PageBreak()]})); children.push(img); } });
+  children.push(p("핵심: ASML(EUV 유일) → TSMC(선단공정) → NVIDIA(CUDA 락인) → SK하이닉스(HBM) 로 이어지는 병목 사슬이 밸류체인 해자의 축이며, 전력 인프라 단은 '칩보다 전기가 부족하다'는 새 병목에 대한 노출이다.",{bold:true,color:"0F766E"}));
+}catch(e){} }
 renderBerkshire();
 renderAITrends();
 renderAppendixC();  // (v3.51) [부록C] AI 반도체 밸류체인
+renderAppendixD();  // (v3.52) [부록D] AI 반도체 밸류체인 관계도(해자 지도)
 if(__cut31>=0)children.length=__cut31;
 const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData}]}:{}),
   styles:{ default:{document:{run:{font:FONT,size:22}}},

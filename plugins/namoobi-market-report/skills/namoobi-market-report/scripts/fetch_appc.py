@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# fetch_appc.py — [부록C] AI 반도체 밸류체인 43종 (미국 29·일본 4·한국 10) — v3.51 신설
+# fetch_appc.py — [부록C] AI 반도체 밸류체인 46종 (미국 31·일본 4·한국 11) — v3.51 신설, v3.52.1 ORCL·이수페타시스·AMKR 추가
 # sandbox·stdlib·스레드 병렬(Phase 1 bash tool-call). 야후 일봉 2y → nmr_appc.json(그룹별 rows)+nmr_appc_series.json(1Y 스파크).
 # 멤버십 변경 시 ROWS 갱신. 추정 금지 — 이력 없으면 '-'(비차단).
 import urllib.request, urllib.parse, json, datetime as dt, concurrent.futures as cf, os, sys
@@ -11,6 +11,7 @@ ROWS=[
  ("빅테크 수요처","MSFT","Microsoft","AI 소프트웨어·클라우드 핵심"),
  ("빅테크 수요처","AMZN","Amazon","AWS 기반 AI 인프라 핵심"),
  ("빅테크 수요처","META","Meta Platforms","AI 추천·광고·데이터센터 투자 핵심"),
+ ("빅테크 수요처","ORCL","Oracle","OCI AI CAPEX를 대표하는 대형 엔터프라이즈·클라우드 수요처"),
  ("팹리스/가속기","NVDA","NVIDIA","AI 가속기 절대 강자"),
  ("팹리스/가속기","AMD","Advanced Micro Devices","엔비디아 대안 GPU 및 데이터센터 축"),
  ("팹리스/가속기","AVGO","Broadcom","AI 네트워크와 맞춤형 ASIC 핵심"),
@@ -39,6 +40,8 @@ ROWS=[
  ("후공정/패키징","095340.KQ","ISC","테스트 소켓 핵심 기업"),
  ("후공정/패키징","058470.KQ","리노공업","고마진 테스트 소켓 강자"),
  ("후공정/패키징","353200.KS","대덕전자","서버·패키징 기판 강자"),
+ ("후공정/패키징","007660.KS","이수페타시스","AI 서버 고다층 MLB의 직접 수혜주"),
+ ("후공정/패키징","AMKR","Amkor Technology","글로벌 OSAT 대표주"),
  ("데이터센터 전력·인프라","VRT","Vertiv Holdings","데이터센터 전력·냉각·UPS의 핵심 전용 수혜주"),
  ("데이터센터 전력·인프라","ETN","Eaton","배전·전력관리의 글로벌 대표주"),
  ("데이터센터 전력·인프라","GEV","GE Vernova","발전·가스터빈·전력 인프라의 핵심 수혜주"),

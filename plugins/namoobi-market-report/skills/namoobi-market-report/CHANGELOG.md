@@ -1,5 +1,16 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.52.1 (plugin 1.19.1, 2026-07-05) — [부록C] 43→46종 확장 (부록D 관계도와 동기화)
+- fetch_appc.py ROWS +3: ORCL(빅테크 수요처)·이수페타시스 007660.KS(후공정/패키징)·AMKR(후공정/패키징) → 46종(미 31·일 4·한 11), ①빅테크5 ⑦후공정8.
+- verify [AppC] 게이트 43→46, SKILL.md 부록C 블록 갱신. 부록D 관계도(46종)와 구성 일치.
+- 미리보기=global_market_report_20260705_부록C46종_부록D_재빌드.docx (report_data_20260705.json 재빌드).
+
+## v3.52.0 (plugin 1.19.0, 2026-07-05) — [부록D] AI 반도체 밸류체인 관계도(해자 지도) 신설
+- **[부록D] 신설**(부록C 뒤): 부록C 종목이 '왜 중요한지'를 6단 흐름(수요 빅테크→설계 팹리스·EDA·인터커넥트→장비·소재→제조 파운드리·메모리→후공정→전력 인프라)으로 잇고 종목별 해자 한 줄 + 배지(파랑=독점·준독점 / 황색=과점·복점·양강)를 단 관계도 이미지 3장. 페이지당 1장 삽입.
+- **구성 46종** = 부록C 43종 + 확장 3종(ORCL·이수페타시스 007660·AMKR — 사용자 지정). Advantest·Disco 는 표(부록C)에선 후공정, 관계도에선 '장비·소재' 층에 배치(공급자 관점).
+- **구현**: 정적 자산 방식 — `assets/gen_appd_valuechain.py`(weasyprint+pdftocairo+Noto Sans CJK, 종목 변경 시에만 재실행)가 `assets/appd_valuechain.html`(미리보기)+`appd_valuechain_{1..3}.png`(1680px 폭, 2x) 생성. 빌더 `renderAppendixD`: assets find→IEND 무결성 검증→마운트 잘림 시 `git show` 폴백→charts/ 복사→삽입, TOC에 부록D 추가. 이미지 없으면 자동 생략(비차단). 매일 실행 비용 0(수집·차트·verify 변경 없음).
+- 미리보기=global_market_report_20260705_1637_추가미리보기4_부록D_관계도.docx.
+
 ## v3.51.0 (plugin 1.18.0, 2026-07-05) — [부록C] AI 반도체 밸류체인 43종 신설 (글로벌 개별종목)
 - **[부록C] 신설**(부록B 뒤): AI 반도체 흐름을 수요→설계→제조→소재·장비→후공정→전력 인프라로 잇는 글로벌 개별종목 43종(미 29·일 4·한 10) 추세표 — ①빅테크 수요처(GOOGL·MSFT·AMZN·META) ②팹리스/가속기(NVDA·AMD·AVGO·MRVL·ARM·ANET·CRDO·ALAB) ③파운드리/제조(TSM·삼성전자·INTC) ④메모리(MU·SK하이닉스) ⑤소재/부품(신에츠·SUMCO) ⑥전공정 장비(ASML·AMAT·LRCX·KLAC·TEL·SNPS·CDNS) ⑦후공정/패키징(Advantest·Disco·한미반도체·ISC·리노공업·대덕전자) ⑧데이터센터 전력·인프라(VRT·ETN·GEV·CEG·PWR·NVT·VST·LS일렉·효성중공업·HD현대일렉·두산에너빌리티).
 - **구현**: `scripts/fetch_appc.py` 신설(Phase 1 bash 병렬, 야후 일봉 2y→nmr_appc.json/nmr_appc_series.json) → merge `m['appendix_c']` → 빌더 `renderAppendixC`(TOC 부록C 추가, 통화 접두 $/¥/₩, 데이터 없으면 자동 생략) → gen_rest_charts `spark_c_*` 스파크.
