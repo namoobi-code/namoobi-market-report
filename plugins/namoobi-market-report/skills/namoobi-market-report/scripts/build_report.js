@@ -265,7 +265,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
       });
       return rows; };
     // 테마 (8개 고정 순서)
-    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주","건설"];  // (v3.50) 건설 추가
+    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주","건설","건설기계","항공","정유"];  // (v3.50) 건설 + (v3.50.1) 건설기계·항공·정유 추가
     const themeArr=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
     const tByName={}; themeArr.forEach(t=>{ if(t&&t.theme)tByName[t.theme]=t; });
     const themeEtfs=m.korea_theme_etfs||{};

@@ -183,7 +183,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 - `news.bigtech_events`: [{date:str, event:str, importance:"★|★★|★★★", expected_impact:str}], `news.bigtech_events_comment`:str.
 - `markets.korea_flows`: [{market:str, trend:str, comment:str}], `markets.korea_flows_comment`:str.
 - `markets.korea_leading`: [{period:str, mom:str, note:str}], `markets.korea_leading_comment`:str.
-- `markets.korea_themes`: [{theme:str, direction:"▲ 강세|▼ 부정|■ 양면", comment:str}] — 9종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·건설(v3.50)), `markets.korea_themes_intro`/`korea_themes_comment`:str.
+- `markets.korea_themes`: [{theme:str, direction:"▲ 강세|▼ 부정|■ 양면", comment:str}] — 12종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·건설(v3.50)·건설기계·항공·정유(v3.50.1)), `markets.korea_themes_intro`/`korea_themes_comment`:str.
 - `markets.us_credit`: {hy_oas:str, hy_yield:str, implied_ust:str, comment:str} (또는 {rows:[{label,value,note}], comment}).
 - `markets.bigtech_capex`: {rows:[{company:str, y2025:str, y2026:str, comment:str}], comment:str}. (보고서 3.2.3)
 

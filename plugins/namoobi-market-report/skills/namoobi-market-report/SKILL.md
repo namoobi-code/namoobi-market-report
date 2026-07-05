@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.17.0 · SKILL v3.50.0)
+# Namoobi Market Report (plugin v1.17.1 · SKILL v3.50.1)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -43,7 +43,7 @@ description: |
 **3.2.1 한국 지수 일봉 캔들** — 차트는 반드시 `scripts/gen_kr_candle.py`(다른 한국지수 생성기 금지). 입력 `nmr_kr_ohlcv.json` 의 OHLC = 야후 `^KS11`/`^KQ11` `interval=1d` **일봉**. 거래량은 다음금융 `accTradeVolume` 로 교체(야후 ^KQ11 손상)하고 비거래일 유령행 제거(KRX 거래일 기준). 일별 수급(`*_flows_daily`)=다음금융 `market_index/days`(Chrome 동일출처 fetch, 1년 오름차순). ⚠️ 다음 charts API `/charts/A{code}/days` 는 403 → 한국 종목/ETF 시계열은 **야후 `.KS`/`.KQ`**.
 **3.2.2 종목 수급** — 다음금융 `investor_purchase` API(네이버 차단). 코스피·코스닥 외국인·기관 순매수/순매도 상위 종목 → 빌더가 외국인·기관 병합표로 렌더.
 **3.2.3 경기선행지수** — **선행종합지수 순환변동치 월별 실측 = `scripts/fetch_leading.py`(sandbox·stdlib, Chrome 불필요)** 가 e-나라지표 통계표 엔드포인트(`showStblGams3.do?stts_cd=105701&idx_cd=1057&freq=M`, UA+Referer+X-Requested-With 헤더)에서 직접 수집 → `nmr_leading_series.json`(`[["YYYY-MM",value]..]` ~29개월)+`nmr_leading.json`(최신 4개월 desc·mom) → `gen_leading_chart.py`. **Phase 1 bash 병렬 tool-call** 로 실행. 실측만(추정 금지), 실패 시 비차단(캐시/직전값 폴백). (구 INDEXerGO echarts·통계표 Chrome 스크래핑·P2 캐시 경로 폐기 — 항상 sandbox 실측.)
-**3.2.4 테마·반도체** — 테마 **9종** 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·**건설(v3.50, KODEX 건설 117700)**) 10년 월별 series → `gen_rest_charts.py`. 반도체/AI **종목 10 + ETF 정확히 20**(다음금융 AUM 상위, 단일종목 레버리지 포함) 추세차트.
+**3.2.4 테마·반도체** — 테마 **12종** 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·**건설(v3.50, KODEX 건설 117700)**·**건설기계(v3.50.1, KODEX 기계장비 102960 프록시)**·**항공(v3.50.1, TIGER 여행레저 228800 프록시)**·**정유(v3.50.1, KODEX 에너지화학 117460 프록시)**) 10년 월별 series → `gen_rest_charts.py`. 반도체/AI **종목 10 + ETF 정확히 20**(다음금융 AUM 상위, 단일종목 레버리지 포함) 추세차트.
 **3.2.5 메모리+HBM 지표 대시보드** — `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(6패널 + HBM 3사 EPS/PER 표). HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 무료 실시간 API 가 없으므로 **HBMAgent 가 WebSearch+뉴스(TrendForce·각사 실적 컨센서스·언론)로 분기 추정치**를 `nmr_hbm.json` 으로 저장(스키마=`references/data-schema.md`). **모든 수치는 '추정' 명시**, 확인 불가 분기는 빈값. `nmr_hbm.json` 미수집 시 내장 예시·추정값으로 차트 생성('예시·추정' 표기 유지) — 3.1.9 는 비차단(차트 없으면 섹션 자동 생략).
 **3.3.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간. 실적값은 **FMP `statements` cashflow 의 `capitalExpenditure`**(절대값)로 정확 수집, 추정연도(**2027(E) 항상 채움**)만 WebSearch. 표 전체폭. **(req8) 미확인 칸은 빈값으로 두고 "확인불가"/"미공개" 문자열 금지 — 빌더가 전 기업에서 데이터가 전무한 (전망)연도 컬럼을 통째로 드롭하고 "확인불가"→"-"로 정규화한다. 2028~2029(E)는 회사 가이던스/애널리스트 컨센서스가 확인될 때만 채우고, 없으면 빈값(해당 컬럼 자동 드롭).** **(v3.9.0) 표 맨 아래 차트 2종(`gen_capex_chart.py`): 5개사(+오라클) CAPEX 스택바+Capex/매출 비율선, FCF 추이선 — 2023~2025 실적·2026 가이던스·2027~2029 전망(E). 차트는 내장 기본 데이터로 항상 생성되며, `bigtech_capex.{capex,rev,fcf}_series` 제공 시 라이브 오버라이드.**
 **3.3.2 FOMC 점도표** — 2026·2027·2028말·장기중립 각 행에 **jun·mar 중간값 모두**(빈칸 금지).

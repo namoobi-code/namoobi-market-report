@@ -30,7 +30,7 @@ if(!cExists(m.korea_leading_chart||'charts/leading_cycle.png')) problems.push('[
 // req3: 3.2.3 8 theme trend charts
 const THEMES=["a","b","c","d","e","f","g","h"]; // placeholder count; resolve by report data order
 const tRows=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
-if(tRows.length<9) problems.push(`[req3] 3.2.3 theme rows ${tRows.length}<9 (v3.50: +construction)`);
+if(tRows.length<12) problems.push(`[req3] 3.2.3 theme rows ${tRows.length}<12 (v3.50.1: +construction/machinery/airline/refining)`);
 let tMiss=tRows.filter(t=>!cExists(t.chart)).map(t=>t.theme||'?');
 if(tMiss.length) problems.push(`[req3] 3.2.3 theme trend charts missing ${tMiss.length}/${tRows.length}: ${tMiss.join(', ')}`);
 // req4: semi stocks (>=10) + charts
