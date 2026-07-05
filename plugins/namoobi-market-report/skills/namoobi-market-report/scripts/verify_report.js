@@ -1,4 +1,4 @@
-// verify_report.js (v3.6.32) -- pre-send quality gate.
+// verify_report.js (v3.6.33 - v3.49 3.1 재배열: 새 번호 3.1.1금리 3.1.2물가 3.1.3고용 3.1.4CLI 3.1.5순환변동치 3.1.6FactSet 3.1.7M7 3.1.8CAPEX 3.1.9HBM 3.1.10관세청 3.1.11반도체사이클 3.1.12심리 3.1.13파생) -- pre-send quality gate.
 // Goal (2026-06-19 user feedback): never silently ship a section that is broken
 // (missing chart / "-" / stale). If any problem is found, BLOCK sending and ask the user.
 // ASCII-only on purpose: the sandbox mount intermittently corrupts multibyte (Korean) chars
@@ -20,33 +20,33 @@ const fileN=(rel)=>{ try{ const x=J(path.join(WORK,rel)); return Array.isArray(x
 const ki=m.korea_investors||{};
 ['kospi','kosdaq'].forEach(k=>{
   const ch=ki[k+'_chart']||'';
-  if(!cExists(ch)) problems.push(`[req1] 3.1.1 ${k} chart missing/broken: ${ch||'(none)'}`);
-  else if(/flows/i.test(ch)) problems.push(`[req1] 3.1.1 ${k} chart is NOT a daily candle (flows fallback): ${ch}; use gen_kr_candle (candle+volume+cumulative net-buy)`);
-  else { try{ if(fs.existsSync(path.join(chartsDir,k+'_tech.weekly'))) problems.push(`[req1] 3.1.1 ${k} chart is WEEKLY line fallback (mplfinance missing) - must be daily candle; gen_kr_candle now auto-installs mplfinance`); }catch(e){} }
+  if(!cExists(ch)) problems.push(`[req1] 3.2.1 ${k} chart missing/broken: ${ch||'(none)'}`);
+  else if(/flows/i.test(ch)) problems.push(`[req1] 3.2.1 ${k} chart is NOT a daily candle (flows fallback): ${ch}; use gen_kr_candle (candle+volume+cumulative net-buy)`);
+  else { try{ if(fs.existsSync(path.join(chartsDir,k+'_tech.weekly'))) problems.push(`[req1] 3.2.1 ${k} chart is WEEKLY line fallback (mplfinance missing) - must be daily candle; gen_kr_candle now auto-installs mplfinance`); }catch(e){} }
 });
-// req2: 3.1.3 leading-index long series + chart
-if(!cExists(m.korea_leading_chart||'charts/leading_cycle.png')) problems.push('[req2] 3.1.3 leading-index chart missing/broken');
-{ const n=fileN('nmr_leading_series.json'); if(n<12) problems.push(`[req2] 3.1.3 leading-index long series too short (${n}<12); collect INDEXerGO monthly long series`); }
-// req3: 3.1.4 8 theme trend charts
+// req2: 3.1.5 leading-index long series + chart
+if(!cExists(m.korea_leading_chart||'charts/leading_cycle.png')) problems.push('[req2] 3.1.5 leading-index chart missing/broken');
+{ const n=fileN('nmr_leading_series.json'); if(n<12) problems.push(`[req2] 3.1.5 leading-index long series too short (${n}<12); collect INDEXerGO monthly long series`); }
+// req3: 3.2.3 8 theme trend charts
 const THEMES=["a","b","c","d","e","f","g","h"]; // placeholder count; resolve by report data order
 const tRows=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
-if(tRows.length<8) problems.push(`[req3] 3.1.4 theme rows ${tRows.length}<8`);
+if(tRows.length<8) problems.push(`[req3] 3.2.3 theme rows ${tRows.length}<8`);
 let tMiss=tRows.filter(t=>!cExists(t.chart)).map(t=>t.theme||'?');
-if(tMiss.length) problems.push(`[req3] 3.1.4 theme trend charts missing ${tMiss.length}/${tRows.length}: ${tMiss.join(', ')}`);
+if(tMiss.length) problems.push(`[req3] 3.2.3 theme trend charts missing ${tMiss.length}/${tRows.length}: ${tMiss.join(', ')}`);
 // req4: semi stocks (>=10) + charts
 const ss=Array.isArray(m.semi_ai_stocks)?m.semi_ai_stocks:[];
-if(ss.length<10) problems.push(`[req4] 3.1.4 semi stocks ${ss.length}<10`);
-{ const miss=ss.filter((x,i)=>!cExists(x.chart||('charts/semi_s_'+i+'.png'))).length; if(miss) problems.push(`[req4] 3.1.4 semi-stock trend charts missing ${miss}/${ss.length}`); }
+if(ss.length<10) problems.push(`[req4] 3.2.3 semi stocks ${ss.length}<10`);
+{ const miss=ss.filter((x,i)=>!cExists(x.chart||('charts/semi_s_'+i+'.png'))).length; if(miss) problems.push(`[req4] 3.2.3 semi-stock trend charts missing ${miss}/${ss.length}`); }
 // req5: semi ETFs (==20) + charts
 const se=Array.isArray(m.semi_ai_etfs)?m.semi_ai_etfs:[];
-if(se.length<20) problems.push(`[req5] 3.1.4 semi ETFs ${se.length}<20 (always show AUM top 20)`);
-{ const miss=se.filter((x,i)=>!cExists(x.chart||('charts/semi_e_'+i+'.png'))).length; if(miss) problems.push(`[req5] 3.1.4 semi-ETF trend charts missing ${miss}/${se.length}`); }
+if(se.length<20) problems.push(`[req5] 3.2.3 semi ETFs ${se.length}<20 (always show AUM top 20)`);
+{ const miss=se.filter((x,i)=>!cExists(x.chart||('charts/semi_e_'+i+'.png'))).length; if(miss) problems.push(`[req5] 3.2.3 semi-ETF trend charts missing ${miss}/${se.length}`); }
 // req6: CAPEX present (empty-year column drop handled in builder)
-if(!(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length>=4)) warnings.push('[req6] 3.2.1 CAPEX rows<4');
+if(!(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length>=4)) warnings.push('[req6] 3.1.8 CAPEX rows<4');
 // req7: FOMC dot plot completeness (no empty jun/mar)
 const f=m.fomc_dotplot;
-if(!f||!Array.isArray(f.rows)||!f.rows.length) problems.push('[req7] 3.2.2 FOMC dot plot data missing');
-else { const miss=[]; f.rows.forEach(r=>['jun','mar'].forEach(c=>{ const v=r[c]; if(v==null||String(v).trim()===''||String(v).trim()==='-')miss.push((r.item||'?')+'.'+c); })); if(miss.length) problems.push('[req7] 3.2.2 dot plot empty values: '+miss.join(', ')); }
+if(!f||!Array.isArray(f.rows)||!f.rows.length) problems.push('[req7] 3.1.1 FOMC dot plot data missing');
+else { const miss=[]; f.rows.forEach(r=>['jun','mar'].forEach(c=>{ const v=r[c]; if(v==null||String(v).trim()===''||String(v).trim()==='-')miss.push((r.item||'?')+'.'+c); })); if(miss.length) problems.push('[req7] 3.1.1 dot plot empty values: '+miss.join(', ')); }
 // req8: broker/IB freshness. KR brokers: daily<=1/weekly<=3 (Mon/weekend allow Friday). Global IB: weekly cadence <=7.
 function fresh(dateStr,kind){ if(!dateStr)return true; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const dt=new Date(String(dateStr).slice(0,10)); if(isNaN(dt))return true; let max=(kind==='daily')?1:(kind==='weekly7'?7:3); const dow=ref.getDay(); if(dow===1)max+=2; if(dow===6)max+=1; if(dow===0)max+=2; const diff=Math.floor((ref-dt)/86400000); return diff<=max; }
 function houses(obj,label,kind){ if(!obj||typeof obj!=='object')return; Object.keys(obj).forEach(k=>{ const v=obj[k]; if(!v||typeof v!=='object'||Array.isArray(v))return; const krs=v.key_reports; if(Array.isArray(krs)) krs.forEach(r=>{ const dt=(r&&r.date)||''; if(dt&&!fresh(dt,kind)) problems.push(`[req8] ${label}.${k} report stale: ${dt} (exceeds freshness)`); }); }); }
@@ -70,7 +70,7 @@ houses(d.global_securities,'GlobalIB','weekly7');
   if(ff.current==null) problems.push('[req14] 3.1.1 FOMC fed_funds current missing');
   if(ff.asof){ const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const a=new Date(String(ff.asof).slice(0,10)); if(!isNaN(a)&&Math.floor((ref-a)/86400000)>70) problems.push('[req14] FOMC fed_funds asof stale: '+ff.asof); } }
 // req15: HY spread current present (not "-") -- catches req3
-{ const hy=m.hy_spread||{}; if(hy.current==null&&hy.hy_oas==null) problems.push('[req15] 3.2.3 HY spread current missing'); }
+{ const hy=m.hy_spread||{}; if(hy.current==null&&hy.hy_oas==null) problems.push('[req15] 3.1.1 HY spread current missing'); }
 // req16: FOMC past meetings must be actual (no estimate marker) -- catches req5
 { const fm=((m.macro&&m.macro.rates)||{}).fomc_meetings||[]; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); let est=0;
   const EST=/\uCD94\uC815|estimate|\(E\)/;
@@ -80,9 +80,9 @@ houses(d.global_securities,'GlobalIB','weekly7');
 { const yc=(((m.macro||{}).rates||{}).yield_curve)||{}; if(!yc||typeof yc!=='object'||yc.spread==null) problems.push('[req17] 3.1.1 yield_curve(10Y-2Y) data empty'); }
 // req18: macro charts must exist (curve/employment/inflation) -- catches req6/req7 regressions
 ['macro_curve.png','macro_employment.png','macro_inflation.png'].forEach(c=>{ if(!cExists('charts/'+c)) problems.push('[req18] macro chart missing/broken: '+c); });
-// req19: 3.1.8 OECD CLI - DB-seeded unified chart (all countries, monthly). Data present => chart must exist.
-if(m.oecd_cli&&Array.isArray(m.oecd_cli.months)&&m.oecd_cli.months.length){ if(!cExists((m.oecd_cli.chart)||'charts/oecd_cli.png')) problems.push('[req19] 3.1.8 OECD CLI chart missing/broken: charts/oecd_cli.png (run gen_cli_chart.py)'); }
-else warnings.push('[req19] 3.1.8 oecd_cli data missing (db/oecd_cli.json seed) - section omitted');
+// req19: 3.1.4 OECD CLI - DB-seeded unified chart (all countries, monthly). Data present => chart must exist.
+if(m.oecd_cli&&Array.isArray(m.oecd_cli.months)&&m.oecd_cli.months.length){ if(!cExists((m.oecd_cli.chart)||'charts/oecd_cli.png')) problems.push('[req19] 3.1.4 OECD CLI chart missing/broken: charts/oecd_cli.png (run gen_cli_chart.py)'); }
+else warnings.push('[req19] 3.1.4 oecd_cli data missing (db/oecd_cli.json seed) - section omitted');
 if(m.customs&&m.customs.series&&Array.isArray(m.customs.months)&&m.customs.months.length){ if(!cExists((m.customs.chart_total)||'charts/수출_전체_24개월.png')||!cExists((m.customs.chart_semi)||'charts/수출_반도체_24개월.png')) problems.push('[req] 3.1.10 관세청 수출 잠정치 차트 missing: charts/수출_전체_24개월.png|charts/수출_반도체_24개월.png (run gen_customs_chart.py)'); }
 else warnings.push('[req] 3.1.10 customs data missing (db/customs.json seed) - section omitted');
 // (fix v3.48) 한국상장 ETF 추세 스파크라인 coverage — Yahoo .KS 이력 미제공시 Daum 폴백이 채워야 함.
@@ -98,21 +98,21 @@ try{
   eu.forEach(x=>{ if(!cExists('charts/spark_etf_'+(x.symbol||x.dispSym||'')+'.png')) eMiss++; });
   if(eu.length && eMiss>Math.max(1,Math.floor(eu.length*0.4))) warnings.push('[3.5.1] europe ETF trend charts missing '+eMiss+'/'+eu.length+' (check Daum fallback in fetch_us.py euetf)');
 }catch(e){}
-// req20 (2026-07-05): 3.1.5 FactSet — "매 실행 변동 체크·미변동 유지" 동작 보장.
+// req20 (2026-07-05): 3.1.6 FactSet — "매 실행 변동 체크·미변동 유지" 동작 보장.
 //   next_date 가 비면 다음 회차 갱신 트리거가 영구 불능 → warning. next_date 경과했는데 report.date 미갱신 → problem(이전 자료 잔존 금지).
 { const fsx=m.factset||{}; const rp=fsx.report||{};
   const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10)||new Date().toISOString().slice(0,10);
   if(rp.date){
-    if(!rp.next_date) warnings.push('[req20] 3.1.5 FactSet report.next_date 비어있음 — 다음 회차 갱신 트리거 불능(주간 발행일 기입 필요)');
+    if(!rp.next_date) warnings.push('[req20] 3.1.6 FactSet report.next_date 비어있음 — 다음 회차 갱신 트리거 불능(주간 발행일 기입 필요)');
     else if(String(rp.next_date)<=today && String(rp.date)<String(rp.next_date))
-      problems.push('[req20] 3.1.5 FactSet Earnings Insight 신규 회차 미갱신(next_date '+rp.next_date+' 경과, report.date '+rp.date+') — 새 PDF 정독·full_summary 교체 필요'); }
+      problems.push('[req20] 3.1.6 FactSet Earnings Insight 신규 회차 미갱신(next_date '+rp.next_date+' 경과, report.date '+rp.date+') — 새 PDF 정독·full_summary 교체 필요'); }
 }
-// req21 (2026-07-05): 3.1.20 M7 — "업데이트:매일" 동작 보장. as_of 가 실행일과 다르면 오늘 실측이 아님(내장 스냅샷/전일 잔존).
+// req21 (2026-07-05): 3.1.7 M7 — "업데이트:매일" 동작 보장. as_of 가 실행일과 다르면 오늘 실측이 아님(내장 스냅샷/전일 잔존).
 { const m7=m.m7_outlook||{};
   const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10);
   if(m7.rows&&m7.rows.length&&today&&String(m7.as_of||'').slice(0,10)!==today)
-    problems.push('[req21] 3.1.20 M7 실적 전망 as_of('+(m7.as_of||'없음')+') != 실행일('+today+') — 매일 실측 규칙 위반(M7OutlookAgent 재실행 필요)');
-  if(!m7.rows||!m7.rows.length) warnings.push('[req21] 3.1.20 m7_outlook 데이터 없음 — 빌더 내장 스냅샷으로 렌더됨'); }
+    problems.push('[req21] 3.1.7 M7 실적 전망 as_of('+(m7.as_of||'없음')+') != 실행일('+today+') — 매일 실측 규칙 위반(M7OutlookAgent 재실행 필요)');
+  if(!m7.rows||!m7.rows.length) warnings.push('[req21] 3.1.7 m7_outlook 데이터 없음 — 빌더 내장 스냅샷으로 렌더됨'); }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

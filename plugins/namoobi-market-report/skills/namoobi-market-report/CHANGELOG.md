@@ -1,5 +1,12 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.49.0 — 3.1 주요지표 재배열: ①~④ 그룹 소제목(번호 없는 소제목, 방법 B) + 순차 번호 3.1.1~3.1.13 (2026-07-05)
+- **구조**: 거시→실적→섹터→수급·심리 흐름으로 재배열. ① 매크로(정책·경기)=3.1.1 금리 / 3.1.2 물가 / 3.1.3 고용 / 3.1.4 OECD CLI / 3.1.5 순환변동치 · ② 기업 실적=3.1.6 FactSet / 3.1.7 M7 실적 전망 / 3.1.8 CAPEX · ③ 반도체·한국 연결고리=3.1.9 메모리+HBM / 3.1.10 관세청 수출 / 3.1.11 반도체 사이클→코스피 · ④ 수급·심리(선행신호)=3.1.12 심리·자금흐름 / 3.1.13 파생 포지셔닝.
+- **구번호 대응**: 舊3.1.4심리→3.1.12 · 舊3.1.5FactSet→3.1.6 · 舊3.1.6CAPEX→3.1.8 · 舊3.1.7A→3.1.9 · 舊3.1.7B→3.1.11 · 舊3.1.8CLI→3.1.4 · 舊3.1.9순환→3.1.5 · 舊3.1.20M7→3.1.7 · 舊3.1.21파생→3.1.13. (3.1.1~3.1.3·3.1.10 불변)
+- **빌더**: `build_report.js` — `gh()` 그룹 소제목 헬퍼 신설(좌측 파란 바+연한 음영, 개요 번호 밖·목차 미포함), `renderMacroIndicators` 렌더 순서 재배치(심리 블록을 ④로 이동, OECD CLI·순환변동치를 고용 뒤로).
+- **게이트**: `verify_report.js` v3.6.33 — 섹션 라벨 신번호로 정정(req19 CLI=3.1.4, req20 FactSet=3.1.6, req21 M7=3.1.7, req2 순환변동치=3.1.5) + 종전 구버전 잔존 라벨 정정(req1=3.2.1 코스피 캔들, req3~5=3.2.3 테마·반도체, req6=3.1.8 CAPEX, req7=3.1.1 점도표, req15=3.1.1 HY). 차단/경고 로직 자체는 불변(번호 라벨만 정정).
+- **문서**: SKILL.md에 3.1 구성 정의(그룹 구조+구번호 대응표) 추가, references/agents.md·data-schema.md·db-architecture.md·merge.py·gen_cli_chart.py·gen_hbm_dashboard.py·gen_leading_chart.py 주석 라벨 동기화.
+
 ## v3.47.0 (plugin 1.16.0) — 3.1.21 파생시장 포지셔닝 기반 현물 선행신호 분석 신설 (매일)
 - **신설 3.1.21**: 3.1.20 뒤. KOSPI200·S&P500·Nasdaq100의 선물 베이시스·순포지션/수급(美 COT / 韓 외국인·기관)·풋콜비율·IV스큐·딜러감마(GEX)를 z-score(60거래일)로 표준화한 스냅샷(① 지수현황 ② 값·z 매트릭스 ③ 활성신호 ④ 시장해석 ⑤ 종합).
 - **파이프라인**: `deriv_signals/`(daily_update.py→DB, export_snapshot.py→nmr_deriv_positioning.json) → merge `markets.deriv_positioning` → 빌더 `renderDerivPositioning`. 미수집 시 내장 DERIV_POS_DEFAULT 비차단. 데이터=yfinance·CFTC COT·네이버 수급·data.go.kr(파생·지수).

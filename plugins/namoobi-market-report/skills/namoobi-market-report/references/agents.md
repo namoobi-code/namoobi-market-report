@@ -8,12 +8,12 @@
 > 5. **美2년물**: `us2y_daily` 1년 시계열(FMP treasury year2)을 `macro.series.us2y_daily` 로 제공. **gen_macro_charts 는 `NMR_OUT="$WORK"` 로 실행**해야 us2y 가 `$WORK/nmr_indexseries.json` 에 주입돼 스파크가 10년물과 다른 정상 모양이 된다.
 > 6. **KSVKOSPI**: 메인세션 Claude in Chrome 으로 `https://kr.investing.com/indices/kospi-volatility` 파싱. **성과 라벨은 "달"**(1일/1주/1달/3달/6달/1년) — "개월" 아님(파서 라벨 주의!). current·prev_close·anchors(1d/1w/1mo/3mo/6mo/1y)+23일 시계열 → `nmr_vkospi_history.json`. `nmr_reasons.py` 가 KSVKOSPI 행에 주입(빌더 day1pct 용 `prev_pct` 포함).
 > 8. **CAPEX**: **웹서치 실측+컨센서스** → `nmr_capex.json`(MSFT 2026E≈190 캘린더연 컨센서스 등 GOODREPORT 수준; 90 같은 FY부분배분 금지). actual(2024~25)·estimate(2026~29E) 분리표기.
-> 9. **HBM**: 항목별 출처링크 `sources[]`(item·value·source·url·asof·type) → build 가 3.1.7A 표·그래프 아래 렌더. eps_per 키는 `eps_2026E`(E접미사) — merge 가 `eps_yearly`(y2026_eps) 로 매핑.
+> 9. **HBM**: 항목별 출처링크 `sources[]`(item·value·source·url·asof·type) → build 가 3.1.9 표·그래프 아래 렌더. eps_per 키는 `eps_2026E`(E접미사) — merge 가 `eps_yearly`(y2026_eps) 로 매핑.
 > 10. **nmr_reasons.py**: merge 직후·build 직전 1회 실행(SKILL Phase 4) — 위 1·2·4(발표일)·6 을 report_data 에 주입. **누락 시 결측이 "-"로 새어 req0 위반**.
 
 > **v3.39.0 — 휘발 데이터 carry-forward 계약.** HBMAgent·CapexAgent 는 **연결폴더 `_market_report_data/nmr_hbm.json`·`nmr_capex.json` 영구본을 베이스로 로드 → 새로 조사된 값만 갱신 → 저장**한다(merge.py `LCF()` 가 자동으로 WORK 우선·없으면 영구본·사용분 재저장). 즉 매 실행 값은 개선만 되고, 수집 실패해도 내장 예시·추정 기본값으로 되돌아가지 않는다. (손편집 JSON 은 휘발이므로 금지 — 반드시 에이전트 산출/영구본 경유.)
 
-> **v3.35.0 — 3.1.6 CAPEX 데이터 확장(매출·FCF 실측).** CapexAgent 는 5개사(MSFT·GOOGL·AMZN·META·ORCL) 연도별 **CAPEX·매출·FCF** 를 모두 수집해 `nmr_capex.json` rows 에 `y{YYYY}`(capex)·`rev{YYYY}`·`fcf{YYYY}`·`ratio{YYYY}` 로 저장한다. 출처: FMP `statements` income-statement(revenue)·cashflow-statement(freeCashFlow,capitalExpenditure) 실측(2024~25), FMP `analyst` financial-estimates(revenueAvg) 컨센서스(2026~29E). 전망 FCF=직전 영업현금흐름×(매출_y/매출_25)−CAPEX_y 추정. Capex/매출=CAPEX÷매출. 표는 기업별 4행, 두 차트(gen_capex_chart.py)는 rows 의 capex/rev/fcf 로 그려 표·그래프 100% 일치. ORCL statements 플랜 제한 시 공개치·추정 폴백(표기). 단위 십억$.
+> **v3.35.0 — 3.1.8 CAPEX 데이터 확장(매출·FCF 실측).** CapexAgent 는 5개사(MSFT·GOOGL·AMZN·META·ORCL) 연도별 **CAPEX·매출·FCF** 를 모두 수집해 `nmr_capex.json` rows 에 `y{YYYY}`(capex)·`rev{YYYY}`·`fcf{YYYY}`·`ratio{YYYY}` 로 저장한다. 출처: FMP `statements` income-statement(revenue)·cashflow-statement(freeCashFlow,capitalExpenditure) 실측(2024~25), FMP `analyst` financial-estimates(revenueAvg) 컨센서스(2026~29E). 전망 FCF=직전 영업현금흐름×(매출_y/매출_25)−CAPEX_y 추정. Capex/매출=CAPEX÷매출. 표는 기업별 4행, 두 차트(gen_capex_chart.py)는 rows 의 capex/rev/fcf 로 그려 표·그래프 100% 일치. ORCL statements 플랜 제한 시 공개치·추정 폴백(표기). 단위 십억$.
 
 
 
@@ -21,9 +21,9 @@
 ## 추가 규칙 — 2026-06-26 (라운드6) 변동이력·표 정비
 
 - **변동이력(빨간색, 표 위)**: nmr_changelog.py 가 비일간 지표(정책금리·물가·고용·CAPEX) 최종값을 `_market_report_data/nmr_valcache.json` 에 저장 → 매 실행 직전값과 비교, 변경분만 change_log 로 부착(merge 후·build 전 실행). build 가 각 표 **위에 빨간색**으로 렌더(변경 없으면 미표시).
-- 3.1.4 심리표 우측열 헤더 = '시장 영향'.
+- 3.1.12 심리표 우측열 헤더 = '시장 영향'.
 - KSVKOSPI: investing.com 1년 일별(nmr_vkospi_hist.json)로 현재·1주~1년·스파크 산출.
-- 3.1.6 CAPEX change_log 표 위. 3.1.7A gen_hbm_dashboard EPS패널 제거 + nmr_hbm_eps.json 3사 연도별 EPS/PER 표(2025~2028E, build).
+- 3.1.8 CAPEX change_log 표 위. 3.1.9 gen_hbm_dashboard EPS패널 제거 + nmr_hbm_eps.json 3사 연도별 EPS/PER 표(2025~2028E, build).
 - 3.1.3 GDP 분기 별도 차트(nmr_gdp.json, gen_macro2). 고용 통합차트는 월별 5종.
 
 ---
@@ -90,11 +90,11 @@
 - **CryptoAgent = 정성 지표만**(CoinInfo MCP: 시장개요·공포탐욕·김프·등락상위) → `nmr_crypto.json`. 1년 시계열(btc/eth/xrp/sol·fng)은 fetch_us.py.
 - **美 ETF 30+종**(index·sector·theme[DRAM]·defensive)은 fetch_us.py → `nmr_usetf.json`/`nmr_etfseries.json`. (UsEtfAgent 폐지.)
 - **IndexRebalanceAgent → `nmr_rebalance.json`**: S&P500·나스닥100 편입/편출·일정·기준·룰변경(1차 출처 press.spglobal.com·ir.nasdaq.com). **[P2 — v3.17 매 실행 마커체크] 매 실행 S&P/나스닥 최신 구성변경일을 저렴하게 1회 관측 → `nmr_cache.py check index_rebalance <변경일>`. reuse(변경없음)면 이 에이전트를 발행하지 말고 `get` 캐시 재사용; due(변경·확인불가·캐시없음)면 조사 후 `set`. 비정기(M&A) 변경도 매 실행 재관측으로 즉시 포착.**
-- **USMacroExtrasAgent → `nmr_usmacro.json`**: `bigtech_capex`(MSFT·Alphabet·Amazon·Meta 연간) — **실적연도 capex 는 FMP `statements`(`endpoint=cashflow-statement`, period=annual)의 `capitalExpenditure`(음수→절대값)로 정확 수집**(ToolSearch `+statements cashflow` 로 로드 — 현 플랜에서 statements 가용 확인됨, WebSearch 추정 대체). 차기연도 추정(**2027(E) 항상 채움**)·가이던스만 WebSearch. **[3.1.6 CAPEX 추정 출처 정책: 회사 IR·실적발표 가이던스·애널리스트 컨센서스(데이터벤더) 우선, 뉴스기사 단독 수치 사용 금지·출처 명시]** + `fomc_dotplot`(2026·2027·2028말·장기중립 각 행 **jun·mar 중간값 모두**, 빈칸 금지 — 점도표는 API 없음·WebSearch). **병합 carry-forward**: 이번 런에 `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 비면 직전 `_market_report_data/report_data_*.json` 에서 가져와 채움. **[P2 — v3.17] dot_plot: 매 실행 최신 FOMC SEP 발표일 마커로 `check dot_plot <SEP일>` → reuse면 점도표 `get`(조사 스킵); due면 조사·`set`. bigtech_capex 는 저렴한 마커가 없어 `nmr_cache.py gate <오늘>` 창(verify/due=실적시즌→CAPEX 조사, skip→carry-forward)으로 판정. dot_plot reuse 이고 capex skip 이면 USMacroExtras 자체를 발행하지 말 것.** **[v3.9.0] 3.2.1 빅테크 CAPEX 차트(`gen_capex_chart.py`)는 내장 기본 데이터(2023~2025 실적·2026 가이던스·2027~2029 전망E, 5개사 Microsoft·Amazon·Alphabet·Meta·Oracle, 십억 달러)로 항상 생성된다. 라이브 갱신은 `bigtech_capex` 에 `capex_series`/`rev_series`/`fcf_series`={"years":[...],"<Company>":[...]} 를 추가하면 차트가 오버라이드(없으면 내장값). 오라클 capex 는 FMP 가용 시 표·시리즈에 포함.**
+- **USMacroExtrasAgent → `nmr_usmacro.json`**: `bigtech_capex`(MSFT·Alphabet·Amazon·Meta 연간) — **실적연도 capex 는 FMP `statements`(`endpoint=cashflow-statement`, period=annual)의 `capitalExpenditure`(음수→절대값)로 정확 수집**(ToolSearch `+statements cashflow` 로 로드 — 현 플랜에서 statements 가용 확인됨, WebSearch 추정 대체). 차기연도 추정(**2027(E) 항상 채움**)·가이던스만 WebSearch. **[3.1.8 CAPEX 추정 출처 정책: 회사 IR·실적발표 가이던스·애널리스트 컨센서스(데이터벤더) 우선, 뉴스기사 단독 수치 사용 금지·출처 명시]** + `fomc_dotplot`(2026·2027·2028말·장기중립 각 행 **jun·mar 중간값 모두**, 빈칸 금지 — 점도표는 API 없음·WebSearch). **병합 carry-forward**: 이번 런에 `bigtech_capex`·`fomc_dotplot`·`us_credit`/`hy_spread` 가 비면 직전 `_market_report_data/report_data_*.json` 에서 가져와 채움. **[P2 — v3.17] dot_plot: 매 실행 최신 FOMC SEP 발표일 마커로 `check dot_plot <SEP일>` → reuse면 점도표 `get`(조사 스킵); due면 조사·`set`. bigtech_capex 는 저렴한 마커가 없어 `nmr_cache.py gate <오늘>` 창(verify/due=실적시즌→CAPEX 조사, skip→carry-forward)으로 판정. dot_plot reuse 이고 capex skip 이면 USMacroExtras 자체를 발행하지 말 것.** **[v3.9.0] 3.2.1 빅테크 CAPEX 차트(`gen_capex_chart.py`)는 내장 기본 데이터(2023~2025 실적·2026 가이던스·2027~2029 전망E, 5개사 Microsoft·Amazon·Alphabet·Meta·Oracle, 십억 달러)로 항상 생성된다. 라이브 갱신은 `bigtech_capex` 에 `capex_series`/`rev_series`/`fcf_series`={"years":[...],"<Company>":[...]} 를 추가하면 차트가 오버라이드(없으면 내장값). 오라클 capex 는 FMP 가용 시 표·시리즈에 포함.**
 - **CommoditiesAgent(본문 3) 통합(P3)**: 에너지·금속·농산물·전략광물 현재가·등락률 + **1년 주봉 `nmr_commod.json`** + 각 행 2문장 한글 trend 를 1회 수집으로 산출. (구 CommoditySeriesAgent 흡수.)
 - **NewsBerkAgent(AINews+Berkshire) → `nmr_news2.json`**: `events_calendar_longterm` ★★★ 8~10건, `berkshire` 13F(new_buys/added/reduced/exited/top_holdings≤20, 스키마 정확히), `ai_trends`(국·영 병기·**항상 정확히 10개** — 빌더 부록B 가 items[] 렌더). **반드시 구조**: `ai_trends={"as_of":"YYYY-MM-DD","sources_checked":[..],"items":[{"tag":"<분류>","title":"<국문 제목>","summary":"<국문 2~3문장>","title_en":"<EN title>","summary_en":"<EN 1~2 sentences>","source":"<매체>","date":"YYYY-MM-DD","url":"<링크>"}, ...**정확히 10개**]}`. AI 트렌드 items 는 **항상 10개**를 채운다(부족하면 추가 WebSearch 로 보강; 단 출처 URL 확인된 항목만 — 7~8개로 끝내지 말 것). ⚠️ **`detail` 키 금지** — 빌더는 `summary`/`title_en`/`summary_en` 를 읽으므로 국문=`summary`, 영문=`summary_en` 로 분리한다. **[P2 — v3.17] NewsBerk 는 ai_trends(상시) 때문에 매 실행 발행하되 13F 서브태스크만 게이트: 매 실행 Berkshire 최신 13F-HR 제출일(EDGAR) 마커로 `check berkshire <제출일>` → reuse면 13F는 `get` 캐시 재사용(조사 스킵), due면 조사 후 `set berkshire`. ai_trends 10개는 항상 수집.**
 - **HY 스프레드**: FRED `BAMLH0A0HYM2` **월별** series → `gen_hy_chart.py` → `charts/hy_oas.png`(무료 CSV 약 3년 상한). **[P2 캐시] 매 실행 FRED 최신 데이터일(월)을 마커로 `check hy_spread <YYYY-MM>` → reuse 면 히스토리 재사용; due(새 달) 면 최신 점 추가 후 `set`.**
-- **차트 생성(Phase 1.5)** = `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` **6종만** (`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 폐기). `gen_capex_chart.py`→3.2.1 CAPEX, `gen_hbm_dashboard.py`→3.1.5 메모리+HBM 대시보드(`nmr_hbm.json` 라이브 또는 내장 예시·추정값, cwd 상대 `charts/` 출력).
+- **차트 생성(Phase 1.5)** = `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` **6종만** (`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 폐기). `gen_capex_chart.py`→3.2.1 CAPEX, `gen_hbm_dashboard.py`→3.1.6 메모리+HBM 대시보드(`nmr_hbm.json` 라이브 또는 내장 예시·추정값, cwd 상대 `charts/` 출력).
 - **7 한국 5대 증권사** = 메인세션 Chrome 개별 `navigate→get_page_text`(WebSearch 일괄 우회 금지), 키움 `?dummyVal=0`(iframe 이면 텔레그램 t.me/s/KiwoomResearch 보조). **7·8 신선도** = Daily≤D-1·Weekly/Monthly≤D-3(주말은 금요일까지), 미충족이면 stale 금지·빈값.
 - **품질 게이트(Phase 4.5)**: `scripts/verify_report.js` 가 위 항목을 코드로 검사. 미달이면 발송 차단·사용자 질문(조용히 "-"/stale 통과 금지).
 
@@ -305,16 +305,16 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 **검색 예**: `"S&P 500 index changes <month> 2026 spglobal"`, `"Nasdaq-100 annual reconstitution December 2025"`, `"Nasdaq 100 quarterly changes June 2026"`, `"Nasdaq 100 fast entry rule 2026"`, `"SpaceX OpenAI Anthropic IPO 2026 valuation"`.
 **저장**: `markets.index_rebalance` = {sp500:{schedule[], events[], criteria[], criteria_note}, nasdaq100:{schedule[], events[], rule_change{rows[]}, candidates[]}, comment, asof}. 각 편입/편출 항목 `{ticker, name, biz(사업 한 줄), reason(편입/편출 사유)}`. 스키마 상세는 **필요시** `data-schema.md` 참조(매 실행 로딩 불필요). 별도 `nmr_rebalance.json` 저장 후 Phase 3 병합. 날짜·종목은 1차 출처로 grounding, 미확정은 `미확인` 표기. **(v3.8.1) 빌더 견고화: `schedule`/`criteria` 는 문자열배열(불릿) 또는 객체배열(표) 모두 허용, `rule_change.rows` 는 `{item,detail}` 또는 `{rule,before,after}` 모두 허용, `candidates` 는 `{name,note}` 또는 `{name,biz,valuation,status}` 모두 허용 — 어느 형태든 3.2.5 가 '-' 없이 렌더된다.**
 
-### KoreaTechAgent / 수급 (3.1.1·3.1.2 — 1년 일별)
+### KoreaTechAgent / 수급 (3.2.1·3.2.2 — 1년 일별)
 - `nmr_kr_ohlcv.json` 의 `kospi_flows_daily`·`kosdaq_flows_daily` 는 **1년치 일별** 투자자 순매수 `[["YYYY-MM-DD", 외국인억원, 기관억원, 개인억원]..]` (1일치만 넣으면 누적순매수 차트가 평평해짐 — 반드시 1년).
   - 네이버금융 레거시 페이지는 SPA 개편으로 404. **다음금융 `finance.daum.net/api/market_index/days`**(market=KOSPI/KOSDAQ, `foreign/institution/individualStraightPurchasePrice` 원→억원 환산)로 1년 일별 수집.
   - **KOSDAQ 거래량**: 야후 `^KQ11` 지수 거래량이 손상(중앙값 1000)되므로 다음금융 `accTradeVolume` 로 교체. KOSPI 거래량은 야후 정상.
 - `markets.korea_investor_stocks` = `{asof, kospi_buy[], kospi_sell[], kosdaq_buy[], kosdaq_sell[], note}` — 각 리스트 `{name, detail}` 약 10종(코스피 순매수/순매도·코스닥 순매수/순매도). 빌더가 **4개 리스트**로 렌더. 순매도 일간 종목 랭킹이 비공개/차단이면 빈배열로 두고 `note` 에 사유 명시. (구 `kospi_foreign_buy/kosdaq_strong/aggregate` 폐기)
 
-### 3.1.3 경기선행지수 (markets.korea_leading)
+### 3.1.5 경기선행지수 (markets.korea_leading)
 - 각 항목 `{period(YYYY.MM), value(순환변동치 숫자), mom(+x.xp), note}` — **통계청(국가데이터처) 산업활동동향 확정치**를 직접 확인. 배열은 **최신이 맨 앞(내림차순)**. 빌더가 "선행지수↔KOSPI 정비례·약 2개월 선행", "100 이상=확장 / 100 이하=침체" 설명을 자동 표기.
 
-### 3.1.4 테마 (AI·원자력 포함, 순서 고정)
+### 3.2.3 테마 (AI·원자력 포함, 순서 고정)
 - `markets.korea_themes` 순서: **반도체 · AI · 전력기기 · 조선 · 방산 · 원자력 · 증권 · 로봇 · 우주**. 각 `{theme, direction(▲/▼/■), comment}`.
 - 각 테마 대표 ETF 1년 주봉 series 를 `nmr_themeseries1y.json[테마명]` 에 넣으면 `gen_rest_charts.py`(데이터 주도)가 `charts/theme_<테마명>.png` 자동 생성. `markets.korea_theme_etfs[테마]=ETF명`, `markets.korea_theme_charts[테마]="charts/theme_<테마>.png"` 설정. (AI 예: KODEX AI반도체핵심장비 471990.KS / 원자력 예: ACE 원자력테마딥서치 433500.KS)
 
@@ -326,16 +326,16 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `markets.fx_usd.usd_eur` = **USD/EUR (=1/EURUSD)** 로 저장(EUR/USD 아님).
 - 부록A 버크셔 13F (`berkshire`) — 빌더 스키마 **정확히**: `{quarter, filing_date, summary, cash, new_buys[], added[], reduced[], exited[] (각 {name,ticker,detail}), top_holdings[] ({name,ticker,weight_or_value,note}), sources[]}`. `recent_buys/recent_sells` 나 `top_holdings.detail` 로 주면 부록A 가 비므로 금지 — `new_buys/exited`·`weight_or_value/note` 사용.
 
-## (v3.6.7) 3.1.4 반도체/AI 상세표·테마 확장
+## (v3.6.7) 3.2.3 반도체/AI 상세표·테마 확장
 
 - `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 ETF 는 넣지 말 것. `markets.semi_ai_comment` 는 표 아래 현황·코멘트.
   - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
 - `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
-- 3.1.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.
+- 3.2.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.
 
-## (v3.10.0) 3.1.5 HBMAgent — 메모리+HBM 지표 대시보드 (`nmr_hbm.json`)
+## (v3.10.0→v3.49) 3.1.9 HBMAgent — 메모리+HBM 지표 대시보드 (`nmr_hbm.json`)
 
-**목적**: 3.1.5 메모리+HBM 대시보드(`gen_hbm_dashboard.py`)에 들어갈 분기 추정치를 수집한다. HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 **무료 실시간 API 가 없으므로 전부 추정치**다 — **뉴스 단독 출처 금지: 3사 EPS/PER 은 FnGuide·SimplyWallSt·MarketScreener 등 데이터벤더 컨센서스로, 점유율은 TrendForce·Counterpoint 로 수집**한다(가이던스·실적은 각사 IR). 모든 칸에 `source`·`asof` 명시, 뉴스기사 수치 패딩 금지.
+**목적**: 3.1.9 메모리+HBM 대시보드(`gen_hbm_dashboard.py`)에 들어갈 분기 추정치를 수집한다. HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 **무료 실시간 API 가 없으므로 전부 추정치**다 — **뉴스 단독 출처 금지: 3사 EPS/PER 은 FnGuide·SimplyWallSt·MarketScreener 등 데이터벤더 컨센서스로, 점유율은 TrendForce·Counterpoint 로 수집**한다(가이던스·실적은 각사 IR). 모든 칸에 `source`·`asof` 명시, 뉴스기사 수치 패딩 금지.
 
 - **호출**: Phase 1 병렬 배치에 포함(선택). **[v3.17] 저렴한 마커가 없으므로 `nmr_cache.py gate <오늘>` 의 hbm 이 verify/due(분기 창: 1·4·7·10월 초)일 때만 HBMAgent 발행, skip(창 밖)이면 미발행**(생성기가 내장/직전 nmr_hbm 으로 비차단 렌더). 결과는 `nmr_hbm.json` 으로 bash 저장하고 1줄 요약만 반환. **미수집/실패해도 무방** — 생성기가 내장 예시·추정값으로 차트를 만들고 '예시·추정' 으로 표기한다(비차단).
 - **소스**: TrendForce/DRAMeXchange 보도·블로그, SK하이닉스·삼성전자·Micron 실적발표/IR/가이던스, 증권사·언론. **원문 유료 데이터 복제 금지** — 공개 보도된 수치/레인지만.
@@ -356,14 +356,14 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 
 **반환 스키마** = `references/data-schema.md` 의 `markets.macro`. 차트용 시계열은 `nmr_macro.json` 의 `macro.series.*`(fed_funds_5y·curve_10_2·inflation·infl_exp·employment·sentiment) 로 저장하면 `gen_macro_charts.py` 가 라이브 차트 생성(없으면 내장 예시·추정). 미수집이어도 `merge.py` `MACRO_DEFAULT` 로 3.1 은 항상 렌더(비차단).
 
-## (v3.46.0) M7OutlookAgent — 3.1.20 미국 빅테크(M7) 실적 전망 (`nmr_m7.json`, 매일)
-**목적**: 3.1.20 표(가이던스·애널리스트 추정치 변화 시장 신호)를 매일 갱신. 대상 7종목 = AAPL·MSFT·NVDA·GOOGL·AMZN·META·TSLA.
+## (v3.46.0) M7OutlookAgent — 3.1.7 미국 빅테크(M7) 실적 전망 (`nmr_m7.json`, 매일)
+**목적**: 3.1.7 표(가이던스·애널리스트 추정치 변화 시장 신호)를 매일 갱신. 대상 7종목 = AAPL·MSFT·NVDA·GOOGL·AMZN·META·TSLA.
 **수집(매 실행·매일)**: 종목별 ① 현재가·52주 변화 ② 컨센서스 투자의견 분포·평균 목표주가(FMP `analyst` grades-summary·price-target-consensus/summary — 무료플랜 미국 대형주 가용) ③ 최근 1개월/1분기/1년 평균 목표주가 흐름 = 목표주가 리비전 추세(price-target-summary) ④ 최근 등급 변경(upgrades/downgrades). 가이던스·연간 추정치 변화와 최신 증권사 리포트는 WebSearch(회사 실적발표·FactSet·언론). **추정 금지·확인값만**, 뉴스 단독 수치 패딩 금지.
 **신호 판정**: 추정치·목표주가 상향=긍정 / 실적 호조에도 목표주가 하향·디레이팅=경계 / 이익 모멘텀·의견 악화=위험 / 안정=중립.
 **출력** `$WORK/nmr_m7.json` = `{as_of, rows:[{name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance,signal}]}` → merge 가 `markets.m7_outlook` 로 주입(빌더 `renderM7Outlook`, 3.1.10 뒤). **미수집이어도 비차단** — 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더. **호출**: Phase 1 병렬 배치 포함, `model:"sonnet"`.
 
 
-## DerivPositioningAgent — 3.1.21 파생시장 포지셔닝 (v3.47, Phase 1, model:sonnet)
+## DerivPositioningAgent — 3.1.13 파생시장 포지셔닝 (v3.47, Phase 1, model:sonnet)
 
 역할: 파생·수급 포지셔닝 z-score 스냅샷을 매일 산출.
 

@@ -1,9 +1,9 @@
-# 3.1.3 경기선행지수 순환변동치 차트 — robust (v3.6.31)
+# 3.1.5 경기선행지수 순환변동치 차트 — robust (v3.6.31)
 # 출력: charts/leading_cycle.png
 # 입력 우선순위:
 #   1) 장기 series: <O>/nmr_leading_series.json  ([["YYYY-MM",value],...] 2016~현재, INDEXerGO echarts 추출)
 #   2) 폴백: report_data 의 markets.korea_leading[].value (최근 3~4개월) — 장기 series 미수집 시에도 항상 그래프
-# (구버전 버그: nmr_leading_series.json 필수라 미수집 시 FileNotFoundError 크래시 → 3.1.3 그래프 없음/이상.)
+# (구버전 버그: nmr_leading_series.json 필수라 미수집 시 FileNotFoundError 크래시 → 3.1.5 그래프 없음/이상.)
 import json, sys, os, glob, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt, matplotlib.font_manager as fm, matplotlib.dates as mdates

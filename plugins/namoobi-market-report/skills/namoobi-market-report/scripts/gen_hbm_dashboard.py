@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드 생성기 (v3.10.0 신규)
+# 3.1.9 반도체 주가 체크용 메모리+HBM 지표 대시보드 생성기 (v3.10.0 신규)
 # 출력(cwd 상대): charts/hbm_dashboard.png
-#   - 빌더(build_report.js renderKoreaExtras)가 3.1.4 다음(3.1.5)에 imagePara 로 임베드.
+#   - 빌더(build_report.js renderKoreaExtras)가 ③그룹 첫 항목(3.1.9)에 imagePara 로 임베드.
 #   - 파일이 없으면 빌더가 조용히 생략(imagePara→null) → 본 스크립트 실패해도 보고서는 깨지지 않음(비차단).
 # 스타일: gen_capex_chart.py / gen_rest_charts.py 와 동일(NanumBarunGothic·슬레이트 팔레트, dpi150).
 #
@@ -186,7 +186,7 @@ OUT="charts/hbm_dashboard.png"
 plt.savefig(OUT, dpi=150, facecolor="white"); plt.close()
 print("hbm dashboard ->", os.path.abspath(OUT), os.path.getsize(OUT), "bytes | live_override:", USED_LIVE)
 
-# ── (req6 2026-07-05) 3.1.7B 반도체 사이클 3대 조기경보 차트 (charts/semi_cycle_signals.png) ──
+# ── (req6 2026-07-05) 3.1.11 반도체 사이클 3대 조기경보 차트 (charts/semi_cycle_signals.png) ──
 # 입력: $WORK/nmr_semi_cycle.json(신규) 또는 연결폴더 db/semi_cycle.json 의 data.series (없으면 스킵·비차단)
 def _semi_cycle_signals():
     import json as _j, glob as _g, os as _os

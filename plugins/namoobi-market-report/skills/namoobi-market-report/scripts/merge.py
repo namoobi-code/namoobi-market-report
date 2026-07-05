@@ -39,8 +39,8 @@ nw = L('nmr_news.json'); gs = L('nmr_globalsec.json'); um = L('nmr_usmacro.json'
 n2 = L('nmr_news2.json'); semi = L('nmr_semi.json'); krs = L('nmr_kr_series.json'); ohlcv = L('nmr_kr_ohlcv.json')
 inv = L('nmr_kr_invest.json'); lead = L('nmr_leading.json'); sec = L('nmr_securities.json'); an = L('nmr_analysis.json')
 tr = L('nmr_trendtext.json')
-m7o = L('nmr_m7.json')  # (v3.46) 3.1.20 미국 빅테크(M7) 실적전망 라이브 데이터(있으면 내장 스냅샷 대체)
-dpv = L('nmr_deriv_positioning.json')  # (v3.47) 3.1.21 파생 포지셔닝 라이브(있으면 내장 스냅샷 대체)
+m7o = L('nmr_m7.json')  # (v3.46) 3.1.7 미국 빅테크(M7) 실적전망 라이브 데이터(있으면 내장 스냅샷 대체)
+dpv = L('nmr_deriv_positioning.json')  # (v3.47) 3.1.13 파생 포지셔닝 라이브(있으면 내장 스냅샷 대체)
 
 def san(s): return str(s).replace('/', '_').replace(' ', '_')
 
@@ -69,8 +69,8 @@ def koTrend(r):
     return t + f" ({s})"
 
 m = {}
-if isinstance(m7o, dict) and m7o.get('rows'): m['m7_outlook'] = m7o  # 3.1.20 라이브 오버라이드
-if isinstance(dpv, dict) and (dpv.get('rows') or dpv.get('index')): m['deriv_positioning'] = dpv  # 3.1.21 라이브 오버라이드
+if isinstance(m7o, dict) and m7o.get('rows'): m['m7_outlook'] = m7o  # 3.1.7 라이브 오버라이드
+if isinstance(dpv, dict) and (dpv.get('rows') or dpv.get('index')): m['deriv_positioning'] = dpv  # 3.1.13 라이브 오버라이드
 for k in ('korea', 'us_markets', 'asia_markets', 'europe_markets', 'fx_markets', 'fx_usd'):
     m[k] = mk.get(k, {})
 for grp, td in [('asia_markets', tr.get('asia', {})), ('europe_markets', tr.get('europe', {})), ('fx_markets', tr.get('fx', {}))]:
@@ -175,8 +175,8 @@ if _capm:
     m['semi_ai_stocks'] = sorted(_capov(m.get('semi_ai_stocks') or []), key=_capnk)
     m['semi_ai_etfs'] = sorted(_capov(m.get('semi_ai_etfs') or []), key=_capnk)
     print('  [caps] 시총/AUM 라이브 덮어쓰기·정렬:', len(_capm))
-m['hbm'] = LCF('nmr_hbm.json')  # 3.1.5 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
-m['factset'] = LCF('nmr_factset.json')  # 3.1.5 Earnings Insight (FactSet) DB: 블로그 최신글 + 리포트 첫장 요약 (없으면 {} → 섹션 자동 생략)
+m['hbm'] = LCF('nmr_hbm.json')  # 3.1.9 HBM 대시보드: gen_hbm_dashboard.py 오버라이드 + 캡션 asof/source (없으면 {} → 내장 예시·추정 사용)
+m['factset'] = LCF('nmr_factset.json')  # 3.1.6 Earnings Insight (FactSet) DB: 블로그 최신글 + 리포트 첫장 요약 (없으면 {} → 섹션 자동 생략)
 # (req6) HBM eps_per -> eps_yearly (빌더 표 스키마)
 try:
     _hb = m.get('hbm') or {}
@@ -306,7 +306,7 @@ MACRO_DEFAULT = json.loads(r'''{
 ''')
 _mac = L('nmr_macro.json')
 _macro = _mac.get('macro') if (isinstance(_mac, dict) and _mac.get('macro')) else (_mac if (isinstance(_mac, dict) and _mac) else None)
-# v3.13.2 재발방지: 에이전트 nmr_macro 가 빌더(MACRO_DEFAULT) 구조를 못 맞추면(평면구조 rates.fed_funds=숫자·inflation.cpi_yoy 등) 무시하고 MACRO_DEFAULT 사용 → 3.1.1~3.1.5 빈표 방지
+# v3.13.2 재발방지: 에이전트 nmr_macro 가 빌더(MACRO_DEFAULT) 구조를 못 맞추면(평면구조 rates.fed_funds=숫자·inflation.cpi_yoy 등) 무시하고 MACRO_DEFAULT 사용 → 3.1.1~3.1.3·3.1.12 빈표 방지
 def _macro_ok(mm):
     try:
         _r = mm.get('rates') or {}
@@ -656,7 +656,7 @@ try:
     _dp = m.get('fomc_dotplot') or {}
     m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
     m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
-    # (v3.43) 3.1.9 OECD CLI — 신규 스크랩(nmr_oecd_cli.json, KOSIS 자료갱신일 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
+    # (v3.43→v3.49) 3.1.4 OECD CLI — 신규 스크랩(nmr_oecd_cli.json, KOSIS 자료갱신일 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
     _oc = L('nmr_oecd_cli.json')
     _oc_ok = isinstance(_oc, dict) and _oc.get('months') and _oc.get('series')
     m['oecd_cli'] = _ndb.sync('oecd_cli', (_oc if _oc_ok else None), _today,
@@ -670,7 +670,7 @@ try:
     if isinstance(m.get('customs'), dict):
         m['customs']['chart_total'] = 'charts/수출_전체_24개월.png'
         m['customs']['chart_semi'] = 'charts/수출_반도체_24개월.png'
-    # (v3.45) 3.1.7B 반도체 사이클→코스피 점검판 — 신규 조사분(nmr_semi_cycle.json, 3대 신호/코스피 쏠림 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
+    # (v3.45→v3.49) 3.1.11 반도체 사이클→코스피 점검판 — 신규 조사분(nmr_semi_cycle.json, 3대 신호/코스피 쏠림 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
     _sci = L('nmr_semi_cycle.json')
     _sc_ok = isinstance(_sci, dict) and (_sci.get('signals') or _sci.get('headline'))
     m['semi_cycle'] = _ndb.sync('semi_cycle', (_sci if _sc_ok else None), _today,

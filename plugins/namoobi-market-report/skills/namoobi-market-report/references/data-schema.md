@@ -228,9 +228,9 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
    "comment":"AI·반도체·우주 테마 편입 두드러짐","asof":"2026-06-14"}
   ```
 
-## (v3.10.0) 추가 필드 — 3.1.5 반도체 주가 체크용 메모리+HBM 지표 대시보드
+## (v3.10.0) 추가 필드 — 3.1.9 반도체 주가 체크용 메모리+HBM 지표 대시보드
 
-`gen_hbm_dashboard.py` 가 `charts/hbm_dashboard.png`(6패널 + EPS/PER 표)를 생성하고, `build_report.js renderKoreaExtras` 가 3.1.5 섹션에 임베드(파일 없으면 자동 생략·비차단). **모든 수치는 추정치** — HBMAgent 가 `nmr_hbm.json` 으로 저장하면 `merge.py` 가 `markets.hbm` 으로 전달(라이브 오버라이드). 미수집이면 생성기 내장 예시·추정값('예시·추정' 표기). 확인 불가 분기는 빈값.
+`gen_hbm_dashboard.py` 가 `charts/hbm_dashboard.png`(6패널 + EPS/PER 표)를 생성하고, `build_report.js renderKoreaExtras` 가 3.1.6 섹션에 임베드(파일 없으면 자동 생략·비차단). **모든 수치는 추정치** — HBMAgent 가 `nmr_hbm.json` 으로 저장하면 `merge.py` 가 `markets.hbm` 으로 전달(라이브 오버라이드). 미수집이면 생성기 내장 예시·추정값('예시·추정' 표기). 확인 불가 분기는 빈값.
 
 - `markets.hbm` (= `nmr_hbm.json`). 시계열 키는 `[["YYYY-MM",값]…]`(월별) 또는 `[[연도,값]…]`(연도별):
   - `spot_index`: 메모리 종합 스팟 지수(월별, 기준 100). `ddr5_16gb`/`ddr4_8gb`/`nand_mlc_64gb`: 현물가(USD, 월별).
@@ -241,7 +241,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 
 ## (v3.11.0) 추가 필드 — 3.1 주요지표 (markets.macro)
 
-`markets.macro` = {rates, inflation, employment, sentiment} — `build_report.js renderMacroIndicators` 가 **3.1 주요지표**(3.1.1 금리·통화정책 / 3.1.2 물가 / 3.1.3 고용 / 3.1.4 심리)를 렌더. 없으면 `merge.py` 내장 `MACRO_DEFAULT` 주입(비차단). `nmr_macro.json`(MacroAgent) 있으면 오버라이드.
+`markets.macro` = {rates, inflation, employment, sentiment} — `build_report.js renderMacroIndicators` 가 **3.1 주요지표**(3.1.1 금리 / 3.1.2 물가 / 3.1.3 고용 / 3.1.12 심리 — v3.49 재배열: ①~④ 그룹 소제목+3.1.1~3.1.13)를 렌더. 없으면 `merge.py` 내장 `MACRO_DEFAULT` 주입(비차단). `nmr_macro.json`(MacroAgent) 있으면 오버라이드.
 
 - `rates`: `fed_funds{current,decision,bias,meaning,freq,impact}` · `policy_rates[{country,rate,asof,note}]`(6개국) · `policy_rates_chart` · `fomc_meetings[{date,stance,note}]`(빌더가 **최신순** 렌더, stance 에 '매파'=빨강/'비둘기'=초록) · `fomc_market_impact` · `us10y{current,1w_pct,1mo_pct,3mo_pct,6mo_pct,1y_pct,trend,spark}` · `yield_curve{label,spread,status,note,meaning,impact,chart}`(10Y-2Y).
 - `inflation`: `chart`(통합 YoY) · `rows[{name,yoy,mom,asof,meaning,impact}]`(CPI·Core CPI·PCE·Core PCE·PPI) · `infl_exp_10y{current,trend,chart,meaning,freq,impact}`(표 없이 현재값+차트+해설).
@@ -308,7 +308,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
       {"name": "WTI 유가", "current":
 ```
 
-## nmr_semi_cycle.json — 3.1.7B 반도체 사이클→코스피 점검판 (v3.45, DB화 `db/semi_cycle.json`)
+## nmr_semi_cycle.json — 3.1.11 반도체 사이클→코스피 점검판 (v3.45, DB화 `db/semi_cycle.json`)
 
 3대 조기경보 신호/코스피 쏠림이 **변동될 때만** 생성(미변동이면 DB 재사용). 모든 수치 '추정·비실시간' 명시. `status`=안전 / 주의(둔화) / 경보 중 하나 — 빌더가 초록/주황/빨강으로 렌더. marker=`asof`.
 
@@ -332,12 +332,12 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 }
 ```
 
-## (v3.46.0) 추가 필드 — 3.1.20 미국 빅테크(M7) 실적 전망 (markets.m7_outlook)
-`markets.m7_outlook` = {as_of, rows[]} — `build_report.js renderM7Outlook` 가 3.1.20 표(3.1.10 뒤)를 렌더. 없으면 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더(비차단). `M7OutlookAgent` 가 `nmr_m7.json` 으로 저장하면 `merge.py` 가 `markets.m7_outlook` 로 전달(라이브 오버라이드).
+## (v3.46.0) 추가 필드 — 3.1.7 미국 빅테크(M7) 실적 전망 (markets.m7_outlook)
+`markets.m7_outlook` = {as_of, rows[]} — `build_report.js renderM7Outlook` 가 3.1.7 표(②그룹: 3.1.6 FactSet 뒤)를 렌더. 없으면 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더(비차단). `M7OutlookAgent` 가 `nmr_m7.json` 으로 저장하면 `merge.py` 가 `markets.m7_outlook` 로 전달(라이브 오버라이드).
 rows[] = {name, ticker, price, chg52("+x%"/"-x%"), consensus, consensus_detail(예 "0SB/66B/16H/0S"), target, upside("+x%"), revision("상향"/"하향"/"완만 상향"/"정체·하향"), revision_detail("1Y→1Q→1M" 평균목표주가), guidance, signal("긍정"/"경계"/"위험"/"중립")}. 매일 갱신(시세·목표주가·의견·리비전 매 실행 실측, 가이던스·연간 추정치는 실적 때).
 
 
-## nmr_deriv_positioning.json — 3.1.21 파생 포지셔닝 스냅샷 (v3.47)
+## nmr_deriv_positioning.json — 3.1.13 파생 포지셔닝 스냅샷 (v3.47)
 
 `deriv_signals/export_snapshot.py` 가 `deriv_signals.db` 에서 산출. 빌더 `renderDerivPositioning` 스키마.
 
