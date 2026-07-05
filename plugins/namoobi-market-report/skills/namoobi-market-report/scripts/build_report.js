@@ -321,7 +321,24 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(cc(o.y2028_eps,o.y2028_per),{width:w[4],alt:a,size:13,align:AlignmentType.CENTER}),
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
-    children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_hbm.json) 재사용. EPS(직전 회계연도)=각사 IR 실적, EPS(차기연도 E, 수시 변동)=애널리스트 컨센서스(Investing.com·MarketScreener·FnGuide), PER=현재주가÷EPS(주가 매 실행 갱신). 통화별(KRW/USD).",{size:13,color:"94A3B8"})); }
+     }
+  // (req3) HBM 3사 연도별 매출·영업이익·영업이익률 (삼성전자 전사+DS부문 병기)
+  const fy=Array.isArray(hbm.fin_yearly)?hbm.fin_yearly:null;
+  if(fy&&fy.length){ children.push(p("■ HBM 3사 연도별 매출 · 영업이익 · 영업이익률 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
+    const wf=[2100,1740,1740,1740,1740,1100]; const rowsF=[hdrRow(["종목","2024(실적)","2025(실적)","2026(E)","2027(E)","통화"],wf)];
+    const _ff=(x)=>(x==null||x==="")?null:((typeof x==="number")?x.toLocaleString():String(x));
+    const fcf=(rev,op,opm)=>{ const hr=(rev!=null&&rev!==""),ho=(op!=null&&op!==""),hm=(opm!=null&&opm!=="");
+      if(!hr&&!ho&&!hm)return "- 미공개";
+      return "매출 "+(hr?_ff(rev):"-")+" · 영익 "+(ho?_ff(op):"-")+" · OPM "+(hm?(_ff(opm)+"%"):"-"); };
+    fy.forEach((o,i)=>{ const a=i%2===1; rowsF.push(new TableRow({children:[
+      cell(o.name||"-",{width:wf[0],alt:a,bold:true,size:13}),
+      cell(fcf(o.y2024_rev,o.y2024_op,o.y2024_opm),{width:wf[1],alt:a,size:12,align:AlignmentType.CENTER}),
+      cell(fcf(o.y2025_rev,o.y2025_op,o.y2025_opm),{width:wf[2],alt:a,size:12,align:AlignmentType.CENTER}),
+      cell(fcf(o.y2026_rev,o.y2026_op,o.y2026_opm),{width:wf[3],alt:a,size:12,align:AlignmentType.CENTER}),
+      cell(fcf(o.y2027_rev,o.y2027_op,o.y2027_opm),{width:wf[4],alt:a,size:12,align:AlignmentType.CENTER}),
+      cell(o.currency||"",{width:wf[5],alt:a,size:12,align:AlignmentType.CENTER})]})); });
+    children.push(makeTable(wf,rowsF));
+    children.push(p("단위: 매출·영업이익=조원(KRW)/십억달러(USD), OPM=영업이익률(%). 삼성전자는 전사·반도체(DS)부문 병기. 실적=각사 IR, (E)=애널리스트 컨센서스.",{size:13,color:"94A3B8"})); }
   children.push(p("")); }
 
 // (v3.45.0) 3.1.11 반도체 사이클 → 코스피 점검판 — DB화(db/semi_cycle.json), 매 실행 3대 신호 변동체크·미변동 재사용. 차트 없음(비차단·데이터 없으면 자동 생략).
@@ -635,8 +652,8 @@ function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebala
 // (v3.46) 4.4 비철금속 — 배터리·우라늄·전략광물 3개 테마 그룹 × 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가). 구 4.5 전략광물·배터리 금속 대체.
 function renderNonFerrous(){ const nf=data.commodities&&data.commodities.nonferrous; if(!nf)return;
   children.push(h("4.4 비철금속 (배터리·우라늄·전략광물 밸류체인)",2));
-  (nf.groups||[]).forEach(g=>{
-    children.push(p(String(g.title||""),{bold:true,size:24,color:"1E40AF",before:160}));
+  (nf.groups||[]).forEach((g,gi)=>{
+    children.push(h("4.4."+(gi+1)+" "+String(g.title||""),3));  // (req8) 소분류 번호 4.4.1~4.4.3
     if(g.desc)children.push(p(String(g.desc)));
     if(g.core)children.push(p("▸ 핵심 모니터링 원자재: "+String(g.core),{bold:true,size:20,color:"0F766E"}));
     if(g.core_desc)children.push(p(String(g.core_desc),{size:19,color:"334155"}));
@@ -933,7 +950,7 @@ function renderMacroIndicators(){
     const w=[2200,2300,5580]; const rows=[hdrRow(["회의일","정책방향","결정·코멘트"],w)];
     r.fomc_meetings.slice().sort((a,b)=>String(b&&b.date||"").localeCompare(String(a&&a.date||""))).forEach((mt,i)=>rows.push(new TableRow({children:[
       cell(mt.date,{width:w[0],alt:i%2===0,align:AlignmentType.CENTER,bold:true}),
-      cell(mt.stance,{width:w[1],alt:i%2===0,align:AlignmentType.CENTER,bold:true,color:markStance(mt.stance)}),
+      cell(mt.stance||mt.expectation||"",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER,bold:true,color:markStance(mt.stance||mt.expectation)}),  // (req2) expectation 폴백 — undefined 방지
       cell(mt.note||"",{width:w[2],alt:i%2===0})]})));
     children.push(makeTable(w,rows));
     children.push(p("의미: 연준 정책방향(매파/비둘기파) · 발표: 회의 후 즉시",{size:16,color:"64748B"}));

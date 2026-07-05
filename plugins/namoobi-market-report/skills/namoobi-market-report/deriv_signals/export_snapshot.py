@@ -16,7 +16,13 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), "nmr_deriv
 if not os.path.exists(DB):
     print("export_snapshot: DB 없음 → skip:", DB); sys.exit(0)
 
-con = sqlite3.connect(DB)
+# (req4 fix v3.50) 마운트(D:) sqlite 직접 읽기는 disk I/O error(random access) → db.connect() 의
+#   마운트-세이프 폴백(로컬 작업 DB 재사용: backfill/daily_update 가 채운 동일 경로)을 사용한다.
+try:
+    import db as _dbmod
+    con = _dbmod.connect()
+except Exception:
+    con = sqlite3.connect(DB)
 
 def one(q, a=()):
     r = con.execute(q, a).fetchone()

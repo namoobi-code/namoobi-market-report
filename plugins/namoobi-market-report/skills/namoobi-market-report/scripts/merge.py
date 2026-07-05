@@ -140,7 +140,7 @@ def aumfmt(v):
     except Exception:
         return v if v else ''
 ss = []
-for i, x in enumerate(semi.get('semi_ai_stocks', [])[:10]):
+for i, x in enumerate(semi.get('semi_ai_stocks', [])[:20]):  # (req5) 종목 확대
     s = (krs.get('stocks') or {}).get(x.get('name')) or []
     r = ret(s); r.update({'name': x.get('name'), 'aum': aumfmt(x.get('aum')), 'note': x.get('note', ''), 'chart': f"charts/semi_s_{i}.png", 'trend': koTrend(r)})
     _ds = (kr_daily.get('stocks') or {}).get(x.get('name'))
@@ -578,6 +578,14 @@ if isinstance(_kp, dict) and not _kp.get('coins'):
             _coins.append({'symbol': _sym.upper(), 'upbit_krw': None, 'binance_usd': None, 'premium_pct': _v, 'status': ''})
     if _coins:
         crd['kimchi_premium'] = {'rate_usd_krw': _rate, 'coins': _coins}
+# (req7) 김프가 여전히 비었으면 fetch_us.py 샌드박스 계산(nmr_kimchi.json) 폴백
+_kp2 = crd.get('kimchi_premium')
+_kneed = (not isinstance(_kp2, dict)) or (not _kp2.get('coins')) or all((c.get('premium_pct') in (None, '')) for c in (_kp2.get('coins') or []))
+if _kneed:
+    _kj = L('nmr_kimchi.json')
+    if isinstance(_kj, dict) and _kj.get('coins'):
+        crd['kimchi_premium'] = {'rate_usd_krw': _kj.get('rate_usd_krw'), 'coins': _kj['coins']}
+        print('  [req7] 김프 nmr_kimchi.json 폴백:', len(_kj['coins']))
 
 # news (+ longterm 병합·중복제거·빈event 방어 필터: 2.2 가 "-" 로 새지 않도록)
 news = dict(nw)

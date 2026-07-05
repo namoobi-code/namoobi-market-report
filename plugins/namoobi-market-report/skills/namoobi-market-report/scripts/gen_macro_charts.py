@@ -129,7 +129,7 @@ def spark(name,ys,color=BLUE):
     plt.tight_layout(pad=0.1); plt.savefig("charts/spark_%s.png"%name,bbox_inches="tight",transparent=True); plt.close()
 def _ch_spark_bonds():
     tc=_loadjson("treasury_consistent.json") or {}
-    for bk,col in (("us10y",BLUE),("us2y","#0E7490")):
+    for bk,col in (("us10y",BLUE),("us2y",BLUE)):  # (req1) 10Y/2Y 스파크 색 통일
         sv=(tc.get(bk) or {}).get("spark_vals")
         if isinstance(sv,list) and len(sv)>=2: spark(bk, sv, col)
         else:
