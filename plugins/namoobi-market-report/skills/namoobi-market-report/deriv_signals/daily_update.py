@@ -58,9 +58,7 @@ def main():
     ingest_options(con)
     ingest_kr_positioning(con, back_days=30)
     from ingest_krx import ingest_krx
-    from config import DATA_GO_KR_KEY
-    if DATA_GO_KR_KEY:
-        ingest_krx(con, (end - timedelta(days=25)).strftime("%Y%m%d"), end.strftime("%Y%m%d"), opt_days=15)
+    ingest_krx(con, (end - timedelta(days=25)).strftime("%Y%m%d"), end.strftime("%Y%m%d"), opt_days=15)  # naver 베이시스 항상
     run_analysis(con)
     _report(con)
     con.close()

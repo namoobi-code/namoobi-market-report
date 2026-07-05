@@ -182,12 +182,53 @@ def ingest_krx_options(con, dates):
     return n
 
 
+def ingest_krx_naver_basis(con, back_days=420):
+    """(2026 소스) data.go.kr 이 2025~2026 미제공 → 네이버 KOSPI200 선물(FUT)·지수(KPI200) 일별 종가로 basis_bp 산출·저장.
+    OI/PCR/IV/GEX 는 무료 2026 이력 소스 부재로 미수집(그대로 '-')."""
+    import urllib.request as _u, re as _re
+    KID = "KOSPI200"
+    def _dayseries(code, pages):
+        out = {}
+        for p in range(1, pages + 1):
+            try:
+                r = _u.urlopen(_u.Request(
+                    "https://finance.naver.com/sise/sise_index_day.naver?code=%s&page=%d" % (code, p),
+                    headers={"User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com"}),
+                    timeout=15).read().decode("euc-kr", "replace")
+            except Exception:
+                break
+            hits = _re.findall(r'<td class="date">(\d{4}\.\d{2}\.\d{2})</td>\s*<td class="number_1">([\d,]+\.\d+)</td>', r)
+            if not hits:
+                break
+            for d, v in hits:
+                out[d.replace(".", "-")] = float(v.replace(",", ""))
+        return out
+    pages = max(2, back_days // 6 + 2)
+    fut = _dayseries("FUT", pages)
+    idx = _dayseries("KPI200", pages)
+    n = 0
+    for d in sorted(set(fut) & set(idx)):
+        if not idx[d]:
+            continue
+        basis = round((fut[d] - idx[d]) / idx[d] * 10000, 1)
+        con.execute("""INSERT INTO kr_derivatives_daily(id,date,basis_bp) VALUES(?,?,?)
+                       ON CONFLICT(id,date) DO UPDATE SET basis_bp=excluded.basis_bp""",
+                    (KID, d, basis))
+        n += 1
+    con.commit()
+    try: log(con, "ingest_krx_naver_basis", n)
+    except Exception: pass
+    print("  KRX(naver) KOSPI200 basis rows:", n)
+    return n
+
+
 def ingest_krx(con, begin, end, opt_days=90):
+    n = ingest_krx_naver_basis(con, 420)   # (2026) 네이버 베이시스 — data.go.kr 2026 미제공 대응
     if not DATA_GO_KR_KEY:
-        print("  DATA_GO_KR_KEY 없음 → KOSPI200 파생 skip"); return 0
+        print("  DATA_GO_KR_KEY 없음 → data.go.kr 선물/옵션 skip (네이버 베이시스만 수집)"); return n
     f = ingest_krx_futures(con, begin, end)   # 선물 sptPrc를 KOSPI200 실제 지수(현물)로 저장
     o = ingest_krx_options(con, _trading_dates(con, opt_days))
-    return f + o
+    return n + f + o
 
 
 if __name__ == "__main__":

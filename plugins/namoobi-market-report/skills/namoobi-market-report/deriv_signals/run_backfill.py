@@ -22,10 +22,8 @@ def main():
     kr = ingest_kr_positioning(con, back_days=BACKFILL_DAYS)
     print(f"  ingest KR: 투자자 순매수 {kr}행")
     from ingest_krx import ingest_krx
-    from config import DATA_GO_KR_KEY
-    if DATA_GO_KR_KEY:
-        kd = ingest_krx(con, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), opt_days=90)
-        print(f"  ingest KRX(data.go.kr): 파생 {kd}행")
+    kd = ingest_krx(con, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), opt_days=90)  # naver 베이시스 항상 + data.go.kr(키 있으면)
+    print(f"  ingest KRX: 파생 {kd}행")
 
     ev, val = run_analysis(con)
     print(f"  analyze: signal_events {ev} / validation_rows {val}")

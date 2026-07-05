@@ -63,10 +63,15 @@ def build_indicators(con):
         # KOSPI200: data.go.kr 파생(선물 베이시스/OI, 옵션 PCR/IV스큐) 병합
         kk = krd[krd.id == iid].set_index("date") if not krd.empty else pd.DataFrame()
         if not kk.empty:
-            d["basis_bp"] = kk["basis_bp"].reindex(d.index)
-            d["oi_chg_w"] = kk["oi"].reindex(d.index).diff(5)
+            # (fix 2026-07-05) 컬럼별 실데이터가 있을 때만 병합 — 네이버 basis 만 있고 oi/pcr/iv 가 전부 None 일 때
+            #   kk["oi"].diff(5) 가 NoneType 연산으로 크래시해 basis 반영까지 막던 문제 방지.
+            if "basis_bp" in kk and pd.to_numeric(kk["basis_bp"], errors="coerce").notna().any():
+                d["basis_bp"] = pd.to_numeric(kk["basis_bp"], errors="coerce").reindex(d.index)
+            if "oi" in kk and pd.to_numeric(kk["oi"], errors="coerce").notna().any():
+                d["oi_chg_w"] = pd.to_numeric(kk["oi"], errors="coerce").reindex(d.index).diff(5)
             for col in ["pcr_oi", "pcr_vol", "iv_skew_25d", "gex"]:
-                d[col] = kk[col].reindex(d.index)
+                if col in kk and pd.to_numeric(kk[col], errors="coerce").notna().any():
+                    d[col] = pd.to_numeric(kk[col], errors="coerce").reindex(d.index)
 
         for k in FWD_HORIZONS:
             d[f"fwd_ret_{k}d"] = p["spot_close"].shift(-k) / p["spot_close"] - 1.0
