@@ -700,7 +700,7 @@ if (data.analysis && data.analysis.summary) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("목   차",1));
-["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends"].forEach(t=>children.push(p(t,{size:22,after:40})));
+["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)"].forEach(t=>children.push(p(t,{size:22,after:40})));
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("1. 글로벌 Top News 10",1));
@@ -1346,8 +1346,29 @@ function renderAITrends(){ const a=data.ai_trends; if(!a)return;
   });
   children.push(p("※ 본 부록은 news.hada.io · news.hada.io/weekly · 특이점 갤러리 등 공개 소스와 웹 검색으로 큐레이션한 참고용 요약입니다.",{size:16,italics:true,color:"94A3B8"}));
 }
+// (v3.51) [부록C] AI 반도체 밸류체인 — 글로벌 개별종목 43종(분류 그룹별 추세표). 데이터(markets.appendix_c) 없으면 자동 생략.
+function renderAppendixC(){ const e=data.markets&&data.markets.appendix_c; if(!e||!e.rows||typeof e.rows!=="object")return;
+  const groups=Array.isArray(e.groups)?e.groups:Object.keys(e.rows);
+  const GL="①②③④⑤⑥⑦⑧⑨⑩";
+  if(!groups.some(function(g){return Array.isArray(e.rows[g])&&e.rows[g].length;}))return;
+  children.push(new Paragraph({children:[new PageBreak()]}));
+  children.push(h("[부록C] AI 반도체 밸류체인 (글로벌 개별종목)",1));
+  children.push(p("AI 반도체 흐름을 수요(빅테크)→설계(팹리스·가속기)→제조(파운드리·메모리)→소재·장비→후공정→전력 인프라 순으로 잇는 글로벌 개별종목의 현재가와 1일~1년 수익률·1년 추세를 정리한다. 접두 $=미국(달러)·¥=일본(엔)·₩=한국(원) 종가 기준, 수익률은 일봉 종가 기준 가격수익률(배당 제외).",{italics:true,color:"64748B"}));
+  let tot=0; const ys=[];
+  groups.forEach(function(g,gi){ const arr=e.rows[g]; if(!Array.isArray(arr)||!arr.length)return;
+    tot+=arr.length; arr.forEach(function(x){ if(x&&x["1y_pct"]!=null)ys.push(Number(x["1y_pct"])); });
+    children.push(p((GL[gi]||"■")+" "+g+" ("+arr.length+"종)",{bold:true,color:"1E40AF",before:120,size:21}));
+    const items=arr.map(function(x){ const sym=String(x.code||x.symbol||"-");
+      return {desc:[new TextRun({text:(x.name||sym)+"  ["+sym+"]",bold:true,size:18,color:"1D4ED8"}),new TextRun({text:(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
+        m:x,current:x.current,curPrefix:(x.ccy==="JPY"?"¥":(x.ccy==="KRW"?"₩":"$")),trend:String(x.trend||"-"),chart:"charts/spark_c_"+sym.replace(/\./g,"_")+".png"}; });
+    children.push(makeTable(TR2,trend2Rows(items))); });
+  if(ys.length){ const a=ys.reduce(function(x,y){return x+y;},0)/ys.length;
+    children.push(p("추세 평가: AI 반도체 밸류체인 "+tot+"종(1년 수익률 산출 "+ys.length+"종) 1년 평균 "+(a>=0?"+":"")+a.toFixed(1)+"%. 통화가 서로 달라 수익률은 현지통화 기준이며, 환율 효과는 반영되지 않는다.",{bold:true,color:"0F766E"})); }
+  if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
+  children.push(p("")); }
 renderBerkshire();
 renderAITrends();
+renderAppendixC();  // (v3.51) [부록C] AI 반도체 밸류체인
 if(__cut31>=0)children.length=__cut31;
 const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData}]}:{}),
   styles:{ default:{document:{run:{font:FONT,size:22}}},

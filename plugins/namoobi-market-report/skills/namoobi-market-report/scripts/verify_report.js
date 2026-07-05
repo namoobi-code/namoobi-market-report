@@ -109,6 +109,14 @@ try{
     if(miss) warnings.push('['+sec+'] country ETF trend charts missing '+miss+'/'+it.length);
   });
 }catch(e){}
+// (v3.51) [AppC] AI value-chain 43 stocks -- data present => count + spark coverage; absent => warning (section omitted)
+try{
+  const ac=m.appendix_c||{}; const rows=(ac&&ac.rows)||{}; let n=0,miss=0;
+  Object.keys(rows).forEach(g=>{(Array.isArray(rows[g])?rows[g]:[]).forEach(x=>{ n++; const sym=String((x&&(x.code||x.symbol))||'').replace(/\./g,'_'); if(!cExists('charts/spark_c_'+sym+'.png')) miss++; });});
+  if(!n) warnings.push('[AppC] appendix_c data missing (fetch_appc.py) - section omitted');
+  else { if(n<43) warnings.push('[AppC] AI value-chain rows '+n+'<43 (v3.51: check fetch_appc.py)');
+         if(miss>Math.max(1,Math.floor(n*0.2))) warnings.push('[AppC] value-chain spark charts missing '+miss+'/'+n+' (gen_rest_charts spark_c_*)'); }
+}catch(e){}
 // req20 (2026-07-05): 3.1.6 FactSet — "매 실행 변동 체크·미변동 유지" 동작 보장.
 //   next_date 가 비면 다음 회차 갱신 트리거가 영구 불능 → warning. next_date 경과했는데 report.date 미갱신 → problem(이전 자료 잔존 금지).
 { const fsx=m.factset||{}; const rp=fsx.report||{};

@@ -1,5 +1,11 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.51.0 (plugin 1.18.0, 2026-07-05) — [부록C] AI 반도체 밸류체인 43종 신설 (글로벌 개별종목)
+- **[부록C] 신설**(부록B 뒤): AI 반도체 흐름을 수요→설계→제조→소재·장비→후공정→전력 인프라로 잇는 글로벌 개별종목 43종(미 29·일 4·한 10) 추세표 — ①빅테크 수요처(GOOGL·MSFT·AMZN·META) ②팹리스/가속기(NVDA·AMD·AVGO·MRVL·ARM·ANET·CRDO·ALAB) ③파운드리/제조(TSM·삼성전자·INTC) ④메모리(MU·SK하이닉스) ⑤소재/부품(신에츠·SUMCO) ⑥전공정 장비(ASML·AMAT·LRCX·KLAC·TEL·SNPS·CDNS) ⑦후공정/패키징(Advantest·Disco·한미반도체·ISC·리노공업·대덕전자) ⑧데이터센터 전력·인프라(VRT·ETN·GEV·CEG·PWR·NVT·VST·LS일렉·효성중공업·HD현대일렉·두산에너빌리티).
+- **구현**: `scripts/fetch_appc.py` 신설(Phase 1 bash 병렬, 야후 일봉 2y→nmr_appc.json/nmr_appc_series.json) → merge `m['appendix_c']` → 빌더 `renderAppendixC`(TOC 부록C 추가, 통화 접두 $/¥/₩, 데이터 없으면 자동 생략) → gen_rest_charts `spark_c_*` 스파크.
+- **게이트**: verify [AppC] — 43종 미달·스파크 커버리지·데이터 부재 warning.
+- **헤지 검토 반영**(사용자 승인): 테스트·그라인더 공백=Advantest(6857.T)·Disco(6146.T), 인터커넥트 짝=ALAB, 웨이퍼 짝=SUMCO(3436.T) 추가(39→43종). 미리보기=global_market_report_20260705_1637_추가미리보기3_부록C_43종.docx.
+
 ## v3.50.1 (plugin 1.17.1, 2026-07-05) — 3.2.3 테마 3종 추가: 건설기계·항공·정유 (종전 수혜 트리오, 12종)
 - THEME_ORDER 12종: 기존 9종 + 건설기계(KODEX 기계장비 102960 프록시 — HD현대건설기계·두산밥캣 등 기계/장비) · 항공(TIGER 여행레저 228800 프록시 — 대한항공 등 항공+여행/레저) · 정유(KODEX 에너지화학 117460 프록시 — S-Oil·SK이노베이션 등 에너지/화학). 전용 ETF 부재로 섹터 프록시 사용(desc 명시).
 - fetch_semi.py themes_etf 3종 추가(10년 월봉+일봉 자동 수집·theme_건설기계/항공/정유.png 차트 자동 생성) — 에이전트 미제공 시 merge.py 폴백(수익률 기반 방향)으로 행 보장.

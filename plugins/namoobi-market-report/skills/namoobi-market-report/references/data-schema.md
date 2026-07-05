@@ -210,6 +210,9 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 - `markets.asia_etfs`: 그룹 asia/china/japan/taiwan/india/vietnam/**sea** — 미국상장 15종(MCHI·FXI·KWEB·EWH/EWJ·DXJ/EWT/INDA/VNM·VNAM/EIDO·EPHE·EWM·THD·EWS)이 같은 나라 그룹에 병합되며 각 row 에 `ccy:"USD"|"KRW"`(빌더가 $/₩ 접두 결정). sea=동남아 5종(미국상장 전용). 총 29종(한국 14+미국 15). 스파크=`charts/spark_aetf_<code>.png`(미국 티커 포함).
 - `markets.americas_etfs` / `markets.aume_etfs`: {items:[], comment, asof} — 3.6 북미&중남미(EWW 멕시코·EWZ 브라질·EWC 캐나다) / 3.7 호주&중동(EWA 호주·KSA 사우디·UAE·QAT 카타르). item 스키마=europe_etfs 와 동일(symbol,name(국가명),desc,current,1w~1y,1d_pct,chg,trend), 미국상장 전용($). `fetch_us.py` `AMER_ETF`/`AUME_ETF` → `nmr_amer_etf.json`/`nmr_aume_etf.json`, 스파크=`charts/spark_etf_<sym>.png`. 빌더 `renderAmericasEtfs`/`renderAumeEtfs`(h2, 3.5.1 뒤·4장 앞).
 
+## (v3.51) [부록C] AI 반도체 밸류체인
+- `markets.appendix_c`: {groups:[분류명 순서 8], rows:{분류명:[row..]}, asof} — 글로벌 개별종목 43종. row={code(야후심볼: GOOGL/4063.T/005930.KS 등), symbol, name(한글/영문 회사명), desc, group, ccy("USD"|"JPY"|"KRW"), current, 1w~1y_pct, 1d_pct, chg, prev_pct, trend}. `fetch_appc.py` 산출(`nmr_appc.json`+`nmr_appc_series.json`), 빌더 `renderAppendixC`(부록B 뒤, PageBreak+h1, 분류 그룹별 TR2 추세표, 통화 접두 $/¥/₩), 스파크=`charts/spark_c_<심볼(.→_)>.png`. 데이터 없으면 부록 자동 생략(비차단).
+
 ## (v3.6.9) 추가 필드 — 3.2.3 미국 지수 정기 리밸런싱
 
 - `markets.index_rebalance`: {sp500:{...}, nasdaq100:{...}, comment:str, asof:str} — 빌더(renderIndexRebalance)가 3.2.3 섹션 렌더. 없으면 자동 생략(기존 CAPEX 는 3.2.4).

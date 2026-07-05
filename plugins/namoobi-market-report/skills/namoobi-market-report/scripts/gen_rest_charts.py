@@ -144,3 +144,11 @@ try:
     print("asia etf sparklines:", nae, "of", len(ae))
 except FileNotFoundError:
     print("nmr_asia_etf_series.json 없음 — 아시아 ETF 스파크라인 생략")
+# (v3.51) [부록C] AI 반도체 밸류체인 1Y 스파크 — nmr_appc_series.json {sym:[[date,close]..]} → charts/spark_c_<sym(.→_)>.png
+try:
+    ac=json.load(open(O+"/nmr_appc_series.json")); nac=0
+    for sym,series in ac.items():
+        if series and spark(series, f"charts/spark_c_{sym.replace('.','_')}.png"): nac+=1
+    print("appc sparklines:", nac, "of", len(ac))
+except FileNotFoundError:
+    print("nmr_appc_series.json 없음 — 부록C 스파크라인 생략")
