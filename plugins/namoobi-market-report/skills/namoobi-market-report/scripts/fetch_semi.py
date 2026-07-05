@@ -67,10 +67,36 @@ tasks = ([("themes", th, tk, "10y", "1mo", True) for th, (tk, _nm) in themes_etf
          [("stocks", nm, tk, "1y", "1wk", False) for nm, tk in stocks.items()] +
          [("etfs", nm, tk, "1y", "1wk", False) for nm, tk in etfs_ordered])
 
+def _daum_wk(tk):
+    # (fix v3.48) Yahoo 가 한국상장 ETF/테마 이력을 안 줄 때 finance.daum.net 일봉 → 주봉 다운샘플
+    code = tk.split(".")[0]
+    try:
+        u = "https://finance.daum.net/api/charts/A%s/days?limit=520&adjusted=true" % code
+        req = urllib.request.Request(u, headers={"Referer": "https://finance.daum.net/quotes/A%s" % code,
+                                                 "User-Agent": H["User-Agent"], "X-Requested-With": "XMLHttpRequest"})
+        d = json.loads(urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "replace")).get("data", [])
+        rows = []
+        for p in d:
+            tp = p.get("tradePrice")
+            if not tp: continue
+            rows.append([str(p.get("date"))[:10], round(float(tp), 2)])
+        rows.sort()
+        wk = rows[::5]
+        if wk and wk[-1] is not rows[-1]: wk.append(rows[-1])
+        return wk
+    except Exception:
+        return []
+
 def fetch_one(t):
     bucket, key, tk, rng, iv, mo = t
-    try: return bucket, key, series(tk, rng, iv, monthly=mo) or []
-    except Exception: return bucket, key, []
+    try:
+        sv = series(tk, rng, iv, monthly=mo) or []
+        if len(sv) < 5:                 # (fix v3.48) Yahoo 부실(한국상장 ETF/테마) → Daum 폴백
+            dv = _daum_wk(tk)
+            if len(dv) >= 5: sv = dv
+        return bucket, key, sv
+    except Exception:
+        return bucket, key, _daum_wk(tk)
 
 kr_series = {"stocks": {}, "etfs": {}, "themes": {}}
 with ThreadPoolExecutor(max_workers=8) as ex:

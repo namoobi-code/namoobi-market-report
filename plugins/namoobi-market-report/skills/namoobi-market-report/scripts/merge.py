@@ -589,6 +589,12 @@ if isinstance(_nested_news, dict):
         if not news.get(_nk):
             news[_nk] = _nv
     print('  [req1-fix] 중첩 news 키 hoist:', list(_nested_news.keys()))
+# (fix v3.48) bigtech_events 이중 소유 방어: NewsAgent(nw)에 없으면 NewsBerk(n2)에서 가져와 2.3 누락 방지
+if not news.get('bigtech_events') and (n2.get('bigtech_events')):
+    news['bigtech_events'] = n2.get('bigtech_events')
+    if n2.get('bigtech_events_comment') and not news.get('bigtech_events_comment'):
+        news['bigtech_events_comment'] = n2.get('bigtech_events_comment')
+    print('  [fix v3.48] bigtech_events 를 nmr_news2 에서 폴백:', len(news['bigtech_events']))
 # (req1) Top News 최대 D-2: 발행일이 그제~오늘인 기사만(없으면 원본 유지 — 빈손 방지)
 try:
     _dw=now.date().weekday(); _back=(4 if _dw==0 else 3 if _dw==6 else 2)  # (req1) D-2까지 · 주말 보정

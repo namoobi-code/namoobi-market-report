@@ -18,6 +18,40 @@ def get(url, timeout=12, tries=2):
         except Exception as e: last = e; time.sleep(0.6)
     raise last
 
+# (fix v3.48) 한국상장 .KS ETF 는 Yahoo 가 이력을 최신 1점만 주는 경우가 많다 → finance.daum.net 일봉 폴백.
+def _daum_daily_us(code):
+    u = 'https://finance.daum.net/api/charts/A%s/days?limit=500&adjusted=true' % code
+    req = urllib.request.Request(u, headers={'Referer': 'https://finance.daum.net/quotes/A%s' % code,
+                                             'User-Agent': H['User-Agent'], 'X-Requested-With': 'XMLHttpRequest'})
+    d = json.loads(urllib.request.urlopen(req, timeout=15).read().decode('utf-8', 'replace')).get('data', [])
+    rows = []
+    for p in d:
+        tp = p.get('tradePrice')
+        if not tp: continue
+        try: ep = int(dt.datetime.strptime(str(p.get('date'))[:10], '%Y-%m-%d').replace(tzinfo=dt.timezone.utc).timestamp())
+        except Exception: continue
+        vol = p.get('accTradeVolume') or p.get('candleAccTradeVolume') or 0
+        rows.append((ep, float(tp), int(vol or 0)))
+    rows.sort()
+    return rows
+
+def _daum_res(code, weekly):
+    try: rows = _daum_daily_us(code)
+    except Exception: return None
+    if len(rows) < 2: return None
+    if weekly:
+        wk = rows[::5]
+        if wk and wk[-1] is not rows[-1]: wk.append(rows[-1])
+        rows = wk
+    return {'timestamp': [r[0] for r in rows],
+            'indicators': {'quote': [{'close': [r[1] for r in rows], 'volume': [r[2] for r in rows]}]}}
+
+def _kscode(tk):
+    if isinstance(tk, str) and tk.endswith('.KS'):
+        c = tk[:-3]
+        if len(c) == 6: return c
+    return None
+
 def yfetch(ticker, rng='1y', interval='1wk'):
     tk = urllib.parse.quote(ticker)
     for host in ('query1', 'query2'):
@@ -141,6 +175,19 @@ def fetch_dy1(tk): return tk, yfetch(tk, '1mo', '1d')
 DRES = {}
 with ThreadPoolExecutor(max_workers=12) as ex:
     for tk, r in ex.map(fetch_dy1, list(wk_tickers)): DRES[tk] = r
+
+# (fix v3.48) 부실한 한국상장 .KS ETF 시계열을 Daum 일봉으로 보강(3.4.1/3.5.1/4.1/4.4 추세 복원)
+_daum_fixed = 0
+for _tk in list(wk_tickers):
+    _c = _kscode(_tk)
+    if not _c: continue
+    if len(closes(RES.get(_tk))) < 5:
+        _wr = _daum_res(_c, True)
+        if _wr: RES[_tk] = _wr; _daum_fixed += 1
+    if len(closes(DRES.get(_tk))) < 3:
+        _dr = _daum_res(_c, False)
+        if _dr: DRES[_tk] = _dr
+if _daum_fixed: print('  [daum-fallback] .KS ETF weekly series patched:', _daum_fixed)
 def day_stats(tk, scale=1.0):
     s = closes(DRES.get(tk))
     if len(s) < 2: return (None, None, None, None)
@@ -439,7 +486,7 @@ def ok(d):
     return sum(1 for g in d.values() if isinstance(g, dict) for v in g.values() if isinstance(v, dict) and v.get('current') is not None)
 print('markets ok-fields:', ok(markets), '| sp500', markets['us_markets']['sp500'].get('current'), '| usd_krw', markets['fx_markets']['usd_krw'].get('current'), '| jpy_krw', markets['fx_markets']['jpy_krw'].get('current'))
 print('indexseries:', {k: len(v) for k, v in idxs.items()})
-print('commod: wti', energy['wti'].get('current'), '| gold', metals['gold'].get('current'), '| strat', len(strat_etf_rows))
+print('commod: wti', energy['wti'].get('current'), '| gold', metals['gold'].get('current'), '| strat', len(series2.get('strat_etf', {})))
 print('usetf: idx', len(usetf['index']), 'sector', len(usetf['sector']), 'theme', len(usetf['theme']), 'def', len(usetf['defensive']), '| etfseries', len(etfseries))
 print('euetf(3.5.1):', len(euetf['items']), 'items |', ', '.join(f"{x['symbol']}={x.get('current')}" for x in euetf['items']))
 print('crypto: btc', len(cs.get('btc', [])), 'fng', len(cs.get('fng', [])))

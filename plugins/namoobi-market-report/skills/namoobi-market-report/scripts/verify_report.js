@@ -85,6 +85,19 @@ if(m.oecd_cli&&Array.isArray(m.oecd_cli.months)&&m.oecd_cli.months.length){ if(!
 else warnings.push('[req19] 3.1.8 oecd_cli data missing (db/oecd_cli.json seed) - section omitted');
 if(m.customs&&m.customs.series&&Array.isArray(m.customs.months)&&m.customs.months.length){ if(!cExists((m.customs.chart_total)||'charts/수출_전체_24개월.png')||!cExists((m.customs.chart_semi)||'charts/수출_반도체_24개월.png')) problems.push('[req] 3.1.10 관세청 수출 잠정치 차트 missing: charts/수출_전체_24개월.png|charts/수출_반도체_24개월.png (run gen_customs_chart.py)'); }
 else warnings.push('[req] 3.1.10 customs data missing (db/customs.json seed) - section omitted');
+// (fix v3.48) 한국상장 ETF 추세 스파크라인 coverage — Yahoo .KS 이력 미제공시 Daum 폴백이 채워야 함.
+//   자율(예약) 실행이 조용히 누락 통과하지 않도록 warning 으로 표면화(발송 차단 아님).
+try{
+  const grp=['asia','china','japan','taiwan','india','vietnam'];
+  const ae=m.asia_etfs||{}; let aTot=0,aMiss=0;
+  grp.forEach(g=>{(Array.isArray(ae[g])?ae[g]:[]).forEach(x=>{aTot++; if(!cExists('charts/spark_aetf_'+(x.code||x.symbol||'')+'.png')) aMiss++;});});
+  if(aTot && aMiss>Math.max(1,Math.floor(aTot*0.2))) warnings.push('[3.4.1] asia ETF trend charts missing '+aMiss+'/'+aTot+' (Yahoo .KS no-history -> check Daum fallback in fetch_asia_etf.py)');
+}catch(e){}
+try{
+  const eu=(m.europe_etfs&&m.europe_etfs.items)||[]; let eMiss=0;
+  eu.forEach(x=>{ if(!cExists('charts/spark_etf_'+(x.symbol||x.dispSym||'')+'.png')) eMiss++; });
+  if(eu.length && eMiss>Math.max(1,Math.floor(eu.length*0.4))) warnings.push('[3.5.1] europe ETF trend charts missing '+eMiss+'/'+eu.length+' (check Daum fallback in fetch_us.py euetf)');
+}catch(e){}
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

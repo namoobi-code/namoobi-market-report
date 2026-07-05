@@ -64,6 +64,23 @@ def koTrend(r):
     if m1 is not None: return f"1개월 {m1:+.0f}% "+("반등" if m1>=0 else "조정")+" (상장 후)"
     return "상장 초기"
 
+def daum_series(code):
+    # (fix v3.48) Yahoo 가 한국상장 ETF 이력을 안 줄 때 finance.daum.net 일봉으로 대체
+    try:
+        u = "https://finance.daum.net/api/charts/A%s/days?limit=520&adjusted=true" % code
+        req = urllib.request.Request(u, headers={"Referer": "https://finance.daum.net/quotes/A%s" % code,
+                                                 "User-Agent": UA["User-Agent"], "X-Requested-With": "XMLHttpRequest"})
+        d = json.loads(urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "replace")).get("data", [])
+        out = []
+        for p in d:
+            tp = p.get("tradePrice")
+            if not tp: continue
+            out.append([str(p.get("date"))[:10], round(float(tp), 2)])
+        out.sort()
+        return out
+    except Exception:
+        return []
+
 def work(item):
     code,(grp,name,desc)=item
     try:
@@ -79,6 +96,11 @@ def work(item):
             series = ppts
             desc = desc + " · 수익률·추세=" + pnote + "(야후 ETF 이력 미제공)"
         else:
+            if len(pts) < 2:                       # (fix v3.48) Yahoo ETF 이력 미제공 → Daum 일봉 폴백
+                dpts = daum_series(code)
+                if len(dpts) >= 2:
+                    pts = dpts
+                    desc = desc + " · 추세=Daum 일봉(야후 ETF 이력 미제공)"
             r = ret(pts); series = pts
         r.update({"code":code,"symbol":code,"name":name,"desc":desc,"weight":None,"listed":first,
                   "yahoo_name":meta.get("longName") or meta.get("shortName") or ""})
@@ -107,5 +129,5 @@ def pc(v): return "   -  " if v is None else f"{v:+6.1f}"
 print(f"{'code':6s} {'name':28s} {'현재가':>9s} {'1일':>7s} {'1주':>7s} {'1개월':>7s} {'3개월':>7s} {'6개월':>7s} {'1년':>7s}")
 for g in GROUP_ORDER:
     for r in groups[g]:
-        print(f"{r['code']:6s} {r['name'][:28]:28s} {r['current']:>9,.0f} {pc(r.get('prev_pct'))} {pc(r.get('1w_pct'))} {pc(r.get('1mo_pct'))} {pc(r.get('3mo_pct'))} {pc(r.get('6mo_pct'))} {pc(r.get('1y_pct'))}")
+        print(f"{r['code']:6s} {r['name'][:28]:28s} {(r.get('current') or 0):>9,.0f} {pc(r.get('prev_pct'))} {pc(r.get('1w_pct'))} {pc(r.get('1mo_pct'))} {pc(r.get('3mo_pct'))} {pc(r.get('6mo_pct'))} {pc(r.get('1y_pct'))}")
 print(f"\n총 {len(rows_flat)}종 · 1년평균 {avg}% · series {len(series)}개 · asof {asof}")
