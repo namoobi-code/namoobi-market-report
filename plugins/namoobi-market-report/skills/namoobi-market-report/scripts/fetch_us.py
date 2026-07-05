@@ -149,6 +149,18 @@ EUETF = {
  'EWQ':('EWQ','iShares MSCI France','프랑스 단일국','미국'),
  'EWU':('EWU','iShares MSCI United Kingdom','영국 단일국','미국'),
 }
+# (v3.50) 3.6 북미&중남미 / 3.7 호주&중동 — 미국상장 국가 대표 ETF. dispSym -> (yahoo, 이름, 설명)
+AMER_ETF = {
+ 'EWW':('EWW','멕시코','미국 리쇼어링/니어쇼어링의 최대 수혜 후보 중 하나 (iShares MSCI Mexico)'),
+ 'EWZ':('EWZ','브라질','원자재·금융·내수로 미국 기술주와 분산 효과가 큼 (iShares MSCI Brazil)'),
+ 'EWC':('EWC','캐나다','에너지·자원·금융 중심의 방어형 선진국 노출 (iShares MSCI Canada)'),
+}
+AUME_ETF = {
+ 'EWA':('EWA','호주','자원·에너지 비중이 높아 원자재 사이클에 민감 (iShares MSCI Australia)'),
+ 'KSA':('KSA','사우디아라비아','중동 대표 자본시장, 오일+비석유 다변화 테마 (iShares MSCI Saudi Arabia)'),
+ 'UAE':('UAE','UAE','중동 허브 성격과 금융·부동산·항만 노출이 장점 (iShares MSCI UAE)'),
+ 'QAT':('QAT','카타르','LNG·에너지 중심의 중동 분산 노출 (iShares MSCI Qatar)'),
+}
 CRYPTO = {'btc':'BTC-USD','eth':'ETH-USD','xrp':'XRP-USD','sol':'SOL-USD'}
 
 # ===== 병렬 fetch =====
@@ -156,6 +168,8 @@ wk_tickers = {}  # name->ticker for weekly
 for d in (IDX, FX, COMM, STRAT, NF, ENERGY_ETF): wk_tickers.update({v: v for v in d.values()})
 for s in ETF: wk_tickers[s] = s
 for _euv in EUETF.values(): wk_tickers[_euv[0]] = _euv[0]  # 유럽 ETF 티커(.KS/미국) 주봉·일봉 수집 등록
+for _d in (AMER_ETF, AUME_ETF):
+    for _v in _d.values(): wk_tickers[_v[0]] = _v[0]  # (v3.50) 3.6/3.7 국가 ETF 수집 등록
 def fetch_wk(tk): return tk, yfetch(tk, '1y', '1wk')
 def fetch_dy(tk): return tk, yfetch(tk, '1y', '1d')
 RES = {}
@@ -478,6 +492,21 @@ if _euok:
     euetf['comment'] = (f"유럽 익스포저 ETF {len(_euok)}종 1년 평균 {_eavg:+.1f}%. 국내상장분(.KS)은 원화·환헤지, "
                         f"미국상장분은 달러 기준이라 환효과가 다르게 반영됨(주봉 가격수익률·분배금 제외).")
 json.dump(euetf, open('nmr_euetf.json', 'w'), ensure_ascii=False)
+
+# (v3.50) 3.6 북미&중남미 / 3.7 호주&중동 — 미국상장 국가 ETF 추세표 (renderAmericasEtfs/renderAumeEtfs)
+def _region_etf(mp, label):
+    o = {'items': [], 'comment': '', 'asof': dt.date.today().isoformat()}
+    for _ds, (_tk, _nm, _dc) in mp.items():
+        _r = R(_tk); add_day(_r, _tk)
+        o['items'].append({'symbol': _ds, 'name': _nm, 'desc': _dc, **_r, 'trend': trend(_r)})
+        etfseries[_ds] = S(_tk)   # 추세(1Y) 스파크 charts/spark_etf_<sym>.png
+    _okr = [x for x in o['items'] if x.get('1y_pct') is not None]
+    if _okr:
+        _a = sum(x['1y_pct'] for x in _okr) / len(_okr)
+        o['comment'] = f"{label} 국가 ETF {len(_okr)}종 1년 평균 {_a:+.1f}%. 미국 상장(달러 기준) 가격수익률로 분배금 제외, 원화 환산과 다를 수 있음."
+    return o
+json.dump(_region_etf(AMER_ETF, '북미·중남미'), open('nmr_amer_etf.json', 'w'), ensure_ascii=False)
+json.dump(_region_etf(AUME_ETF, '호주·중동'), open('nmr_aume_etf.json', 'w'), ensure_ascii=False)
 
 json.dump(etfseries, open('nmr_etfseries.json', 'w'), ensure_ascii=False)
 

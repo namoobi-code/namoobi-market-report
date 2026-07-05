@@ -183,7 +183,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 - `news.bigtech_events`: [{date:str, event:str, importance:"★|★★|★★★", expected_impact:str}], `news.bigtech_events_comment`:str.
 - `markets.korea_flows`: [{market:str, trend:str, comment:str}], `markets.korea_flows_comment`:str.
 - `markets.korea_leading`: [{period:str, mom:str, note:str}], `markets.korea_leading_comment`:str.
-- `markets.korea_themes`: [{theme:str, direction:"▲ 강세|▼ 부정|■ 양면", comment:str}], `markets.korea_themes_intro`/`korea_themes_comment`:str.
+- `markets.korea_themes`: [{theme:str, direction:"▲ 강세|▼ 부정|■ 양면", comment:str}] — 9종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·건설(v3.50)), `markets.korea_themes_intro`/`korea_themes_comment`:str.
 - `markets.us_credit`: {hy_oas:str, hy_yield:str, implied_ust:str, comment:str} (또는 {rows:[{label,value,note}], comment}).
 - `markets.bigtech_capex`: {rows:[{company:str, y2025:str, y2026:str, comment:str}], comment:str}. (보고서 3.2.3)
 
@@ -205,6 +205,10 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
    "current":39.86,"1w_pct":1.2,"1mo_pct":6.7,"3mo_pct":12.0,"6mo_pct":18.0,"1y_pct":25.5,"prev_pct":0.3,"chg":0.1,"1d_pct":0.25,"trend":"완만한 상승세(...)"}
   ```
   `region`="국내"(원화 ₩·환헤지)/"미국"(달러 $). `fetch_us.py` 의 `EUETF` 맵이 야후(.KS/미국티커)로 수집→`nmr_euetf.json` 산출, `merge.py` 가 `LCF` 로 `markets.europe_etfs` 주입. 빌더(renderEuropeEtfs)가 3.5 유럽 증시(지수표) 직후 3.5.1 서브섹션(h3)으로 TR2 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세(1Y)/추세평가)를 렌더(아시아 3.4.1과 동형). 추세(1Y) 셀=`charts/spark_etf_<symbol>.png`(etfseries 에 편입되어 자동 생성). 신규상장(0102X0 ACE 유럽방산 '25.9)은 6·12개월 null/축소 허용. 데이터 없으면 3.5.1 자동 생략. 멤버십/티커 변경 시 fetch_us.py 의 `EUETF` 맵 갱신.
+
+## (v3.50) 3.4.1 미국상장 병합 + 3.6/3.7 국가 ETF
+- `markets.asia_etfs`: 그룹 asia/china/japan/taiwan/india/vietnam/**sea** — 미국상장 15종(MCHI·FXI·KWEB·EWH/EWJ·DXJ/EWT/INDA/VNM·VNAM/EIDO·EPHE·EWM·THD·EWS)이 같은 나라 그룹에 병합되며 각 row 에 `ccy:"USD"|"KRW"`(빌더가 $/₩ 접두 결정). sea=동남아 5종(미국상장 전용). 총 29종(한국 14+미국 15). 스파크=`charts/spark_aetf_<code>.png`(미국 티커 포함).
+- `markets.americas_etfs` / `markets.aume_etfs`: {items:[], comment, asof} — 3.6 북미&중남미(EWW 멕시코·EWZ 브라질·EWC 캐나다) / 3.7 호주&중동(EWA 호주·KSA 사우디·UAE·QAT 카타르). item 스키마=europe_etfs 와 동일(symbol,name(국가명),desc,current,1w~1y,1d_pct,chg,trend), 미국상장 전용($). `fetch_us.py` `AMER_ETF`/`AUME_ETF` → `nmr_amer_etf.json`/`nmr_aume_etf.json`, 스파크=`charts/spark_etf_<sym>.png`. 빌더 `renderAmericasEtfs`/`renderAumeEtfs`(h2, 3.5.1 뒤·4장 앞).
 
 ## (v3.6.9) 추가 필드 — 3.2.3 미국 지수 정기 리밸런싱
 

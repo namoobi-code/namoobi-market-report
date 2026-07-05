@@ -265,7 +265,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
       });
       return rows; };
     // 테마 (8개 고정 순서)
-    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주"];
+    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주","건설"];  // (v3.50) 건설 추가
     const themeArr=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
     const tByName={}; themeArr.forEach(t=>{ if(t&&t.theme)tByName[t.theme]=t; });
     const themeEtfs=m.korea_theme_etfs||{};
@@ -561,15 +561,15 @@ function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||type
 // (v3.6.9) 3.2.3 미국 지수 정기 리밸런싱 — S&P 500·나스닥 100 편입/편출(사업내용·사유)·일정·기준·룰변경. 데이터(markets.index_rebalance) 없으면 자동 생략.
 // (3.4.1) 아시아 주요 ETF (한국 상장) — us_etfs 동일 trend2Rows/TR2. 데이터 없으면 자동 생략.
 function renderAsiaEtfs(){ const e=data.markets&&data.markets.asia_etfs; if(!e||typeof e!=="object")return;
-  const groups=[["asia","① 아시아 통합·대표 (여러 국가 묶음)"],["china","② 중국 (본토·홍콩·기술·성장)"],["japan","③ 일본 (대형주·반도체)"],["taiwan","④ 대만 (전체시장·반도체)"],["india","⑤ 인도 (대표지수·소비)"],["vietnam","⑥ 베트남 (신흥시장)"]];
+  const groups=[["asia","① 아시아 통합·대표 (여러 국가 묶음)"],["china","② 중국·홍콩 (본토·대형주·기술·플랫폼·홍콩)"],["japan","③ 일본 (대형주·반도체·환헤지)"],["taiwan","④ 대만 (전체시장·반도체)"],["india","⑤ 인도 (대표지수·소비)"],["vietnam","⑥ 베트남 (신흥시장)"],["sea","⑦ 동남아 (미국 상장 · 인도네시아·필리핀·말레이시아·태국·싱가포르)"]];  // (v3.50) 국가병합+sea
   if(!groups.some(function(g){return Array.isArray(e[g[0]])&&e[g[0]].length;}))return;
-  children.push(h("3.4.1 아시아 주요 ETF (한국 상장 · 국가·테마별)",3));
-  children.push(p("한국거래소에 상장된 아시아 국가·테마 대표 ETF 의 현재가(원화 종가)와 1일~1년 수익률, 1년 추세를 정리한다. 수익률은 일봉 종가 기준 가격수익률(분배금 제외)이며, 합성·환헤지(H) ETF는 기초시장과 괴리가 있을 수 있고 신규 상장 ETF는 상장 후 기간만 표시한다(장기 수익률 '-'). '1일' 컬럼은 직전 거래일 등락률, 현재가 아래 ▲/▼ 는 최근 거래일 등락이다.",{italics:true,color:"64748B"}));
+  children.push(h("3.4.1 아시아 주요 ETF (한국 상장 + 미국 상장 · 국가·테마별)",3));
+  children.push(p("한국거래소에 상장된 아시아 국가·테마 대표 ETF 의 현재가(원화 종가)와 1일~1년 수익률, 1년 추세를 정리한다. 수익률은 일봉 종가 기준 가격수익률(분배금 제외)이며, 합성·환헤지(H) ETF는 기초시장과 괴리가 있을 수 있고 신규 상장 ETF는 상장 후 기간만 표시한다(장기 수익률 '-'). '1일' 컬럼은 직전 거래일 등락률, 현재가 아래 ▲/▼ 는 최근 거래일 등락이다. 달러($) 표기 행은 미국거래소 상장 ETF(달러 종가·티커 표기)로, 같은 나라의 국내 상장분과 한 그룹에서 교차 확인한다.",{italics:true,color:"64748B"}));
   groups.forEach(function(g){ var k=g[0],label=g[1]; var arr=e[k]; if(!Array.isArray(arr)||!arr.length)return;
     children.push(p(label,{bold:true,color:"1E40AF",before:120,size:21}));
     var items=arr.map(function(x){ var code=String(x.code||x.symbol||x.ticker||"-"); var nameLine=(x.name||code)+"  ["+code+"]";
       return {desc:[new TextRun({text:nameLine,bold:true,size:18,color:"1D4ED8"}),new TextRun({text:(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
-        m:x,current:x.current,curPrefix:"₩",trend:String(x.trend||"-"),chart:"charts/spark_aetf_"+code+".png"}; });
+        m:x,current:x.current,curPrefix:(x.ccy==="USD"?"$":"₩"),trend:String(x.trend||"-"),chart:"charts/spark_aetf_"+code+".png"}; });  // (v3.50) 미국상장=$
     children.push(makeTable(TR2,trend2Rows(items))); });
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
@@ -586,6 +586,22 @@ function renderEuropeEtfs(){ const e=data.markets&&data.markets.europe_etfs; if(
   if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
   if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
   children.push(p("")); }
+// (v3.50) 3.6 북미&중남미 / 3.7 호주&중동 — 미국상장 국가 ETF 추세표 (3.5.1 유럽과 동형, 데이터 없으면 자동 생략)
+function renderRegionEtfs(key,title,introTxt){ const e=data.markets&&data.markets[key]; if(!e)return;
+  const items=Array.isArray(e)?e:(Array.isArray(e.items)?e.items:[]); if(!items.length)return;
+  children.push(h(title,2));
+  children.push(p(introTxt,{italics:true,color:"64748B"}));
+  const its=items.map(function(x){ var sym=String(x.symbol||x.ticker||"-");
+    return {desc:[new TextRun({text:(x.name||sym)+"  ["+sym+"]",bold:true,size:18,color:"1D4ED8"}),new TextRun({text:(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
+      m:x,current:x.current,curPrefix:"$",trend:String(x.trend||"-"),chart:"charts/spark_etf_"+sym+".png"}; });
+  children.push(makeTable(TR2,trend2Rows(its)));
+  if(e.comment)children.push(p("추세 평가: "+e.comment,{bold:true,color:"0F766E"}));
+  if(e.asof)children.push(p("기준: "+e.asof,{size:16,color:"94A3B8"}));
+  children.push(p("")); }
+function renderAmericasEtfs(){ renderRegionEtfs("americas_etfs","3.6 북미&중남미 증시 (미국 상장 국가 ETF)",
+  "멕시코(니어쇼어링)·브라질(원자재·내수)·캐나다(에너지·금융) 등 북미·중남미 국가 대표 ETF(미국 상장, 달러 기준)의 현재가와 1일~1년 수익률·1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률(분배금 제외)."); }
+function renderAumeEtfs(){ renderRegionEtfs("aume_etfs","3.7 호주&중동 증시 (미국 상장 국가 ETF)",
+  "호주(자원·에너지)와 사우디아라비아·UAE·카타르 등 중동 주요 자본시장 대표 ETF(미국 상장, 달러 기준)의 현재가와 1일~1년 수익률·1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률(분배금 제외)."); }
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
   if(!r.sp500&&!r.nasdaq100)return;
   children.push(h("3.3.2 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
@@ -1166,6 +1182,8 @@ if (data.markets) {
   renderAsiaEtfs();
   renderMarketBlockC("3.5 유럽 증시",data.markets.europe_markets,{stoxx50:"유로 스톡스 50",dax:"독일 DAX",ftse:"영국 FTSE 100"});
   renderEuropeEtfs();  // 3.5.1 주요 유럽 ETF (국내상장+미국상장) — 아시아 3.4.1과 동형
+  renderAmericasEtfs();  // (v3.50) 3.6 북미&중남미 (미국상장 국가 ETF)
+  renderAumeEtfs();      // (v3.50) 3.7 호주&중동 (미국상장 국가 ETF)
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("4. 원자재 종합 - 에너지·금속·희토류·농산물",1));

@@ -23,8 +23,24 @@ ASIA_ETF = {
  "453870": ("india", "TIGER 인도니프티50",            "인도 대형 금융·IT·소비주(Nifty50)"),
  "479730": ("india", "TIGER 인도빌리언컨슈머",         "인도 핵심 소비재 B2C 20종(자동차·럭셔리·생필품)"),
  "245710": ("vietnam","ACE 베트남VN30(합성)",         "베트남 호치민 성장 신흥시장(VN30)"),
+ # (v3.50) 미국거래소 상장 아시아 국가·테마 ETF 15종 — 같은 나라 그룹에 병합(국내상장 뒤), 달러 종가($). key=미국 티커.
+ "MCHI": ("china", "중국 본토/대형주",  "중국 대형·중형주를 넓게 담는 대표 코어 ETF (iShares MSCI China)"),
+ "FXI":  ("china", "중국 대형주",      "정책·국유 대형주·본토 대형 흐름을 보기 좋음 (iShares China Large-Cap)"),
+ "KWEB": ("china", "중국 인터넷/플랫폼", "중국 기술·플랫폼 성장에 직접 베팅하는 테마 ETF (KraneShares CSI China Internet)"),
+ "EWH":  ("china", "홍콩",           "중국 본토보다 금융·부동산·중국 경유 노출 성격 (iShares MSCI Hong Kong)"),
+ "EWJ":  ("japan", "일본",           "일본 주식시장 전체를 넓게 담는 가장 무난한 코어 (iShares MSCI Japan)"),
+ "DXJ":  ("japan", "일본(환헤지 성격)",  "엔화 약세 환경에서 환율 리스크를 줄여보는 선택지 (WisdomTree Japan Hedged Equity)"),
+ "EWT":  ("taiwan","대만",           "AI 반도체 밸류체인에 직접 연결되는 핵심 아시아 노출 (iShares MSCI Taiwan)"),
+ "INDA": ("india", "인도",           "소비·인프라·제조업 이전이 겹치는 장기 성장 핵심 (iShares MSCI India)"),
+ "VNM":  ("vietnam","베트남",         "베트남 시장에 가장 오래된 대표 노출 ETF 중 하나 (VanEck Vietnam)"),
+ "VNAM": ("vietnam","베트남",         "MSCI Vietnam 계열로 베트남을 더 타깃하게 담는 선택지 (Global X MSCI Vietnam)"),
+ "EIDO": ("sea",   "인도네시아",        "인구 규모·자원·내수·니켈 테마까지 같이 볼 수 있음 (iShares MSCI Indonesia)"),
+ "EPHE": ("sea",   "필리핀",          "젊은 인구와 도시화 기반의 동남아 소비 성장 노출 (iShares MSCI Philippines)"),
+ "EWM":  ("sea",   "말레이시아",        "반도체 후방 공급망과 제조업 베이스가 강점 (iShares MSCI Malaysia)"),
+ "THD":  ("sea",   "태국",           "관광·소비·리오프닝 성격이 강한 동남아 위성 포지션 (iShares MSCI Thailand)"),
+ "EWS":  ("sea",   "싱가포르",         "성장성보다는 금융·물류·안정성 중심의 허브 노출 (iShares MSCI Singapore)"),
 }
-GROUP_ORDER = ["asia", "china", "japan", "taiwan", "india", "vietnam"]
+GROUP_ORDER = ["asia", "china", "japan", "taiwan", "india", "vietnam", "sea"]  # (v3.50) sea=동남아(미국상장)
 # 야후 ETF 캔들 이력 미제공 → 기초지수로 수익률·추세·스파크라인 대체(현재가는 ETF 실값 유지)
 PROXY = {"253990": ("^TWII", "기초지수 TAIEX(대만 가권지수) 기준")}
 
@@ -83,8 +99,9 @@ def daum_series(code):
 
 def work(item):
     code,(grp,name,desc)=item
+    is_us = not code.isdigit()          # (v3.50) 미국 티커(알파벳) = 달러 종가, .KS 미부착·Daum 폴백 없음
     try:
-        pts, meta, first = fetch_series(code+".KS")
+        pts, meta, first = fetch_series(code if is_us else code+".KS")
         cur = meta.get("regularMarketPrice")
         proxy = PROXY.get(code)
         if proxy and len(pts) < 2:
@@ -96,13 +113,14 @@ def work(item):
             series = ppts
             desc = desc + " · 수익률·추세=" + pnote + "(야후 ETF 이력 미제공)"
         else:
-            if len(pts) < 2:                       # (fix v3.48) Yahoo ETF 이력 미제공 → Daum 일봉 폴백
+            if len(pts) < 2 and not is_us:         # (fix v3.48) Yahoo ETF 이력 미제공 → Daum 일봉 폴백(국내 전용)
                 dpts = daum_series(code)
                 if len(dpts) >= 2:
                     pts = dpts
                     desc = desc + " · 추세=Daum 일봉(야후 ETF 이력 미제공)"
             r = ret(pts); series = pts
         r.update({"code":code,"symbol":code,"name":name,"desc":desc,"weight":None,"listed":first,
+                  "ccy":("USD" if is_us else "KRW"),
                   "yahoo_name":meta.get("longName") or meta.get("shortName") or ""})
         r["trend"]=koTrend(r)
         return code,grp,r,series,None
@@ -118,9 +136,15 @@ with cf.ThreadPoolExecutor(max_workers=10) as ex:
         rows_flat.append(r)
 order={c:i for i,c in enumerate(ASIA_ETF)}
 for g in groups: groups[g].sort(key=lambda r: order[r["code"]])
-ys=[r["1y_pct"] for r in rows_flat if r.get("1y_pct") is not None]
-avg=round(sum(ys)/len(ys),1) if ys else None
-comment=(f"아시아 국가·테마 ETF {len(rows_flat)}종(1년 수익률 산출 {len(ys)}종 평균 {avg:+.1f}%). 합성·환헤지(H)·신규 상장(1년 미만) ETF는 기초시장과 괴리가 있을 수 있고, 야후 이력 미제공 종목은 기초지수로 수익률을 대체한다." if avg is not None else f"아시아 국가·테마 ETF {len(rows_flat)}종.")
+# (v3.50) 한국상장/미국상장 분리 평균
+kr=[r for r in rows_flat if r.get("ccy")!="USD"]; us=[r for r in rows_flat if r.get("ccy")=="USD"]
+def _avg(rs):
+    ys=[r["1y_pct"] for r in rs if r.get("1y_pct") is not None]
+    return round(sum(ys)/len(ys),1) if ys else None
+avg=_avg(rows_flat); kavg=_avg(kr); uavg=_avg(us)
+comment=(f"아시아 국가·테마 ETF {len(rows_flat)}종 — 한국 상장 {len(kr)}종 1년 평균 {kavg:+.1f}%, 미국 상장($) {len(us)}종 1년 평균 {uavg:+.1f}%. "
+         f"합성·환헤지(H)·신규 상장 ETF는 기초시장과 괴리가 있을 수 있고, 달러 기준 수익률은 원화 환산과 다르게 반영되며, 야후 이력 미제공 종목은 기초지수로 수익률을 대체한다."
+         if (kavg is not None and uavg is not None) else f"아시아 국가·테마 ETF {len(rows_flat)}종.")
 asof=dt.date.today().isoformat(); out={"asof":asof,"comment":comment}; out.update(groups)
 os.makedirs(OUT,exist_ok=True)
 json.dump(out, open(os.path.join(OUT,"nmr_asia_etf.json"),"w"), ensure_ascii=False, indent=1)

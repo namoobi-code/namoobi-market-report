@@ -30,7 +30,7 @@ if(!cExists(m.korea_leading_chart||'charts/leading_cycle.png')) problems.push('[
 // req3: 3.2.3 8 theme trend charts
 const THEMES=["a","b","c","d","e","f","g","h"]; // placeholder count; resolve by report data order
 const tRows=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
-if(tRows.length<8) problems.push(`[req3] 3.2.3 theme rows ${tRows.length}<8`);
+if(tRows.length<9) problems.push(`[req3] 3.2.3 theme rows ${tRows.length}<9 (v3.50: +construction)`);
 let tMiss=tRows.filter(t=>!cExists(t.chart)).map(t=>t.theme||'?');
 if(tMiss.length) problems.push(`[req3] 3.2.3 theme trend charts missing ${tMiss.length}/${tRows.length}: ${tMiss.join(', ')}`);
 // req4: semi stocks (>=10) + charts
@@ -88,15 +88,26 @@ else warnings.push('[req] 3.1.10 customs data missing (db/customs.json seed) - s
 // (fix v3.48) 한국상장 ETF 추세 스파크라인 coverage — Yahoo .KS 이력 미제공시 Daum 폴백이 채워야 함.
 //   자율(예약) 실행이 조용히 누락 통과하지 않도록 warning 으로 표면화(발송 차단 아님).
 try{
-  const grp=['asia','china','japan','taiwan','india','vietnam'];
+  const grp=['asia','china','japan','taiwan','india','vietnam','sea'];  // (v3.50) sea=SE-Asia(US-listed)
   const ae=m.asia_etfs||{}; let aTot=0,aMiss=0;
   grp.forEach(g=>{(Array.isArray(ae[g])?ae[g]:[]).forEach(x=>{aTot++; if(!cExists('charts/spark_aetf_'+(x.code||x.symbol||'')+'.png')) aMiss++;});});
   if(aTot && aMiss>Math.max(1,Math.floor(aTot*0.2))) warnings.push('[3.4.1] asia ETF trend charts missing '+aMiss+'/'+aTot+' (Yahoo .KS no-history -> check Daum fallback in fetch_asia_etf.py)');
+  if(aTot && aTot<29) warnings.push('[3.4.1] asia ETF rows '+aTot+'<29 (v3.50: KR14+US15; check fetch_asia_etf.py US tickers)');
 }catch(e){}
 try{
   const eu=(m.europe_etfs&&m.europe_etfs.items)||[]; let eMiss=0;
   eu.forEach(x=>{ if(!cExists('charts/spark_etf_'+(x.symbol||x.dispSym||'')+'.png')) eMiss++; });
   if(eu.length && eMiss>Math.max(1,Math.floor(eu.length*0.4))) warnings.push('[3.5.1] europe ETF trend charts missing '+eMiss+'/'+eu.length+' (check Daum fallback in fetch_us.py euetf)');
+}catch(e){}
+// (v3.50) 3.6/3.7 US-listed country ETF — data present => spark coverage check; data absent => section omitted (warning)
+try{
+  [['americas_etfs','3.6',3],['aume_etfs','3.7',4]].forEach(([k,sec,exp])=>{
+    const it=(m[k]&&m[k].items)||[];
+    if(!it.length){ warnings.push('['+sec+'] '+k+' data missing (fetch_us.py) - section omitted'); return; }
+    if(it.length<exp) warnings.push('['+sec+'] '+k+' items '+it.length+'<'+exp);
+    let miss=0; it.forEach(x=>{ if(!cExists('charts/spark_etf_'+(x.symbol||'')+'.png')) miss++; });
+    if(miss) warnings.push('['+sec+'] country ETF trend charts missing '+miss+'/'+it.length);
+  });
 }catch(e){}
 // req20 (2026-07-05): 3.1.6 FactSet — "매 실행 변동 체크·미변동 유지" 동작 보장.
 //   next_date 가 비면 다음 회차 갱신 트리거가 영구 불능 → warning. next_date 경과했는데 report.date 미갱신 → problem(이전 자료 잔존 금지).

@@ -128,6 +128,18 @@ for t in (semi.get('korea_themes') or []):
         # (req3 fix) 테마 series 는 월봉 → ret()의 prev_pct 는 '전월' 변동이라 '1일'칸 왜곡(예:+29.98%). 일봉 prev_pct 로 덮어써 '1일'=직전거래일 변동으로 교정.
         if ds.get('prev_pct') is not None: r['prev_pct'] = ds['prev_pct']
     trows.append(r)
+# (v3.50) 에이전트가 누락한 테마(예: 신설 '건설')는 fetch_semi 시계열로 폴백 생성 — 조용한 행 누락 방지(req3 게이트 9행).
+_have = {r.get('theme') for r in trows}
+for nm in (theme_etf or {}):
+    if nm in _have or not themes.get(nm): continue
+    r = ret(themes.get(nm) or [])
+    _m1 = r.get('1mo_pct')
+    r.update({'theme': nm, 'direction': ('▲ 강세' if (_m1 or 0) > 3 else ('▼ 약세' if (_m1 or 0) < -3 else '■ 중립')),
+              'comment': '', 'chart': f"charts/theme_{san(nm)}.png", 'trend': koTrend(r), 'etf': theme_etf.get(nm) or ''})
+    ds = d_themes.get(nm) or {}
+    for k in ('current', 'chg', '1d_pct', 'prev_close', 'prev_pct'):
+        if ds.get(k) is not None: r[k] = ds[k]
+    trows.append(r)
 m['korea_theme_rows'] = trows; m['korea_themes_comment'] = semi.get('korea_themes_comment') or ''
 m['korea_theme_etfs'] = theme_etf  # 빌더 fallback (테마→대표ETF명)
 
@@ -482,6 +494,8 @@ if isinstance(_rt.get('us10y'), dict): _rt['us10y']['spark'] = 'charts/spark_us1
 m['us_etfs'] = ue
 m['asia_etfs'] = LCF('nmr_asia_etf.json')  # 3.4.1 아시아 주요 ETF(한국상장) — fetch_asia_etf.py 산출(없으면 {} → 섹션 자동 생략)
 m['europe_etfs'] = LCF('nmr_euetf.json')  # 3.5 유럽 주요 ETF(국내상장+미국상장) — fetch_us.py 산출(없으면 {} → 섹션 자동 생략)
+m['americas_etfs'] = LCF('nmr_amer_etf.json')  # (v3.50) 3.6 북미&중남미 국가 ETF — fetch_us.py 산출(없으면 {} → 섹션 자동 생략)
+m['aume_etfs'] = LCF('nmr_aume_etf.json')      # (v3.50) 3.7 호주&중동 국가 ETF — fetch_us.py 산출(없으면 {} → 섹션 자동 생략)
 m['bigtech_capex'] = um.get('bigtech_capex', {}); m['fomc_dotplot'] = um.get('fomc_dotplot', {})
 # (R3 실측화 wiring) 정책금리차트=미국 실효금리, 곡선=최대기간, us10y prev_pct, 센티 스파크(측정치), capex 실측
 _rt3 = (m.get('macro') or {}).get('rates') or {}
