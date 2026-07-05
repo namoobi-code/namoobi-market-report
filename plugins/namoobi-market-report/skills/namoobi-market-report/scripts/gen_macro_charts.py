@@ -249,14 +249,23 @@ def _ch_emp():
     # (req2/3/6) 레벨 시계열을 변화값으로 정규화 — NFP=전월차(월 신규고용), 소매=전월비%, GDP=연율%만(레벨 혼입 제거)
     def _empdisp(key):
         lvl=[v for v in _flat(emp.get(key)) if isinstance(v,(int,float))]
+        # (req1/2 2026-07-05) 레벨·증감 "혼합" 시계열 내성 변환 — 연속 레벨 구간만 차분/전월비로 바꾸고
+        # 레벨→증감 경계에서는 변환하지 않는다(구버전은 max>임계면 전체 차분 → 경계에서 -15만 절벽 스파이크).
+        def _mixfix(vals,thr,conv):
+            out=[];prev=None
+            for v in vals:
+                if abs(v)>thr:
+                    if prev is not None: out.append(conv(prev,v))
+                    prev=v
+                else:
+                    out.append(v);prev=None
+            return out
         if key=="nfp":
-            if lvl and max(abs(v) for v in lvl)>5000:  # PAYEMS 레벨 → 전월차(천명)
-                return [round(lvl[i]-lvl[i-1],1) for i in range(1,len(lvl))]
-            return lvl or [v for v in _flat(emp.get("nfp_mom")) if isinstance(v,(int,float))]
+            if lvl: lvl=_mixfix(lvl,5000,lambda a,b:round(b-a,1))  # PAYEMS 레벨→전월차(천명)
+            return lvl or [v for v in _flat(emp.get("nfp_mom")) if isinstance(v,(int,float)) and abs(v)<=5000]
         if key=="retail":
-            if lvl and max(abs(v) for v in lvl)>1000:  # 소매판매 레벨 → 전월비 %
-                return [round((lvl[i]/lvl[i-1]-1)*100,2) for i in range(1,len(lvl)) if lvl[i-1]]
-            return lvl or [v for v in _flat(emp.get("retail_mom")) if isinstance(v,(int,float))]
+            if lvl: lvl=_mixfix(lvl,50,lambda a,b:round((b/a-1)*100,2))  # 소매 레벨→전월비 %
+            return lvl or [v for v in _flat(emp.get("retail_mom")) if isinstance(v,(int,float)) and abs(v)<=50]
         if key=="gdp":  # 연율(%) 값만 유지(레벨/이상치 제거)
             g=[v for v in lvl if abs(v)<50]
             ga=[v for v in _flat(emp.get("gdp_ann")) if isinstance(v,(int,float)) and abs(v)<50]

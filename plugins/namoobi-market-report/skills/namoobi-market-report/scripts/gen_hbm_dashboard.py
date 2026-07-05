@@ -185,3 +185,45 @@ os.makedirs("charts", exist_ok=True)
 OUT="charts/hbm_dashboard.png"
 plt.savefig(OUT, dpi=150, facecolor="white"); plt.close()
 print("hbm dashboard ->", os.path.abspath(OUT), os.path.getsize(OUT), "bytes | live_override:", USED_LIVE)
+
+# ── (req6 2026-07-05) 3.1.7B 반도체 사이클 3대 조기경보 차트 (charts/semi_cycle_signals.png) ──
+# 입력: $WORK/nmr_semi_cycle.json(신규) 또는 연결폴더 db/semi_cycle.json 의 data.series (없으면 스킵·비차단)
+def _semi_cycle_signals():
+    import json as _j, glob as _g, os as _os
+    sc=None
+    for _p in [_os.path.join(_outdir(),"nmr_semi_cycle.json")]+_g.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/semi_cycle.json"):
+        try:
+            _d=_j.load(open(_p,encoding="utf-8")); _d=_d.get("data",_d)
+            if isinstance(_d,dict) and isinstance(_d.get("series"),dict): sc=_d; break
+        except Exception: pass
+    if not sc: print("semi_cycle_signals: series 없음 → 스킵"); return
+    S=sc["series"]; import matplotlib.pyplot as plt
+    fig,axes=plt.subplots(1,3,figsize=(13.2,3.4))
+    inv=S.get("inventory") or {}
+    ax=axes[0]; xs=inv.get("labels",[]); ys=inv.get("values",[])
+    if xs and ys:
+        ax.plot(xs,ys,marker="o",color="#1D9E75",lw=2)
+        al=inv.get("alert")
+        if al is not None: ax.axhline(al,color="#E24B4A",ls="--",lw=1.3); ax.text(len(xs)-1,al+0.8,f"경보선 {al}주",color="#E24B4A",fontsize=8,ha="right")
+        for x,y in zip(xs,ys): ax.annotate(f"{y}주",(x,y),textcoords="offset points",xytext=(0,7),fontsize=8,ha="center")
+    ax.set_title("① 재고주수 (공급자 DRAM)",fontsize=10); ax.set_ylim(bottom=0); ax.grid(alpha=.25)
+    pq=S.get("price_qoq") or {}
+    ax=axes[1]; xs=pq.get("labels",[]); ys=pq.get("values",[])
+    if xs and ys:
+        cols=["#1D9E75" if not str(l).endswith("E") else "#EF9F27" for l in xs]
+        ax.bar(xs,ys,color=cols)
+        for x,y in zip(xs,ys): ax.annotate(f"+{y}%",(x,y),textcoords="offset points",xytext=(0,3),fontsize=8,ha="center")
+    ax.set_title("② DRAM 계약가 상승률 (QoQ)",fontsize=10); ax.grid(alpha=.25,axis="y")
+    cx=S.get("capex_yoy") or {}
+    ax=axes[2]; xs=cx.get("labels",[]); ys=cx.get("values",[])
+    if xs and ys:
+        cols=["#378ADD" if y<0 else ("#639922" if y<40 and str(x).endswith("E") else "#BA7517") for x,y in zip(xs,ys)]
+        ax.bar(xs,ys,color=cols); ax.axhline(0,color="#888",lw=.8)
+        for x,y in zip(xs,ys): ax.annotate(f"{'+' if y>0 else ''}{y}%",(x,y),textcoords="offset points",xytext=(0,3 if y>=0 else -12),fontsize=8,ha="center")
+    ax.set_title("③ CAPEX 증가율 (SK하이닉스·YoY)",fontsize=10); ax.grid(alpha=.25,axis="y")
+    for ax in axes:
+        for s in ["top","right"]: ax.spines[s].set_visible(False)
+    plt.tight_layout(); plt.savefig("charts/semi_cycle_signals.png",dpi=110,bbox_inches="tight"); plt.close()
+    print("semi_cycle_signals OK")
+try: _semi_cycle_signals()
+except Exception as _e: print("semi_cycle_signals 실패(비차단):",_e)

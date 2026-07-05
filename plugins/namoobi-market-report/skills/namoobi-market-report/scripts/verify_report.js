@@ -98,6 +98,21 @@ try{
   eu.forEach(x=>{ if(!cExists('charts/spark_etf_'+(x.symbol||x.dispSym||'')+'.png')) eMiss++; });
   if(eu.length && eMiss>Math.max(1,Math.floor(eu.length*0.4))) warnings.push('[3.5.1] europe ETF trend charts missing '+eMiss+'/'+eu.length+' (check Daum fallback in fetch_us.py euetf)');
 }catch(e){}
+// req20 (2026-07-05): 3.1.5 FactSet — "매 실행 변동 체크·미변동 유지" 동작 보장.
+//   next_date 가 비면 다음 회차 갱신 트리거가 영구 불능 → warning. next_date 경과했는데 report.date 미갱신 → problem(이전 자료 잔존 금지).
+{ const fsx=m.factset||{}; const rp=fsx.report||{};
+  const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10)||new Date().toISOString().slice(0,10);
+  if(rp.date){
+    if(!rp.next_date) warnings.push('[req20] 3.1.5 FactSet report.next_date 비어있음 — 다음 회차 갱신 트리거 불능(주간 발행일 기입 필요)');
+    else if(String(rp.next_date)<=today && String(rp.date)<String(rp.next_date))
+      problems.push('[req20] 3.1.5 FactSet Earnings Insight 신규 회차 미갱신(next_date '+rp.next_date+' 경과, report.date '+rp.date+') — 새 PDF 정독·full_summary 교체 필요'); }
+}
+// req21 (2026-07-05): 3.1.20 M7 — "업데이트:매일" 동작 보장. as_of 가 실행일과 다르면 오늘 실측이 아님(내장 스냅샷/전일 잔존).
+{ const m7=m.m7_outlook||{};
+  const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10);
+  if(m7.rows&&m7.rows.length&&today&&String(m7.as_of||'').slice(0,10)!==today)
+    problems.push('[req21] 3.1.20 M7 실적 전망 as_of('+(m7.as_of||'없음')+') != 실행일('+today+') — 매일 실측 규칙 위반(M7OutlookAgent 재실행 필요)');
+  if(!m7.rows||!m7.rows.length) warnings.push('[req21] 3.1.20 m7_outlook 데이터 없음 — 빌더 내장 스냅샷으로 렌더됨'); }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

@@ -137,7 +137,7 @@ function fmtPct(v){ if(v===null||v===undefined||v==="")return "-"; const n=Numbe
 function viewText(v){ if(v==null)return ""; if(typeof v==="string")return v; if(Array.isArray(v))return v.map(viewText).filter(Boolean).join(", "); if(typeof v==="object")return Object.keys(v).map(function(k){var x=viewText(v[k]); return x?(/^[A-Za-z0-9_]+$/.test(k)&&v[k]&&typeof v[k]==="object"?x:x):"";}).filter(Boolean).join(" / "); return String(v); }
 function pctColor(v){ if(v===null||v===undefined||v==="")return undefined; const n=Number(v); if(isNaN(n))return undefined; return n>=0?positiveColor:negativeColor; }
 // (req5) '1일' 칸 = 직전장(2일전) 등락률 prev_pct (현재가의 한 세션 전). prev_pct 없으면 1d_pct 폴백.
-function day1pct(m){ if(!m)return null; return (m.prev_pct!==undefined&&m.prev_pct!==null)?m.prev_pct:null; }
+function day1pct(m){ if(!m)return null; if(m.prev_pct!==undefined&&m.prev_pct!==null)return m.prev_pct; return (m["1d_pct"]!==undefined&&m["1d_pct"]!==null&&m["1d_pct"]!=="")?m["1d_pct"]:null; } // (req3 2026-07-05) prev_pct 없으면 1d_pct 폴백 — "-" 방지
 function fmtNum(v){ if(v===null||v===undefined||v==="")return "-"; const n=Number(v); if(isNaN(n))return String(v); if(Math.abs(n)>=1000)return n.toLocaleString(undefined,{maximumFractionDigits:2}); return n.toFixed(2); }
 // (v3.21) 전일 대비 절대변동 절댓값 포맷 (부호는 ▲/▼ 화살표로 표기)
 function fmtChgAbs(v){ if(v===null||v===undefined||v==="")return null; const n=Number(v); if(isNaN(n))return null; const a=Math.abs(n);
@@ -326,6 +326,42 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
   children.push(h("3.1.7B 반도체 사이클 → 코스피 점검판",3));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   if(sc.phase) children.push(p("현재 국면: "+sc.phase+(sc.phase_peak?("  ·  "+sc.phase_peak):""),{bold:true,size:20,color:"1E40AF",before:60}));
+  // (req6 2026-07-05·v2) 대시보드 레이아웃 — 단계 바 / 타일 1행4칸 / 점검 카드 2×2 그리드 (첨부 대시보드 스타일)
+  const _mcell=(paras,w,fill)=>new TableCell({borders,width:{size:w,type:WidthType.DXA},
+    shading:fill?{fill,type:ShadingType.CLEAR,color:"auto"}:undefined,
+    margins:{top:110,bottom:110,left:160,right:160},children:paras});
+  const stg=sc.stages;
+  if(stg&&Array.isArray(stg.list)&&stg.list.length){
+    const w=Math.floor(10160/stg.list.length); const sw2=stg.list.map(()=>w);
+    const row=new TableRow({children:stg.list.map(s=>{const on=(s===stg.current);
+      return _mcell([new Paragraph({alignment:AlignmentType.CENTER,children:[
+        new TextRun({text:on?(s+" (현재)"):s,bold:on,size:on?19:15,color:on?"15803D":"94A3B8"})]})],w,on?"DCFCE7":"F8FAFC");})});
+    children.push(makeTable(sw2,[row]));
+    if(stg.note)children.push(p(stg.note,{size:15,italics:true,color:"64748B"})); }
+  const tl=Array.isArray(sc.tiles)?sc.tiles:[];
+  if(tl.length){
+    const w=Math.floor(10160/tl.length); const tw2=tl.map(()=>w);
+    const row=new TableRow({children:tl.map(t=>_mcell([
+      new Paragraph({children:[new TextRun({text:String(t.lab||""),size:15,color:"64748B"})]}),
+      new Paragraph({spacing:{before:30,after:20},children:[new TextRun({text:String(t.num||"-"),bold:true,size:30,color:"0F172A"})]}),
+      new Paragraph({children:[new TextRun({text:String(t.sub||""),size:13,color:"94A3B8"})]})],w,"F8FAFC"))});
+    children.push(makeTable(tw2,[row])); children.push(p("",{size:6})); }
+  const pn=Array.isArray(sc.panels)?sc.panels:[];
+  if(pn.length){
+    const CW2=5080; const mkCard=cd=>{ if(!cd) return _mcell([new Paragraph({children:[]})],CW2);
+      const paras=[new Paragraph({spacing:{after:60},children:[new TextRun({text:String(cd.title||""),bold:true,size:18,color:"1E40AF"})]})];
+      (Array.isArray(cd.rows)?cd.rows:[]).forEach(rv=>{
+        const k=Array.isArray(rv)?rv[0]:(rv&&rv.k); const v=Array.isArray(rv)?rv[1]:(rv&&rv.v);
+        paras.push(new Paragraph({spacing:{before:20,after:20},children:[
+          new TextRun({text:String(k||"")+"   ",bold:true,size:14,color:"64748B"}),
+          new TextRun({text:String(v||""),size:15,color:"1E293B"})]})); });
+      if(Array.isArray(cd.badges)&&cd.badges.length)
+        paras.push(new Paragraph({spacing:{before:50},children:cd.badges.map((bg,i)=>
+          new TextRun({text:(i?"   ":"")+String(bg),bold:true,size:14,color:/▼|하강|압박/.test(String(bg))?"B91C1C":"15803D"}))}));
+      return _mcell(paras,CW2); };
+    for(let i=0;i<pn.length;i+=2){
+      children.push(makeTable([CW2,CW2],[new TableRow({children:[mkCard(pn[i]),mkCard(pn[i+1])]})]));
+      children.push(p("",{size:6})); } }
   if(sc.headline){ children.push(p("■ 핵심 한 줄",{bold:true,size:20,color:"1E40AF",before:100}));
     children.push(p(sc.headline,{size:18})); }
   const rp=Array.isArray(sc.read_panel)?sc.read_panel:(sc.read_panel?[sc.read_panel]:[]);
@@ -347,6 +383,12 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
       cell(o.threshold||"-",{width:sw[3],alt:a,size:14}),
       cell(o.note||"-",{width:sw[4],alt:a,size:14})]})); });
     children.push(makeTable(sw,rows)); }
+  // (req6) 3대 조기경보 미니차트(재고주수·계약가 QoQ·CAPEX YoY) + 캡션
+  { const scChart=imagePara(sc.chart||"charts/semi_cycle_signals.png",680,175);
+    if(scChart){ children.push(scChart);
+      const S3=(sc.series||{});
+      [["① 재고주수",(S3.inventory||{}).cap],["② 계약가 QoQ",(S3.price_qoq||{}).cap],["③ CAPEX YoY",(S3.capex_yoy||{}).cap]].forEach(([t,c])=>{
+        if(c)children.push(p(t+" — "+c,{size:14,color:"64748B"})); }); } }
   if(sc.signal_summary) children.push(p("→ "+sc.signal_summary,{size:17,bold:true,color:"1E40AF",before:60}));
   if(sc.read_monitor){ children.push(p("■ 읽는 방법 (조기경보 점검)",{bold:true,size:20,color:"1E40AF",before:100}));
     children.push(p(sc.read_monitor,{size:17,color:"334155"})); }
@@ -795,7 +837,8 @@ function fsLink(text,url){ if(!url||!HAS_LINK) return p(text,{size:14,color:"475
     new ExternalHyperlink({link:url,children:[new TextRun({text:url,color:"1155CC",size:12,underline:{type:"single"}})]})]}); }
 function renderFactSet(){ const m=data.markets||{}; const fs=m.factset; if(!fs||(!fs.blog&&!fs.report))return;
   children.push(h("3.1.5 Earnings Insight (FactSet)",3));
-  children.push(p("FactSet Earnings Insight 의 최신 블로그 포스트와 주간 리포트 첫 장을 요약한다. 원문 그래프·표는 출처 링크에서 확인(저작권상 본 보고서에는 사실 요약·수치만 수록).",{italics:true,color:"64748B"}));
+  children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
+  children.push(p("FactSet Earnings Insight 의 최신 블로그 포스트와 주간 리포트를 요약한다. 원문 그래프·표는 출처 링크에서 확인(저작권상 본 보고서에는 사실 요약·수치만 수록).",{italics:true,color:"64748B"}));
   children.push(fsLink("출처(토픽 페이지) · FactSet Insight — Earnings", (fs.topic_url||"https://insight.factset.com/topic/earnings")));
   const b=fs.blog||{};
   if(b.title){
@@ -1056,7 +1099,7 @@ function renderM7Outlook(){ const m=data.markets||{};
   const src=(m.m7_outlook&&Array.isArray(m.m7_outlook.rows)&&m.m7_outlook.rows.length)?m.m7_outlook:M7_OUTLOOK_DEFAULT;
   const rows0=src.rows||[]; if(!rows0.length) return;
   children.push(h("3.1.20 미국 빅테크(M7) 실적 전망 (가이던스·애널리스트 추정치 변화)",3));
-  children.push(p("업데이트:매일 — 시세·목표주가·투자의견·리비전은 매 실행 실측, 가이던스·연간 추정치는 실적 발표 시 갱신",{size:15,italics:true,color:"94A3B8"}));
+  children.push(p("업데이트:매일",{size:15,italics:true,color:"94A3B8"}));
   children.push(p("이익 추정치·목표주가의 방향(상향/하향)과 가이던스 변화를 섹터·시장의 선행 신호로 읽는다. 가이던스 하향·추정치 조정 = 하락의 직접 신호.",{size:16,color:"475569"}));
   const w=[1050,1150,1350,1300,1560,1960,1040];
   const revC=r=>{const t=String(r||"");return t.includes("상향")?positiveColor:(t.includes("하향")?negativeColor:mixedColor);};

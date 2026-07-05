@@ -70,7 +70,12 @@ for r in ((mac.get("sentiment") or {}).get("rows") or []):
             if vk.get("prev_close") is not None: r["prev_close"]=vk["prev_close"]
             for k in ["1d_pct","1w_pct","1mo_pct","3mo_pct","6mo_pct","1y_pct"]:
                 if vka.get(k) is not None: r[k]=vka[k]
-            if vka.get("1d_pct") is not None: r["prev_pct"]=vka["1d_pct"]  # 빌더 day1pct 는 prev_pct 사용
+            # (req3 2026-07-05) anchors 는 "가격"(1d=전일 종가)이라 1d_pct 키가 없음 → 일별 series 로 직전장 등락률을 직접 계산해 주입
+            ser=[x for x in (vk.get("series") or []) if isinstance(x,(list,tuple)) and len(x)>=2 and x[1] is not None]
+            if len(ser)>=3 and ser[-3][1]:
+                r["prev_pct"]=round((ser[-2][1]/ser[-3][1]-1)*100,2)  # 직전장(2일 전→1일 전) 등락률 — 빌더 '1일' 칸
+            elif r.get("1d_pct") is not None:
+                r["prev_pct"]=r["1d_pct"]  # 최후 폴백(빈칸 방지)
             r["trend"]="실시간(investing.com KSVKOSPI 페이지 파싱) 1일~1년 전구간 반영"
         elif all(empty(r.get(k)) for k in ["1w_pct","1mo_pct","3mo_pct","6mo_pct","1y_pct"]):
             r["trend"]="현재값 실시간(CNBC) · 1주~1년 이력 미확보(소스 접근 차단)"
