@@ -9,7 +9,10 @@ BASE_DIR = Path(__file__).resolve().parent
 # 게시본(사용자 폴더). 일반 PC에서는 여기서 바로 SQLite가 동작한다.
 # 마운트/네트워크 파일시스템에서는 SQLite 락이 불가 → db.connect()가 로컬 임시
 # 디스크에서 작업 후 이 경로로 복사(게시)한다.
-PUBLISH_DB = BASE_DIR / "deriv_signals.db"
+import os as _os
+# DB 위치: 환경변수 DERIV_DB(안정 경로, 예: ..\_market_report_data\deriv_signals.db) 우선 → 없으면 로컬.
+# 플러그인은 매 실행 git 추출본($RUN)에서 코드를 돌리므로, 재백필 방지를 위해 DB는 안정 경로 권장(run_for_report.py가 지정).
+PUBLISH_DB = Path(_os.environ["DERIV_DB"]) if _os.environ.get("DERIV_DB") else (BASE_DIR / "deriv_signals.db")
 DB_PATH = PUBLISH_DB                      # 표시용(실제 작업 경로는 db.active_db())
 OUT_DIR = BASE_DIR / "outputs"
 OUT_DIR.mkdir(exist_ok=True)

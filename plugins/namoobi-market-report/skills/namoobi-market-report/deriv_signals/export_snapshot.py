@@ -10,7 +10,7 @@ export_snapshot.py — deriv_signals.db → nmr_deriv_positioning.json
 import sqlite3, json, math, os, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(BASE, "deriv_signals.db")
+DB = os.environ.get("DERIV_DB") or os.path.join(BASE, "deriv_signals.db")  # 안정 경로 우선(config와 동일)
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), "nmr_deriv_positioning.json")
 
 if not os.path.exists(DB):

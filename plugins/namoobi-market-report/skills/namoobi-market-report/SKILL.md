@@ -93,6 +93,7 @@ description: |
   ├─ News / Crypto(정성: CoinInfo) / Macro(FMP economics·treasury + FRED → nmr_macro.json)
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (상시 수집 — DB가 변동체크·재사용) USMacroExtras·IndexRebalance·NewsBerk·HBM
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_asia_etf.py + fetch_brokers_tele.py  (美/글로벌·한국 시세·시계열·경기선행·증권사 텔레그램 7사, Chrome 불필요)
+  ├─ [bash 비차단] deriv_signals/run_for_report.py "$WORK/nmr_deriv_positioning.json" "<_market_report_data>/deriv_signals.db"  (3.1.13 파생 포지셔닝 라이브 — 런처가 ①의존성 자동설치 ②DB없으면 run_backfill(1회 1년)·있으면 daily_update ③export_snapshot→JSON. **완전 비차단**: 실패해도 빌더 내장 스냅샷(DERIV_POS_DEFAULT)으로 렌더. DB는 다른 DB섹션과 동일하게 `_market_report_data\deriv_signals.db` 영구 경로에 두어 매 실행 재백필 방지(2번째 인자 또는 DERIV_DB 환경변수). data.go.kr 키는 상위 `SECURITY/secrets.env` 자동 탐색 — 없으면 KOSPI200 선물/옵션만 skip. 큰 모듈 truncation 방지 위해 $RUN 추출본에서 실행)
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(`browser_batch` 3탭 navigate·`javascript_tool` 타깃추출·단계별 screenshot 금지) + KOSIS OECD CLI 자료갱신일 체크 1탭(3.1.4 — reuse면 스킵); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_macro_charts.py·gen_cli_chart.py → charts/*.png
