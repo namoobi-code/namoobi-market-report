@@ -6,6 +6,15 @@ import sys, glob, os
 O = sys.argv[1] if len(sys.argv) > 1 else (os.environ.get("NMR_OUT") or sorted(glob.glob("/sessions/*/mnt/outputs"))[-1])
 GRN="#059669"; RED="#DC2626"
 def spark(pairs,out):
+    # (fix-r6) 추세(1Y) 라벨과 일치하도록 날짜형 시계열은 최근 365일만 사용(장기 시계열 혼입 시 색·모양 왜곡 방지)
+    try:
+        _dp=[p for p in pairs if p and p[1] is not None]
+        if _dp and isinstance(_dp[-1][0],str) and len(str(_dp[-1][0]))>=10:
+            from datetime import datetime as _dt, timedelta as _td
+            _last=_dt.strptime(str(_dp[-1][0])[:10],'%Y-%m-%d'); _cut=(_last-_td(days=365)).strftime('%Y-%m-%d')
+            _w=[p for p in _dp if str(p[0])[:10]>=_cut]
+            if len(_w)>=2: pairs=_w
+    except Exception: pass
     ys=[p[1] for p in pairs if p and p[1] is not None]
     if len(ys)<2: return False
     col=GRN if ys[-1]>=ys[0] else RED

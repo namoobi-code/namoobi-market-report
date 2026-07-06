@@ -197,6 +197,8 @@ def _ch_infl():
     infl=S.get("inflation") or {"CPI":[2.6,2.7,2.8,2.9,3.1,3.3,3.4,3.6,3.8,3.9,4.0,4.17],"Core CPI":[2.9,2.9,3.0,3.0,3.0,3.1,3.1,3.2,3.1,3.1,3.0,3.1],"PCE":[2.3,2.4,2.4,2.5,2.5,2.6,2.6,2.6,2.6,2.7,2.6,2.6],"Core PCE":[2.6,2.6,2.7,2.7,2.7,2.8,2.8,2.8,2.8,2.8,2.8,2.8],"PPI":[1.8,2.0,2.2,2.3,2.4,2.6,2.7,2.8,2.9,3.0,2.9,2.9]}
     fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150)
     for k,v in infl.items():
+        if isinstance(v,list):  # (fix-r3) null 페어·레벨 혼입(|v|>30) 개별 제거 — 라인 탈락/스파이크 방지
+            v=[q for q in v if ((isinstance(q,(list,tuple)) and len(q)==2 and isinstance(q[1],(int,float)) and abs(q[1])<=30) or (not isinstance(q,(list,tuple)) and isinstance(q,(int,float)) and abs(q)<=30))]
         xs,ys=_xy(v)
         if ys is None: continue
         if xs is not None: ax.plot(xs,ys,linewidth=1.6,marker="o",ms=3,label=k)
@@ -266,11 +268,18 @@ def _ch_emp():
         if key=="retail":
             if lvl: lvl=_mixfix(lvl,50,lambda a,b:round((b/a-1)*100,2))  # 소매 레벨→전월비 %
             return lvl or [v for v in _flat(emp.get("retail_mom")) if isinstance(v,(int,float)) and abs(v)<=50]
-        if key=="gdp":  # 연율(%) 값만 유지(레벨/이상치 제거)
+        if key=="gdp":  # 연율(%) 값만 유지(레벨/이상치 제거) + (fix-r4) 최근 8분기만
             g=[v for v in lvl if abs(v)<50]
             ga=[v for v in _flat(emp.get("gdp_ann")) if isinstance(v,(int,float)) and abs(v)<50]
-            return g if len(g)>=2 else (ga or g)
-        return lvl
+            _gv=(g if len(g)>=2 else (ga or g))
+            _gd=[]
+            for _v in _gv:
+                if not _gd or _v!=_gd[-1]: _gd.append(_v)  # (fix-r4) 월별 중복 분기값 제거
+            return _gd[-8:]
+        if key=="jobless":  # (fix-r4) 단위 혼입 정규화: 건(>10000)→만건 + 최근 52주
+            lvl=[(round(v/10000.0,1) if abs(v)>10000 else v) for v in lvl]
+            return lvl[-52:]
+        return lvl[-24:]  # (fix-r4) 월간 패널 최근 24개월 윈도우
     for key,title,col,hl in [("jobless","① 초기 실업수당 청구건수(만 건)",AMBER,None),("nfp","② NFP 월 신규고용(천명)",BLUE,0),("unemp","③ 실업률(%)",RED,None),("retail","④ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","⑤ ISM 제조 PMI",BLUE,50),("ism_svc","⑥ ISM 서비스 PMI",GREEN,50),("gdp","⑦ 실질GDP 연율(%)",GREEN,None)]:
         ys=_empdisp(key)
         _ep.append((title,ys,col,hl))
