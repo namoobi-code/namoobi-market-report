@@ -1,5 +1,11 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.53.0 (plugin 1.20.0, 2026-07-07) — FRED 수집 API 키 직접 호출로 전환
+- **신규 `scripts/nmr_fred.py`**(공용 헬퍼): FRED API(`api.stlouisfed.org`) 키 직접 호출 우선 → `fredgraph.csv` 폴백. 키=연결폴더 `SECURITY/secrets.env` 의 `FRED_API_KEY`(환경변수 우선). sandbox curl 도달 실측 확인(단건 ~0.4s, CSV ~0.6s).
+- `fetch_macro.py`(물가·금리·고용 15개 시리즈)·`fetch_kr.py`(HY OAS — API→equibles→영구캐시 순)·`gen_curve_1y.py`(T10Y2Y) 가 헬퍼 사용. Chrome 동일출처 CSV·미러 의존 제거(폴백으로만 유지).
+- ⚠️ **BAMLH0A0HYM2 등 ICE BofA 시리즈의 약 3년 상한은 CSV 방식이 아니라 FRED 라이선스 제한 — API 키로도 동일**(2026-07-07 실측: observation_start=1996 지정에도 시작일 3년 전·793개). 전환 목적은 구간 확대가 아닌 속도·안정성.
+- SKILL.md(3.1·3.3.3·Phase1)·references/agents.md(출처·샌드박스 도달 규칙) 갱신 — "샌드박스 FRED 불가" 문구를 실측 결과로 교체.
+
 ## v3.52.1 (plugin 1.19.1, 2026-07-05) — [부록C] 43→46종 확장 (부록D 관계도와 동기화)
 - fetch_appc.py ROWS +3: ORCL(빅테크 수요처)·이수페타시스 007660.KS(후공정/패키징)·AMKR(후공정/패키징) → 46종(미 31·일 4·한 11), ①빅테크5 ⑦후공정8.
 - verify [AppC] 게이트 43→46, SKILL.md 부록C 블록 갱신. 부록D 관계도(46종)와 구성 일치.

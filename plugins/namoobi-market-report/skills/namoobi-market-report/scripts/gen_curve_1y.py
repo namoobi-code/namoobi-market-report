@@ -10,19 +10,15 @@ if _f: fm.fontManager.addfont(_f[0]); matplotlib.rcParams['font.family']='NanumB
 matplotlib.rcParams['axes.unicode_minus']=False
 os.makedirs('charts',exist_ok=True)
 def fred(sid):
-    import urllib.request
-    for _ in range(2):
-        try:
-            req=urllib.request.Request('https://fred.stlouisfed.org/graph/fredgraph.csv?id='+sid,headers={'User-Agent':'Mozilla/5.0'})
-            txt=urllib.request.urlopen(req,timeout=12).read().decode(); out=[]
-            for ln in txt.splitlines()[1:]:
-                a=ln.split(',')
-                if len(a)>=2 and a[1] not in ('.',''):
-                    try: out.append((dt.date.fromisoformat(a[0]),float(a[1])))
-                    except: pass
-            if out: return out
-        except Exception: time.sleep(2)
-    return None
+    # v3.16: FRED API 키(SECURITY/secrets.env) 직접 호출 우선 → fredgraph.csv 폴백 (nmr_fred 공용 헬퍼)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from nmr_fred import fred_series
+    s = fred_series(sid, start=(dt.date.today()-dt.timedelta(days=380)).isoformat())
+    out=[]
+    for d,v in s:
+        try: out.append((dt.date.fromisoformat(d),float(v)))
+        except: pass
+    return out or None
 def load(p):
     try: return json.load(open(p))
     except Exception: return None

@@ -2,30 +2,16 @@
 # fetch_macro.py — 결정적 매크로 수집 (FRED 직접·sandbox·stdlib). 에이전트 변동성 제거 → 물가·BEI·고용·금리 매일 확실 수집.
 # 산출: nmr_macro.json {macro:{series, rates, inflation:{rows}, employment:{rows}, sentiment}}  (ISM·선행EPS/PER 는 미수집→merge dbrows/DB 가 백필)
 # FRED 도달 확인됨(http200). YoY/MoM/변화율은 지수레벨에서 계산. 실패 시리즈는 빈값(merge 가 DB 백필+'변경 미확인' 플래그).
+# v3.16: FRED API 키(SECURITY/secrets.env FRED_API_KEY) 직접 호출 우선 → fredgraph.csv 폴백 (nmr_fred.py 공용 헬퍼).
 import sys, os, json, datetime as dt, subprocess
 from concurrent.futures import ThreadPoolExecutor
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from nmr_fred import fred_series as _fred
 W = sys.argv[1] if (len(sys.argv) > 1 and os.path.isdir(sys.argv[1])) else '.'
 
 def fred(sid, cosd='2023-01-01'):
-    # curl 서브프로세스(단건 ~0.2s·안정) + 3회 재시도. urllib 병렬은 FRED 타임아웃 빈발 → curl 사용.
-    u = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s&cosd=%s" % (sid, cosd)
-    import time as _t
-    for _i in range(2):
-        try:
-            r = subprocess.run(['curl','-s','--max-time','10','-H','User-Agent: Mozilla/5.0', u],
-                               capture_output=True, text=True, timeout=12)
-            txt = r.stdout or ''
-            if txt and ',' in txt:
-                out = []
-                for ln in txt.strip().split('\n')[1:]:
-                    p = ln.split(',')
-                    if len(p) >= 2 and p[1] not in ('.', ''):
-                        try: out.append([p[0], float(p[1])])
-                        except Exception: pass
-                if out: return out
-        except Exception: pass
-        _t.sleep(1.5)
-    return []
+    # API JSON(키) 단건 ~0.4s, 실패/무키 시 CSV 폴백 — 재시도 포함 (nmr_fred.fred_series)
+    return _fred(sid, start=cosd)
 
 def _get(sid, cosd='2023-01-01'):
     try: return fred(sid, cosd)
