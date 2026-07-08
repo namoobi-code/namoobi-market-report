@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.18.0 · SKILL v3.51.0)
+# Namoobi Market Report (plugin v1.18.0 · SKILL v3.53.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -125,7 +125,11 @@ description: |
      예약 → `SECURITY\예약메일수신자.txt`, 일반 → `SECURITY\메일수신자.txt`. (애매하면 **일반 모드**로 처리하고 Phase 6 에 모드를 명시한다.)
 1. **날짜·시작시각**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` 로 오늘(KST)과 **워크플로우 시작시각**을 확정. `YYYYMMDD` 압축형도 함께 만든다. 시작시각(사람이 읽는 형식 + epoch)은 Phase 6 소요시간 계산에 쓰므로 아래 3번에서 `$WORK/nmr_start_epoch.txt` 로 기록한다.
 2. **연결 폴더 확인**: D:\claudeCowork 가 세션에 연결돼 있는지 확인. **`request_cowork_directory` 는 절대 호출하지 않는다**(매 실행 권한창의 원인). 미연결이면 outputs 에서 진행하고, Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성·메일 첨부 불가"를 명시한다.
-3. **Chrome**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. 없으면 사용자에게 일반 크롬 창을 열어달라고 요청. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.)
+3. **Chrome (v3.53 — 미연결 시 직접 실행 루틴)**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.) **결과가 빈 배열(`[]`)이면 사용자에게 떠넘기지 말고 computer-use 로 크롬을 직접 실행한다**:
+   1. `mcp__computer-use__request_access(apps=["Google Chrome"], reason="크롬을 실행해 Claude 확장을 연결하고 시황 보고서를 Gmail 로 발송")` — 브라우저는 tier "read" 라 "It is rare for this to be required…" 경고가 뜨면 **같은 턴에서 즉시 한 번 더** `request_access` 를 호출해 확정한다(권한창은 그 재시도가 띄운다). 여기서 얻는 read 권한은 **크롬을 포그라운드로 띄우기(`open_application`)** 용이며, 실제 웹 조작은 전부 Claude-in-Chrome 확장으로 한다.
+   2. `mcp__computer-use__open_application(app="Google Chrome")` → `wait(3초)` → `list_connected_browsers` 재확인.
+   3. **프로필 선택 화면("Chrome 사용자 선택")이 뜨면**(computer-use `screenshot` 로 확인) 브라우저는 read 전용이라 Claude 가 클릭할 수 없다 → 사용자에게 **namoobi 프로필 카드를 한 번 클릭**해 달라고 요청(1회 클릭이면 확장이 붙는다). 프로필 피커를 끄고 싶으면 크롬 프로필 설정에서 "시작 시 표시" 체크 해제를 안내한다.
+   4. 확장이 붙어 `list_connected_browsers` 가 기기를 반환하면 그대로 진행. 재실행·프로필 클릭 후에도 계속 `[]` 이면 그때만 Phase 6 에 "Chrome 미연결 — 메일 미발송(docx 는 연결 폴더 저장 완료)"으로 보고하고 발송은 보류한다. (상세 절차·함정은 `references/email-sending.md` "Chrome 미연결 시 직접 실행" 참조.)
 4-0. **(v3.42 근본해결) 실행 스크립트는 설치본이 아니라 로컬 repo git HEAD 에서 추출 — 마운트 잘림 영구 회피**:
    D: 마운트가 큰 파일(merge.py·gen_macro_charts.py 등)을 **설치 시점에 간헐적으로 잘라 기록**해 `.remote-plugins` 설치본이 손상될 수 있다(자가점검 SC=2의 실제 원인). 따라서 **매 실행, 로컬 repo(`D:\claudeCowork\namoobi-market-report`)의 git 객체에서 완전한 스크립트를 추출해 그걸로 실행**한다(git show=마운트 미경유·절대 안 잘림):
    ```bash
@@ -266,6 +270,7 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
 - SMTP·Gmail MCP 초안 방식 금지. **Claude in Chrome 로그인된 Gmail 직접 발송만** 사용.
+- **(v3.53) Chrome 확장 미연결이면 먼저 직접 실행**: `list_connected_browsers` 가 `[]` 면 Phase 0-3 루틴대로 computer-use `request_access(["Google Chrome"])`(경고 시 같은 턴 재요청)→`open_application("Google Chrome")`→`wait(3)`→재확인. 프로필 피커가 뜨면 사용자에게 namoobi 프로필 1회 클릭 요청. 확장이 붙은 뒤 아래 절차 진행.
 - **Gmail 이 안 켜져 있으면** Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 navigate (로그인 상시 유지 — 비밀번호 단계 불필요).
 - **첨부는 docx** — 연결 폴더(`D:\claudeCowork\...docx`) Windows 경로로 첨부 (outputs·VM 경로는 거부됨). (`references/email-sending.md` 의 PDF 언급은 docx 로 간주 — 차기 정리 대상.)
 - **받는사람(To)**: `namoobi@gmail.com` 단독.
@@ -307,6 +312,7 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 | 증상 | 대처 |
 |------|------|
 | Chrome "Tabs can only be moved to and from normal windows" | 일반 크롬 창 없음 → 사용자에게 열어달라 요청 후 `tabs_context_mcp(createIfEmpty=true)` 재시도 |
+| Chrome 확장 미연결(`list_connected_browsers`=`[]`) | computer-use 로 직접 실행: `request_access(["Google Chrome"])`(read 경고 시 같은 턴 재요청)→`open_application("Google Chrome")`→`wait(3)`→재확인. 프로필 피커("Chrome 사용자 선택") 뜨면 사용자에게 namoobi 프로필 1회 클릭 요청(브라우저 read 전용이라 Claude 클릭 불가) |
 | Gmail 로그인 안 됨 | 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
 | 작성창이 닫히고 초안만 남음 | `#drafts` 에서 초안 다시 열어 이어서 작성·발송 (email-sending.md) |
 | 작성창이 최소화돼 "새 메일" 바만 보임 | 하단 "새 메일" 바 클릭해 펼친 뒤 진행 |
@@ -347,31 +353,4 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 4. **마운트 잘림 회피 커밋 절차**: 샌드박스 D: 마운트가 큰 파일(SKILL.md·build_report.js 등)을 간헐적으로 잘라 읽고/쓴다. 워킹트리에서 바로 `git add` 하면 잘린 blob 이 커밋될 수 있으니 금지. 대신 ① 편집은 Read/Write/Edit(호스트 직접) 도구로 하고, ② 커밋은 `git show HEAD:<path>` 로 원본을 받아(객체는 git 이 완전히 읽음) 메모리에서 동일 편집을 적용한 뒤 `git hash-object -w --stdin` 으로 blob 을 만들고 `git cat-file` 로 무결성(끝부분 마커·바이트수)을 검증한다. ③ 인덱스는 마운트가 아닌 tmpfs(`GIT_INDEX_FILE=/dev/shm/idx`)에 두고 `read-tree HEAD` → `update-index --cacheinfo` → `write-tree` → `commit-tree -p HEAD` → `update-ref refs/heads/main` 순으로 커밋한 뒤 push 한다.
 5. **`.git/index.lock` 이 안 지워질 때**: 마운트 캐시 때문에 `rm` 이 'Operation not permitted' 가 나면 `mcp__cowork__allow_cowork_file_delete` 로 삭제 권한을 받은 뒤 제거한다.
 6. **로컬 인덱스 복구 (자동)**: 작업 후 `.git/index` 가 손상돼 `git status` 가 "index file corrupt"/"bad signature" 를 띄우면, 사용자에게 미루지 말고 직접 `git read-tree HEAD`(또는 `git reset`)로 HEAD 기준 깨끗한 인덱스를 재생성한다. 푸시에는 영향 없다.
-7. **(v3.39 필수) 커밋·push 후 작업트리 동기화**: 위 mount-safe 방식은 `refs/heads/main`(HEAD)만 옮기고 **디스크 작업파일·인덱스는 옛 버전으로 남는다**. 커밋·push 직후 반드시 `git reset --hard HEAD`(잘림 의심 시 파일별 `git show HEAD:<path>` 로 재기록 후 검증)로 **디스크 = HEAD** 동기화한다. 빠뜨리면 ① 플러그인이 옛 디스크 파일로 설치돼 새 실행에서 수정 누락, ② 다음 `git add -A` 가 옛 파일을 커밋해 수정이 통째로 되돌려진다. 동기화 후 `git status --porcelain` 이 비어야 정상.
-
-## 부록 A: 주요 증권사 강점 사전 정의
-
-| 증권사 | 핵심 강점 | 대표 채널 | 추천 투자자 |
-|--------|-----------|-----------|-------------|
-| 신한투자증권 | 자산배분 통합 (주식·채권·원자재·대안), 매크로 일관성 | 카카오채널 '쏠쏠한 리포트', 신한 알파 앱 | 장기 자산배분형 |
-| 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
-| 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
-| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
-| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
-
-복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
-
-## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
-
-| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
-|------|-----------|----------------|-----------|
-| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
-| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
-| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
-| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
-| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
-
-
-수집 시 주의:
-- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
-- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
+7. **(v3.39 필수) 커밋·push 후 작업트리 동기화**: 위 mount-safe 방식은 `refs/heads/main`(HEAD)만 옮기고 **디스크 작업파일·인덱스는 옛 버전으로 남는다**. 커밋·push 직후 반드시 `git reset --hard HEAD`(잘림 의심 시 파일별 `git show HEAD:<path>` 로 재기록 후 검증)로 **디스크 = HEAD** 동기화한다. 빠뜨리면 ① 플러그인이 옛 디스크 파일로 설치돼 새 실행에서 수정 누락, ② 다음 `git add -A` 가 옛 파일을 커밋해 수정이 통째로 되돌려진

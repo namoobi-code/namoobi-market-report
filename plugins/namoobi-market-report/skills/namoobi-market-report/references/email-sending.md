@@ -25,6 +25,11 @@
 
 1. Claude in Chrome 확장 연결 + **일반(normal) 브라우저 창** 존재
    (`mcp__Claude_in_Chrome__list_connected_browsers` 로 확인)
+   - **(v3.53) 미연결(`[]`)이면 직접 실행 루틴** (사용자에게 떠넘기지 말 것):
+     ① `mcp__computer-use__request_access(apps=["Google Chrome"], reason="크롬 실행해 Claude 확장 연결·시황 보고서 Gmail 발송")` — 브라우저는 tier "read" 라 "It is rare for this to be required…" 경고가 나오면 **같은 턴에서 즉시 한 번 더** `request_access` 호출(권한창은 재시도가 띄움). read 권한은 `open_application` 으로 크롬을 띄우는 용도이고 웹 조작은 전부 확장으로 한다.
+     ② `mcp__computer-use__open_application(app="Google Chrome")` → `mcp__computer-use__wait(3)` → `list_connected_browsers` 재확인.
+     ③ **프로필 선택 화면("Chrome 사용자 선택")** 이 뜨면(computer-use `screenshot` 확인) 브라우저 read 전용이라 Claude 가 클릭 못 함 → 사용자에게 **namoobi 프로필 1회 클릭** 요청. (피커 끄려면 크롬 프로필 설정에서 "시작 시 표시" 해제 안내.)
+     ④ 확장이 붙어 기기가 반환되면 진행. 재실행·클릭 후에도 `[]` 면 Phase 6 에 "Chrome 미연결 — 메일 미발송(docx 는 연결 폴더 저장 완료)"으로 보고·발송 보류.
 2. 해당 브라우저에 발송 계정 로그인 (https://mail.google.com/mail/u/0/)
    — 로그인 안 돼 있으면 비밀번호 입력은 정책상 Claude 가 대신 못 함 → 사용자에게 요청
    — **Gmail 이 아직 안 켜져 있어도 됨**: Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 바로 `navigate` 하면 받은편지함이 열린다. **로그인은 항상 유지돼 있으므로** 별도 로그인 절차 없이 그대로 작성·발송하면 된다.
@@ -76,12 +81,4 @@
 |------|------|
 | "normal windows" 탭 오류 | 일반 크롬 창 열기 요청 → `tabs_context_mcp(createIfEmpty=true)` 재시도 |
 | Chrome 미연결 | `list_connected_browsers` 확인, 확장 켜고 재시도 |
-| Gmail 탭이 안 열려 있음 | Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` navigate — 로그인 상시 유지라 바로 받은편지함 |
-| Gmail 미로그인 (드묾) | 보통은 로그인 상시 유지. 그래도 로그인 화면이면 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
-| 작성창 닫힘/초안만 남음 | #drafts 에서 초안 재개 |
-| 칩이 사람 이름으로 표시 | 주소록 매칭 — 도메인/주소로 확인, 정상일 수 있음 |
-| 첨부 실패 / "only files the user has shared" | docx 를 **연결 폴더(D:\claudeCowork) Windows 경로**로 첨부 (outputs·`/sessions/...` VM 경로는 업로드 거부됨) |
-| 숨은참조 칸이 안 보임 | 받는사람 칸 우측 `숨은참조` 링크 클릭해 BCC 칸 펼치기 |
-| 수신자 파일 없음 | 예약 모드는 예약메일수신자.txt, 일반 모드는 메일수신자.txt. 해당 파일 없으면 BCC 없이 To(namoobi)만 발송 + 결과 보고에 "BCC 파일 없음" 명시 |
-| 특정 수신자만 일시 제외하고 싶음 | 해당 줄 맨 앞에 `//` 추가 (주소 보존). 빌더가 `//` 라인을 BCC 대상에서 제외 |
-| 전부 `//` 주석이라 유효 주소 0개 | To(namoobi)만 발송 + 결과 보고에 "BCC 0명(전부 주석)" 명시 |
+| Gmail 탭이 안 열려 있음 | Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?o
