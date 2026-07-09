@@ -132,6 +132,13 @@ try{
   if(m7.rows&&m7.rows.length&&today&&String(m7.as_of||'').slice(0,10)!==today)
     problems.push('[req21] 3.1.7 M7 실적 전망 as_of('+(m7.as_of||'없음')+') != 실행일('+today+') — 매일 실측 규칙 위반(M7OutlookAgent 재실행 필요)');
   if(!m7.rows||!m7.rows.length) warnings.push('[req21] 3.1.7 m7_outlook 데이터 없음 — 빌더 내장 스냅샷으로 렌더됨'); }
+// req22 (v3.54): 3.2.4/3.2.5 KRX 증시 Brief·공매도 데일리 브리프 — 데이터 있으면 페이지 캡쳐 PNG 필수, 데이터 자체가 없으면 warning(수집 실패).
+{ const kb=m.krx_brief||{};
+  [['krx','krx_brief','3.2.4 KRX 증시 Brief'],['short','short_brief','3.2.5 공매도 데일리 브리프']].forEach(([k,pfx,label])=>{
+    const it=kb[k];
+    if(!it||!it.pages){ warnings.push('[req22] '+label+' 데이터 없음 — fetch_krx_brief.py 수집 실패 여부 확인'); return; }
+    for(let i=1;i<=it.pages;i++) if(!cExists('charts/'+pfx+'_p'+i+'.png')) problems.push('[req22] '+label+' 캡쳐 누락: '+pfx+'_p'+i+'.png (fetch_krx_brief.py 재실행 필요)');
+    if(it.stale_note) warnings.push('[req22] '+label+' 직전 회차(DB) 폴백 사용: '+(it.date||'-')); }); }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

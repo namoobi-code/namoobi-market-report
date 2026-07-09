@@ -1,5 +1,12 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.54.0 (plugin 1.21.0, 2026-07-09) — 3.2.4/3.2.5 KRX 증시 Brief·공매도 데일리 브리프 신설 (DB화)
+- **신규 `scripts/fetch_krx_brief.py`**: open.krx.co.kr 시장동향>종합시황 게시판에서 최신 'KRX 증시 Brief'·'공매도 데일리 브리프' PDF를 OTP 체인(GenerateOTP→OPN99000001→file.krx.co.kr/download.jspx)으로 다운로드(쿠키·Chrome 불필요, 2026-07-09 실측) → pdftocairo 페이지별 PNG 캡쳐(-r110).
+- **DB화(회차 마커=게시글 att_seq)**: `_market_report_data/krx_brief/<key>_<att_seq>/`(pdf+PNG 영구 저장, 항목별 최근 5회차 유지)+`db/krx_brief.json`. **동일 회차면 다운로드·캡쳐 생략·저장본 재사용**, 수집 실패 시 직전 회차 폴백(stale_note 표기).
+- 빌더 `renderKoreaExtras` 끝에 3.2.4/3.2.5 렌더(표준캡션+제목·등록일+페이지 캡쳐+출처, 항목 데이터 없으면 자동 생략·비차단) — 문서번호 충돌 없음(테마=3.2.3, HBM=3.1.9). merge `m['krx_brief']`(LCF→DB 폴백).
+- 게이트: builder validate [차트누락] + verify **req22**(데이터 있는데 캡쳐 PNG 없으면 발송 차단 / 데이터 없으면 warning / DB 폴백 사용 시 warning).
+- SKILL.md: 핵심 수집 규칙에 3.2.4/3.2.5 블록 추가, Phase 1 bash 병렬 목록에 fetch_krx_brief.py 추가, 구번호 라벨 정리(3.2.4 테마→3.2.3, 3.2.5 HBM→3.1.9 — 문서 실번호와 일치화).
+
 ## v3.53.0 (plugin 1.20.0, 2026-07-07) — FRED 수집 API 키 직접 호출로 전환
 - **신규 `scripts/nmr_fred.py`**(공용 헬퍼): FRED API(`api.stlouisfed.org`) 키 직접 호출 우선 → `fredgraph.csv` 폴백. 키=연결폴더 `SECURITY/secrets.env` 의 `FRED_API_KEY`(환경변수 우선). sandbox curl 도달 실측 확인(단건 ~0.4s, CSV ~0.6s).
 - `fetch_macro.py`(물가·금리·고용 15개 시리즈)·`fetch_kr.py`(HY OAS — API→equibles→영구캐시 순)·`gen_curve_1y.py`(T10Y2Y) 가 헬퍼 사용. Chrome 동일출처 CSV·미러 의존 제거(폴백으로만 유지).

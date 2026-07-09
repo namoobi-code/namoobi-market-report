@@ -93,6 +93,9 @@ function validate(d) {
   needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.4 OECD CLI 통합 차트");
   if(M.customs&&M.customs.series){ needChart(true,"charts/수출_전체_24개월.png","3.1.10 수출 전체 차트"); needChart(true,"charts/수출_반도체_24개월.png","3.1.10 수출 반도체 차트"); }
   needChart(M.hy_spread, "charts/hy_oas.png","3.3.3 HY 스프레드 차트");
+  { const KB=M.krx_brief||{};  // (v3.54) 3.2.4/3.2.5 KRX 브리프 — 데이터 있으면 캡쳐 필수
+    if(KB.krx&&KB.krx.pages) for(let i=1;i<=KB.krx.pages;i++) needChart(true,"charts/krx_brief_p"+i+".png","3.2.4 KRX 증시 Brief 캡쳐 p"+i);
+    if(KB.short&&KB.short.pages) for(let i=1;i<=KB.short.pages;i++) needChart(true,"charts/short_brief_p"+i+".png","3.2.5 공매도 데일리 브리프 캡쳐 p"+i); }
   (M.semi_ai_stocks||[]).forEach((x,i)=>needChart(true,"charts/semi_s_"+i+".png","3.2.3 반도체 종목 추세("+((x&&x.name)||i)+")"));
   (M.semi_ai_etfs||[]).forEach((x,i)=>needChart(true,"charts/semi_e_"+i+".png","3.2.3 반도체 ETF 추세("+((x&&x.name)||i)+")"));
   const etfN=(M.semi_ai_etfs||[]).length; if(M.semi_ai_etfs && etfN<20) issues.push("[부족] 반도체/AI ETF "+etfN+"종(<20) → 항상 상위 20 필요(수집 보강 후 재생성)");
@@ -296,6 +299,22 @@ function renderKoreaExtras(){ const m=data.markets||{};
     else if(Array.isArray(m.semi_ai_breakdown)&&m.semi_ai_breakdown.length){
       children.push(p("■ 반도체/AI 대표 ETF·종목",{bold:true,color:"1E40AF",before:120}));
       children.push(makeTable(RW,retRows(m.semi_ai_breakdown,"semi",semiDesc))); }
+  }
+  // (v3.54) 3.2.4 KRX 증시 Brief / 3.2.5 공매도 데일리 브리프 — open.krx.co.kr 종합시황 최신 PDF 페이지 캡쳐 삽입.
+  //   데이터=markets.krx_brief (fetch_krx_brief.py — 회차 att_seq 마커 DB화, 동일 회차면 저장본 재사용).
+  //   항목 데이터 없으면 해당 소섹션 자동 생략(비차단). 캡쳐 PNG 는 charts/krx_brief_p*.png / short_brief_p*.png.
+  { const kb=m.krx_brief||{};
+    const kbBlk=(sec,ti,d,prefix)=>{ if(!d||!d.pages)return;
+      children.push(h(sec+" "+ti,3));
+      children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지 (회차 마커=게시글 att_seq · 원문 PDF 페이지 캡쳐)",{size:16,color:"94A3B8"}));
+      children.push(p((d.title||ti)+"   등록: "+(d.date||"-")+(d.stale_note?("   ⚠ "+d.stale_note):""),{bold:true,color:"1E40AF",before:80}));
+      let shown=0;
+      for(let i=1;i<=d.pages;i++){ const img=imagePara("charts/"+prefix+"_p"+i+".png",700,990); if(img){children.push(img);shown++;} }
+      if(!shown)children.push(p("(캡쳐 이미지 누락 — fetch_krx_brief.py 재실행 필요)",{italics:true,color:"B45309",size:16}));
+      children.push(p("출처: 한국거래소 "+(kb.source||"KRX 시장 > 시장동향 > 종합시황")+" ("+(kb.source_url||"https://open.krx.co.kr/contents/MKD/01/0101/01010000/MKD01010000.jsp")+")",{size:15,color:"94A3B8"}));
+      children.push(p("")); };
+    kbBlk("3.2.4","KRX 증시 Brief (KRX)",kb.krx,"krx_brief");
+    kbBlk("3.2.5","공매도 데일리 브리프 (KRX)",kb.short,"short_brief");
   }
  }
 // (v3.12.0→v3.49) 3.1.9 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
