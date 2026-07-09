@@ -81,4 +81,12 @@
 |------|------|
 | "normal windows" 탭 오류 | 일반 크롬 창 열기 요청 → `tabs_context_mcp(createIfEmpty=true)` 재시도 |
 | Chrome 미연결 | `list_connected_browsers` 확인, 확장 켜고 재시도 |
-| Gmail 탭이 안 열려 있음 | Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?o
+| Gmail 탭이 안 열려 있음 | Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` navigate — 로그인 상시 유지라 바로 받은편지함 |
+| Gmail 미로그인 (드묾) | 보통은 로그인 상시 유지. 그래도 로그인 화면이면 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
+| 작성창 닫힘/초안만 남음 | #drafts 에서 초안 재개 |
+| 칩이 사람 이름으로 표시 | 주소록 매칭 — 도메인/주소로 확인, 정상일 수 있음 |
+| 첨부 실패 / "only files the user has shared" | docx 를 **연결 폴더(D:\claudeCowork) Windows 경로**로 첨부 (outputs·`/sessions/...` VM 경로는 업로드 거부됨) |
+| 숨은참조 칸이 안 보임 | 받는사람 칸 우측 `숨은참조` 링크 클릭해 BCC 칸 펼치기 |
+| 수신자 파일 없음 | 예약 모드는 예약메일수신자.txt, 일반 모드는 메일수신자.txt. 해당 파일 없으면 BCC 없이 To(namoobi)만 발송 + 결과 보고에 "BCC 파일 없음" 명시 |
+| 특정 수신자만 일시 제외하고 싶음 | 해당 줄 맨 앞에 `//` 추가 (주소 보존). 빌더가 `//` 라인을 BCC 대상에서 제외 |
+| 전부 `//` 주석이라 유효 주소 0개 | To(namoobi)만 발송 + 결과 보고에 "BCC 0명(전부 주석)" 명시 |

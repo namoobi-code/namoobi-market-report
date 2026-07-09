@@ -353,4 +353,31 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 4. **마운트 잘림 회피 커밋 절차**: 샌드박스 D: 마운트가 큰 파일(SKILL.md·build_report.js 등)을 간헐적으로 잘라 읽고/쓴다. 워킹트리에서 바로 `git add` 하면 잘린 blob 이 커밋될 수 있으니 금지. 대신 ① 편집은 Read/Write/Edit(호스트 직접) 도구로 하고, ② 커밋은 `git show HEAD:<path>` 로 원본을 받아(객체는 git 이 완전히 읽음) 메모리에서 동일 편집을 적용한 뒤 `git hash-object -w --stdin` 으로 blob 을 만들고 `git cat-file` 로 무결성(끝부분 마커·바이트수)을 검증한다. ③ 인덱스는 마운트가 아닌 tmpfs(`GIT_INDEX_FILE=/dev/shm/idx`)에 두고 `read-tree HEAD` → `update-index --cacheinfo` → `write-tree` → `commit-tree -p HEAD` → `update-ref refs/heads/main` 순으로 커밋한 뒤 push 한다.
 5. **`.git/index.lock` 이 안 지워질 때**: 마운트 캐시 때문에 `rm` 이 'Operation not permitted' 가 나면 `mcp__cowork__allow_cowork_file_delete` 로 삭제 권한을 받은 뒤 제거한다.
 6. **로컬 인덱스 복구 (자동)**: 작업 후 `.git/index` 가 손상돼 `git status` 가 "index file corrupt"/"bad signature" 를 띄우면, 사용자에게 미루지 말고 직접 `git read-tree HEAD`(또는 `git reset`)로 HEAD 기준 깨끗한 인덱스를 재생성한다. 푸시에는 영향 없다.
-7. **(v3.39 필수) 커밋·push 후 작업트리 동기화**: 위 mount-safe 방식은 `refs/heads/main`(HEAD)만 옮기고 **디스크 작업파일·인덱스는 옛 버전으로 남는다**. 커밋·push 직후 반드시 `git reset --hard HEAD`(잘림 의심 시 파일별 `git show HEAD:<path>` 로 재기록 후 검증)로 **디스크 = HEAD** 동기화한다. 빠뜨리면 ① 플러그인이 옛 디스크 파일로 설치돼 새 실행에서 수정 누락, ② 다음 `git add -A` 가 옛 파일을 커밋해 수정이 통째로 되돌려진
+7. **(v3.39 필수) 커밋·push 후 작업트리 동기화**: 위 mount-safe 방식은 `refs/heads/main`(HEAD)만 옮기고 **디스크 작업파일·인덱스는 옛 버전으로 남는다**. 커밋·push 직후 반드시 `git reset --hard HEAD`(잘림 의심 시 파일별 `git show HEAD:<path>` 로 재기록 후 검증)로 **디스크 = HEAD** 동기화한다. 빠뜨리면 ① 플러그인이 옛 디스크 파일로 설치돼 새 실행에서 수정 누락, ② 다음 `git add -A` 가 옛 파일을 커밋해 수정이 통째로 되돌려진다. 동기화 후 `git status --porcelain` 이 비어야 정상.
+
+## 부록 A: 주요 증권사 강점 사전 정의
+
+| 증권사 | 핵심 강점 | 대표 채널 | 추천 투자자 |
+|--------|-----------|-----------|-------------|
+| 신한투자증권 | 자산배분 통합 (주식·채권·원자재·대안), 매크로 일관성 | 카카오채널 '쏠쏠한 리포트', 신한 알파 앱 | 장기 자산배분형 |
+| 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
+| 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
+| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
+| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
+
+복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
+
+## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
+
+| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
+|------|-----------|----------------|-----------|
+| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
+| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
+| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
+| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
+| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
+
+
+수집 시 주의:
+- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
+- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
