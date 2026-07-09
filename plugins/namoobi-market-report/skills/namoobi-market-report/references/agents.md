@@ -1,3 +1,8 @@
+> **[req1~3 재발방지 · 2026-07-09] (반드시 준수)**
+> - **(req1) 3.1.6 FactSet 은 매 실행 메인세션 Claude in Chrome 으로 `insight.factset.com/topic/earnings` 의 JS 렌더 목록을 읽어 최신 블로그를 판별한다.** web_fetch 는 이 topic 페이지에서 HubSpot 캐시(옛 목록)를 반환해 최신 블로그(예: 7/8)를 놓친다 — web_fetch 단독·서브에이전트 위임 금지(개별 블로그·주간 PDF 만 web_fetch 로 정독). next_date 경과 여부와 무관하게 topic 목록 최신성은 매 실행 Chrome 으로 확인해 blog(date/title/url/points)를 갱신.
+> - **(req2) 3.1.11 semi_cycle 정규 스키마 강제**: `tiles:[{lab,num,sub}]` · `signals:[{name,value,status,threshold,note}]` · `stages:{list,current,note}` · `panels:[{title,rows:[[k,v]],badges}]` · `series:{inventory|price_qoq|capex_yoy:{labels,values,alert,cap}}`. 빌더 renderSemiCycle 가 이 스키마를 요구한다. 평면·비정규(label/value·current/verdict·[{name,active}]) 금지 — merge 의 `_sc_canon` 가드가 비정규 입력을 거부해 DB 오염을 막지만 애초에 정규 스키마로 생성할 것.
+> - **(req3) 3.1.12 sentiment 표준 골격**: 5행 이름은 정확히 'VIX (공포지수)'·'KSVKOSPI (KOSPI Volatility)'·'달러인덱스 DXY'·'원/달러 환율'·'WTI 유가', 시장영향 키는 `use`(impact 아님). merge 가 표준 골격을 강제하며 빌더는 `use||impact` 폴백. **3.1.13 deriv 는 라이브 실패 시 merge 가 직전 정상 report_data 에서 z(및 빈 v)를 캐리포워드**(KOSPI200 열 전체 null·'-' 방지).
+
 > **[req1~6 재발방지 · 2026-07-06] (반드시 준수)**
 > 1. **(req1) NewsAgent — `events_calendar.expected_impact` 필수**: 2.1 캘린더 각 행의 `expected_impact` 를 절대 비우지 말 것(빈칸은 표에 "-"로 새어나감). 이벤트 성격에 맞는 예상 영향 1줄(해석 필드)을 반드시 채운다.
 > 2. **(req2) USMacroExtras — `fomc_meetings` 는 평면 리스트 + 최근 1년 과거 회의 포함**: 스키마는 `[{date,stance,note}...]` (h2_2026 같은 객체 래핑 금지 — merge 가 리스트만 인식). 과거 1년 회의는 **실제 금리 결정**(목표범위·인상/인하/동결·SEP 여부)을 note 에 기재, 미래 회의는 stance="예정". DB `db/fomc_meetings.json` 이 과거+미래 12개월 리스트를 유지한다.

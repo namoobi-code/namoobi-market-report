@@ -71,6 +71,39 @@ def koTrend(r):
 m = {}
 if isinstance(m7o, dict) and m7o.get('rows'): m['m7_outlook'] = m7o  # 3.1.7 라이브 오버라이드
 if isinstance(dpv, dict) and (dpv.get('rows') or dpv.get('index')): m['deriv_positioning'] = dpv  # 3.1.13 라이브 오버라이드
+# (fix 2026-07-09) deriv 캐리포워드: 라이브가 특정 열(예: KOSPI200)의 z/값 산출에 실패하면 null·'-'·'—' 로 새는데,
+# 직전 정상 report_data 의 같은 지표·같은 열 셀에서 z(및 빈 v)를 가져와 채운다(다른 캐리포워드와 동일 철학).
+def _deriv_carry(cur):
+    try:
+        import glob as _g
+        cands=sorted(_g.glob('/sessions/*/mnt/claudeCowork/_market_report_data/report_data_*.json'))+sorted(_g.glob(os.path.join(W,'_market_report_data','report_data_*.json')))
+        cands=[c for c in cands if RD not in os.path.basename(c)]
+        prev=None
+        for c in reversed(cands):
+            try: pj=json.load(open(c,encoding='utf-8'))
+            except Exception: continue
+            pd=(pj.get('markets') or {}).get('deriv_positioning')
+            if isinstance(pd,dict) and pd.get('rows'): prev=pd; break
+        if not prev: return cur, 0
+        pmap={r.get('label'):r.get('cells',[]) for r in prev.get('rows',[]) if isinstance(r,dict)}
+        n=0
+        for r in cur.get('rows',[]):
+            pc=pmap.get(r.get('label'))
+            if not pc: continue
+            for i,cell in enumerate(r.get('cells',[])):
+                if i>=len(pc) or not isinstance(cell,dict): continue
+                pcz=pc[i] if isinstance(pc[i],dict) else {}
+                if cell.get('z') is None and pcz.get('z') is not None:
+                    cell['z']=pcz['z']; n+=1
+                if str(cell.get('v') or '').strip() in ('','-','—') and str(pcz.get('v') or '').strip() not in ('','-','—'):
+                    cell['v']=pcz['v']
+        if n and prev.get('asof'): cur['asof']=str(cur.get('asof') or '')+' · (일부 z 캐리포워드: '+str(prev.get('asof'))+')'
+        return cur, n
+    except Exception as _e:
+        print('  [deriv] carry-forward skip:', _e); return cur, 0
+if isinstance(m.get('deriv_positioning'), dict):
+    m['deriv_positioning'], _dcn = _deriv_carry(m['deriv_positioning'])
+    if _dcn: print('  [deriv] KOSPI200 등 null z 캐리포워드 셀:', _dcn)
 for k in ('korea', 'us_markets', 'asia_markets', 'europe_markets', 'fx_markets', 'fx_usd'):
     m[k] = mk.get(k, {})
 for grp, td in [('asia_markets', tr.get('asia', {})), ('europe_markets', tr.get('europe', {})), ('fx_markets', tr.get('fx', {}))]:
@@ -331,8 +364,15 @@ if _macro and not _macro_ok(_macro):
 macro = _macro if _macro else json.loads(json.dumps(MACRO_DEFAULT))
 _MDEF = not bool(_macro)  # (fix) MacroAgent 부재 시 MACRO_DEFAULT 예시값이 DB를 덮어쓰지 않도록 — DB값 재사용(get)
 # (v3.43) 에이전트가 sentiment.rows(심리 6지표 골격)를 안 줘도 inflation/employment 를 살린다 — MACRO_DEFAULT 골격만 주입(merge가 VIX·DXY·KSVKOSPI·원달러·WTI·US10Y 라이브값 주입). (2026-06-29: 3.1.5 spx_fwd/kospi_fwd 제거)
-if not ((macro.get('sentiment') or {}).get('rows')):
-    _sd = macro.setdefault('sentiment', {})
+_CANON_SENT_NAMES = {r['name'] for r in MACRO_DEFAULT['sentiment']['rows']}
+_sd = macro.setdefault('sentiment', {})
+# (fix 2026-07-09) sentiment.rows 는 전량 라이브 주입(VIX·DXY·KSVKOSPI·원달러·WTI)이므로 에이전트가
+# 표준 이름/키(use)를 벗어난 rows(예: name='VIX', key='impact')를 주면 주입·시장영향 렌더가 '-'로 깨진다.
+# → rows 가 없거나 표준 스키마(모든 행에 use 存·name∈표준집합)를 벗어나면 MACRO_DEFAULT 표준 골격으로 교체.
+_srows = _sd.get('rows')
+_sent_ok = isinstance(_srows, list) and len(_srows)>0 and all(
+    isinstance(r, dict) and ('use' in r) and (r.get('name') in _CANON_SENT_NAMES) for r in _srows)
+if not _sent_ok:
     _sd['rows'] = json.loads(json.dumps(MACRO_DEFAULT['sentiment']['rows']))
 # (Big-Arch req4/20/25) 매크로 표 canonical 정규화 — 행순서·의미·시장영향·해석 고정 + us2y 보강
 def _macro_canon(macro):
@@ -695,7 +735,16 @@ try:
         m['customs']['chart_semi'] = 'charts/수출_반도체_24개월.png'
     # (v3.45→v3.49) 3.1.11 반도체 사이클→코스피 점검판 — 신규 조사분(nmr_semi_cycle.json, 3대 신호/코스피 쏠림 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
     _sci = L('nmr_semi_cycle.json')
-    _sc_ok = isinstance(_sci, dict) and (_sci.get('signals') or _sci.get('headline'))
+    def _sc_canon(x):
+        if not isinstance(x, dict): return False
+        tl=x.get('tiles'); sg=x.get('signals'); st=x.get('stages')
+        tiles_ok=isinstance(tl,list) and any(isinstance(t,dict) and ('num' in t) for t in tl)
+        sig_ok=isinstance(sg,list) and any(isinstance(z,dict) and ('value' in z) for z in sg)
+        stg_ok=isinstance(st,dict) and isinstance(st.get('list'),list)
+        return tiles_ok or sig_ok or stg_ok
+    # (fix 2026-07-09) 잘못된 스키마(label/value·current/verdict·[{name,active}]) 입력이 DB를 오염시키는 것을 차단 —
+    # 빌더 renderSemiCycle 이 요구하는 정규 스키마(tiles[].num·signals[].value·stages.list)일 때만 수용, 아니면 DB 재사용.
+    _sc_ok = _sc_canon(_sci)
     m['semi_cycle'] = _ndb.sync('semi_cycle', (_sci if _sc_ok else None), _today,
                                 ((_sci or {}).get('asof') or _run_m) if _sc_ok else _run_m, _dd)
     print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs/semi_cycle -> db/')

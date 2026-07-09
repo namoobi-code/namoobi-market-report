@@ -1043,7 +1043,7 @@ function renderMacroIndicators(){
     children.push(makeTable(w,rows)); }
   { const w=[2000,2900,5180]; const rows=[hdrRow(["지표","의미","시장 영향"],w)];
     (s.rows||[]).forEach((o,i)=>rows.push(new TableRow({children:[cell(o.name,{width:w[0],alt:i%2===1,bold:true}),
-      cell(o.meaning||"-",{width:w[1],alt:i%2===1,size:17}),cell(o.use||"-",{width:w[2],alt:i%2===1,size:17})]})));
+      cell(o.meaning||"-",{width:w[1],alt:i%2===1,size:17}),cell(o.use||o.impact||"-",{width:w[2],alt:i%2===1,size:17})]})));
     children.push(makeTable(w,rows)); }
   children.push(p(""));
   renderDerivPositioning();   // 3.1.13 파생시장 포지셔닝→현물 선행신호 (스냅샷·z매트릭스·활성신호·해석)
