@@ -374,6 +374,10 @@ _sent_ok = isinstance(_srows, list) and len(_srows)>0 and all(
     isinstance(r, dict) and ('use' in r) and (r.get('name') in _CANON_SENT_NAMES) for r in _srows)
 if not _sent_ok:
     _sd['rows'] = json.loads(json.dumps(MACRO_DEFAULT['sentiment']['rows']))
+_DEF_SENT_MEAN = {r['name']: r.get('meaning', '') for r in MACRO_DEFAULT['sentiment']['rows']}
+for _sr in (_sd.get('rows') or []):
+    if isinstance(_sr, dict) and not _sr.get('meaning'):
+        _sr['meaning'] = _DEF_SENT_MEAN.get(_sr.get('name'), '')
 # (Big-Arch req4/20/25) 매크로 표 canonical 정규화 — 행순서·의미·시장영향·해석 고정 + us2y 보강
 def _macro_canon(macro):
     _r = macro.setdefault('rates', {})
@@ -451,6 +455,27 @@ def _macro_canon(macro):
         macro.setdefault(section, {})['rows'] = out
     _canon('inflation', INFL, ['yoy','mom','asof','release'], _infl_interp)
     _canon('employment', EMP, ['value','asof','release','freq'], _emp_interp)
+    # (fix req1 2026-07-10) GDP 행 value 가 비면(에이전트가 GDP 행 자체를 누락) 대시로 샌다. series.employment.gdp 최신 연율%(레벨 배제 |v|<20)로 복원.
+    _emp_rows = (macro.get('employment') or {}).get('rows') or []
+    for _er in _emp_rows:
+        if 'GDP' in str(_er.get('name','')) and (_er.get('value') in (None, '', '-')):
+            _gser = ((macro.get('series') or {}).get('employment') or {}).get('gdp') or []
+            _gv = None; _gd = None
+            for _pt in _gser:
+                try:
+                    _v = float(_pt[1])
+                    if abs(_v) < 20: _gv = _v; _gd = str(_pt[0])
+                except Exception: pass
+            if _gv is not None:
+                _er['value'] = ("%+.1f%%" % _gv); _er['asof'] = _er.get('asof') or _gd
+                _er['freq'] = _er.get('freq') or '분기'
+                try: _er['interp'] = _emp_interp(_er['name'], _er) or _er.get('interp')
+                except Exception: pass
+            else:
+                _dg = [r for r in MACRO_DEFAULT['employment']['rows'] if 'GDP' in r.get('name','')]
+                if _dg:
+                    _er['value'] = _er.get('value') or _dg[0].get('value')
+                    _er['freq'] = _er.get('freq') or _dg[0].get('freq')
 _macro_canon(macro)
 # (req2/req3-fix 재발방지) release 칸이 기관명(BLS·BEA·Census·ISM·FRED 등)만인 경우 DB 저장 전에 비운다.
 #   → DB 가 기관명으로 오염돼 다음 실행 seed 로 재전파되는 것을 차단. 표시값은 nmr_reasons 가 날짜/라벨로 채운다.

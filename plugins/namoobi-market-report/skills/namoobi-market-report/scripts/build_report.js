@@ -901,7 +901,7 @@ function renderFactSet(){ const m=data.markets||{}; const fs=m.factset; if(!fs||
     children.push(p("■ "+(b.title_ko||b.title),{bold:true,color:"1E40AF",before:120,size:20}));
     if(b.title_ko) children.push(p(b.title,{italics:true,color:"64748B",size:14}));
     children.push(fsLink("블로그 포스트 · "+(b.date||"")+(b.author?(" · "+b.author):""), b.url));
-    (b.summary||[]).forEach(s=>children.push(p("• "+s,{size:16,color:"334155"})));
+    (b.points||b.summary||[]).forEach(s=>children.push(p("• "+s,{size:16,color:"334155"})));
   }
   const r=fs.report||{};
   if(r.title){
