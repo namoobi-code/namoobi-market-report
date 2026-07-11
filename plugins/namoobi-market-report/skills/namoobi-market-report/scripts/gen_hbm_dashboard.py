@@ -43,28 +43,12 @@ def _mser(start_ym, vals):
         out.append([f"{y:04d}-{m:02d}", v]); m+=1
         if m>12: m=1; y+=1
     return out
-DEF={
- "asof":"예시·추정","source":"TrendForce·실적 컨센서스·언론 종합(추정)",
- "spot_index": _mser("2025-01",[100,101,103,106,110,115,124,136,142,150,164,179,194,205,214,224,238,245]),
- "ddr5_16gb":  _mser("2025-01",[3.6,4.0,4.3,4.6,5.0,5.5,6.0,8.5,19.5,25.0,30.0,32.0,34.0,36.0,36.5,37.0,37.4,37.6]),
- "ddr4_8gb":   _mser("2025-01",[1.2,1.1,1.3,1.6,2.0,2.5,3.0,5.5,7.0,8.0,9.0,11.5,13.0,14.5,16.0,16.0,19.0,20.0]),
- "nand_mlc_64gb": _mser("2025-01",[1.9,1.8,2.1,2.4,2.6,2.9,3.2,3.5,4.0,4.5,5.5,6.2,6.8,7.2,7.7,8.0,8.3,8.5]),
- "hbm_shipment": [[2024,8.5],[2025,12.0],[2026,19.0],[2027,27.5]],
- "hbm_market":   [[2024,18.2],[2025,46.7],[2026,72.0],[2027,108.0]],
- "hbm3e_price":  [[2024,320],[2025,520],[2026,560],[2027,620]],
- "hbm4_price":   [[2026,720],[2027,1080]],
- "share":[{"year":"2024","samsung":42,"sk_hynix":52,"micron":5,"others":1},
-          {"year":"2025","samsung":37,"sk_hynix":52,"micron":10,"others":1},
-          {"year":"2026E","samsung":30,"sk_hynix":49,"micron":19,"others":2},
-          {"year":"2027E","samsung":31,"sk_hynix":47,"micron":20,"others":2}],
- "gap_ratio":[[2024,1.6],[2025,1.3],[2026,1.1],[2027,1.6]],
- "eps_per":[{"name":"SK하이닉스","eps_cur":"52,000원","eps_next":"60,000원","per_cur":"7.0x","per_next":"6.1x"},
-            {"name":"삼성전자","eps_cur":"7,500원","eps_next":"9,000원","per_cur":"12.8x","per_next":"10.7x"},
-            {"name":"Micron (MU)","eps_cur":"$12.00","eps_next":"$14.50","per_cur":"10.5x","per_next":"8.7x"}],
- "year_cur":"2026E","year_next":"2027E",
-}
+# (v3.57) 수집 불가한 하드코딩 연도 시계열(hbm_shipment/hbm_market/hbm3e_price/hbm4_price/share 2024~2027)
+#   제거. 해당 값들은 어떤 소스로도 연도별 시계열을 확보할 수 없어 매 실행 동일한 고정 그림만 그려졌고,
+#   HBMAgent 가 수집한 최신 실측 스칼라는 _compat 스키마 불일치로 전량 폐기되고 있었다(실측 점유율
+#   32/56/10/2%E 대신 2024년 고정값 42/52/5/1 이 렌더됨). 이제 LIVE 실측만 사용한다.
+DEF={}
 
-# ---- 라이브 오버라이드 로드 ----
 def _outdir():
     O=os.environ.get("NMR_OUT")
     if O and os.path.isdir(O): return O
@@ -120,7 +104,7 @@ def _pairs_dt(series):
 
 # ================= 렌더 =================
 fig=plt.figure(figsize=(15.0,10.6), dpi=150)
-fig.suptitle("반도체 주가 체크용 HBM 지표 대시보드 (출하·시장규모 / ASP / 점유율)", fontsize=22, fontweight="bold", y=0.974)
+fig.suptitle("반도체 주가 체크용 메모리·HBM 지표 (실측)", fontsize=22, fontweight="bold", y=0.974)
 _src=D.get("source") or "TrendForce·실적 컨센서스·언론 종합"
 _tag="추정치" if USED_LIVE else "예시·추정 데이터"
 # 차트별 갱신 주기·최종 갱신일 라벨
@@ -132,57 +116,63 @@ def cad(k):
     return "  ▪ "+_CAD.get(k,"추정")+(" · 최종 갱신 "+a if a else " (예시값)")
 fig.text(0.5,0.917, f"※ 모든 수치는 {_tag} — 확인 불가 항목은 미표기('추정' 표기)",
          ha="center", fontsize=11.5, color="#B45309")
-gs=fig.add_gridspec(2,2, top=0.875, bottom=0.115, left=0.062, right=0.992, hspace=0.92, wspace=0.26, height_ratios=[1,1])
-def style(ax):
-    for s in ["top","right"]: ax.spines[s].set_visible(False)
-    ax.grid(**GRID)
-def caption(ax, text, y=-0.24):
-    ax.text(0.0,y, textwrap.fill("[해석] "+text, width=42), transform=ax.transAxes,
-            ha="left", va="top", fontsize=13, color="#475569", linespacing=1.4)
-
-# 패널3 — 출하량 + 시장규모
-ax3=fig.add_subplot(gs[0,0]); shp=D["hbm_shipment"]; mkt=D["hbm_market"]
-sx=[r[0] for r in shp]; sy=[r[1] for r in shp]
-ax3.bar(sx,sy,width=0.55,color=C_SHIP,alpha=0.85,zorder=2,label="HBM 출하량(십억Gb)")
-ax3.set_title("HBM 출하량 / 시장규모", fontsize=18, fontweight="bold"); ax3.set_ylabel("출하량 (십억Gb)")
-ax3.set_ylim(top=max(sy)*1.25); ax3.set_xticks(sx)
-ax3b=ax3.twinx(); mx=[r[0] for r in mkt]; my=[r[1] for r in mkt]
-ax3b.plot(mx,my,color=C_MKT,marker="o",ms=6,lw=2.2,zorder=3,label="HBM 시장규모($B)"); ax3b.set_ylabel("시장규모($B)"); ax3b.set_ylim(top=max(my)*1.18)
-for x,v in zip(mx,my): ax3b.annotate(f"${v:.1f}B",(x,v),textcoords="offset points",xytext=(0,8),ha="center",fontsize=12.5,color=C_MKT,fontweight="bold")
-ax3.spines["top"].set_visible(False); ax3b.spines["top"].set_visible(False); ax3.grid(**GRID)
-ax3.legend(ax3.get_legend_handles_labels()[0]+ax3b.get_legend_handles_labels()[0],
-           ax3.get_legend_handles_labels()[1]+ax3b.get_legend_handles_labels()[1], loc="upper left", **LEG)
-caption(ax3, "출하량과 시장규모가 함께 늘면 수요가 실적으로 연결될 가능성이 큽니다."+cad("ship"))
-
-# 패널4 — HBM 가격
-ax4=fig.add_subplot(gs[0,1]); h3=D["hbm3e_price"]; h4=D["hbm4_price"]
-ax4.plot([r[0] for r in h3],[r[1] for r in h3],color=C_HBM3E,marker="o",ms=6,lw=2.2,label="HBM3E")
-ax4.plot([r[0] for r in h4],[r[1] for r in h4],color=C_HBM4,marker="o",ms=6,lw=2.2,ls="--",label="HBM4")
-ax4.set_title("HBM 가격: HBM3E / HBM4", fontsize=18, fontweight="bold")
-_ally=[r[1] for r in h3]+[r[1] for r in h4]; ax4.set_ylim(top=max(_ally)*1.16)
-ax4.set_xticks(sorted(set([r[0] for r in h3]+[r[0] for r in h4])))
-for x,v in zip([r[0] for r in h3],[r[1] for r in h3]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,-16),ha="center",fontsize=12.5,color=C_HBM3E,fontweight="bold")
-for x,v in zip([r[0] for r in h4],[r[1] for r in h4]): ax4.annotate(f"${v}",(x,v),textcoords="offset points",xytext=(0,9),ha="center",fontsize=12.5,color=C_HBM4,fontweight="bold")
-style(ax4); ax4.legend(loc="upper left", **LEG)
-caption(ax4, "HBM 가격 상승은 AI 메모리 ASP와 실적 상향 가능성을 높입니다."+cad("hbmprice"))
-
-# 패널5 — 점유율(기타 포함, 합계 100%)
-ax5=fig.add_subplot(gs[1,:]); shr=D["share"]; lbl=[s.get("year") for s in shr]; xpos=list(range(len(shr)))
-sams=[s.get("samsung",0) for s in shr]; sk=[s.get("sk_hynix",0) for s in shr]; mic=[s.get("micron",0) for s in shr]; etc=[s.get("others",0) for s in shr]
-ax5.bar(xpos,sams,width=0.55,color=C_SAMS,label="Samsung")
-ax5.bar(xpos,sk,width=0.55,bottom=sams,color=C_SK,label="SK hynix")
-b2=[a+b for a,b in zip(sams,sk)]; ax5.bar(xpos,mic,width=0.55,bottom=b2,color=C_MICRON,label="Micron")
-b3=[a+b for a,b in zip(b2,mic)]; ax5.bar(xpos,etc,width=0.55,bottom=b3,color=C_ETC,label="기타(중국 CXMT 등)")
-for i in xpos:
-    for _v,_yc in [(sams[i],sams[i]/2),(sk[i],sams[i]+sk[i]/2),(mic[i],b2[i]+mic[i]/2),(etc[i],b3[i]+etc[i]/2)]:
-        if _v and _v>=1: ax5.annotate(f"{_v:.0f}%",(i,_yc),ha="center",va="center",fontsize=11.5,color="white",fontweight="bold")
-ax5.set_title("HBM 점유율 (합계 100%)", fontsize=18, fontweight="bold"); ax5.set_ylabel("점유율 (%)")
-ax5.set_xticks(xpos); ax5.set_xticklabels(lbl); ax5.set_ylim(0,128)
-style(ax5); ax5.legend(loc="upper center", ncol=4, fontsize=12, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.4, columnspacing=0.8, borderpad=0.4)
-caption(ax5, "점유율↑ 기업이 호황 이익을 더 가져갈 가능성. 나머지는 기타(중국 CXMT 등 신규)."+cad("share"))
-
-os.makedirs("charts", exist_ok=True)
 OUT="charts/hbm_dashboard.png"
+gs=fig.add_gridspec(1,2, top=0.80, bottom=0.20, left=0.07, right=0.98, wspace=0.30)
+def style(ax):
+    for sp in ("top","right"): ax.spines[sp].set_visible(False)
+def caption(ax, text, y=-0.22):
+    ax.text(0, y, text, transform=ax.transAxes, fontsize=11, color="#555", va="top", wrap=True)
+
+def _num(o, *keys):
+    """LIVE 스칼라에서 숫자 추출.
+    대응: 47.8 / "32%E" / "20-28"(중간값) / "~500 (mid-$500s)" / "300-360" / value_pct=89.0
+    실측값이 'E'(추정) 접미사나 단위·기호를 달고 오는 경우가 많아 정규식으로 첫 수치를 뽑는다."""
+    import re as _re
+    if not isinstance(o, dict): return None
+    for k in keys:
+        v = o.get(k)
+        if v in ("", None): continue
+        if isinstance(v, (int, float)): return float(v)
+        t = str(v)
+        nums = _re.findall(r"\d+(?:\.\d+)?", t)
+        if not nums: continue
+        if len(nums) >= 2 and _re.search(r"\d\s*[-~]\s*\d", t):   # "20-28" → 중간값
+            return (float(nums[0]) + float(nums[1])) / 2
+        return float(nums[0])
+    return None
+
+# ── 패널 1: 메모리 스팟 현재가 (LIVE 실측)
+ax1=fig.add_subplot(gs[0,0])
+spot=[("DDR5 16Gb", _num(D.get("ddr5_16gb"),"value")),
+      ("DDR4 8Gb",  _num(D.get("ddr4_8gb"),"value")),
+      ("NAND MLC 64Gb", _num(D.get("nand_mlc_64gb"),"value","value_range"))]
+spot=[(n,v) for n,v in spot if v is not None]
+if spot:
+    ax1.bar([n for n,_ in spot],[v for _,v in spot], width=0.5, color=[C_DDR5,C_DDR4,C_NAND][:len(spot)])
+    for i,(n,v) in enumerate(spot):
+        ax1.text(i, v*1.02, f"${v:g}", ha="center", fontsize=13, fontweight="bold")
+    ax1.set_ylim(top=max(v for _,v in spot)*1.22)
+ax1.set_title("메모리 스팟 현재가 (USD)", fontsize=18, fontweight="bold")
+ax1.set_ylabel("USD"); style(ax1); ax1.grid(**GRID)
+_gap=_num(D.get("gap_ratio"),"value_pct","value")
+caption(ax1, "[실측] TrendForce/DRAMeXchange 스팟." + (f" DDR4 스팟-계약가 갭 +{_gap:g}% → 계약가 추가 인상 압력." if _gap else ""))
+
+# ── 패널 2: HBM 업체별 점유율 (LIVE 실측 — 종전엔 2024년 고정값이 렌더됐음)
+ax2=fig.add_subplot(gs[0,1])
+_sh=D.get("share") or {}
+_pairs=[("Samsung",_num(_sh,"samsung")),("SK hynix",_num(_sh,"sk_hynix")),
+        ("Micron",_num(_sh,"micron")),("기타",_num(_sh,"others"))]
+_pairs=[(n,v) for n,v in _pairs if v is not None]
+if _pairs:
+    cols=[C_SAMS,C_SK,C_MICRON,C_ETC][:len(_pairs)]
+    ax2.bar([n for n,_ in _pairs],[v for _,v in _pairs], width=0.55, color=cols)
+    for i,(n,v) in enumerate(_pairs):
+        ax2.text(i, v+1.2, f"{v:g}%", ha="center", fontsize=13, fontweight="bold")
+    ax2.set_ylim(0, max(v for _,v in _pairs)*1.25)
+ax2.set_title("HBM 업체별 점유율 (최신 실측)", fontsize=18, fontweight="bold")
+ax2.set_ylabel("점유율 (%)"); style(ax2); ax2.grid(**GRID)
+caption(ax2, "[실측] SK하이닉스 IDC(SEC 제출서류) 1Q26 기준 · 나머지는 벤더 집계 중간값(E). 갱신: %s" % (D.get("asof") or ""))
+
 plt.savefig(OUT, dpi=150, facecolor="white"); plt.close()
 print("hbm dashboard ->", os.path.abspath(OUT), os.path.getsize(OUT), "bytes | live_override:", USED_LIVE)
 
