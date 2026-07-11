@@ -321,11 +321,39 @@ function renderKoreaExtras(){ const m=data.markets||{};
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.9 반도체 주가 체크용 메모리+HBM 지표",3));
   const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",744,526);
-  if(img){ children.push(p("HBM 출하량·시장규모 / HBM ASP(HBM3E·HBM4) / 점유율 3개 패널. (DRAM 현물지수·메모리 칩가격·HBM:DDR5 격차 패널은 무료 시계열 데이터 미확보로 제외)",{italics:true,color:"64748B"})); children.push(img);
-    children.push(p("기준: "+(hbm.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce·각사 IR·컨센서스, AI Research",{size:15,color:"94A3B8"}));
-    children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_hbm.json) 재사용. 확인처: 출하량·시장규모=TrendForce/각사 IR, 점유율=Counterpoint/TrendForce, HBM ASP=TrendForce/언론(공개 범위치). (값은 수시 변동 가능 — 매일 마커 비교)",{size:13,italics:true,color:"94A3B8"}));
+  const mem=(m.memory&&m.memory.tables)?m.memory:null;
+  if(img){ children.push(p("① DRAM 현물(스팟) / ② DRAM 고정거래(계약) / ③ NAND 현물 / ④ NAND 고정거래 / ⑤ 스팟-계약 갭 / ⑥ HBM 업체별 점유율 — 6개 패널. 전 항목 공개 소스 실측·자동 수집.",{italics:true,color:"64748B"})); children.push(img);
+    children.push(p("기준: "+((mem&&mem.asof)||hbm.asof||"최신")+" · 자료: TrendForce 공개 가격표(가격 21종) + Silicon Analysts 공개 API(HBM 점유율·ASP)",{size:15,color:"94A3B8"}));
+    children.push(p("업데이트: fetch_memory.py 가 매 실행 수집 + 서버 daily cron(08:30 KST) 이 매일 누적 → db/memory.json(스냅샷) · db/series_mem_*(시계열). 누적이 2일 이상이면 막대가 추세선으로 자동 전환된다. ※ TrendForce 과거 시계열·DXI 지수는 유료 회원 전용이라 과거를 사지 않고 오늘부터 직접 쌓는다.",{size:13,italics:true,color:"94A3B8"}));
     if(hbm.current_anchors) children.push(p("현재 현물 앵커("+(hbm.asof||"")+"): "+hbm.current_anchors,{size:13,color:"475569"}));
     if(hbm.series_note) children.push(p("※ "+hbm.series_note,{size:12,italics:true,color:"94A3B8"})); }
+  // (v3.59) 스팟-계약 갭 — 계약가 인상 압력 선행지표. db/memory.json 의 현물·계약 표를 규격끼리 매칭.
+  if(mem){
+    const g=(k)=>{const t=mem.tables[k]||{}; const o={}; (t.rows||[]).forEach(r=>{o[r.item]=r.avg;}); return o;};
+    const ds=g("dram_spot"), dc=g("dram_contract"), ns=g("nand_spot"), nc=g("nand_contract");
+    const PAIRS=[["DDR4 8Gb","DDR4 8Gb (1Gx8) 3200","DDR4 8Gb 1Gx8",ds,dc],
+                 ["DDR4 16Gb","DDR4 16Gb (2Gx8) 3200","DDR4 16Gb 2Gx8",ds,dc],
+                 ["NAND 64Gb","MLC 64Gb 8GBx8","NAND 64Gb 8Gx8 MLC",ns,nc],
+                 ["NAND 32Gb","MLC 32Gb 4GBx8","NAND 32Gb 4Gx8 MLC",ns,nc]];
+    const gr=[];
+    PAIRS.forEach(([lab,si,ci,S,K])=>{ const sp=S[si], ct=K[ci];
+      if(sp!=null&&ct){ gr.push([lab,sp,ct,(sp/ct-1)*100]); } });
+    if(gr.length){
+      children.push(p("■ 스팟-계약 갭 (계약가 인상 압력 선행지표)",{bold:true,color:"1E40AF",before:100,size:20}));
+      children.push(p("현물가가 계약가를 크게 상회하면 다음 계약 협상에서 인상 압력으로 작용한다 — 메모리 3사 실적의 선행지표.",{size:14,italics:true,color:"64748B"}));
+      const gw=[2000,1900,1900,1500,2440];
+      const grows=[hdrRow(["규격","현물(스팟)","계약","갭","해석"],gw)];
+      gr.forEach(([lab,sp,ct,gp],i)=>{ const a=i%2===1; const pos=gp>0;
+        grows.push(new TableRow({children:[
+          cell(lab,{width:gw[0],alt:a,bold:true}),
+          cell(sp.toFixed(2),{width:gw[1],alt:a,size:13,align:AlignmentType.RIGHT}),
+          cell(ct.toFixed(2),{width:gw[2],alt:a,size:13,align:AlignmentType.RIGHT}),
+          cell((pos?"+":"")+gp.toFixed(1)+"%",{width:gw[3],alt:a,size:13,bold:true,align:AlignmentType.RIGHT,color:pos?"DC2626":"2563EB"}),
+          cell(pos?("현물이 계약가 "+gp.toFixed(0)+"% 상회 → 인상 압력"):("현물이 계약가 "+Math.abs(gp).toFixed(0)+"% 하회 → 압력 없음"),
+               {width:gw[4],alt:a,size:12,color:"64748B"})]})); });
+      children.push(makeTable(gw,grows));
+    }
+  }
   const ey=Array.isArray(hbm.eps_yearly)?hbm.eps_yearly:null;
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
     const w=[1500,1760,1760,1760,1760,1200]; const rows=[hdrRow(["종목","2025(실적)","2026(E)","2027(E)","2028(E)","통화"],w)];
