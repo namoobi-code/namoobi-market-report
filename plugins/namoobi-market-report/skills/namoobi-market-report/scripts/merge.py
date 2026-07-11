@@ -757,6 +757,13 @@ try:
     _dp = m.get('fomc_dotplot') or {}
     m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
     m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
+    # (v3.56) 3.1.5 경기선행 장기 시계열 누적 → db/series_leading.json
+    #   fetch_leading.py 가 만드는 nmr_leading_series.json([["YYYY-MM",val]..]) 을 DB에 union 누적한다.
+    #   미수집 회차에도 과거 DB가 남아 차트가 끊기지 않는다(대시보드도 이 시계열을 사용).
+    _lsr = L('nmr_leading_series.json')
+    if isinstance(_lsr, list) and _lsr:
+        _lsd = _ndb.dbseries('leading', _lsr, _dd)
+        print('leading_series: %s (%d pts)' % (_lsd.get('status'), len(_lsd.get('data') or [])))
     # (v3.43→v3.49) 3.1.4 OECD CLI — 신규 스크랩(nmr_oecd_cli.json, KOSIS 자료갱신일 변동 시에만 생성) 있으면 DB 갱신, 없으면 DB 재사용
     _oc = L('nmr_oecd_cli.json')
     _oc_ok = isinstance(_oc, dict) and _oc.get('months') and _oc.get('series')
