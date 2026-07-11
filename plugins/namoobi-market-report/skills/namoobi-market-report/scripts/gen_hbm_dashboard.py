@@ -117,13 +117,13 @@ else:
         ax.set_ylabel(ylab,fontsize=9); _style(ax)
         _cap(ax,"[실측] TrendForce 공개 가격표 · 갱신 %s"%(t.get("last_update") or ""))
 
-    fig=plt.figure(figsize=(16.0,12.2), dpi=150)
+    fig=plt.figure(figsize=(16.0,16.2), dpi=150)
     fig.suptitle("반도체 주가 체크용 메모리·HBM 지표 (전 항목 실측·자동 수집)",
-                 fontsize=21, fontweight="bold", y=0.982)
-    fig.text(0.5, 0.941, "기준 %s · TrendForce 공개 가격표 + Silicon Analysts 공개 API"%(D.get("asof") or ""),
+                 fontsize=21, fontweight="bold", y=0.985)
+    fig.text(0.5, 0.955, "기준 %s · TrendForce 공개 가격표 + Silicon Analysts 공개 API + Yahoo Finance(선행지표)"%(D.get("asof") or ""),
              ha="center", fontsize=11, color="#666")
-    gs=fig.add_gridspec(3,2, top=0.885, bottom=0.085, left=0.055, right=0.985,
-                        hspace=0.86, wspace=0.22)
+    gs=fig.add_gridspec(4,2, top=0.905, bottom=0.062, left=0.055, right=0.985,
+                        hspace=0.90, wspace=0.22)
 
     _trend(fig.add_subplot(gs[0,0]),"dram_spot",    "① DRAM 현물(스팟)",   "USD")
     _trend(fig.add_subplot(gs[0,1]),"dram_contract","② DRAM 고정거래(계약)","USD")
@@ -167,6 +167,59 @@ else:
     ax6.set_title("⑥ HBM 업체별 점유율 (최신 실측)",fontsize=13,fontweight="bold")
     ax6.set_ylabel("%",fontsize=9); _style(ax6)
     _cap(ax6,"[실측] Silicon Analysts 공개 API · %s"%(D.get("asof") or ""))
+
+    # ─── (v3.60) 선행지표 2패널 ────────────────────────────────────────
+    LD=D.get("leading") or {}
+
+    # ⑦ 선행지표 1년 성과 — 수요처(NVDA) vs 공급자(MU) 괴리
+    ax7=fig.add_subplot(gs[3,0])
+    ORD=["SOX","NVDA","AMD","TSM","KOSPI","MU"]
+    ln=[LD[k]["label"] for k in ORD if LD.get(k) and LD[k].get("chg_1y_pct") is not None]
+    lv=[LD[k]["chg_1y_pct"] for k in ORD if LD.get(k) and LD[k].get("chg_1y_pct") is not None]
+    if lv:
+        cols=[C_SPOT,C_DDR4,C_DDR5,C_NAND,C_ETC,C_SK][:len(lv)]
+        ax7.bar(ln,lv,width=0.55,color=cols)
+        for i,v in enumerate(lv):
+            ax7.text(i, v+(max(lv)*0.02 if v>=0 else max(lv)*-0.05), "%+.0f%%"%v,
+                     ha="center", fontsize=10, fontweight="bold")
+        ax7.axhline(0,color="#888",lw=0.9)
+        ax7.set_ylim(min(0,min(lv)*1.2), max(lv)*1.22)
+        ax7.set_xticks(range(len(ln))); ax7.set_xticklabels(ln,fontsize=7.5)
+    else:
+        ax7.set_visible(False)
+    ax7.set_title("⑦ 선행지표 1년 성과 — 수요처(엔비디아) vs 공급자(마이크론)",fontsize=13,fontweight="bold")
+    ax7.set_ylabel("%",fontsize=9); _style(ax7)
+    _cap(ax7,"[실측] Yahoo Finance · 반도체 업황(SOX) · HBM 수요처(NVDA·AMD) · CoWoS 병목(TSM)\n     공급자(MU)가 수요처를 크게 앞서면 = 메모리가 협상력을 쥔 공급부족 국면")
+
+    # ⑧ 메모리/GPU 상대강도 — 가치 이동 신호 (누적 2일↑이면 추세선)
+    ax8=fig.add_subplot(gs[3,1])
+    rser=_series("mem_vs_gpu")
+    rs=(LD.get("MEM_VS_GPU") or {}).get("value")
+    if len(rser)>=2:
+        xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in rser]
+        vs=[list(r[1].values())[0] for r in rser]
+        ax8.plot(xs,vs,marker="o",ms=5,lw=2.2,color=C_GAP)
+        ax8.axhline(1.0,color="#888",lw=1.0,ls="--")
+        ax8.set_xticks(xs if len(xs)<=8 else xs[::max(1,len(xs)//7)])
+        ax8.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
+        ax8.margins(x=0.06)
+        ax8.set_title("⑧ 메모리/GPU 상대강도 (MU÷NVDA)  (누적 %d일)"%len(rser),fontsize=13,fontweight="bold")
+    elif rs is not None:
+        ax8.barh([0],[rs],height=0.38,color=C_GAP if rs>1 else C_DDR4)
+        ax8.axvline(1.0,color="#888",lw=1.2,ls="--")
+        ax8.text(rs*1.03, 0, "%.2f배 → %s"%(rs,(LD.get("MEM_VS_GPU") or {}).get("signal","")),
+                 va="center", fontsize=12, fontweight="bold", color=C_GAP if rs>1 else C_DDR4)
+        ax8.set_xlim(0, max(1.4, rs*1.42))
+        ax8.set_ylim(-0.62, 0.62)
+        ax8.set_yticks([0]); ax8.set_yticklabels(["MU ÷ NVDA (1년)"], fontsize=9)
+        ax8.text(1.0, 0.44, "균형선(1.0)", ha="center", fontsize=8, color="#888")
+        ax8.set_xlabel("배", fontsize=9)
+        ax8.set_title("⑧ 메모리/GPU 상대강도 (MU÷NVDA)  (누적 1일 — 내일부터 추세선)",fontsize=13,fontweight="bold")
+    else:
+        ax8.set_visible(False)
+    if len(rser)>=2: ax8.set_ylabel("배",fontsize=9)
+    _style(ax8)
+    _cap(ax8,"[계산] 1년 상승률 비율. 1 초과 = 가치가 수요처(GPU)→공급자(메모리)로 이동 = 공급부족 심화\n     꺾이기 시작하면 공급부족 완화 = 사이클 고점 경계 신호")
 
     OUT="charts/hbm_dashboard.png"
     os.makedirs("charts",exist_ok=True)

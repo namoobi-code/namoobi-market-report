@@ -794,25 +794,85 @@ try:
                                 ((_sci or {}).get('asof') or _run_m) if _sc_ok else _run_m, _dd)
 
     # (v3.58) 3.1.9 메모리 가격 — fetch_memory.py(TrendForce 공개 가격표) 결과 적재.
-    #   ① db/memory.json     : 최신 스냅샷 7개 표 29개 지표 (표 렌더용)
-    #   ② db/series_mem_<표> : 날짜 union 누적 시계열 (차트용 — 실행할수록 길어진다)
+    #   ① db/memory.json     : 최신 스냅샷 4개 표 + hbm + leading + meta (표 렌더용)
+    #   ② db/series_mem_<키> : 날짜 union 누적 시계열 (차트용 — 실행할수록 길어진다)
+    #      가격 4종 + hbm_asp/hbm_share + (v3.60) leading_px / mem_vs_gpu
     _mem = L('nmr_memory.json')
     if isinstance(_mem, dict) and _mem.get('tables'):
         _masof = _mem.get('asof') or _today
-        _ndb.set_('memory', _masof, _masof, _dd, _mem)
+        _msnap = {}
         for _tk, _t in _mem['tables'].items():
-            _snap = {r['item']: r['avg'] for r in (_t.get('rows') or []) if r.get('avg') is not None}
-            if not _snap: continue
+            _s = {r['item']: r['avg'] for r in (_t.get('rows') or []) if r.get('avg') is not None}
+            if _s: _msnap[_tk] = _s
+        _hb = _mem.get('hbm') or {}
+        _s = {a['product']: a['price_mid'] for a in (_hb.get('asp') or []) if a.get('price_mid')}
+        if _s: _msnap['hbm_asp'] = _s
+        _s = {r['vendor']: r['share_pct'] for r in (_hb.get('share') or []) if r.get('share_pct')}
+        if _s: _msnap['hbm_share'] = _s
+        # (v3.60) 선행지표 — 종가 6종 + 메모리/GPU 상대강도(가치 이동 신호)
+        _ld = _mem.get('leading') or {}
+        _s = {v['label']: v['price'] for v in _ld.values()
+              if isinstance(v, dict) and v.get('price') is not None}
+        if _s: _msnap['leading_px'] = _s
+        _rs = (_ld.get('MEM_VS_GPU') or {}).get('value')
+        if _rs is not None: _msnap['mem_vs_gpu'] = {'메모리/GPU 상대강도': _rs}
+
+        _ndb.set_('memory', _masof, _masof, _dd, _mem)
+        for _tk, _snap in _msnap.items():
             _cur = (_ndb._load('series_mem_' + _tk, _dd) or {}).get('data') or []
             _mg = [x for x in _cur if x[0] != _masof] + [[_masof, _snap]]
             _mg.sort(key=lambda x: x[0])
             _ndb.set_('series_mem_' + _tk, '', _masof, _dd, _mg)
         m['memory'] = _mem
-        print('memory: %d개 표 적재' % len(_mem['tables']))
+        print('memory: %d개 표 · 시계열 %d종 적재 (선행지표 %d종 · 메타 %d종)'
+              % (len(_mem['tables']), len(_msnap), len(_ld), len(_mem.get('meta') or {})))
     else:
         _mdb = _ndb.get('memory', _dd)
         if _mdb: m['memory'] = _mdb; print('memory: 수집 없음 → DB 재사용')
-    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs/semi_cycle -> db/')
+
+    # (v3.60) 3.1.8 CAPEX 일일 갱신 — db/capex.json
+    #   실측치는 CAPEX 서브에이전트가 매 실행 MCP(UsStockInfo get_financial_statement)로 재수집해
+    #   nmr_capex.json 의 capex_series/rev_series/fcf_series 로 넘긴다. 실제 값은 분기 실적발표 때만
+    #   변하므로 "매일 체크 → 변동한 셀만 갱신, 결측·미수집 셀은 DB carry-forward" 로 처리한다.
+    #   (Yahoo quoteSummary 는 cashflowStatementHistory 가 netIncome 만 반환하도록 축소돼 CAPEX 취득 불가.)
+    try:
+        _cx = m.get('bigtech_capex') or {}
+        _cdb = _ndb.get('capex', _dd) or {}
+        _yrs = ((_cx.get('capex_series') or {}).get('years')) or _cdb.get('years') or []
+        _out = {'asof': _today, 'unit': 'USD billion', 'years': _yrs,
+                'companies': [], 'capex': {}, 'revenue': {}, 'fcf': {}, 'capex_to_rev': {}}
+        _chg = []
+        for _fld, _sk in (('capex', 'capex_series'), ('revenue', 'rev_series'), ('fcf', 'fcf_series')):
+            _sr = _cx.get(_sk) or {}
+            _old = _cdb.get(_fld) or {}
+            _cos = [k for k in _sr if k != 'years'] or list(_old)
+            for _co in _cos:
+                _new = _sr.get(_co) or []
+                _prv = _old.get(_co) or []
+                _row = []
+                for _i in range(len(_yrs)):
+                    _v = _new[_i] if _i < len(_new) else None
+                    if _v in (None, '', '-'):
+                        _v = _prv[_i] if _i < len(_prv) else None   # carry-forward
+                    _row.append(_v)
+                _out[_fld][_co] = _row
+                if _prv and _row != _prv: _chg.append('%s.%s' % (_fld, _co))
+        _out['companies'] = list(_out['capex'].keys())
+        for _co, _cv in _out['capex'].items():
+            _rv = (_out['revenue'].get(_co) or []) + [None] * len(_cv)
+            _out['capex_to_rev'][_co] = [
+                (round(100.0 * float(_a) / float(_b), 1)
+                 if isinstance(_a, (int, float)) and isinstance(_b, (int, float)) and _b else None)
+                for _a, _b in zip(_cv, _rv)]
+        if _out['companies'] and _out['years']:
+            _ndb.set_('capex', _today, _today, _dd, _out)
+            print('capex: %d사 × %d년 DB 갱신 %s'
+                  % (len(_out['companies']), len(_yrs),
+                     ('· 변동 %d건 %s' % (len(_chg), _chg[:4])) if _chg else '· 변동 없음(carry-forward)'))
+    except Exception as _cde:
+        print('  [capex] DB 동기화 skip(비차단):', _cde)
+
+    print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs/semi_cycle/memory/capex -> db/')
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)
 data = {'report_date': RD_ISO,

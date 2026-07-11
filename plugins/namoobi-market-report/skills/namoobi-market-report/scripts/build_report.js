@@ -320,10 +320,10 @@ function renderKoreaExtras(){ const m=data.markets||{};
 // (v3.12.0→v3.49) 3.1.9 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.9 반도체 주가 체크용 메모리+HBM 지표",3));
-  const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",744,526);
+  const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",720,729);
   const mem=(m.memory&&m.memory.tables)?m.memory:null;
-  if(img){ children.push(p("① DRAM 현물(스팟) / ② DRAM 고정거래(계약) / ③ NAND 현물 / ④ NAND 고정거래 / ⑤ 스팟-계약 갭 / ⑥ HBM 업체별 점유율 — 6개 패널. 전 항목 공개 소스 실측·자동 수집.",{italics:true,color:"64748B"})); children.push(img);
-    children.push(p("기준: "+((mem&&mem.asof)||hbm.asof||"최신")+" · 자료: TrendForce 공개 가격표(가격 21종) + Silicon Analysts 공개 API(HBM 점유율·ASP)",{size:15,color:"94A3B8"}));
+  if(img){ children.push(p("① DRAM 현물(스팟) / ② DRAM 고정거래(계약) / ③ NAND 현물 / ④ NAND 고정거래 / ⑤ 스팟-계약 갭 / ⑥ HBM 업체별 점유율 / ⑦ 선행지표 1년 성과 / ⑧ 메모리/GPU 상대강도 — 8개 패널. 전 항목 공개 소스 실측·자동 수집.",{italics:true,color:"64748B"})); children.push(img);
+    children.push(p("기준: "+((mem&&mem.asof)||hbm.asof||"최신")+" · 자료: TrendForce 공개 가격표(가격 21종) + Silicon Analysts 공개 API(HBM 점유율·ASP) + Yahoo Finance(선행지표 6종)",{size:15,color:"94A3B8"}));
     children.push(p("업데이트: fetch_memory.py 가 매 실행 수집 + 서버 daily cron(08:30 KST) 이 매일 누적 → db/memory.json(스냅샷) · db/series_mem_*(시계열). 누적이 2일 이상이면 막대가 추세선으로 자동 전환된다. ※ TrendForce 과거 시계열·DXI 지수는 유료 회원 전용이라 과거를 사지 않고 오늘부터 직접 쌓는다.",{size:13,italics:true,color:"94A3B8"}));
     if(hbm.current_anchors) children.push(p("현재 현물 앵커("+(hbm.asof||"")+"): "+hbm.current_anchors,{size:13,color:"475569"}));
     if(hbm.series_note) children.push(p("※ "+hbm.series_note,{size:12,italics:true,color:"94A3B8"})); }
@@ -353,6 +353,34 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
                {width:gw[4],alt:a,size:12,color:"64748B"})]})); });
       children.push(makeTable(gw,grows));
     }
+  }
+  // (v3.60) 선행지표 — 전부 일별 갱신. 메모리 가격보다 먼저 움직이는 시장 신호.
+  const LD=(mem&&mem.leading)?mem.leading:null;
+  if(LD&&Object.keys(LD).length){
+    children.push(p("■ 선행지표 — 메모리 가격보다 먼저 움직이는 신호 (전 항목 매일 갱신)",{bold:true,color:"1E40AF",before:100,size:20}));
+    const lw=[2100,1350,1150,1150,4410];
+    const lrows=[hdrRow(["지표","현재값","1년","1개월","왜 선행지표인가"],lw)];
+    const _pc=(v)=>(v==null)?"-":((v>0?"+":"")+v.toFixed(1)+"%");
+    const _cl=(v)=>(v==null)?"64748B":(v>0?"DC2626":"2563EB");
+    let i=0;
+    ["SOX","NVDA","AMD","TSM","KOSPI","MU"].forEach(k=>{ const o=LD[k]; if(!o||o.price==null)return;
+      const a=(i++)%2===1;
+      lrows.push(new TableRow({children:[
+        cell(o.label||k,{width:lw[0],alt:a,bold:true,size:14}),
+        cell(Number(o.price).toLocaleString(undefined,{maximumFractionDigits:2}),{width:lw[1],alt:a,size:13,align:AlignmentType.RIGHT}),
+        cell(_pc(o.chg_1y_pct),{width:lw[2],alt:a,size:13,bold:true,align:AlignmentType.RIGHT,color:_cl(o.chg_1y_pct)}),
+        cell(_pc(o.chg_1m_pct),{width:lw[3],alt:a,size:13,align:AlignmentType.RIGHT,color:_cl(o.chg_1m_pct)}),
+        cell(o.why||"",{width:lw[4],alt:a,size:12,color:"64748B"})]})); });
+    if(i) children.push(makeTable(lw,lrows));
+    const rs=LD.MEM_VS_GPU;
+    if(rs&&rs.value!=null){
+      const up=rs.value>1;
+      children.push(p("★ 메모리 / GPU 상대강도 = "+rs.value+"배  ("+(rs.signal||"")+")",
+        {bold:true,size:19,color:up?"B45309":"2563EB",before:80}));
+      children.push(p("마이크론이 엔비디아보다 1년간 "+rs.value+"배 더 올랐다. HBM 을 사는 쪽(엔비디아)보다 파는 쪽(마이크론)이 압도적으로 오른다는 것은, 가치가 수요처에서 공급자로 이동했다는 뜻 — 메모리가 협상력을 쥐었고 공급부족이 극심하다는 신호다. "+
+        "이 비율이 꺾이기 시작하면 공급부족 완화 = 사이클 고점 경계 신호로 읽는다.",{size:14,color:"475569"}));
+    }
+    children.push(p("자료: Yahoo Finance 무인증 chart API — fetch_memory.py 가 매 실행 자동 수집, db/series_mem_leading_px · series_mem_mem_vs_gpu 로 매일 누적.",{size:12,italics:true,color:"94A3B8"}));
   }
   const ey=Array.isArray(hbm.eps_yearly)?hbm.eps_yearly:null;
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
@@ -386,6 +414,25 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(o.currency||"",{width:wf[5],alt:a,size:12,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(wf,rowsF));
     children.push(p("단위: 매출·영업이익=조원(KRW)/십억달러(USD), OPM=영업이익률(%). 삼성전자는 전사·반도체(DS)부문 병기. 실적=각사 IR, (E)=애널리스트 컨센서스.",{size:13,color:"94A3B8"})); }
+  // (v3.60) 지표 사전 — 각 항목의 의미 / 해석 방법 / 실제 변동 주기.
+  //   매일 변하지 않는 값은 실제 주기를 명시한다(계약가=월 1회 등). 계약가 추세선이 계단 모양인 건 정상.
+  const MT=(mem&&mem.meta)?mem.meta:null;
+  if(MT&&Object.keys(MT).length){
+    children.push(p("■ 지표 사전 — 의미 · 해석 방법 · 변동 주기",{bold:true,color:"1E40AF",before:120,size:20}));
+    children.push(p("※ '변동 주기'는 수집 주기가 아니라 값이 실제로 바뀌는 주기다. 계약가처럼 월 1회만 바뀌는 값은 추세선이 계단 모양으로 그려지는 것이 정상이다.",{size:13,italics:true,color:"64748B"}));
+    const mw=[1850,1700,3300,3310];
+    const mrows=[hdrRow(["지표","변동 주기","의미","해석 방법"],mw)];
+    let j=0;
+    Object.keys(MT).forEach(k=>{ const o=MT[k]||{}; if(!o.label)return; const a=(j++)%2===1;
+      const daily=/매일/.test(String(o.cadence||""));
+      mrows.push(new TableRow({children:[
+        cell(o.label,{width:mw[0],alt:a,bold:true,size:13}),
+        cell(o.cadence||"-",{width:mw[1],alt:a,size:12,bold:true,color:daily?"15803D":"B45309"}),
+        cell(o.meaning||"",{width:mw[2],alt:a,size:12,color:"334155"}),
+        cell(o.howto||"",{width:mw[3],alt:a,size:12,color:"64748B"})]})); });
+    if(j){ children.push(makeTable(mw,mrows));
+      children.push(p("녹색=매일 갱신 · 주황=주/월/분기/연 단위 갱신. 출처: TrendForce 공개 가격표 · Silicon Analysts 공개 API · Yahoo Finance · 관세청 오픈API.",{size:12,italics:true,color:"94A3B8"})); }
+  }
   children.push(p("")); }
 
 // (v3.45.0) 3.1.11 반도체 사이클 → 코스피 점검판 — DB화(db/semi_cycle.json), 매 실행 3대 신호 변동체크·미변동 재사용. 차트 없음(비차단·데이터 없으면 자동 생략).
@@ -555,7 +602,7 @@ function renderCapex(){ const m=data.markets||{};
     children.push(p("단위: 십억 달러(USD). CAPEX·매출·FCF 모두 연도별 조사값 — 2024~2025=FMP 실측(capitalExpenditure·revenue·freeCashFlow) · 2026~2029(E)=매출 애널리스트 컨센서스·CAPEX 회사 가이던스·FCF(직전 영업CF×매출성장−CAPEX) 추정. Capex/매출=CAPEX÷매출. ORCL은 FMP 플랜 제한으로 공개치·추정. 아래 두 차트는 이 표값으로 그려집니다.",{size:13,color:"94A3B8"}));
     if(cx.source_actual) children.push(p("출처(실적 2024·2025): "+cx.source_actual,{size:13,color:"64748B"}));
     if(cx.source_estimates) children.push(p("출처(전망 2026E~): "+cx.source_estimates,{size:13,color:"64748B"}));
-    children.push(p("업데이트: 매 실행(매일) 변동 여부 체크 — 변동 시 갱신, 변동 없으면 DB(nmr_capex.json) 재사용. 실적값(2024·2025)=각사 분기 실적·SEC 10-K/8-K 공시, 전망값(2026E~, 수시 변동 가능)=각사 실적 컨퍼런스콜 CAPEX 가이던스 + 애널리스트 컨센서스(FMP analyst-estimates). 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
+    children.push(p("업데이트: 매일 자동 재수집 — 실적값(CAPEX·매출·FCF)은 매 실행 MCP(UsStockInfo get_financial_statement)로 각사 재무제표를 다시 읽어 db/capex.json 과 대조하고, 값이 바뀐 셀만 갱신한다(실제 변동은 분기 실적발표 시점). 미수집·결측 셀은 DB carry-forward. 전망값(2026E~, 수시 변동 가능)=각사 실적 컨퍼런스콜 CAPEX 가이던스 + 애널리스트 컨센서스. 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
     children.push(p("확인처 — 1차 출처: 각사 SEC 공시(EDGAR 10-K/8-K) · 데이터 API: FMP(Financial Modeling Prep)",{size:13,color:"64748B"}));
     children.push(fsLink("SEC EDGAR 기업 공시검색 (10-K/8-K 원문)","https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=10-K"));
     children.push(fsLink("FMP API 문서 (financial-statements · analyst-estimates)","https://site.financialmodelingprep.com/developer/docs"));
