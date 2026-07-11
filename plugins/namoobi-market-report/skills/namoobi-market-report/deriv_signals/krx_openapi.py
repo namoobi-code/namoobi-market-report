@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-BASE = "http://data-dbg.krx.co.kr/svc/apis"
+BASE = "https://data-dbg.krx.co.kr/svc/apis"  # (v3.59.1) http는 302 리다이렉트 — https 직결
 _BASE_DIR = Path(__file__).resolve().parent
 
 
@@ -37,6 +37,13 @@ def _find_key():
         cands.append(anc / "openapi.krx.co.kr.txt")
         cands.append(anc / "SECURITY" / "secrets.env")
         cands.append(anc / "secrets.env")
+    # (v3.59.1) 연결폴더 SECURITY 절대경로 폴백 — $RUN(outputs/nmr_runsrc) 추출본 실행 시
+    # 조상 경로에 SECURITY 가 없어 키를 못 찾는다(2026-07-11 3.1.13 KOSPI200 결측의 근본 원인).
+    import glob as _g
+    for pat in ("/sessions/*/mnt/*/SECURITY/openapi.krx.co.kr.txt",
+                "/sessions/*/mnt/*/SECURITY/secrets.env"):
+        for hit in sorted(_g.glob(pat)):
+            cands.append(Path(hit))
     for c in cands:
         try:
             if not c.is_file():

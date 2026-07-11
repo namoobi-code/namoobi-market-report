@@ -33,8 +33,32 @@ def main():
         return 0
 
     base = Path(base)
-    tmpkey = "/tmp/.nmr_deploy_key"
-    subprocess.run(f"cp {shlex.quote(key)} {tmpkey} && chmod 600 {tmpkey}", shell=True, check=True)
+    # (v3.59.1) 키 스테이징 — /tmp 금지(샌드박스 권한 차단 실측 2026-07-11).
+    # ssh 는 키 600 권한을 요구 → 쓰기 가능한 경로에 복사: /dev/shm → outputs/nmr_build → outputs → cwd.
+    import atexit, shutil, stat
+    tmpkey = None
+    for d in (["/dev/shm"] + glob.glob("/sessions/*/mnt/outputs/nmr_build") +
+              glob.glob("/sessions/*/mnt/outputs") + [os.getcwd()]):
+        try:
+            cand = os.path.join(d, ".nmr_deploy_key")
+            shutil.copyfile(key, cand)
+            os.chmod(cand, stat.S_IRUSR | stat.S_IWUSR)
+            tmpkey = cand
+            break
+        except Exception:
+            continue
+    if not tmpkey:
+        print("[sync] ⚠️ 배포키 스테이징 실패(쓰기 가능 경로 없음) — 건너뜀")
+        return 0
+
+    def _cleanup_key():  # 어떤 종료 경로에서도 키 잔존 방지(마운트 rm 차단 대비 내용 먼저 제거)
+        try:
+            with open(tmpkey, "wb") as f:
+                f.write(b"")
+            os.remove(tmpkey)
+        except Exception:
+            pass
+    atexit.register(_cleanup_key)
     SSH = f"ssh -i {tmpkey} -o StrictHostKeyChecking=no -o ConnectTimeout=15"
     SCP = f"scp -q -i {tmpkey} -o StrictHostKeyChecking=no"
 
