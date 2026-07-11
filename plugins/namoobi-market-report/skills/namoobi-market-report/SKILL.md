@@ -116,6 +116,8 @@ description: |
         ↓
 [Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송(docx 첨부) + 모드별 수신자 파일 (references/email-sending.md)
         ↓
+[Phase 5.5: 서버 동기화 (v3.55 신설 · 비차단)]  python3 scripts/sync_server.py <생성한.docx> → db/*.json + deriv_signals.db + 신규 docx 를 공개 대시보드 서버로 업로드 (http://namoobi.duckdns.org)
+        ↓
 [Phase 6: 결과 보고]  헤드라인 3개 + 포트폴리오 톤 + 시작/완료/소요시간
 ```
 
@@ -284,6 +286,24 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 - 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
 - 수신자 칩 클릭 금지. **(v3.18 경량화) 입력은 `browser_batch` 로 묶고 단계마다 screenshot 금지 — 검증은 발송 직전 1회, 우선 `get_page_text`(패시브 읽기·토큰 저렴) 로 To/BCC 칩·제목·첨부 확인, 애매할 때만 screenshot 1장.** 상세 함정 목록은 reference 참조.
 - "메시지 전송됨" 확인 직후 완료시각을 기록한다: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` + `date +%s`
+
+## Phase 5.5: 서버 동기화 (v3.55 신설 — 비차단)
+
+**메일 발송 성공을 확인한 직후**, 이번 실행 결과를 공개 대시보드 서버로 올린다.
+
+```bash
+python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
+```
+
+- **업로드 대상**: `_market_report_data/db/*.json`(통합 DB) + `deriv_signals.db` + **이번 회차 docx 1건**
+- **대상 서버**: Oracle Cloud Always Free(도쿄) → 공개 주소 **http://namoobi.duckdns.org**
+- **인증**: 연결폴더 `SECURITY/nmr_deploy_key` (배포 전용 SSH 키 — 인스턴스 접속키와 분리)
+- **보고서 회전**: 서버는 **날짜별 최종본 1건 × 최근 7일**만 유지(스크립트가 자동 정리).
+- **⚠️ 완전 비차단**: 서버가 꺼져 있거나 네트워크가 막혀도 **경고만 출력하고 종료코드 0** 을 반환한다.
+
+**왜 메일 발송 "후" 인가** — ① `merge.py` 가 db/*.json 갱신을 끝낸 확정 상태라 중간 상태가 올라가지 않는다 ② 방금 만든 docx를 함께 올려 **대시보드와 수신자 메일이 같은 회차**가 된다 ③ 리포트가 중간에 실패하면 이 단계에 도달하지 않으므로 **깨진 데이터가 공개 사이트에 노출되지 않는다**.
+
+> **서버 측 자체 수집(참고)**: 서버는 `poll.py` 를 **1일 2회(09:00·21:00 KST)** cron 으로 돌려 김치프리미엄·공포탐욕지수·원달러를 SQLite 에 누적한다. **본 워크플로우와 독립적으로 동작**한다.
 
 ## Phase 6: 결과 보고
 
