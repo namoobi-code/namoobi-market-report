@@ -37,147 +37,143 @@ GRID=dict(alpha=0.18, linewidth=0.8)
 LEG=dict(fontsize=12.5, frameon=True, framealpha=0.85, edgecolor="#E5E7EB", handletextpad=0.5, borderpad=0.4)
 
 # ================= 내장 기본(예시·추정) =================
-def _mser(start_ym, vals):
-    y,m=[int(z) for z in start_ym.split("-")]; out=[]
-    for v in vals:
-        out.append([f"{y:04d}-{m:02d}", v]); m+=1
-        if m>12: m=1; y+=1
-    return out
-# (v3.57) 수집 불가한 하드코딩 연도 시계열(hbm_shipment/hbm_market/hbm3e_price/hbm4_price/share 2024~2027)
-#   제거. 해당 값들은 어떤 소스로도 연도별 시계열을 확보할 수 없어 매 실행 동일한 고정 그림만 그려졌고,
-#   HBMAgent 가 수집한 최신 실측 스칼라는 _compat 스키마 불일치로 전량 폐기되고 있었다(실측 점유율
-#   32/56/10/2%E 대신 2024년 고정값 42/52/5/1 이 렌더됨). 이제 LIVE 실측만 사용한다.
-DEF={}
-
 def _outdir():
-    O=os.environ.get("NMR_OUT")
-    if O and os.path.isdir(O): return O
-    g=sorted(glob.glob("/sessions/*/mnt/outputs"))
-    return g[-1] if g else "."
-def _report():
     for a in sys.argv[1:]:
-        if a.endswith(".json") and os.path.exists(a) and "report_data" in a: return a
-    O=_outdir(); c=sorted(glob.glob(O+"/_market_report_data/report_data_*.json")) or sorted(glob.glob(O+"/report_data_*.json"))
-    return c[-1] if c else None
-def _live():
-    # 1) nmr_hbm.json (Phase 1.5 에 존재). argv 의 디렉터리/파일 경로도 탐색.
+        if os.path.isdir(a): return a
+    return os.environ.get("NMR_OUT") or "."
+
+def _memdb():
+    """(v3.59) 데이터 소스: ① db/memory.json (통합 DB — merge/서버 cron 이 매일 갱신)
+                          ② WORK/nmr_memory.json (이번 회차 수집분)
+    둘 다 없으면 차트 생략(비차단)."""
+    O=_outdir()
     cands=[]
-    for a in sys.argv[1:]:
-        if a.endswith("nmr_hbm.json"): cands.append(a)
-        elif os.path.isdir(a): cands.append(os.path.join(a,"nmr_hbm.json"))
-    O=_outdir(); cands += [os.path.join(O,"nmr_hbm.json"), "nmr_hbm.json"]
-    cands += glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_hbm.json")  # (v3.39) 연결폴더 영구본 폴백
+    for pat in (O+"/_market_report_data/db/memory.json",
+                O+"/../_market_report_data/db/memory.json",
+                "/sessions/*/mnt/claudeCowork/_market_report_data/db/memory.json"):
+        cands += sorted(glob.glob(pat))
     for c in cands:
-        if c and os.path.exists(c):
-            try: return json.load(open(c, encoding="utf-8")) or {}
-            except Exception: pass
-    # 2) report_data.markets.hbm
-    rp=_report()
-    if rp:
-        try: return ((json.load(open(rp)).get("markets") or {}).get("hbm")) or {}
-        except Exception: pass
-    return {}
-
-def _compat(new, old):  # [견고화] LIVE 스키마가 내장(DEF)과 호환될 때만 적용 — 불일치는 내장값 유지(크래시 방지)
-    if type(new)!=type(old): return False
-    if isinstance(old,list):
-        if old and isinstance(old[0],dict):
-            return bool(new) and isinstance(new[0],dict) and bool(set(new[0]) & set(old[0]))
-        return True
-    if isinstance(old,dict): return bool(set(new) & set(old))
-    return True
-D=dict(DEF); LIVE=_live(); USED_LIVE=False
-if isinstance(LIVE, dict):
-    for k,v in LIVE.items():
-        if v in (None,"",[],{}): continue
-        if (k in DEF) and not _compat(v, DEF[k]): continue
-        D[k]=v
-        if k not in ("asof","source"): USED_LIVE=True
-
-def _pairs_dt(series):
-    out=[]
-    for d,v in series:
         try:
-            ds=str(d); dt=datetime.fromisoformat(ds if len(ds)>7 else ds+"-01"); out.append((dt,float(v)))
+            d=json.load(open(c,encoding="utf-8"))
+            return (d.get("data") or d), c
         except Exception: pass
-    return out
+    for c in sorted(glob.glob(O+"/nmr_memory.json")) + sorted(glob.glob("nmr_memory.json")):
+        try: return json.load(open(c,encoding="utf-8")), c
+        except Exception: pass
+    return None, None
 
-# ================= 렌더 =================
-fig=plt.figure(figsize=(15.0,10.6), dpi=150)
-fig.suptitle("반도체 주가 체크용 메모리·HBM 지표 (실측)", fontsize=22, fontweight="bold", y=0.974)
-_src=D.get("source") or "TrendForce·실적 컨센서스·언론 종합"
-_tag="추정치" if USED_LIVE else "예시·추정 데이터"
-# 차트별 갱신 주기·최종 갱신일 라벨
-_CAD={"spot":"월별 추정","dram":"월별 추정","ship":"분기·연간 추정","hbmprice":"분기 추정","share":"분기 추정","gap":"분기 추정(계산값)"}
-_CAD.update(D.get("cadence") or {})
-_AM=D.get("asof_map") or {}; _ASOF=D.get("asof","")
-def cad(k):
-    a=_AM.get(k) or ((_ASOF) if _ASOF and _ASOF!="예시·추정" else None)
-    return "  ▪ "+_CAD.get(k,"추정")+(" · 최종 갱신 "+a if a else " (예시값)")
-fig.text(0.5,0.917, f"※ 모든 수치는 {_tag} — 확인 불가 항목은 미표기('추정' 표기)",
-         ha="center", fontsize=11.5, color="#B45309")
-OUT="charts/hbm_dashboard.png"
-gs=fig.add_gridspec(1,2, top=0.80, bottom=0.20, left=0.07, right=0.98, wspace=0.30)
-def style(ax):
-    for sp in ("top","right"): ax.spines[sp].set_visible(False)
-def caption(ax, text, y=-0.22):
-    ax.text(0, y, text, transform=ax.transAxes, fontsize=11, color="#555", va="top", wrap=True)
+def _series(key):
+    """db/series_mem_<key>.json 누적 시계열 → [(date, {item: val}), ...]"""
+    O=_outdir()
+    for pat in (O+"/_market_report_data/db/series_mem_%s.json"%key,
+                O+"/../_market_report_data/db/series_mem_%s.json"%key,
+                "/sessions/*/mnt/claudeCowork/_market_report_data/db/series_mem_%s.json"%key):
+        for c in sorted(glob.glob(pat)):
+            try:
+                d=(json.load(open(c,encoding="utf-8")) or {}).get("data") or []
+                return sorted(d, key=lambda r: r[0])
+            except Exception: pass
+    return []
 
-def _num(o, *keys):
-    """LIVE 스칼라에서 숫자 추출.
-    대응: 47.8 / "32%E" / "20-28"(중간값) / "~500 (mid-$500s)" / "300-360" / value_pct=89.0
-    실측값이 'E'(추정) 접미사나 단위·기호를 달고 오는 경우가 많아 정규식으로 첫 수치를 뽑는다."""
-    import re as _re
-    if not isinstance(o, dict): return None
-    for k in keys:
-        v = o.get(k)
-        if v in ("", None): continue
-        if isinstance(v, (int, float)): return float(v)
-        t = str(v)
-        nums = _re.findall(r"\d+(?:\.\d+)?", t)
-        if not nums: continue
-        if len(nums) >= 2 and _re.search(r"\d\s*[-~]\s*\d", t):   # "20-28" → 중간값
-            return (float(nums[0]) + float(nums[1])) / 2
-        return float(nums[0])
-    return None
+D, SRC = _memdb()
+if not D or not D.get("tables"):
+    print("memory: 데이터 없음 — hbm_dashboard 차트 생략(비차단)")
+else:
+    T=D["tables"]; H=D.get("hbm") or {}
+    PAL=[C_DDR5,C_DDR4,C_NAND,C_SPOT,C_SAMS,C_MICRON,C_ETC]
 
-# ── 패널 1: 메모리 스팟 현재가 (LIVE 실측)
-ax1=fig.add_subplot(gs[0,0])
-spot=[("DDR5 16Gb", _num(D.get("ddr5_16gb"),"value")),
-      ("DDR4 8Gb",  _num(D.get("ddr4_8gb"),"value")),
-      ("NAND MLC 64Gb", _num(D.get("nand_mlc_64gb"),"value","value_range"))]
-spot=[(n,v) for n,v in spot if v is not None]
-if spot:
-    ax1.bar([n for n,_ in spot],[v for _,v in spot], width=0.5, color=[C_DDR5,C_DDR4,C_NAND][:len(spot)])
-    for i,(n,v) in enumerate(spot):
-        ax1.text(i, v*1.02, f"${v:g}", ha="center", fontsize=13, fontweight="bold")
-    ax1.set_ylim(top=max(v for _,v in spot)*1.22)
-ax1.set_title("메모리 스팟 현재가 (USD)", fontsize=18, fontweight="bold")
-ax1.set_ylabel("USD"); style(ax1); ax1.grid(**GRID)
-_gap=_num(D.get("gap_ratio"),"value_pct","value")
-caption(ax1, "[실측] TrendForce/DRAMeXchange 스팟." + (f" DDR4 스팟-계약가 갭 +{_gap:g}% → 계약가 추가 인상 압력." if _gap else ""))
+    def _style(ax):
+        for sp in ("top","right"): ax.spines[sp].set_visible(False)
+        ax.grid(**GRID)
+    def _cap(ax, t, y=-0.27):
+        ax.text(0,y,t,transform=ax.transAxes,fontsize=9,color="#666",va="top")
 
-# ── 패널 2: HBM 업체별 점유율 (LIVE 실측 — 종전엔 2024년 고정값이 렌더됐음)
-ax2=fig.add_subplot(gs[0,1])
-_sh=D.get("share") or {}
-_pairs=[("Samsung",_num(_sh,"samsung")),("SK hynix",_num(_sh,"sk_hynix")),
-        ("Micron",_num(_sh,"micron")),("기타",_num(_sh,"others"))]
-_pairs=[(n,v) for n,v in _pairs if v is not None]
-if _pairs:
-    cols=[C_SAMS,C_SK,C_MICRON,C_ETC][:len(_pairs)]
-    ax2.bar([n for n,_ in _pairs],[v for _,v in _pairs], width=0.55, color=cols)
-    for i,(n,v) in enumerate(_pairs):
-        ax2.text(i, v+1.2, f"{v:g}%", ha="center", fontsize=13, fontweight="bold")
-    ax2.set_ylim(0, max(v for _,v in _pairs)*1.25)
-ax2.set_title("HBM 업체별 점유율 (최신 실측)", fontsize=18, fontweight="bold")
-ax2.set_ylabel("점유율 (%)"); style(ax2); ax2.grid(**GRID)
-caption(ax2, "[실측] SK하이닉스 IDC(SEC 제출서류) 1Q26 기준 · 나머지는 벤더 집계 중간값(E). 갱신: %s" % (D.get("asof") or ""))
+    def _trend(ax, key, title, ylab):
+        """누적 시계열이 2점 이상이면 추세선, 1점이면 현재값 막대."""
+        ser=_series(key)
+        t=T.get(key) or {}
+        if len(ser)>=2:
+            xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in ser]
+            items=sorted({k for r in ser for k in r[1]})
+            for i,it in enumerate(items):
+                v=[r[1].get(it) for r in ser]
+                ax.plot(xs,v,marker="o",ms=4,lw=1.8,color=PAL[i%len(PAL)],label=it)
+            ax.set_xticks(xs if len(xs)<=8 else xs[::max(1,len(xs)//7)])
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
+            ax.margins(x=0.06)
+            ax.legend(fontsize=6.5,frameon=False,ncol=2)
+            ax.set_title("%s  (누적 %d일)"%(title,len(ser)),fontsize=13,fontweight="bold")
+        else:
+            rows=t.get("rows") or []
+            if not rows: ax.set_visible(False); return
+            xs=range(len(rows)); vs=[r["avg"] for r in rows]
+            ax.bar(xs,vs,width=0.55,color=[PAL[i%len(PAL)] for i in xs])
+            for i,r in enumerate(rows):
+                ax.text(i,r["avg"]*1.02,"%.1f"%r["avg"],ha="center",fontsize=8,fontweight="bold")
+            ax.set_xticks(list(xs))
+            ax.set_xticklabels([r["item"].replace(" (","\n(") for r in rows],fontsize=6.5)
+            ax.set_ylim(top=max(vs)*1.2)
+            ax.set_title("%s  (누적 1일 — 내일부터 추세선)"%title,fontsize=13,fontweight="bold")
+        ax.set_ylabel(ylab,fontsize=9); _style(ax)
+        _cap(ax,"[실측] TrendForce 공개 가격표 · 갱신 %s"%(t.get("last_update") or ""))
 
-plt.savefig(OUT, dpi=150, facecolor="white"); plt.close()
-print("hbm dashboard ->", os.path.abspath(OUT), os.path.getsize(OUT), "bytes | live_override:", USED_LIVE)
+    fig=plt.figure(figsize=(16.0,12.2), dpi=150)
+    fig.suptitle("반도체 주가 체크용 메모리·HBM 지표 (전 항목 실측·자동 수집)",
+                 fontsize=21, fontweight="bold", y=0.982)
+    fig.text(0.5, 0.941, "기준 %s · TrendForce 공개 가격표 + Silicon Analysts 공개 API"%(D.get("asof") or ""),
+             ha="center", fontsize=11, color="#666")
+    gs=fig.add_gridspec(3,2, top=0.885, bottom=0.085, left=0.055, right=0.985,
+                        hspace=0.86, wspace=0.22)
 
-# ── (req6 2026-07-05) 3.1.11 반도체 사이클 3대 조기경보 차트 (charts/semi_cycle_signals.png) ──
-# 입력: $WORK/nmr_semi_cycle.json(신규) 또는 연결폴더 db/semi_cycle.json 의 data.series (없으면 스킵·비차단)
+    _trend(fig.add_subplot(gs[0,0]),"dram_spot",    "① DRAM 현물(스팟)",   "USD")
+    _trend(fig.add_subplot(gs[0,1]),"dram_contract","② DRAM 고정거래(계약)","USD")
+    _trend(fig.add_subplot(gs[1,0]),"nand_spot",    "③ NAND 현물(스팟)",   "USD")
+    _trend(fig.add_subplot(gs[1,1]),"nand_contract","④ NAND 고정거래(계약)","USD")
+
+    # ⑤ 스팟 − 계약 갭 (핵심 선행지표)
+    ax5=fig.add_subplot(gs[2,0])
+    g=lambda k: {r["item"]: r["avg"] for r in (T.get(k) or {}).get("rows",[])}
+    ds,dc,ns,nc=g("dram_spot"),g("dram_contract"),g("nand_spot"),g("nand_contract")
+    PAIRS=[("DDR4 8Gb","DDR4 8Gb (1Gx8) 3200","DDR4 8Gb 1Gx8",ds,dc),
+           ("DDR4 16Gb","DDR4 16Gb (2Gx8) 3200","DDR4 16Gb 2Gx8",ds,dc),
+           ("NAND 64Gb","MLC 64Gb 8GBx8","NAND 64Gb 8Gx8 MLC",ns,nc),
+           ("NAND 32Gb","MLC 32Gb 4GBx8","NAND 32Gb 4Gx8 MLC",ns,nc)]
+    lab,val=[],[]
+    for l,si,ci,S,K in PAIRS:
+        if si in S and ci in K and K[ci]:
+            lab.append(l); val.append((S[si]/K[ci]-1)*100)
+    if val:
+        ax5.bar(lab,val,width=0.5,color=[C_GAP if v>0 else C_DDR4 for v in val])
+        for i,v in enumerate(val):
+            ax5.text(i, v+(3 if v>0 else -7), "%+.0f%%"%v, ha="center",
+                     fontsize=11, fontweight="bold")
+        ax5.axhline(0,color="#888",lw=0.9)
+        ax5.set_ylim(min(val)*1.5 if min(val)<0 else 0, max(val)*1.28)
+    ax5.set_title("⑤ 스팟-계약 갭 (계약가 인상 압력 선행지표)",fontsize=13,fontweight="bold")
+    ax5.set_ylabel("%",fontsize=9); _style(ax5)
+    _cap(ax5,"[계산] 현물÷계약-1. 현물이 계약가를 크게 상회하면 다음 계약 협상의 인상 압력\n     → 메모리 3사 실적 선행지표")
+
+    # ⑥ HBM 업체별 점유율 (실측)
+    ax6=fig.add_subplot(gs[2,1])
+    sh=H.get("share") or []
+    if sh:
+        nm=[r["vendor"] for r in sh]; vv=[r.get("share_pct") or 0 for r in sh]
+        ax6.bar(nm,vv,width=0.5,color=[C_SAMS,C_SK,C_MICRON,C_ETC][:len(nm)])
+        for i,v in enumerate(vv):
+            ax6.text(i,v+1.2,"%.0f%%"%v,ha="center",fontsize=12,fontweight="bold")
+        ax6.set_ylim(0,max(vv)*1.25)
+    else:
+        ax6.set_visible(False)
+    ax6.set_title("⑥ HBM 업체별 점유율 (최신 실측)",fontsize=13,fontweight="bold")
+    ax6.set_ylabel("%",fontsize=9); _style(ax6)
+    _cap(ax6,"[실측] Silicon Analysts 공개 API · %s"%(D.get("asof") or ""))
+
+    OUT="charts/hbm_dashboard.png"
+    os.makedirs("charts",exist_ok=True)
+    plt.savefig(OUT, dpi=150, facecolor="white"); plt.close()
+    print("hbm dashboard -> %s (%d bytes) | src=%s"%(OUT, os.path.getsize(OUT), SRC))
+
+
 def _semi_cycle_signals():
     import json as _j, glob as _g, os as _os
     sc=None
