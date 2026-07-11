@@ -792,6 +792,26 @@ try:
     _sc_ok = _sc_canon(_sci)
     m['semi_cycle'] = _ndb.sync('semi_cycle', (_sci if _sc_ok else None), _today,
                                 ((_sci or {}).get('asof') or _run_m) if _sc_ok else _run_m, _dd)
+
+    # (v3.58) 3.1.9 메모리 가격 — fetch_memory.py(TrendForce 공개 가격표) 결과 적재.
+    #   ① db/memory.json     : 최신 스냅샷 7개 표 29개 지표 (표 렌더용)
+    #   ② db/series_mem_<표> : 날짜 union 누적 시계열 (차트용 — 실행할수록 길어진다)
+    _mem = L('nmr_memory.json')
+    if isinstance(_mem, dict) and _mem.get('tables'):
+        _masof = _mem.get('asof') or _today
+        _ndb.set_('memory', _masof, _masof, _dd, _mem)
+        for _tk, _t in _mem['tables'].items():
+            _snap = {r['item']: r['avg'] for r in (_t.get('rows') or []) if r.get('avg') is not None}
+            if not _snap: continue
+            _cur = (_ndb._load('series_mem_' + _tk, _dd) or {}).get('data') or []
+            _mg = [x for x in _cur if x[0] != _masof] + [[_masof, _snap]]
+            _mg.sort(key=lambda x: x[0])
+            _ndb.set_('series_mem_' + _tk, '', _masof, _dd, _mg)
+        m['memory'] = _mem
+        print('memory: %d개 표 적재' % len(_mem['tables']))
+    else:
+        _mdb = _ndb.get('memory', _dd)
+        if _mdb: m['memory'] = _mdb; print('memory: 수집 없음 → DB 재사용')
     print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs/semi_cycle -> db/')
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)

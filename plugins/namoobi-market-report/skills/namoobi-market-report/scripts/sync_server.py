@@ -7,7 +7,7 @@
 비차단: 실패해도 종료코드 0. 리포트 워크플로우를 되돌리지 않는다.
 사용:  python3 scripts/sync_server.py [새_docx_경로]
 """
-import glob, os, subprocess, sys, shlex
+import glob, json, os, subprocess, sys, shlex
 from pathlib import Path
 
 SERVER    = "ubuntu@141.147.160.13"
@@ -46,6 +46,29 @@ def main():
 
     ok = True
     run(f'{SSH} {SERVER} "mkdir -p {REMOTE}/db {REMOTE}/reports {REMOTE}/report"', "원격 디렉토리 확인")
+
+    # ── 0) ⭐ PULL 먼저 — 서버가 매일 cron 으로 누적한 메모리·HBM 시계열을 PC 로 당겨 병합.
+    #    서버는 24시간 켜져 있어 리포트를 안 돌린 날도 데이터를 쌓는다. 먼저 당겨서 union 해야
+    #    아래 PUSH 에서 PC 의 옛 파일이 서버의 최신 누적분을 덮어쓰는 사고를 막는다.
+    import tempfile
+    tmpd = tempfile.mkdtemp()
+    if run(f'{SCP} {SERVER}:{REMOTE}/db/series_mem_*.json {tmpd}/ 2>/dev/null', "서버 누적 시계열 pull"):
+        merged_n = 0
+        for sp in glob.glob(os.path.join(tmpd, "series_mem_*.json")):
+            name = os.path.basename(sp)
+            lp = base / "db" / name
+            try:
+                srv = json.load(open(sp, encoding="utf-8"))
+                loc = json.load(open(lp, encoding="utf-8")) if lp.exists() else {"data": []}
+                by = {r[0]: r[1] for r in (loc.get("data") or [])}
+                by.update({r[0]: r[1] for r in (srv.get("data") or [])})   # 서버값 우선
+                out = sorted(([d, v] for d, v in by.items()), key=lambda x: x[0])
+                srv["data"] = out
+                json.dump(srv, open(lp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+                merged_n += 1
+            except Exception as e:
+                print(f"[sync]    ⚠️ {name} 병합 실패: {e}")
+        print(f"[sync]    → {merged_n}종 시계열 병합 (서버 누적분 반영)")
 
     # ── 1) 통합 DB (변경분만)
     if (base / "db").is_dir():
