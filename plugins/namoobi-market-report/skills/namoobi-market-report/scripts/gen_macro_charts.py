@@ -55,8 +55,25 @@ try:
             _infl[_ln]=(_ndb.dbseries("infl_"+_ln.replace(" ","_"), _infl.get(_ln), _DB) or {}).get('data')
         if _infl: S["inflation"]=_infl
         _emp=S.get("employment") or {}
+        # (fix GDP 오염) 분기 키를 분기 시작일(YYYY-MM-DD)로 정규화·레벨값(|v|>=20, GDP 수천대) 배제 — 포맷 혼재(2026-01/2026-Q1/2026Q1) 중복 누적 방지
+        def _gdpkey(k):
+            import re as _re
+            k=str(k); m=_re.match(r'^(\d{4})-?Q([1-4])$',k)
+            if m: return '%s-%02d-01'%(m.group(1),(int(m.group(2))-1)*3+1)
+            m=_re.match(r'^(\d{4})-(\d{2})',k)
+            if m: return '%s-%02d-01'%(m.group(1),((int(m.group(2))-1)//3)*3+1)
+            return None
+        def _gdpsan(s):
+            out={}
+            for p in (s or []):
+                try:
+                    _k=_gdpkey(p[0]); _val=float(p[1])
+                    if _k and abs(_val)<20: out[_k]=_val
+                except Exception: pass
+            return [[k,out[k]] for k in sorted(out)]
         for _pn in ["jobless","nfp","unemp","retail","gdp","ism_mfg","ism_svc","nfp_mom","retail_mom","gdp_ann"]:  # (req3) nmr_macro 에 series.employment 없어도 DB 시계열 항상 로드 (jobless=초기 실업수당 청구, 주간)
-            _v=(_ndb.dbseries("emp_"+_pn, _emp.get(_pn), _DB) or {}).get('data')
+            _fv=_gdpsan(_emp.get(_pn)) if _pn=="gdp" else _emp.get(_pn)
+            _v=(_ndb.dbseries("emp_"+_pn, _fv, _DB) or {}).get('data')
             if _v: _emp[_pn]=_v
         if _emp: S["employment"]=_emp
         _full=(json.load(open(_mp,encoding="utf-8")) if _mp else {}); _mm=_full.get("macro",_full) if isinstance(_full,dict) else _full
@@ -298,14 +315,4 @@ def _ch_emp():
         ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
         if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
         ax.set_title(t,fontsize=8,color=SLATE); ax.grid(True,alpha=0.2); ax.set_xticks([])
-        for s in ["top","right"]: ax.spines[s].set_visible(False)
-    for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
-    for _j in range(_n,len(axs)): axs[_j].axis("off")
-    fig.suptitle("미국 고용·경기 지표 최근 1년 (초기 실업수당 청구=주간·나머지 월간)",fontsize=9.5,color=SLATE)
-    fig.subplots_adjust(top=0.90,bottom=0.06,left=0.07,right=0.97,hspace=0.62,wspace=0.6)
-    plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
-_safe("macro_employment", _ch_emp)
-# (2026-06-29) 3.1.5 선행EPS/PER 차트(_fwd / macro_spx_fwd / macro_kospi_fwd) 제거됨 — 섹션 삭제
-_miss=[r for r in REQUIRED if r not in _made]
-print("macro charts -> 생성 %d/%d | 실패:%s | 누락:%s"%(len([r for r in REQUIRED if r in _made]),len(REQUIRED),(",".join(_failed) or "없음"),(",".join(_miss) or "없음")))
-if _miss: print("WARN_MACRO_MISSING="+",".join(_miss))
+        for s in ["top","right"]: a
