@@ -145,6 +145,12 @@ if isinstance(hy, dict):
             _hist['series'] = [[d, _mer[d]] for d in sorted(_mer)]
             _hist['updated'] = dt.date.today().isoformat()
             json.dump(_hist, open(_hp, 'w'), ensure_ascii=False)
+            # (HY 정리) 대시보드용 db/series_hy_oas.json 동시 갱신 — sync_server 가 db/ 전체를 서버로 올려
+            # namoobi.duckdns.org 3.1.1 HY 표·1년 차트가 이 시계열로 렌더된다.
+            _dbd = os.path.join(_cp[0], 'db'); os.makedirs(_dbd, exist_ok=True)
+            json.dump({'as_of': _hist['updated'], 'marker': _hist['series'][-1][0],
+                       'source': 'FRED BAMLH0A0HYM2 (ICE BofA US HY OAS) 일별 누적', 'data': _hist['series']},
+                      open(os.path.join(_dbd, 'series_hy_oas.json'), 'w'), ensure_ascii=False)
     except Exception: pass
     print('HY: months', len(hy['series']), 'current', hy['points']['current'])
 else:

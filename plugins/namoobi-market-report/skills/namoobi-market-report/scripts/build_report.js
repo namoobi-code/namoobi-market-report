@@ -78,7 +78,7 @@ function validate(d) {
   const gsK=['ubs','goldman','jpmorgan','morgan_stanley','blackrock'];
   if (d.global_securities && !gsK.some(k=>d.global_securities[k])) issues.push("global_securities 5사 평탄 키 없음 → 8장 전체 누락");
   if (d.crypto && !d.crypto.charts) warn.push("crypto.charts 없음 → 6.2 코인차트 섹션 생략됨 (coin_*.png 생성 확인)");
-  if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.2.3 HY 표/그래프 비거나 누락"); }
+  if (M.us_credit || M.hy_spread){ if(!M.hy_spread || M.hy_spread.current==null) warn.push("hy_spread.current 없음 → 3.1.1 HY 표/그래프 비거나 누락"); }
   if (!Array.isArray(M.korea_leading) || !M.korea_leading.length) warn.push("korea_leading 비어있음 → 3.1.5 경기선행지수 누락(통계청 KOSIS 수집 필요)");
   if (M.fx_markets){ const need=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'];
     const miss=need.filter(k=>{try{return !fs.existsSync('charts/spark_'+k+'.png');}catch(e){return true;}});
@@ -92,7 +92,7 @@ function validate(d) {
   if (!M.oecd_cli || !Array.isArray((M.oecd_cli||{}).months) || !M.oecd_cli.months.length) warn.push("oecd_cli 비어있음 → 3.1.4 OECD 경기선행지수 누락(db/oecd_cli.json 확인)");
   needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.4 OECD CLI 통합 차트");
   if(M.customs&&M.customs.series){ needChart(true,"charts/수출_전체_24개월.png","3.1.10 수출 전체 차트"); needChart(true,"charts/수출_반도체_24개월.png","3.1.10 수출 반도체 차트"); }
-  needChart(M.hy_spread, "charts/hy_oas.png","3.3.3 HY 스프레드 차트");
+  needChart(M.hy_spread, "charts/hy_oas.png","3.1.1 HY 스프레드 차트");
   { const KB=M.krx_brief||{};  // (v3.54) 3.2.4/3.2.5 KRX 브리프 — 데이터 있으면 캡쳐 필수
     if(KB.krx&&KB.krx.pages) for(let i=1;i<=KB.krx.pages;i++) needChart(true,"charts/krx_brief_p"+i+".png","3.2.4 KRX 증시 Brief 캡쳐 p"+i);
     if(KB.short&&KB.short.pages) for(let i=1;i<=KB.short.pages;i++) needChart(true,"charts/short_brief_p"+i+".png","3.2.5 공매도 데일리 브리프 캡쳐 p"+i); }

@@ -630,13 +630,23 @@ for _r in ((m.get('fomc_dotplot') or {}).get('rows') or []):
     if not str(_r.get('change') or '').strip():
         try: _r['change'] = "%+.1f" % (float(_r.get('jun')) - float(_r.get('mar')))
         except Exception: _r['change'] = ''
-m['us_credit'] = um.get('us_credit', {}); m['us_treasury_curve'] = um.get('us_treasury_curve')
-uc = um.get('us_credit', {})
-m['hy_spread'] = {'current': uc.get('hy_oas'), 'hy_oas': uc.get('hy_oas'), 'hy_yield': uc.get('hy_yield'),
-                  'implied_ust': uc.get('implied_ust'), 'comment': uc.get('comment'), 'chart': 'charts/hy_oas.png'}
-# (fix) HY 1주~1년 OAS 히스토리 (nmr_hy_series.json 월별) — 3.2.3 의 1주/1개월~1년 열이 '-' 이던 문제
-_hys = L('nmr_hy_series.json'); _hser = (_hys.get('series') if isinstance(_hys, dict) else _hys) or []
+m['us_treasury_curve'] = um.get('us_treasury_curve')
+uc = um.get('us_credit') if isinstance(um.get('us_credit'), dict) else {}
+# (HY 정리) 3.1.1 hy_spread 단일화 — current·asof·d1~y1 을 전부 시계열에서 계산.
+#   소스: 영구 DB(연결폴더 nmr_hy_history.json, 2020~ 일별) 우선 → 당일 수집분(nmr_hy_series.json) 폴백.
+#   미렌더링 중복 필드(hy_oas·hy_yield·implied_ust)와 us_credit 블록은 report_data 에 싣지 않음(빌더는 hy_spread 만 사용).
+m['hy_spread'] = {'comment': (uc or {}).get('comment'), 'chart': 'charts/hy_oas.png'}
+_hser = []
+try:
+    _hh = json.load(open(os.path.join(_CWROOT, 'nmr_hy_history.json'), encoding='utf-8'))
+    _hser = (_hh.get('series') or []) if isinstance(_hh, dict) else []
+except Exception: _hser = []
+if len(_hser) < 30:  # 영구 DB 없거나 빈약 → 당일 수집분 폴백
+    _hys = L('nmr_hy_series.json'); _hser = (_hys.get('series') if isinstance(_hys, dict) else _hys) or []
 _hpts = sorted([(dt.date.fromisoformat(str(d)[:10]), float(v)) for d, v in _hser if v is not None])
+if _hpts:
+    m['hy_spread']['current'] = round(_hpts[-1][1], 2)
+    m['hy_spread']['asof'] = str(_hpts[-1][0])
 if len(_hpts) >= 2:
     _last = _hpts[-1][0]
     m['hy_spread']['d1'] = round(_hpts[-2][1], 2)
@@ -644,13 +654,6 @@ if len(_hpts) >= 2:
         _tgt = _last - dt.timedelta(days=_days)
         _cand = [p for p in _hpts if p[0] <= _tgt] or [_hpts[0]]
         m['hy_spread'][_k] = round(_cand[-1][1], 2)
-# (fix req3) HY 현재값이 비면 시계열 최신점으로 채움 — 3.2.3 '-' 방지
-if _hpts and m['hy_spread'].get('current') is None:
-    _hcur = round(_hpts[-1][1], 2)
-    m['hy_spread']['current'] = _hcur; m['hy_spread']['hy_oas'] = _hcur
-    m['hy_spread']['asof'] = str(_hpts[-1][0])
-    m['us_credit'] = dict(m.get('us_credit') or {})
-    m['us_credit'].setdefault('hy_oas', _hcur); m['us_credit'].setdefault('asof', str(_hpts[-1][0]))
 m['index_rebalance'] = {k: v for k, v in rb.items() if k != 'latest_change_date'}
 
 crd = dict(cr); crd['charts'] = {'btc': 'charts/coin_btc.png', 'eth': 'charts/coin_eth.png', 'xrp': 'charts/coin_xrp.png', 'sol': 'charts/coin_sol.png', 'fng': 'charts/fng_1y.png'}
