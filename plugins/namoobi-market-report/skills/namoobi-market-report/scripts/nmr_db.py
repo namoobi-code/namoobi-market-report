@@ -42,6 +42,11 @@ def check(item, observed, dbdir):
 def get(item, dbdir): return _load(item, dbdir).get('data')
 
 def set_(item, as_of, marker, dbdir, data):
+    # (기준일 자동화) as_of 미지정 시: marker 가 날짜꼴이면 그 날짜(=데이터 최신 시점), 아니면 오늘.
+    if not as_of:
+        import re as _re, datetime as _dt
+        _m = str(marker or '')[:10]
+        as_of = _m if _re.fullmatch(r'\d{4}-\d{2}-\d{2}', _m) else _dt.date.today().isoformat()
     try:
         json.dump({'marker': marker, 'as_of': as_of, 'data': data},
                   open(_path(item, dbdir), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
@@ -101,7 +106,8 @@ def dbseries(item, fresh, dbdir, prefer_fresh=False):
         return {'data': cur, 'status':'unverified', 'marker': cur_marker}
     merged=merge_series(cur, fresh); new_marker=_latest_marker(merged); fm=_latest_marker(fresh)
     status='updated' if (fm is not None and str(fm)!=str(cur_marker)) else 'reused'
-    if merged: set_('series_'+item, '', new_marker, dbdir, merged)
+    # (기준일 자동화) 변경됐을 때만 저장 → set_ 이 as_of 를 데이터 최신일(marker)로 자동 기록.
+    if merged and (status=='updated' or merged!=cur or not e.get('as_of')): set_('series_'+item, '', new_marker, dbdir, merged)
     out = fresh if (prefer_fresh and fresh) else merged
     return {'data': out, 'status': status, 'marker': new_marker}
 
@@ -127,7 +133,8 @@ def dbrows(item, fresh, dbdir, key='name'):
     if _empty(fresh):
         return {'data': cur, 'backfilled':[], 'status':'unverified'}
     merged, back = merge_rows(cur, fresh, key)
-    if merged: set_(item, '', '', dbdir, merged)
+    # (기준일 자동화) 내용이 변했을 때만 저장 → as_of=저장일(변경일) 자동 기록.
+    if merged and merged!=cur: set_(item, '', '', dbdir, merged)
     return {'data': merged, 'backfilled': back, 'status': ('partial' if back else 'ok')}
 
 
