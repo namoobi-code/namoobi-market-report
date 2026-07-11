@@ -374,6 +374,8 @@ _sent_ok = isinstance(_srows, list) and len(_srows)>0 and all(
     isinstance(r, dict) and ('use' in r) and (r.get('name') in _CANON_SENT_NAMES) for r in _srows)
 if not _sent_ok:
     _sd['rows'] = json.loads(json.dumps(MACRO_DEFAULT['sentiment']['rows']))
+# (fix req3 2026-07-10) 심리표 2번째 표 '의미' 칸 '-' 방지 — 에이전트가 use(시장영향)만 주고 meaning 을 빼면
+# 빌더 renderSentiment 의미 칸이 o.meaning||'-' 로 전부 '-'가 된다. MACRO_DEFAULT(name 매칭)에서 meaning 백필(있으면 보존).
 _DEF_SENT_MEAN = {r['name']: r.get('meaning', '') for r in MACRO_DEFAULT['sentiment']['rows']}
 for _sr in (_sd.get('rows') or []):
     if isinstance(_sr, dict) and not _sr.get('meaning'):
@@ -455,7 +457,8 @@ def _macro_canon(macro):
         macro.setdefault(section, {})['rows'] = out
     _canon('inflation', INFL, ['yoy','mom','asof','release'], _infl_interp)
     _canon('employment', EMP, ['value','asof','release','freq'], _emp_interp)
-    # (fix req1 2026-07-10) GDP 행 value 가 비면(에이전트가 GDP 행 자체를 누락) 대시로 샌다. series.employment.gdp 최신 연율%(레벨 배제 |v|<20)로 복원.
+    # (fix req1 2026-07-10) GDP 행 value 가 비면(에이전트가 GDP 행 자체를 누락하는 사례) '-'로 샌다.
+    #  → series.employment.gdp 에서 최신 '연율%'(레벨 수천대 제외, |v|<20)를 복원해 채운다. 없으면 MACRO_DEFAULT 폴백.
     _emp_rows = (macro.get('employment') or {}).get('rows') or []
     for _er in _emp_rows:
         if 'GDP' in str(_er.get('name','')) and (_er.get('value') in (None, '', '-')):
@@ -464,7 +467,7 @@ def _macro_canon(macro):
             for _pt in _gser:
                 try:
                     _v = float(_pt[1])
-                    if abs(_v) < 20: _gv = _v; _gd = str(_pt[0])
+                    if abs(_v) < 20: _gv = _v; _gd = str(_pt[0])   # 레벨(수천대) 배제, 연율%만
                 except Exception: pass
             if _gv is not None:
                 _er['value'] = ("%+.1f%%" % _gv); _er['asof'] = _er.get('asof') or _gd

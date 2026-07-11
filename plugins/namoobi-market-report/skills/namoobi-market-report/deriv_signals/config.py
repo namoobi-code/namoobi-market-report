@@ -101,4 +101,7 @@ INDICATOR_META = {
     "iv_skew_25d":     {"label": "25델타 IV 스큐(풋-콜)",  "expected": -1, "cat": "options"},
     "delta_imbalance": {"label": "델타가중 풋/콜 불균형",  "expected": -1, "cat": "options"},
     "gex":             {"label": "딜러 감마(GEX)",         "expected": +1, "cat": "options"},
+    # VKOSPI(韓): KRX 공식 변동성지수. 옵션체인 붕괴(행사가 사다리가 현물 미커버)로 쓸 수 없는
+    #   PCR/IV스큐를 대체하는 KOSPI200 변동성·공포 축. 컨트라리안(공포 극단 → 반등) → expected=-1.
+    "vkospi":          {"label": "VKOSPI(변동성지수)",     "expected": -1, "cat": "volatility"},
 }

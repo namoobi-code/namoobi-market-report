@@ -8,7 +8,7 @@ from config import (INSTRUMENTS, INDICATOR_META, Z_WINDOW, Z_MINP,
 from db import log
 
 IND_COLS = ["basis_bp", "oi_chg_w", "lev_net", "asset_mgr_net",
-            "pcr_oi", "pcr_vol", "iv_skew_25d", "delta_imbalance", "gex"]
+            "pcr_oi", "pcr_vol", "iv_skew_25d", "delta_imbalance", "gex", "vkospi"]
 
 
 def _n(x):
@@ -58,9 +58,11 @@ def build_indicators(con):
 
         oo = opt[opt.id == iid].set_index("date")
         for col in ["pcr_oi", "pcr_vol", "iv_skew_25d", "delta_imbalance", "gex"]:
-            d[col] = oo[col].reindex(d.index) if not oo.empty else np.nan
+            # 구버전 DB에 컬럼이 없을 수 있음 → 존재할 때만 참조(방어)
+            d[col] = oo[col].reindex(d.index) if (not oo.empty and col in oo.columns) else np.nan
+        d["vkospi"] = np.nan            # 미국은 VIX(prices_daily)로 별도 관리 → 여기선 KR 전용
 
-        # KOSPI200: data.go.kr 파생(선물 베이시스/OI, 옵션 PCR/IV스큐) 병합
+        # KOSPI200: KRX OPEN API(1차: 베이시스·OI·VKOSPI) + data.krx(2차: 괴리율·공식 IV/PCR) 병합
         kk = krd[krd.id == iid].set_index("date") if not krd.empty else pd.DataFrame()
         if not kk.empty:
             # (fix 2026-07-05) 컬럼별 실데이터가 있을 때만 병합 — 네이버 basis 만 있고 oi/pcr/iv 가 전부 None 일 때
@@ -69,9 +71,17 @@ def build_indicators(con):
                 d["basis_bp"] = pd.to_numeric(kk["basis_bp"], errors="coerce").reindex(d.index)
             if "oi" in kk and pd.to_numeric(kk["oi"], errors="coerce").notna().any():
                 d["oi_chg_w"] = pd.to_numeric(kk["oi"], errors="coerce").reindex(d.index).diff(5)
-            for col in ["pcr_oi", "pcr_vol", "iv_skew_25d", "gex"]:
+            for col in ["pcr_oi", "pcr_vol", "iv_skew_25d", "gex", "vkospi"]:
                 if col in kk and pd.to_numeric(kk[col], errors="coerce").notna().any():
                     d[col] = pd.to_numeric(kk[col], errors="coerce").reindex(d.index)
+            # ── 2차(data.krx, 로그인 세션 있을 때만) 우선 적용 ──
+            #   괴리율 = 시장베이시스 − 이론베이시스 → 캐리(잔존만기) 왜곡이 제거된 베이시스.
+            #   원시 basis_bp 보다 선행신호로 우월하므로 있으면 대체(단위 %→bp).
+            if "disparity" in kk and pd.to_numeric(kk["disparity"], errors="coerce").notna().any():
+                dis = pd.to_numeric(kk["disparity"], errors="coerce").reindex(d.index) * 100.0
+                d["basis_bp"] = dis.combine_first(d["basis_bp"])
+            if "pcr_krx" in kk and pd.to_numeric(kk["pcr_krx"], errors="coerce").notna().any():
+                d["pcr_oi"] = pd.to_numeric(kk["pcr_krx"], errors="coerce").reindex(d.index)
 
         for k in FWD_HORIZONS:
             d[f"fwd_ret_{k}d"] = p["spot_close"].shift(-k) / p["spot_close"] - 1.0
@@ -81,11 +91,12 @@ def build_indicators(con):
             con.execute(
                 """INSERT OR REPLACE INTO indicators_daily
                    (id,date,spot_close,spot_ret,fut_ret,basis_bp,oi_chg_w,lev_net,asset_mgr_net,
-                    pcr_oi,pcr_vol,iv_skew_25d,delta_imbalance,gex,fwd_ret_1d,fwd_ret_3d,fwd_ret_5d)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    pcr_oi,pcr_vol,iv_skew_25d,delta_imbalance,gex,vkospi,fwd_ret_1d,fwd_ret_3d,fwd_ret_5d)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (iid, r["date"], _n(r["spot_close"]), _n(r["spot_ret"]), _n(r["fut_ret"]),
                  _n(r["basis_bp"]), _n(r["oi_chg_w"]), _n(r["lev_net"]), _n(r["asset_mgr_net"]),
                  _n(r["pcr_oi"]), _n(r["pcr_vol"]), _n(r["iv_skew_25d"]), _n(r["delta_imbalance"]), _n(r.get("gex")),
+                 _n(r.get("vkospi")),
                  _n(r.get("fwd_ret_1d")), _n(r.get("fwd_ret_3d")), _n(r.get("fwd_ret_5d"))),
             )
             n += 1
@@ -111,11 +122,12 @@ def compute_zscores(con):
             con.execute(
                 """INSERT OR REPLACE INTO zscores_daily
                    (id,date,z_basis_bp,z_oi_chg_w,z_lev_net,z_asset_mgr_net,
-                    z_pcr_oi,z_pcr_vol,z_iv_skew_25d,z_delta_imbalance,z_gex)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    z_pcr_oi,z_pcr_vol,z_iv_skew_25d,z_delta_imbalance,z_gex,z_vkospi)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (iid, r["date"], _n(r.get("z_basis_bp")), _n(r.get("z_oi_chg_w")),
                  _n(r.get("z_lev_net")), _n(r.get("z_asset_mgr_net")), _n(r.get("z_pcr_oi")),
-                 _n(r.get("z_pcr_vol")), _n(r.get("z_iv_skew_25d")), _n(r.get("z_delta_imbalance")), _n(r.get("z_gex"))),
+                 _n(r.get("z_pcr_vol")), _n(r.get("z_iv_skew_25d")), _n(r.get("z_delta_imbalance")),
+                 _n(r.get("z_gex")), _n(r.get("z_vkospi"))),
             )
             n += 1
     con.commit()

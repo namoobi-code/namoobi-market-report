@@ -1,5 +1,28 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.55.0 (plugin 1.22.0, 2026-07-11) — KRX OPEN API 도입: 3.1.13 KOSPI200 대폭 보강 + 국내 시장데이터 웹서치 대체
+**배경** — 3.1.13(파생 포지셔닝 선행신호)에서 KOSPI200만 지표가 빈약했다(현물=KODEX ETF 대용, 옵션 PCR/IV스큐/GEX는 값 붕괴). KRX OPEN API(openapi.krx.co.kr) 승인으로 25개 엔드포인트를 전수 검증(전부 정상, 1년 백필 가능)하고 소스를 개편했다.
+
+### 신규 모듈 (`deriv_signals/`)
+- **`krx_openapi.py`** — KRX OPEN API 공용 클라이언트. `http://data-dbg.krx.co.kr/svc/apis/{cat}/{api}?basDd=YYYYMMDD`, 헤더 `AUTH_KEY`, 응답 루트 `OutBlock_1`. 인증키는 `KRX_API_KEY` → 연결폴더 `SECURITY/openapi.krx.co.kr.txt` → `secrets.env` 순 자동탐색(**값 미출력**). 일자별 gzip 디스크 캐시 → 1년 백필은 최초 1회만 네트워크, 이후 신규 영업일만 조회.
+- **`ingest_krx_open.py`** — 【1차·무로그인】 KOSPI200 수집: ① 현물=`idx/kospi_dd_trd` '코스피 200' 공식 종가 ② 베이시스=`drv/fut_bydd_trd` 최근월물(코스피200/미니코스피 중 만기 최근·OI 최대, `SPOT_PRC` 대비 bp) ③ 미결제=`ACC_OPNINT_QTY` 합계 ④ **VKOSPI**=`idx/drvprod_dd_trd` '코스피 200 변동성지수'.
+- **`ingest_krx_web.py`** — 【2차·선택】 data.krx.co.kr `getJsonData.cmd`(bld `dbms/MDC/STAT/standard/MDCSTAT134xx`)에서 **괴리율(시장−이론 베이시스 → 캐리 왜곡 제거)·공식 IV·공식 P/C Ratio** 보강. **로그인 세션 쿠키가 있을 때만** 동작(`KRX_COOKIE` 또는 `SECURITY/krx_cookie.txt`), 없거나 만료면 **조용히 skip**(완전 비차단). **비밀번호는 취급하지 않는다.**
+- **`krx_market_snapshot.py`** — 【웹서치 대체】 `nmr_krx_market.json` 생성: 코스피·코스닥·코스피200 종가/등락률, VKOSPI, 코스피200 섹터 등락 상·하위, 국고채 종가수익률, KRX 금현물, ETF 거래대금 상위+괴리율(NAV 대비).
+
+### 지표 추가 — VKOSPI
+- `INDICATOR_META.vkospi`(expected=**−1**, 컨트라리안: 공포 극단 → 반등), `IND_COLS`·`indicators_daily.vkospi`·`zscores_daily.z_vkospi`·`kr_derivatives_daily.vkospi` 추가. export_snapshot 에 "VKOSPI (변동성지수)" 행 + 활성신호 태그 추가.
+- ⚠️ **KOSPI200 옵션체인은 KRX 공식 데이터에서도 붕괴** — 최근월 행사가 사다리(545~997.5)가 현물(1,219.62)을 커버하지 못해 PCR 100 초과 등 비정상값 발생(2026-07-02 실측). **PCR·IV스큐·GEX 를 KOSPI200에서 산출하지 않고 VKOSPI 로 대체**한다(소스를 바꿔도 해결 불가한 데이터 특성).
+- 1년 백필 실측(281 영업일): VKOSPI z≤−1.5 신호 9건 → **5일 후 평균 +3.04%, 적중률 89%**. 베이시스 z≥+1.5 29건 → +1.52%, 68%.
+
+### 소스 전략 (3단)
+1차 KRX OPEN API(무로그인·안정) → 2차 data.krx(세션 있을 때만 정밀도 보강) → 폴백 네이버/data.go.kr(1차 실패 시). `ingest_krx.py` 가 디스패처. 외국인·기관 **투자자별 매매동향은 KRX OPEN API 미제공** → 네이버 유지.
+
+### 버그 수정
+- **`db.migrate()` 신설** — 구버전 DB에 `options_daily.gex`/`indicators_daily.gex`/`z_gex` 등이 없어 `KeyError: 'gex'`·`no column named gex` 로 죽던 문제 수정(ALTER TABLE 멱등 마이그레이션). `analyze.build_indicators` 도 컬럼 부재 방어.
+
+### 문서
+- SKILL.md: 3.1.13 소스 개편 명세, **국내 데이터 우선순위 규칙**(KRX 공식값 > MCP/스크래핑 > 웹서치; 글로벌 지표·투자자별 수급은 KRX 범위 밖), Phase 1 런처가 `nmr_krx_market.json` 도 생성.
+
 ## v3.54.0 (plugin 1.21.0, 2026-07-09) — 3.2.4/3.2.5 KRX 증시 Brief·공매도 데일리 브리프 신설 (DB화)
 - **신규 `scripts/fetch_krx_brief.py`**: open.krx.co.kr 시장동향>종합시황 게시판에서 최신 'KRX 증시 Brief'·'공매도 데일리 브리프' PDF를 OTP 체인(GenerateOTP→OPN99000001→file.krx.co.kr/download.jspx)으로 다운로드(쿠키·Chrome 불필요, 2026-07-09 실측) → pdftocairo 페이지별 PNG 캡쳐(-r110).
 - **DB화(회차 마커=게시글 att_seq)**: `_market_report_data/krx_brief/<key>_<att_seq>/`(pdf+PNG 영구 저장, 항목별 최근 5회차 유지)+`db/krx_brief.json`. **동일 회차면 다운로드·캡쳐 생략·저장본 재사용**, 수집 실패 시 직전 회차 폴백(stale_note 표기).

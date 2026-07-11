@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS indicators_daily (
     id TEXT, date TEXT, spot_close REAL, spot_ret REAL, fut_ret REAL,
     basis_bp REAL, oi_chg_w REAL, lev_net REAL, asset_mgr_net REAL,
     pcr_oi REAL, pcr_vol REAL, iv_skew_25d REAL, delta_imbalance REAL, gex REAL,
+    vkospi REAL,
     fwd_ret_1d REAL, fwd_ret_3d REAL, fwd_ret_5d REAL,
     PRIMARY KEY (id, date)
 );
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS zscores_daily (
     id TEXT, date TEXT,
     z_basis_bp REAL, z_oi_chg_w REAL, z_lev_net REAL, z_asset_mgr_net REAL,
     z_pcr_oi REAL, z_pcr_vol REAL, z_iv_skew_25d REAL, z_delta_imbalance REAL, z_gex REAL,
+    z_vkospi REAL,
     PRIMARY KEY (id, date)
 );
 CREATE TABLE IF NOT EXISTS signal_events (
@@ -67,6 +69,10 @@ CREATE TABLE IF NOT EXISTS kr_derivatives_daily (
     id TEXT, date TEXT,
     basis_bp REAL, oi REAL,
     pcr_oi REAL, pcr_vol REAL, iv_skew_25d REAL, gex REAL,
+    vkospi REAL,          -- 1차: KRX OPEN API 코스피200 변동성지수
+    disparity REAL,       -- 2차: data.krx 괴리율(%) = 시장베이시스 - 이론베이시스
+    iv_krx REAL,          -- 2차: data.krx 공식 내재변동성
+    pcr_krx REAL,         -- 2차: data.krx 공식 P/C Ratio
     PRIMARY KEY (id, date)
 );
 CREATE TABLE IF NOT EXISTS update_log (
@@ -169,9 +175,34 @@ def publish_db():
     return str(PUBLISH_DB)
 
 
+MIGRATIONS = [
+    ("options_daily", "gex"),          # 구버전 DB(GEX 도입 이전)에 누락 → analyze KeyError 방지
+    ("kr_derivatives_daily", "gex"),
+    ("kr_derivatives_daily", "vkospi"),
+    ("kr_derivatives_daily", "disparity"),
+    ("kr_derivatives_daily", "iv_krx"),
+    ("kr_derivatives_daily", "pcr_krx"),
+    ("indicators_daily", "gex"),
+    ("indicators_daily", "vkospi"),
+    ("zscores_daily", "z_gex"),
+    ("zscores_daily", "z_vkospi"),
+]
+
+
+def migrate(con):
+    """기존 DB에 신규 컬럼 추가(있으면 무시) — 재백필 없이도 스키마가 따라온다."""
+    for tbl, col in MIGRATIONS:
+        try:
+            con.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} REAL")
+        except Exception:
+            pass          # 이미 존재
+    con.commit()
+
+
 def init_db():
     con = connect()
     con.executescript(SCHEMA)
+    migrate(con)
     for r in INSTRUMENTS:
         con.execute(
             """INSERT INTO instruments(id,name,region,spot,future,option,cot,proxy_spot)

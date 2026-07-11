@@ -4,3 +4,6 @@ secrets.env
 __pycache__/
 outputs/*.jpg
 cot_*/
+*.db.sql.gz
+krx_cache/
+krx_cookie.txt

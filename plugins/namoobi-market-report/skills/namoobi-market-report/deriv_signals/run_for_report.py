@@ -71,6 +71,11 @@ def main():
 
     # 3) 스냅샷 내보내기 → 보고서 실행폴더의 nmr_deriv_positioning.json
     _run(["export_snapshot.py", OUT], 120)
+
+    # 4) KRX 공식 국내 시장데이터(지수·VKOSPI·섹터·국고채·금·ETF) → 웹서치 대체용
+    _run(["krx_market_snapshot.py",
+          os.path.join(os.path.dirname(os.path.abspath(OUT)), "nmr_krx_market.json")], 120)
+
     print("[deriv] 완료:", OUT if os.path.exists(OUT) else "(미생성 — 빌더 내장 스냅샷 사용)")
     return 0
 

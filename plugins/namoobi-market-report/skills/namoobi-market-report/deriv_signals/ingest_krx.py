@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-KOSPI200 파생상품 수집 — 공공데이터포털(data.go.kr) '금융위원회_파생상품시세정보'.
-  - 선물(getStockFuturesPriceInfo): 최근월(최다 OI) → 베이시스(clpr vs sptPrc), 미결제(opnint)
-  - 옵션(getOptionsPriceInfo): 최다 OI 만기 → PCR(OI/vol), IV 스큐(iptVlty, 머니니스 기반)
-API 키: config.DATA_GO_KR_KEY (환경변수 또는 secrets.env). 없으면 호출부에서 skip.
+KOSPI200 파생 수집 디스패처.
+
+  1차 (무로그인·안정) KRX OPEN API  → ingest_krx_open.py
+        공식 코스피200 지수 · 최근월 베이시스 · 미결제약정 · VKOSPI
+  2차 (로그인 세션 O)  data.krx     → ingest_krx_web.py
+        괴리율 · 공식 IV · 공식 P/C Ratio (쿠키 없으면 조용히 skip)
+  폴백(1차 실패 시)    네이버 / data.go.kr(금융위 파생상품시세정보)
+        기존 경로 유지 — 리포트가 절대 비지 않도록.
 """
 import warnings, urllib.request, urllib.parse, json, time, collections, math, datetime as _dt
 import pandas as pd
@@ -52,31 +56,8 @@ def _ymd(d):  # 20260702 → 2026-07-02
     return f"{d[:4]}-{d[4:6]}-{d[6:]}"
 
 
-def ingest_krx_index(con, begin, end):
-    """KOSPI200 실제 지수(금융위 지수시세정보) → prices_daily.spot_close 로 교체(ETF 대용 대신)."""
-    rows = _call("getStockMarketIndex",
-                 {"beginBasDt": begin, "endBasDt": end, "likeIdxNm": "코스피200", "n": 9999}, base=BASE_IDX)
-    recs = []
-    for it in rows:
-        if (it.get("idxNm") or "").strip() != "코스피200":
-            continue
-        d = it.get("basDt")
-        try:
-            c = float(it.get("clpr"))
-        except Exception:
-            continue
-        if d and c > 0:
-            recs.append((KID, _ymd(d), c, None, None))
-    if not recs:
-        return 0  # 지수 조회 실패 시 기존(ETF) 유지
-    con.execute("DELETE FROM prices_daily WHERE id=?", (KID,))  # ETF 대용 제거 → 실제 지수로 교체
-    con.executemany("INSERT OR REPLACE INTO prices_daily(id,date,spot_close,future_close,vix_close) VALUES(?,?,?,?,?)", recs)
-    con.commit(); log(con, "ingest_krx_index", len(recs))
-    return len(recs)
-
-
 def ingest_krx_futures(con, begin, end):
-    """코스피200 선물 최근월(최다 OI) 일별 → basis_bp, oi. begin/end=YYYYMMDD."""
+    """[폴백] 코스피200 선물 최근월(최다 OI) 일별 → basis_bp, oi."""
     rows = _call("getStockFuturesPriceInfo",
                  {"beginBasDt": begin, "endBasDt": end, "likeItmsNm": "코스피200 F", "n": 3000})
     byday = {}
@@ -96,17 +77,17 @@ def ingest_krx_futures(con, begin, end):
         con.execute("""INSERT INTO kr_derivatives_daily(id,date,basis_bp,oi) VALUES(?,?,?,?)
                        ON CONFLICT(id,date) DO UPDATE SET basis_bp=excluded.basis_bp, oi=excluded.oi""",
                     (KID, _ymd(d), _f(basis), _f(oi)))
-        spot_recs.append((KID, _ymd(d), spt, None, None))   # sptPrc = 실제 KOSPI200 지수(현물)
+        spot_recs.append((KID, _ymd(d), spt, None, None))
         n += 1
     if spot_recs:
-        con.execute("DELETE FROM prices_daily WHERE id=?", (KID,))   # ETF 대용 제거 → 실제 지수로 교체
+        con.execute("DELETE FROM prices_daily WHERE id=?", (KID,))
         con.executemany("INSERT OR REPLACE INTO prices_daily(id,date,spot_close,future_close,vix_close) VALUES(?,?,?,?,?)", spot_recs)
     con.commit(); log(con, "ingest_krx_futures", n)
     return n
 
 
 def ingest_krx_options_day(con, basdt):
-    """하루치 옵션 → 최다 OI 만기 → PCR(OI/vol) + IV스큐(머니니스). basdt=YYYYMMDD."""
+    """[폴백] 하루치 옵션 → 최다 OI 만기 → PCR(OI/vol) + IV스큐(머니니스)."""
     rows = _call("getOptionsPriceInfo", {"basDt": basdt, "likeItmsNm": "코스피200", "n": 9999})
     if not rows:
         return False
@@ -126,18 +107,17 @@ def ingest_krx_options_day(con, basdt):
             pass
     if not exp_oi:
         return False
-    exp = max(exp_oi, key=exp_oi.get)              # 최다 OI 만기(프론트)
+    exp = max(exp_oi, key=exp_oi.get)
     C, P = byexp[exp]["C"], byexp[exp]["P"]
     coi = sum(x[2] for x in C); poi = sum(x[2] for x in P)
     cvol = sum(x[3] for x in C); pvol = sum(x[3] for x in P)
     pcr_oi = poi / coi if coi else None
     pcr_vol = pvol / cvol if cvol else None
-    # 근월 만기 스케일 왜곡 제거(합리 범위 밖이면 무효)
+    # 옵션체인 행사가 사다리가 현물을 커버하지 못하면 PCR 이 붕괴 → 합리 범위 밖은 무효 처리
     if pcr_oi is not None and not (0.2 <= pcr_oi <= 8):
         pcr_oi = None
     if pcr_vol is not None and not (0.05 <= pcr_vol <= 15):
         pcr_vol = None
-    # IV 스큐: 최다 OI 콜 스트라이크를 ATM으로, 0.95×ATM 풋 IV − 1.05×ATM 콜 IV
     skew = None
     Cv = [(K, iv) for K, iv, oi, _ in C if iv > 0]
     Pv = [(K, iv) for K, iv, oi, _ in P if iv > 0]
@@ -147,12 +127,11 @@ def ingest_krx_options_day(con, basdt):
             pput = min(Pv, key=lambda x: abs(x[0] - 0.95 * katm))[1]
             pcall = min(Cv, key=lambda x: abs(x[0] - 1.05 * katm))[1]
             skew = pput - pcall
-    # 딜러 감마(GEX): 옵션체인 자체 ATM(katm) 기준
     gex = None
     if C and P:
         katm2 = max(C, key=lambda x: x[2])[0]
         try:
-            ed = _dt.date(int(exp[:4]), int(exp[4:6]), 12)   # ~2nd Thu 근사
+            ed = _dt.date(int(exp[:4]), int(exp[4:6]), 12)
             bd = _dt.date(int(basdt[:4]), int(basdt[4:6]), int(basdt[6:8]))
             T = max((ed - bd).days, 1) / 365.0
             cg = sum(_bs_gamma(katm2, K, T, 0.03, iv) * oi for K, iv, oi, _ in C if iv > 0)
@@ -183,10 +162,8 @@ def ingest_krx_options(con, dates):
 
 
 def ingest_krx_naver_basis(con, back_days=420):
-    """(2026 소스) data.go.kr 이 2025~2026 미제공 → 네이버 KOSPI200 선물(FUT)·지수(KPI200) 일별 종가로 basis_bp 산출·저장.
-    OI/PCR/IV/GEX 는 무료 2026 이력 소스 부재로 미수집(그대로 '-')."""
+    """[폴백] 네이버 KOSPI200 선물(FUT)·지수(KPI200) 일별 종가 → basis_bp."""
     import urllib.request as _u, re as _re
-    KID = "KOSPI200"
     def _dayseries(code, pages):
         out = {}
         for p in range(1, pages + 1):
@@ -216,17 +193,39 @@ def ingest_krx_naver_basis(con, back_days=420):
                     (KID, d, basis))
         n += 1
     con.commit()
-    try: log(con, "ingest_krx_naver_basis", n)
-    except Exception: pass
+    try:
+        log(con, "ingest_krx_naver_basis", n)
+    except Exception:
+        pass
     print("  KRX(naver) KOSPI200 basis rows:", n)
     return n
 
 
 def ingest_krx(con, begin, end, opt_days=90):
-    n = ingest_krx_naver_basis(con, 420)   # (2026) 네이버 베이시스 — data.go.kr 2026 미제공 대응
+    """1차(KRX OPEN API) → 2차(data.krx 보강) → 실패 시 폴백."""
+    n = 0
+    try:
+        from ingest_krx_open import ingest_krx_open
+        n = ingest_krx_open(con, 420)
+    except Exception as e:
+        print("  KRX OPEN API 실패:", repr(e)[:90])
+        n = 0
+
+    try:
+        from ingest_krx_web import ingest_krx_web
+        n += ingest_krx_web(con, 420)
+    except Exception as e:
+        print("  data.krx 2차 보강 skip:", repr(e)[:70])
+
+    if n:
+        return n
+
+    print("  → 폴백 경로(네이버 / data.go.kr) 사용")
+    n = ingest_krx_naver_basis(con, 420)
     if not DATA_GO_KR_KEY:
-        print("  DATA_GO_KR_KEY 없음 → data.go.kr 선물/옵션 skip (네이버 베이시스만 수집)"); return n
-    f = ingest_krx_futures(con, begin, end)   # 선물 sptPrc를 KOSPI200 실제 지수(현물)로 저장
+        print("  DATA_GO_KR_KEY 없음 → data.go.kr 선물/옵션 skip (네이버 베이시스만 수집)")
+        return n
+    f = ingest_krx_futures(con, begin, end)
     o = ingest_krx_options(con, _trading_dates(con, opt_days))
     return n + f + o
 
@@ -237,5 +236,5 @@ if __name__ == "__main__":
     init_db(); con = connect()
     end = datetime.utcnow().strftime("%Y%m%d")
     begin = (datetime.utcnow() - timedelta(days=420)).strftime("%Y%m%d")
-    print("KRX futures rows:", ingest_krx_futures(con, begin, end))
+    print("KOSPI200 rows:", ingest_krx(con, begin, end))
     con.close(); publish_db()
