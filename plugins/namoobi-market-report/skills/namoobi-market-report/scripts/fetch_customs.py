@@ -35,7 +35,9 @@ def work_dir():
     return g[-1] if g else "."
 
 def db_dir():
-    for b in (glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data") or
+    for b in (glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server") or
+              glob.glob("/sessions/*/mnt/outputs/namoobi-market-report-server") or
+              glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data") or
               glob.glob("/sessions/*/mnt/outputs/_market_report_data")):
         d=os.path.join(b,"db"); 
         if os.path.isdir(d): return d

@@ -2,7 +2,9 @@
 # nmr_db.py - 범용 비매일 지표 DB (Big-Arch v1.0). 섹션 무관 저장/변동체크/재사용.
 # 정책: 발표주기가 매일이 아닌 모든 지표는 DB(파일)에 저장하고, 매 실행 '변동 여부만' 관측해
 #       변동(marker 변경)이 있을 때만 재조사·갱신, 없으면 DB값을 그대로 재사용한다.
-# DB: <connected>/_market_report_data/db/<item>.json = {"marker":..,"as_of":"YYYY-MM-DD","data":..}
+# DB: <connected>/namoobi-market-report-server/db/<item>.json = {"marker":..,"as_of":"YYYY-MM-DD","data":..}
+#     (2026-07-12 이전: _market_report_data/db — 서버 코드 저장소로 이전해 git 버전관리·백업까지 함께 된다.
+#      구 경로는 읽기 폴백으로만 남긴다.)
 # Usage:
 #   nmr_db.py check  <item> <observed_marker> [dbdir]   -> {status:reuse|due, reason, as_of}
 #   nmr_db.py get    <item> [dbdir]                       -> data JSON (stdout)
@@ -11,15 +13,36 @@
 #   nmr_db.py list   [dbdir]                              -> 각 item marker/as_of 요약
 import sys, json, os, glob
 
+# DB 정본 = 서버코드 저장소 안의 db/  (D:\claudeCowork\namoobi-market-report-server\db)
+DBROOT_NAME = 'namoobi-market-report-server'
+LEGACY_NAME = '_market_report_data'          # 구 위치 — 읽기 폴백 전용
+
 def _dbdir(arg=None):
     if arg:
         os.makedirs(arg, exist_ok=True); return arg
-    base = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data') or
-            glob.glob('/sessions/*/mnt/outputs/_market_report_data') or ['.'])[0]
-    d = os.path.join(base, 'db'); 
+    # 1) 정본
+    for pat in ('/sessions/*/mnt/claudeCowork/%s' % DBROOT_NAME,
+                '/sessions/*/mnt/outputs/%s' % DBROOT_NAME):
+        for base in sorted(glob.glob(pat)):
+            d = os.path.join(base, 'db')
+            try: os.makedirs(d, exist_ok=True)
+            except Exception: pass
+            return d
+    # 2) 레거시 폴백 (구 DB 가 아직 남아 있는 환경)
+    for pat in ('/sessions/*/mnt/claudeCowork/%s/db' % LEGACY_NAME,
+                '/sessions/*/mnt/outputs/%s/db' % LEGACY_NAME):
+        for d in sorted(glob.glob(pat)):
+            sys.stderr.write('nmr_db: ⚠️ 레거시 DB 경로 사용 중 (%s) — 이전 필요\n' % d)
+            return d
+    # 3) 최후 — 로컬
+    d = os.path.join('.', 'db')
     try: os.makedirs(d, exist_ok=True)
     except Exception: pass
     return d
+
+def dbdir(arg=None):
+    """공개 API — 다른 스크립트는 이걸 써서 DB 위치를 얻는다."""
+    return _dbdir(arg)
 
 def _path(item, dbdir): return os.path.join(dbdir, str(item) + '.json')
 

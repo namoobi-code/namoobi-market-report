@@ -25,9 +25,9 @@ d=None
 fresh=_load(os.path.join(O,"nmr_oecd_cli.json"))
 if isinstance(fresh,dict) and fresh.get("months") and fresh.get("series"): d=fresh
 if d is None:
-    for base in (glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/oecd_cli.json")+
-                 glob.glob("/sessions/*/mnt/outputs/_market_report_data/db/oecd_cli.json")+
-                 [os.path.join(O,"_market_report_data","db","oecd_cli.json")]):
+    for base in (glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/oecd_cli.json")+
+                 glob.glob("/sessions/*/mnt/outputs/namoobi-market-report-server/db/oecd_cli.json")+
+                 [os.path.join(O,"namoobi-market-report-server","db","oecd_cli.json")]):
         e=_load(base)
         if isinstance(e,dict) and isinstance(e.get("data"),dict) and e["data"].get("months"):
             d=e["data"]; break

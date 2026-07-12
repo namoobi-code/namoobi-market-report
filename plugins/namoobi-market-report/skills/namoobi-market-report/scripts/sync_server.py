@@ -26,6 +26,11 @@ def find(pats):
 def main():
     base = find(['/sessions/*/mnt/claudeCowork/_market_report_data',
                  '/sessions/*/mnt/outputs/_market_report_data'])
+    # (2026-07-12) DB 정본은 서버코드 저장소로 이전 — base(_market_report_data)와 분리됐다.
+    dbroot = find(['/sessions/*/mnt/claudeCowork/namoobi-market-report-server',
+                   '/sessions/*/mnt/outputs/namoobi-market-report-server'])
+    if dbroot is None and base is not None:
+        dbroot = base   # 레거시 폴백
     key = find(['/sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key',
                 '/sessions/*/mnt/*/SECURITY/nmr_deploy_key'])
     if not base or not key:
@@ -80,7 +85,7 @@ def main():
         merged_n = 0
         for sp in glob.glob(os.path.join(tmpd, "series_mem_*.json")):
             name = os.path.basename(sp)
-            lp = base / "db" / name
+            lp = dbroot / "db" / name
             try:
                 srv = json.load(open(sp, encoding="utf-8"))
                 loc = json.load(open(lp, encoding="utf-8")) if lp.exists() else {"data": []}
@@ -100,9 +105,9 @@ def main():
         print(f"[sync]    → {merged_n}종 시계열 병합 (서버 누적분 반영)")
 
     # ── 1) 통합 DB (변경분만)
-    if (base / "db").is_dir():
-        n = len(list((base / "db").glob("*.json")))
-        ok &= run(f'tar czf - -C {shlex.quote(str(base))} db | {SSH} {SERVER} "cd {REMOTE} && tar xzf -"',
+    if (dbroot / "db").is_dir():
+        n = len(list((dbroot / "db").glob("*.json")))
+        ok &= run(f'tar czf - -C {shlex.quote(str(dbroot))} db | {SSH} {SERVER} "cd {REMOTE} && tar xzf -"',
                   f"db/ 동기화 ({n}종)")
 
     # ── 2) 파생 포지셔닝 SQLite

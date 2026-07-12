@@ -48,9 +48,9 @@ def _memdb():
     둘 다 없으면 차트 생략(비차단)."""
     O=_outdir()
     cands=[]
-    for pat in (O+"/_market_report_data/db/memory.json",
-                O+"/../_market_report_data/db/memory.json",
-                "/sessions/*/mnt/claudeCowork/_market_report_data/db/memory.json"):
+    for pat in (O+"/namoobi-market-report-server/db/memory.json",
+                O+"/../namoobi-market-report-server/db/memory.json",
+                "/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/memory.json"):
         cands += sorted(glob.glob(pat))
     for c in cands:
         try:
@@ -65,9 +65,9 @@ def _memdb():
 def _series(key):
     """db/series_mem_<key>.json 누적 시계열 → [(date, {item: val}), ...]"""
     O=_outdir()
-    for pat in (O+"/_market_report_data/db/series_mem_%s.json"%key,
-                O+"/../_market_report_data/db/series_mem_%s.json"%key,
-                "/sessions/*/mnt/claudeCowork/_market_report_data/db/series_mem_%s.json"%key):
+    for pat in (O+"/namoobi-market-report-server/db/series_mem_%s.json"%key,
+                O+"/../namoobi-market-report-server/db/series_mem_%s.json"%key,
+                "/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/series_mem_%s.json"%key):
         for c in sorted(glob.glob(pat)):
             try:
                 d=(json.load(open(c,encoding="utf-8")) or {}).get("data") or []
@@ -288,13 +288,13 @@ def _semi_cycle_signals():
     정량이 있는 DRAM 계약가 QoQ 만 수치 그래프로 남긴다."""
     import json as _j, glob as _g, os as _os
     sc=None
-    for _p in [_os.path.join(_outdir(),"nmr_semi_cycle.json")]+_g.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/semi_cycle.json"):
+    for _p in [_os.path.join(_outdir(),"nmr_semi_cycle.json")]+_g.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/semi_cycle.json"):
         try:
             _d=_j.load(open(_p,encoding="utf-8")); _d=_d.get("data",_d)
             if isinstance(_d,dict) and isinstance(_d.get("series"),dict): sc=_d; break
         except Exception: pass
     st=[]
-    for _p in _g.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/series_semi_status.json")+[_os.path.join(_outdir(),"_market_report_data","db","series_semi_status.json")]:
+    for _p in _g.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/series_semi_status.json")+[_os.path.join(_outdir(),"namoobi-market-report-server","db","series_semi_status.json")]:
         try:
             _d=_j.load(open(_p,encoding="utf-8")); st=(_d.get("data") or []); break
         except Exception: pass

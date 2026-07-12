@@ -249,7 +249,7 @@ except Exception as _he: print('  [req6] hbm eps_yearly skip:', _he)
 try:
     import re as _re_hb
     _hb2 = m.get('hbm') or {}
-    _hep = os.path.join(_CWROOT, 'db', 'hbm_eps.json')
+    _hep = os.path.join(_ndb._dbdir(), 'hbm_eps.json')   # DB 정본 = namoobi-market-report-server/db
     try:
         _sd = json.load(open(_hep, encoding='utf-8')); _store = _sd.get('data') if (isinstance(_sd, dict) and 'data' in _sd) else (_sd or {})
         _pnote = _sd.get('price_note') if isinstance(_sd, dict) else None

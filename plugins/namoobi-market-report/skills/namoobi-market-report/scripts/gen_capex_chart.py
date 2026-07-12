@@ -24,8 +24,8 @@ def _num(x):
     except Exception: return None
 
 def _load_db():
-    for p in (glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/capex.json")
-              + glob.glob(os.path.join(os.getcwd(),"_market_report_data","db","capex.json"))):
+    for p in (glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/capex.json")
+              + glob.glob(os.path.join(os.getcwd(),"namoobi-market-report-server","db","capex.json"))):
         try:
             d=json.load(open(p,encoding="utf-8")); return d.get("data") or d
         except Exception: pass

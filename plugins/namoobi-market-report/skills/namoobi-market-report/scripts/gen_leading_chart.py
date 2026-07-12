@@ -37,9 +37,9 @@ if os.path.exists(ls):
 # (v3.56) 2순위 폴백: 통합 DB 누적 시계열 db/series_leading.json
 #   nmr_leading_series.json 미수집 회차에도 과거 28개월+ 시계열로 차트를 그린다.
 if not pts or len(pts)<2:
-    for _dbp in (sorted(glob.glob(O+"/_market_report_data/db/series_leading.json")) +
-                 sorted(glob.glob(O+"/../_market_report_data/db/series_leading.json")) +
-                 sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/series_leading.json"))):
+    for _dbp in (sorted(glob.glob(O+"/namoobi-market-report-server/db/series_leading.json")) +
+                 sorted(glob.glob(O+"/../namoobi-market-report-server/db/series_leading.json")) +
+                 sorted(glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/series_leading.json"))):
         try:
             _d=(json.load(open(_dbp,encoding="utf-8")) or {}).get("data") or []
             pp=[(parsem(d),float(v)) for d,v in _d if v is not None and parsem(d)]

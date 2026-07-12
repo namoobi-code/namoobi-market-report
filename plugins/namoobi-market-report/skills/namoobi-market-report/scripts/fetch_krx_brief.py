@@ -5,7 +5,7 @@
 #
 # [DB화 — Big-Arch] 회차 마커 = 게시글 att_seq.
 #   - 영구 저장소: <connected>/_market_report_data/krx_brief/<key>_<att_seq>/ (원본 pdf + 페이지 PNG)
-#   - DB:          <connected>/_market_report_data/db/krx_brief.json (marker="krx:<seq>|short:<seq>")
+#   - DB:          <connected>/namoobi-market-report-server/db/krx_brief.json (marker="krx:<seq>|short:<seq>")
 #   - 마커 불변(기존꺼랑 같음) → 다운로드·캡쳐 생략, 저장본 PNG 를 charts/ 로 복사(재사용).
 #   - 마커 변경(신규 회차)   → PDF 다운로드 → pdftocairo(폴백 pdftoppm) PNG 캡쳐 → 영구 저장 + charts/ 복사.
 #
@@ -79,7 +79,10 @@ def pdf_to_pngs(pdf, outdir, prefix):
 def main():
     W = work_dir(); charts = os.path.join(W, 'charts')
     os.makedirs(charts, exist_ok=True)
-    sb = store_base(); store = os.path.join(sb, 'krx_brief'); dbp = os.path.join(sb, 'db', 'krx_brief.json')
+    sb = store_base(); store = os.path.join(sb, 'krx_brief')
+    # DB 정본은 서버코드 저장소 db/ (원본 PDF·PNG 는 계속 _market_report_data/krx_brief/)
+    _sv = glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server')
+    dbp = os.path.join((_sv[0] if _sv else sb), 'db', 'krx_brief.json')
     os.makedirs(store, exist_ok=True); os.makedirs(os.path.dirname(dbp), exist_ok=True)
     try: db = json.load(open(dbp, encoding='utf-8'))
     except Exception: db = {}

@@ -18,7 +18,9 @@ def _bad_release(v):
     if ('정기 발표' in sv) or ('실시간' in sv): return False  # 표준 라벨 → 유효
     return True  # 그 외(기관명만) → 교체
 def loadj(name):
-    for p in [os.path.join(WORK,name)]+glob.glob("/sessions/*/mnt/outputs/nmr_build/"+name)+glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/"+name):
+    for p in ([os.path.join(WORK,name)]+glob.glob("/sessions/*/mnt/outputs/nmr_build/"+name)
+             +glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/"+name)   # DB 정본(db/*.json)
+             +glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/"+name)):
         try: return json.load(open(p,encoding="utf-8"))
         except Exception: pass
     return {}

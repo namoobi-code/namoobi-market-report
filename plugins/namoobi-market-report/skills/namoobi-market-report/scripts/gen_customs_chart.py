@@ -24,8 +24,8 @@ def _load(p):
 def resolve_data(WORK):
     d=_load(os.path.join(WORK,"nmr_customs.json"))
     if isinstance(d,dict) and d.get("series"): return d, True
-    for dbp in (glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/db/customs.json")+
-                glob.glob("/sessions/*/mnt/outputs/_market_report_data/db/customs.json")):
+    for dbp in (glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/customs.json")+
+                glob.glob("/sessions/*/mnt/outputs/namoobi-market-report-server/db/customs.json")):
         e=_load(dbp)
         if isinstance(e,dict):
             data=e.get("data") if "data" in e else e

@@ -167,8 +167,8 @@ try{
 // req26 (2026-07-12): 3.1.11 조기경보 — 신호차트 존재 + 판정상태 타임라인 DB 누적 확인
 { if(m.semi_cycle&&m.semi_cycle.signals&&m.semi_cycle.signals.length){
     if(!cExists('charts/semi_cycle_signals.png')) problems.push('[req26] 3.1.11 semi_cycle_signals.png missing (run gen_hbm_dashboard.py)');
-    try{ const st=J(require('path').join(WORK,'..','..','claudeCowork','_market_report_data','db','series_semi_status.json')); }catch(e){
-      try{ const g=require('fs').readdirSync('/sessions').map(x=>'/sessions/'+x+'/mnt/claudeCowork/_market_report_data/db/series_semi_status.json').find(p=>{try{return require('fs').existsSync(p)}catch(_){return false}});
+    try{ const st=J(require('path').join(WORK,'..','..','claudeCowork','namoobi-market-report-server','db','series_semi_status.json')); }catch(e){
+      try{ const g=require('fs').readdirSync('/sessions').map(x=>'/sessions/'+x+'/mnt/claudeCowork/namoobi-market-report-server/db/series_semi_status.json').find(p=>{try{return require('fs').existsSync(p)}catch(_){return false}});
         if(!g) warnings.push('[req26] series_semi_status.json (판정 타임라인 DB) not found'); }catch(_){} } } }
 // req27 (2026-07-12): 3.1.6 FactSet — Key Metrics 차트용 report.metrics 존재(없으면 대시보드 미생성)
 { const rp2=(m.factset||{}).report||{}; if(rp2.date&&!rp2.metrics) warnings.push('[req27] 3.1.6 FactSet report.metrics missing — factset_keymetrics.png cannot regenerate'); }
