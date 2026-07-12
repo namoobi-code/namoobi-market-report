@@ -796,6 +796,23 @@ try:
                 except Exception: pass
     _er = (_mc.get('employment') or {}).get('rows')
     _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', (_er if not _MDEF else None), _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
+    # (2026-07-12 사용자 req) DB 오염 방어: sync 결과 행 value 가 비면 이번 수집분(_er)에서 셀 단위 보강 후 DB 재저장
+    try:
+        _syn = (_mc.get('employment') or {}).get('rows') or []
+        _srcm = {str(x.get('name','')): x for x in (_er or []) if isinstance(x, dict)}
+        _fixn = 0
+        for _sr in _syn:
+            if _sr.get('value') in (None, '', '-'):
+                _cand = _srcm.get(str(_sr.get('name',''))) or next((_v2 for _k2, _v2 in _srcm.items() if _k2[:6] and _k2[:6] in str(_sr.get('name',''))), None)
+                if _cand and _cand.get('value') not in (None, '', '-'):
+                    for _fk in ('value', 'asof', 'release'):
+                        if _cand.get(_fk) not in (None, '', '-'): _sr[_fk] = _cand.get(_fk)
+                    _fixn += 1
+        if _fixn:
+            _mc['employment']['rows'] = _ndb.sync('employment', _syn, _today, (_mx(_syn, ['asof', 'release']) or _run_m) + '|empfix', _dd)
+            print('  [empfix] 고용 DB 오염 셀 보강:', _fixn)
+    except Exception as _efe:
+        print('  [empfix] skip:', _efe)
     _rt['policy_rates'] = _ndb.sync('policy_rates', (_rt.get('policy_rates') if not _MDEF else None), _today, _run_m, _dd)
     # (req2 2026-07-12) FOMC 회의: USMacroExtras(nmr_usmacro.json) 수집분 1순위 + DB와 날짜 union —
     #   과거 1년 실제 결정(인상/인하/동결)이 미래 예정 회의에 밀려 유실되지 않게 한다. marker=최신일|건수.

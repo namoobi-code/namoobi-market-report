@@ -12,7 +12,7 @@ from pathlib import Path
 
 SERVER    = "ubuntu@141.147.160.13"
 REMOTE    = "~/namoobi/data"
-KEEP_FILES = 5          # (2026-07-12) 날짜 무관 — 최신 docx 5개만 보관 (같은 날 여러 회차도 각각 남는다)
+KEEP_DAYS = 7
 
 
 def find(pats):
@@ -121,18 +121,6 @@ def main():
         ok &= run(f'{SCP} {shlex.quote(rds[-1])} {SERVER}:{REMOTE}/report/report_data.json',
                   f"report_data ({os.path.basename(rds[-1])})")
 
-    # ── 3.5) 추세 스파크라인 — docx 표의 '추세(1Y)' 열 이미지.
-    #   대시보드가 docx 와 똑같은 그래프를 쓰도록 charts/spark_*.png 를 올린다.
-    #   (개당 수 KB · 100여 개. 나머지 대형 차트는 docx 안에 이미 임베드돼 있어 올리지 않는다.)
-    sp = sorted(glob.glob("charts/spark_*.png"))
-    if sp:
-        run(f'{SSH} {SERVER} "mkdir -p {REMOTE}/data/charts"', "원격 charts 디렉토리")
-        ok &= run(f'tar czf - charts/spark_*.png | {SSH} {SERVER} '
-                  f'"cd {REMOTE}/data && tar xzf - --strip-components=1 -C charts"',
-                  f"추세 스파크라인 ({len(sp)}종)")
-    else:
-        print("[sync] ⚠️ charts/spark_*.png 없음 — 추세 그래프 업로드 건너뜀")
-
     # ── 4) 정책금리 월별 시계열 (6개국 차트용)
     pm = base / "nmr_policyrates_monthly.json"
     if pm.exists():
@@ -150,16 +138,42 @@ def main():
     else:
         print("[sync] ⚠️ 업로드할 docx 없음")
 
-    # ── 6) 서버 보고서 회전 — 날짜 무관, 최신 KEEP_FILES 개만 보관
-    #   종전엔 '날짜별 최종본 × 최근 7일' 이라 같은 날 여러 번 돌리면 마지막 것만 남았다.
-    #   파일명(global_market_report_YYYYMMDD_HHMM.docx)이 시간순으로 정렬되므로 이름 정렬로 충분하다.
+    # ── 6) 서버 보고서 회전 (날짜별 최종본 × 최근 KEEP_DAYS 일)
     ok &= run(
         f'{SSH} {SERVER} "cd {REMOTE}/reports && '
-        f'ls -1 global_market_report_*.docx 2>/dev/null | sort | head -n -{KEEP_FILES} | xargs -r rm -f"',
-        f"보고서 회전 (최신 {KEEP_FILES}개 보관)")
+        f'ls -1 *.docx 2>/dev/null | sed -E \'s/.*_([0-9]{{8}})_[0-9]{{4}}\\.docx/\\1/\' | sort -u | head -n -{KEEP_DAYS} | '
+        f'while read d; do rm -f global_market_report_\\${{d}}_*.docx; done; '
+        f'ls -1 *.docx 2>/dev/null | sed -E \'s/.*_([0-9]{{8}})_[0-9]{{4}}\\.docx/\\1/\' | sort | uniq -d | '
+        f'while read d; do ls -1 global_market_report_\\${{d}}_*.docx | head -n -1 | xargs -r rm -f; done"',
+        f"보고서 회전 (최근 {KEEP_DAYS}일)")
 
     # ── 7) ⭐ 서버 전용 데이터를 PC로 되가져오기 (서버 소실 대비 백업)
     #    poll.db 는 서버가 1일 2회 수집해 쌓는, 서버에만 존재하는 시계열이다.
+    # (2026-07-12) 대시보드 추세 스파크 PNG 업로드 — app.js 가 /charts/spark_*.png 를 참조(미업로드=이미지 404)
+    try:
+        import glob as _g2
+        _wk = sorted(_g2.glob("/sessions/*/mnt/outputs/nmr_build/charts"))
+        if _wk:
+            run(f'{SSH} {SERVER} "mkdir -p {REMOTE}/charts"', "charts 원격 디렉토리")
+            for _pat in ("spark_*.png", "semi_s_*.png", "semi_e_*.png", "theme_*.png", "kospi_tech.png", "kosdaq_tech.png"):
+                _fl = sorted(_g2.glob(_wk[0] + "/" + _pat))
+                if _fl:
+                    run(f'{SCP} ' + " ".join(shlex.quote(x) for x in _fl) + f' {SERVER}:{REMOTE}/charts/', f"charts {_pat} ({len(_fl)}개)")
+    except Exception as _ce:
+        print("[sync] charts 업로드 skip:", _ce)
+    # (2026-07-12) 3.2.4/3.2.5 KRX 브리프 캡쳐 PNG 업로드 — 대시보드 이미지 표시용 (최신 회차만)
+    try:
+        kb = json.load(open(dbroot / "db" / "krx_brief.json", encoding="utf-8"))
+        kdat = (kb.get("data") or {})
+        for kk, pf in (("krx", "krx"), ("short", "short")):
+            vv = kdat.get(kk) or {}
+            if vv.get("att_seq"):
+                ldir = base / "krx_brief" / (pf + "_" + str(vv["att_seq"]))
+                if ldir.is_dir():
+                    run(f'{SSH} {SERVER} "mkdir -p {REMOTE}/krx_brief/' + pf + '_' + str(vv["att_seq"]) + '"', "krx_brief 원격 디렉토리")
+                    run(f'{SCP} ' + shlex.quote(str(ldir)) + '/*.png ' + f'{SERVER}:{REMOTE}/krx_brief/' + pf + '_' + str(vv["att_seq"]) + '/', "krx_brief PNG (" + kk + ")")
+    except Exception as _ke:
+        print("[sync] krx_brief 업로드 skip:", _ke)
     ok &= run(f'{SCP} {SERVER}:{REMOTE}/poll.db {shlex.quote(str(base / "poll.db"))}',
               "poll.db 백업 회수 (김프·공포탐욕)")
 
@@ -172,4 +186,5 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as e:
         print(f"[sync] ⚠️ 예외(비차단): {e}")
+
         sys.exit(0)

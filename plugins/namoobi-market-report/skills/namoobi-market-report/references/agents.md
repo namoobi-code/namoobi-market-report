@@ -1,3 +1,11 @@
+> **[req 2026-07-12 사용자 피드백 11건 재발방지] (반드시 준수)**
+> - **(2장 출처 필수)** NewsAgent 는 2.1 events_calendar·2.2 events_calendar_longterm·2.3 bigtech_events **전 항목에 source·source_url** 을 채운다(공식/1차 보도 확인분만). bigtech_events 스키마 = [{date,event,importance,expected_impact,source,source_url}]. 빌더가 2.1/2.2/2.3 표에 '출처' 컬럼을 렌더하고 **verify req28 이 출처 전무 항목=발송 차단** 으로 강제한다.
+> - **(M7 평면 스키마 강제)** M7OutlookAgent rows 는 반드시 평면 키 {name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance(문자열),signal} — quote{}/analyst_consensus{}/price_target{} **중첩 객체 금지**(대시보드 d_m7·빌더 모두 평면 키만 읽음 → 중첩이면 대시보드 전열 공란). chg52=1년(52주) 변화율 %.
+> - **(6장 크립토 스키마)** CryptoAgent market_overview 는 **평면 키** total_volume_24h_usd·avg_change_pct·coins_up·coins_down 포함(중첩 market_summary만 주면 6.1이 "-"로 샌다). top_gainers/top_losers 는 **배열**({list:[...]} 래핑 금지), 각 항목 change_24h. losers 429 시 재시도 후 확보 실패면 메인세션이 CoinInfo 직접 재시도.
+> - **(3.1.3 고용 DB 오염 방어)** merge 가 employment sync 후 value 빈 행을 이번 수집분으로 셀 단위 보강·DB 재저장(empfix). ISM 실측을 에이전트가 채웠는데 표가 비면 이 경로를 의심.
+> - **(3.1.13 z-스코어)** deriv_signals.db 의 SPX/NDX 가격 이력이 60거래일 미만이면 z 전열 null — prices_daily 1년 백필(yfinance)+run_analysis 재실행으로 복구. 옵션 계열(PCR·IV·GEX)은 과거 스냅샷이 물리적으로 없어 수집 개시일부터 60거래일 누적 후 자동 산출(정상).
+> - **(대시보드 자산)** sync_server 가 charts(spark_*·semi_*·theme_*·kospi/kosdaq_tech)와 krx_brief 캡쳐 PNG 를 서버로 업로드해야 대시보드 추세 그래프·브리프 이미지가 보인다(미업로드=404).
+
 > **[req1~3 재발방지 · 2026-07-09] (반드시 준수)**
 > - **(req1) 3.1.6 FactSet 은 매 실행 메인세션 Claude in Chrome 으로 `insight.factset.com/topic/earnings` 의 JS 렌더 목록을 읽어 최신 블로그를 판별한다.** web_fetch 는 이 topic 페이지에서 HubSpot 캐시(옛 목록)를 반환해 최신 블로그(예: 7/8)를 놓친다 — web_fetch 단독·서브에이전트 위임 금지(개별 블로그·주간 PDF 만 web_fetch 로 정독). next_date 경과 여부와 무관하게 topic 목록 최신성은 매 실행 Chrome 으로 확인해 blog(date/title/url/points)를 갱신.
 > - **(req2) 3.1.11 semi_cycle 정규 스키마 강제**: `tiles:[{lab,num,sub}]` · `signals:[{name,value,status,threshold,note}]` · `stages:{list,current,note}` · `panels:[{title,rows:[[k,v]],badges}]` · `series:{inventory|price_qoq|capex_yoy:{labels,values,alert,cap}}`. 빌더 renderSemiCycle 가 이 스키마를 요구한다. 평면·비정규(label/value·current/verdict·[{name,active}]) 금지 — merge 의 `_sc_canon` 가드가 비정규 입력을 거부해 DB 오염을 막지만 애초에 정규 스키마로 생성할 것.

@@ -196,8 +196,8 @@ function simpleTable(w,header,body,opts){ opts=opts||{}; const leftCols=opts.lef
   children.push(makeTable(w,rows)); }
 function renderBigtechEvents(){ const ev=data.news&&data.news.bigtech_events; if(!Array.isArray(ev)||!ev.length)return;
   children.push(h("2.3 빅테크 주요 이벤트 (신제품·신기술)",2));
-  simpleTable([1300,3200,950,2910,1200],["시기","이벤트","중요도","예상 영향","출처"],
-    ev.map(e=>[e.date??"-",e.event??"-",e.importance??"-",e.expected_impact??e.impact??"-",e.source??"-"]),{left:[1,3,4],boldCols:[1]});
+  simpleTable([1300,2900,900,2680,1700],["시기","이벤트","중요도","예상 영향","출처"],
+    ev.map(e=>[e.date??"-",e.event??"-",e.importance??"-",e.expected_impact??e.impact??"-",(e.source||(e.source_url?"링크":"-"))]),{left:[1,3,4],boldCols:[1]});
   if(data.news.bigtech_events_comment) children.push(p(data.news.bigtech_events_comment)); }
 function markSign(x){ const t=String(x||""); if(/^[\s]*[+]/.test(t)) return positiveColor; if(/^[\s]*[-−]/.test(t)) return negativeColor; return undefined; }
 function renderKoreaExtras(){ const m=data.markets||{};
@@ -821,15 +821,15 @@ const BIGTECH_EVENT_RE=/언팩|갤럭시|아이폰|WWDC|GTC|CES\b|MWC|메타 커
 function notBigtechEvent(e){ return !BIGTECH_EVENT_RE.test(String((e&&e.event)||"")); }
 children.push(h("2.1 향후 1개월 (전체 중요도)",2));
 if (data.news && Array.isArray(data.news.events_calendar) && data.news.events_calendar.length) {
-  const ew=[1150,900,2500,900,2810,2100];
-  const er=[["날짜","지역","이벤트","중요도","예상 영향","출처"],...data.news.events_calendar.filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.importance??"-",e.expected_impact??"-",e.source??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:ew[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1||j===3)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0,size:j===5&&i>0?14:undefined,color:(j===3&&i>0&&String(c).includes("★★★"))?"DC2626":(j===5&&i>0?"64748B":undefined)}))}));
+  const ew=[1200,900,2500,900,2560,1300];
+  const er=[["날짜","지역","이벤트","중요도","예상 영향","출처"],...data.news.events_calendar.filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.importance??"-",e.expected_impact??"-",(e.source||(e.source_url?"링크":"-"))])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:ew[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1||j===3)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0,color:(j===3&&i>0&&String(c).includes("★★★"))?"DC2626":undefined}))}));
   children.push(makeTable(ew,er));
 } else children.push(p("(1개월 이벤트 없음)"));
 children.push(p(""));
 children.push(h("2.2 중장기 1개월~1년 (★★★만)",2));
 if (data.news && Array.isArray(data.news.events_calendar_longterm) && data.news.events_calendar_longterm.length) {
-  const lw=[1300,1000,2700,3160,1200];
-  const lr=[["날짜","지역","이벤트","예상 영향","출처"],...data.news.events_calendar_longterm.filter(function(e){return e&&e.event;}).filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-",e.source??"-"])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0,size:j===4&&i>0?14:undefined,color:(j===4&&i>0)?"64748B":undefined}))}));
+  const lw=[1300,1000,2700,2760,1600];
+  const lr=[["날짜","지역","이벤트","예상 영향","출처"],...data.news.events_calendar_longterm.filter(function(e){return e&&e.event;}).filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-",(e.source||(e.source_url?"링크":"-"))])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0}))}));
   children.push(makeTable(lw,lr));
   children.push(p("※ 중장기는 ★★★만 수록. 미확정은 (예정) 표기.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(중장기 이벤트 없음)"));
@@ -1279,12 +1279,11 @@ children.push(h("4. 원자재 종합 - 에너지·금속·희토류·농산물",
 if (data.commodities) {
   (function(){ var e=data.commodities.energy||{};   // (사용자요청 v3.47) 4.1 에너지 = WTI·천연가스 + 국내 에너지 ETF 2종 통합 추세표(Brent 제외·두바이유 생략)
     children.push(h("4.1 에너지",2));
-    children.push(p("3대 유종 중 WTI·브렌트와 천연가스, 그리고 국내 상장 에너지 ETF(전통 화석연료 · AI 전력망 인프라)를 한 표에서 본다. $ 표기는 국제 선물(USD), 원 표기는 국내 상장 ETF(KRW).",{italics:true,color:"64748B",size:16}));
-    var EN_ORDER=["wti","brent","natgas","kodex_energy","kodex_aipower"];
-    var EN_NAME={wti:"WTI 원유",brent:"브렌트유",natgas:"천연가스",kodex_energy:"KODEX 미국S&P500에너지(합성)",kodex_aipower:"KODEX 미국AI전력핵심인프라"};
+    children.push(p("전통 유종·천연가스와 국내 상장 에너지 ETF(전통 화석연료 · AI 전력망 인프라)를 한 표에서 본다. $ 표기는 국제 선물(USD), 원 표기는 국내 상장 ETF(KRW).",{italics:true,color:"64748B",size:16}));
+    var EN_ORDER=["wti","natgas","kodex_energy","kodex_aipower"];
+    var EN_NAME={wti:"WTI 원유",natgas:"천연가스",kodex_energy:"KODEX 미국S&P500에너지(합성)",kodex_aipower:"KODEX 미국AI전력핵심인프라"};
     var EN_DESC={
       wti:"서부텍사스산 원유. NYMEX에서 거래되는 WTI(Western Texas Intermediate) 선물 최근월물 가격으로, 세계 3대 유종 중 하나이며 국제 유가를 선도하는 지표 (계약단위 1,000 배럴)",
-      brent:"북해산 브렌트유. ICE 거래 선물 최근월물 가격으로, 유럽·아시아·아프리카 원유 거래의 기준 유종 — 전 세계 원유의 약 2/3가 브렌트에 연동된다 (계약단위 1,000 배럴)",
       natgas:"NYMEX에서 거래되는 천연가스 선물 최근월물 가격. 지하에서 자연적으로 발생하는 가연성 가스 (계약단위 10,000 MMBtu)",
       kodex_energy:"전통 에너지(화석연료) 기업 · S&P500 에너지 섹터 합성 추종 ETF (218420)",
       kodex_aipower:"넥스트 에너지(전력망/인프라) · 미국 AI 전력 핵심 인프라 ETF (487230)"};

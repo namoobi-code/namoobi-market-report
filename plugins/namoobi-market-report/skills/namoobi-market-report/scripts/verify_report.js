@@ -59,13 +59,6 @@ houses(d.global_securities,'GlobalIB','weekly7');
 { const tn=(d.news&&d.news.top_news)||[]; const n=tn.filter(x=>!(x&&x.source_url)).length; if(tn.length&&n) warnings.push('[req10] top_news without source_url: '+n+'/'+tn.length); }
 // req11: portfolio basis present (no false precision)
 { const pf=(d.analysis&&d.analysis.portfolios)||{}; Object.keys(pf).forEach(k=>{ const p=pf[k]; if(p&&typeof p==='object'&&!Array.isArray(p)&&!p.basis) warnings.push('[req11] portfolio '+k+' missing basis'); }); }
-// (v3.63) req28: 캘린더 3종 출처(grounding) — docx 2.1/2.2/2.3 · 대시보드 모두 '출처' 열을 렌더한다.
-//   출처 없는 이벤트는 근거 없는 일정이므로 수록 자체를 금한다(agents/data-schema 규칙). 여기서 강제한다.
-{ const cals=[['events_calendar','2.1 향후 1개월'],['events_calendar_longterm','2.2 중장기'],['bigtech_events','2.3 빅테크']];
-  cals.forEach(([k,lab])=>{ const ev=(d.news&&d.news[k])||[]; if(!ev.length) return;
-    const miss=ev.filter(e=>!(e&&e.source)).length;
-    if(miss===ev.length) problems.push('[req28] '+lab+' 전 건 출처 없음 ('+miss+'/'+ev.length+') — source·source_url 필수(추측 일정 금지)');
-    else if(miss) warnings.push('[req28] '+lab+' 출처 누락 '+miss+'/'+ev.length+'건'); }); }
 // req12: events_calendar date sanity -- not past-dated vs report_date
 { const ev=(d.news&&d.news.events_calendar)||[]; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const r0=new Date(ref.toDateString()); let pst=0; ev.forEach(e=>{ const x=new Date(String((e&&e.date)||'').slice(0,10)); if(!isNaN(x)&&x<r0) pst++; }); if(pst) warnings.push('[req12] events_calendar past-dated entries: '+pst); }
 
@@ -179,6 +172,13 @@ try{
         if(!g) warnings.push('[req26] series_semi_status.json (판정 타임라인 DB) not found'); }catch(_){} } } }
 // req27 (2026-07-12): 3.1.6 FactSet — Key Metrics 차트용 report.metrics 존재(없으면 대시보드 미생성)
 { const rp2=(m.factset||{}).report||{}; if(rp2.date&&!rp2.metrics) warnings.push('[req27] 3.1.6 FactSet report.metrics missing — factset_keymetrics.png cannot regenerate'); }
+// req28 (2026-07-12): 2장 캘린더 전 항목 출처 필수 — docx·대시보드 출처 공백 방지
+{ const nw=(d.news||{}); [['events_calendar','2.1'],['events_calendar_longterm','2.2'],['bigtech_events','2.3']].forEach(pair=>{
+    const k=pair[0], lb=pair[1]; const arr=Array.isArray(nw[k])?nw[k]:[];
+    const none=arr.filter(e=>e&&!e.source&&!e.source_url).length;
+    const nourl=arr.filter(e=>e&&e.source&&!e.source_url).length;
+    if(none) problems.push('[req28] '+lb+' '+k+' 출처 전무 항목 '+none+'건 — 전 이벤트 source(·source_url) 필수');
+    if(nourl) warnings.push('[req28] '+lb+' '+k+' source_url 없는 항목 '+nourl+'건'); }); }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);
