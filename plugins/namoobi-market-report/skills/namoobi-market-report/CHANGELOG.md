@@ -1,5 +1,22 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.62.0 (2026-07-12) — req1~14 일괄 반영 (HY 표 폐지·FOMC 복원·FactSet 갱신로직·CAPEX 대시보드형·HBM 11패널·EPS 단일소스·KSVKOSPI 공식이력·조기경보 타임라인) + 품질게이트 확장
+- **(req1) HY 표 폐지**: build_report.js 3.1.1 HY 블록에서 OAS 레벨 표(현재~1년) 제거 — 현재값+1년 차트만 유지. merge.py d1~y1 앵커 계산 폐지(차트용 series DB는 유지).
+- **(req2) FOMC 회의 복원**: merge.py 가 `nmr_usmacro.json` 의 fomc_meetings 를 1순위로 읽고 DB와 날짜 union — 과거 1년 실제 결정 유실 버그 수정(종전엔 um 키를 아예 안 읽음). 예정 회의는 향후 3개만 수록. marker=최신일|건수.
+- **(req3) 점도표 '-' 제거**: 빌더가 change 빈칸을 jun−mar 로 자동 계산("+0.4%p 상향").
+- **(req4) BEI 헤더**: "(별도 표시)" 문구 삭제.
+- **(req5) FactSet 신규 회차 미갱신 수정**: 7/10 주간 PDF(EarningsInsight_071026)로 DB 갱신(full_summary 10개 섹션+Key Metrics 6패널 metrics). 재발방지: next_date 를 믿지 말고 **매 실행 '최근 금요일' PDF URL 을 web_fetch 로 probe** (SKILL 3.1.6 규칙 갱신). gen_factset_chart.py 날짜 하드코딩 제거(report.date 사용), report.title/chart 필수(없으면 렌더 생략됐던 문제).
+- **(req6) CAPEX 대시보드형**: gen_capex_chart.py 전면 재작성 — 서버 대시보드와 동일한 4분할 회사별 라인(capex_capex/rev/fcf/ratio.png), Meta 포함 5개사. merge.py 의 구 'Meta 삭제' 필터 폐지(표에도 Meta 복원). 빌더 4차트 임베드.
+- **(req7) 조기경보 재설계**: 정량 미공개 신호(재고주수·CAPEX YoY)는 판정상태(안전0/주의1/경보2) 타임라인으로 — merge 가 매 실행 판정을 `db/series_semi_status.json` 에 누적, gen_hbm_dashboard 의 semi_cycle_signals 차트를 [QoQ 수치 + 판정 타임라인] 2패널로 교체.
+- **(req8) KSVKOSPI '-' 근절**: merge 가 deriv_signals.db(KRX 공식 VKOSPI 일별, 1년+)로 nmr_vkospi_history.json 을 보강·anchors(1d~1y)·prev_pct 자동 계산 — 매 실행 자동.
+- **(req9·10·12) HBM 대시보드 11패널**: gen_hbm_dashboard.py — ⑦ HBM ASP 추이(매일 08:30 누적), ⑧ HBM 시장규모·수요증가율(연간 Yole 추정, db/series_mem_hbm_market), ⑨ HBM:DDR5 GB당 단가 격차(환산 추정 — fetch_memory 가 매일 계산·db/series_mem_hbm_ddr5_gap 누적, DDR5 칩가 없으면 모듈가 환산) 추가. docx·대시보드 동일 반영.
+- **(req11) 스팟-계약 갭 캡션**: 기준일(현물/계약 last_update)+출처(TrendForce)+산식 명시.
+- **(req13) EPS·PER 단일소스**: `db/hbm_eps.json` 하나로 통일 — EPS=컨센서스(변동 시 갱신), PER=최신 종가÷EPS 매일 재계산(fetch_memory enrich_valuation + merge 재계산·prices/price_note 저장). Micron 별칭 정규화('Micron Technology(...)'/'마이크론'→'Micron')로 중복 행 근절, 표기 'Micron (MU)'. 빌더에 단일소스·기준가 캡션.
+- **(req14) 지표 사전 정리**: nmr_meta.py 에서 미표시 항목 hbm_qual 제거(15개).
+- **fetch_memory.py**: compute_ddr5_gap()·enrich_valuation() 신설, dbdir 인자 필수화(파이프라인도 `fetch_memory.py $WORK <db>` 로 호출), hbm_ddr5_gap 시계열 누적 추가.
+- **gen_macro_charts.py 복구**: c409272 커밋이 파일 끝을 잘라먹어(마운트 잘림 커밋) 고용 7패널이 생성 불능이던 것을 재조립(GDP fix head + 722f651 tail) — 5/5 생성 확인.
+- **verify_report.js 확장**: req15 개정(HY 차트만)·req16b(FOMC 과거 결정≥6·예정≤3)·req23(CAPEX 4차트+Meta)·req24(HBM 대시보드+EPS Micron 중복 금지+eps_note)·req25(KSVKOSPI anchors 필수)·req26(조기경보 차트+판정 DB)·req27(FactSet metrics).
+
 ## v3.55.1 (2026-07-12) — HY 스프레드 데이터 정리 (불필요 필드 제거·섹션번호 통일·대시보드 개편)
 - **merge.py**: `markets.hy_spread` 단일화 — current·asof·d1~y1 을 **영구 DB(`_market_report_data/nmr_hy_history.json`, 2020~ 일별 누적) 우선**으로 계산(당일 수집분 `nmr_hy_series.json` 폴백). 미렌더링 중복 필드 **hy_oas(=current 중복)·hy_yield·implied_ust 제거**, `markets.us_credit` 블록도 report_data 출력에서 제거(에이전트 comment 만 hy_spread.comment 로 인계). current 가 문자열("270bp (2.70%)…")로 들어가 docx 표에서 NaN% 위험이 있던 문제도 함께 해소(항상 숫자).
 - **섹션번호 통일**: HY 는 보고서 **3.1.1**(금리·통화정책 하위 블록) — build_report.js 경고("3.2.3")·차트검증("3.3.3"), SKILL.md("3.3.3"), 대시보드(index.html/app.js "3.3.3") 라벨을 3.1.1 로 정정.

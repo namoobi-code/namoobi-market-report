@@ -69,13 +69,21 @@ houses(d.global_securities,'GlobalIB','weekly7');
   if(u2.current==null) problems.push('[req14] 3.1.1 US2Y current missing');
   if(ff.current==null) problems.push('[req14] 3.1.1 FOMC fed_funds current missing');
   if(ff.asof){ const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const a=new Date(String(ff.asof).slice(0,10)); if(!isNaN(a)&&Math.floor((ref-a)/86400000)>70) problems.push('[req14] FOMC fed_funds asof stale: '+ff.asof); } }
-// req15: HY spread current present (not "-") -- catches req3
-{ const hy=m.hy_spread||{}; if(hy.current==null&&hy.hy_oas==null) problems.push('[req15] 3.1.1 HY spread current missing'); }
+// req15 (2026-07-12 개정): HY 표 폐지 — current(코멘트용)+차트만 검사(d1~y1 앵커 요구 제거)
+{ const hy=m.hy_spread||{}; if(hy.current==null&&hy.hy_oas==null) problems.push('[req15] 3.1.1 HY spread current missing');
+  if(!cExists((hy.chart)||'charts/hy_oas.png')) problems.push('[req15] 3.1.1 HY chart missing/broken: charts/hy_oas.png'); }
 // req16: FOMC past meetings must be actual (no estimate marker) -- catches req5
 { const fm=((m.macro&&m.macro.rates)||{}).fomc_meetings||[]; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); let est=0;
   const EST=/\uCD94\uC815|estimate|\(E\)/;
   fm.forEach(x=>{ const dt=new Date(String((x&&x.date)||'').slice(0,10)); const nt=String((x&&(x.note||x.stance))||''); if(!isNaN(dt)&&dt<ref&&EST.test(nt)) est++; });
   if(est) problems.push('[req16] FOMC past meetings marked estimate (need actual decisions): '+est); }
+// req16b (2026-07-12): FOMC 회의 구성 — 과거 1년 실제 결정 >=6건 + 예정 <=3건
+{ const fm=((m.macro&&m.macro.rates)||{}).fomc_meetings||[];
+  const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10);
+  const past=fm.filter(x=>String(x&&x.date||'')<=today&&String(x&&x.stance||'')!=='\uC608\uC815');
+  const fut=fm.filter(x=>String(x&&x.date||'')>today);
+  if(fm.length&&past.length<6) problems.push('[req16b] FOMC past actual decisions '+past.length+'<6 (usmacro fomc_meetings union check)');
+  if(fut.length>3) problems.push('[req16b] FOMC upcoming meetings '+fut.length+'>3 (limit to next 3)'); }
 // req17: yield curve data present -- catches req2 at data level
 { const yc=(((m.macro||{}).rates||{}).yield_curve)||{}; if(!yc||typeof yc!=='object'||yc.spread==null) problems.push('[req17] 3.1.1 yield_curve(10Y-2Y) data empty'); }
 // req18: macro charts must exist (curve/employment/inflation) -- catches req6/req7 regressions
@@ -139,6 +147,31 @@ try{
     if(!it||!it.pages){ warnings.push('[req22] '+label+' 데이터 없음 — fetch_krx_brief.py 수집 실패 여부 확인'); return; }
     for(let i=1;i<=it.pages;i++) if(!cExists('charts/'+pfx+'_p'+i+'.png')) problems.push('[req22] '+label+' 캡쳐 누락: '+pfx+'_p'+i+'.png (fetch_krx_brief.py 재실행 필요)');
     if(it.stale_note) warnings.push('[req22] '+label+' 직전 회차(DB) 폴백 사용: '+(it.date||'-')); }); }
+// req23 (2026-07-12): 3.1.8 CAPEX — 대시보드형 4분할 차트 필수 + Meta 포함 5개사
+{ if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){
+    ['capex_capex.png','capex_rev.png','capex_fcf.png','capex_ratio.png'].forEach(c=>{ if(!cExists('charts/'+c)) problems.push('[req23] 3.1.8 CAPEX chart missing: '+c+' (run gen_capex_chart.py)'); });
+    const hasMeta=m.bigtech_capex.rows.some(r=>/meta/i.test(String(r&&r.company||'')));
+    if(!hasMeta) warnings.push('[req23] 3.1.8 CAPEX rows without Meta'); } }
+// req24 (2026-07-12): 3.1.9 HBM — 대시보드 차트 + EPS 3사 단일화(중복 Micron 금지) + 단일소스 노트
+{ const hb=m.hbm||{};
+  if(m.memory&&m.memory.tables&&!cExists((hb.chart)||'charts/hbm_dashboard.png')) problems.push('[req24] 3.1.9 hbm_dashboard.png missing (run gen_hbm_dashboard.py)');
+  const ey=Array.isArray(hb.eps_yearly)?hb.eps_yearly:[];
+  if(ey.length){ const mic=ey.filter(o=>/micron|\uB9C8\uC774\uD06C\uB860/i.test(String(o&&o.name||''))).length;
+    if(mic>1) problems.push('[req24] 3.1.9 EPS table duplicate Micron rows: '+mic+' (merge alias normalization broken)');
+    if(!hb.eps_note) warnings.push('[req24] 3.1.9 eps_note(single-source price note) missing'); } }
+// req25 (2026-07-12): 3.1.12 KSVKOSPI — 1w~1y anchors 필수(공식 VKOSPI 일별 이력 기반, '-' 금지)
+{ const rows=((m.macro||{}).sentiment||{}).rows||[];
+  const vk=rows.find(r=>/KSVKOSPI/i.test(String(r&&r.name||'')));
+  if(vk){ const miss=['1w_pct','1mo_pct','3mo_pct','6mo_pct','1y_pct'].filter(k=>vk[k]==null);
+    if(miss.length) problems.push('[req25] 3.1.12 KSVKOSPI anchors missing: '+miss.join(',')+' (merge req8: deriv_signals.db VKOSPI history)'); } }
+// req26 (2026-07-12): 3.1.11 조기경보 — 신호차트 존재 + 판정상태 타임라인 DB 누적 확인
+{ if(m.semi_cycle&&m.semi_cycle.signals&&m.semi_cycle.signals.length){
+    if(!cExists('charts/semi_cycle_signals.png')) problems.push('[req26] 3.1.11 semi_cycle_signals.png missing (run gen_hbm_dashboard.py)');
+    try{ const st=J(require('path').join(WORK,'..','..','claudeCowork','_market_report_data','db','series_semi_status.json')); }catch(e){
+      try{ const g=require('fs').readdirSync('/sessions').map(x=>'/sessions/'+x+'/mnt/claudeCowork/_market_report_data/db/series_semi_status.json').find(p=>{try{return require('fs').existsSync(p)}catch(_){return false}});
+        if(!g) warnings.push('[req26] series_semi_status.json (판정 타임라인 DB) not found'); }catch(_){} } } }
+// req27 (2026-07-12): 3.1.6 FactSet — Key Metrics 차트용 report.metrics 존재(없으면 대시보드 미생성)
+{ const rp2=(m.factset||{}).report||{}; if(rp2.date&&!rp2.metrics) warnings.push('[req27] 3.1.6 FactSet report.metrics missing — factset_keymetrics.png cannot regenerate'); }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

@@ -18,7 +18,9 @@ def load():
         except Exception: pass
     return {}
 
-m = ((load().get("report") or {}).get("metrics")) or {}
+_rep = (load().get("report") or {})
+m = _rep.get("metrics") or {}
+_rdate = _rep.get("date") or ""
 if not m:
     print("dash skip: metrics 없음"); sys.exit(0)
 B, N, S, G, R = "#60A5FA", "#1E3A8A", "#38BDF8", "#16A34A", "#DC2626"
@@ -33,7 +35,7 @@ SPECS = [
  ("rev_margin", "Revenue & Margin (Q2)", "%", "%.1f%%", lambda i,v,vs:(B if i==0 else G), None),
 ]
 fig, axes = plt.subplots(2, 3, figsize=(11.2, 6.6), dpi=150)
-fig.suptitle("S&P 500 Earnings Insight — Key Metrics (FactSet, 2026-06-26)", fontsize=13.5, fontweight="bold", color="#0F172A", y=0.995)
+fig.suptitle("S&P 500 Earnings Insight — Key Metrics (FactSet, %s)"%_rdate, fontsize=13.5, fontweight="bold", color="#0F172A", y=0.995)
 for ax, (key, title, ylab, fmt, cfn, ref) in zip(axes.flat, SPECS):
     ser = m.get(key) or []
     if not ser:
@@ -49,7 +51,7 @@ for ax, (key, title, ylab, fmt, cfn, ref) in zip(axes.flat, SPECS):
     ax.set_ylim(0, max(vals)*1.25); ax.grid(axis="y", alpha=0.2)
     ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False); ax.tick_params(labelsize=8.5)
     if ref is not None: ax.axhline(ref, color="#94A3B8", lw=0.7, ls="--", alpha=0.7)
-fig.text(0.5, 0.005, "데이터 출처: FactSet Earnings Insight (2026-06-26) — 공시 수치 기반 · 자체 작성 그래프(FactSet 차트 비복제)",
+fig.text(0.5, 0.005, "데이터 출처: FactSet Earnings Insight (%s) — 공시 수치 기반 · 자체 작성 그래프(FactSet 차트 비복제)"%_rdate,
          ha="center", fontsize=8, color="#64748B")
 plt.tight_layout(rect=[0, 0.02, 1, 0.96])
 out = os.path.join(O, "charts", "factset_keymetrics.png"); os.makedirs(os.path.dirname(out), exist_ok=True)

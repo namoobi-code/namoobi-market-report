@@ -320,9 +320,9 @@ function renderKoreaExtras(){ const m=data.markets||{};
 // (v3.12.0→v3.49) 3.1.9 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.9 반도체 주가 체크용 메모리+HBM 지표",3));
-  const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",720,729);
+  const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",720,980);
   const mem=(m.memory&&m.memory.tables)?m.memory:null;
-  if(img){ children.push(p("① DRAM 현물(스팟) / ② DRAM 고정거래(계약) / ③ NAND 현물 / ④ NAND 고정거래 / ⑤ 스팟-계약 갭 / ⑥ HBM 업체별 점유율 / ⑦ 선행지표 1년 성과 / ⑧ 메모리/GPU 상대강도 — 8개 패널. 전 항목 공개 소스 실측·자동 수집.",{italics:true,color:"64748B"})); children.push(img);
+  if(img){ children.push(p("① DRAM 현물(스팟) / ② DRAM 고정거래(계약) / ③ NAND 현물 / ④ NAND 고정거래 / ⑤ 스팟-계약 갭 / ⑥ HBM 업체별 점유율 / ⑦ HBM ASP 추이 / ⑧ HBM 시장규모·수요 증가율(연간, Yole·추정) / ⑨ HBM:DDR5 GB당 단가 격차(환산 추정) / ⑩ 선행지표 1년 성과 / ⑪ 메모리/GPU 상대강도 — 11개 패널. 가격·주가=공개 소스 실측, ⑦⑧⑨=공개 추정치 환산.",{italics:true,color:"64748B"})); children.push(img);
     children.push(p("기준: "+((mem&&mem.asof)||hbm.asof||"최신")+" · 자료: TrendForce 공개 가격표(가격 21종) + Silicon Analysts 공개 API(HBM 점유율·ASP) + Yahoo Finance(선행지표 6종)",{size:15,color:"94A3B8"}));
     children.push(p("업데이트: fetch_memory.py 가 매 실행 수집 + 서버 daily cron(08:30 KST) 이 매일 누적 → db/memory.json(스냅샷) · db/series_mem_*(시계열). 누적이 2일 이상이면 막대가 추세선으로 자동 전환된다. ※ TrendForce 과거 시계열·DXI 지수는 유료 회원 전용이라 과거를 사지 않고 오늘부터 직접 쌓는다.",{size:13,italics:true,color:"94A3B8"}));
     if(hbm.current_anchors) children.push(p("현재 현물 앵커("+(hbm.asof||"")+"): "+hbm.current_anchors,{size:13,color:"475569"}));
@@ -352,6 +352,10 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
           cell(pos?("현물이 계약가 "+gp.toFixed(0)+"% 상회 → 인상 압력"):("현물이 계약가 "+Math.abs(gp).toFixed(0)+"% 하회 → 압력 없음"),
                {width:gw[4],alt:a,size:12,color:"64748B"})]})); });
       children.push(makeTable(gw,grows));
+      // (req11 2026-07-12) 기준 날짜·출처 명시
+      { const _ta=(k)=>((mem.tables[k]||{}).asof)||((mem.tables[k]||{}).last_update)||null;
+        const _sp_as=_ta("dram_spot")||mem.asof||"-", _ct_as=_ta("dram_contract")||"최근 고정거래 협상월";
+        children.push(p("기준: 현물 "+_sp_as+" (TrendForce 스팟 세션) · 계약 "+_ct_as+" (고정거래가, 월 1회 갱신) · 출처: TrendForce 공개 가격표 · 갭 = (현물평균 − 계약평균) ÷ 계약평균",{size:13,italics:true,color:"94A3B8"})); }
     }
   }
   // (v3.60) 선행지표 — 전부 일별 갱신. 메모리 가격보다 먼저 움직이는 시장 신호.
@@ -396,6 +400,8 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(cc(o.y2028_eps,o.y2028_per),{width:w[4],alt:a,size:13,align:AlignmentType.CENTER}),
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
+    // (req13 2026-07-12) 대시보드 ⑩과 단일 소스(db/hbm_eps.json) — EPS=컨센서스(변동 시 갱신) · PER=최신 종가÷EPS 매일 재계산
+    children.push(p("단일 소스: db/hbm_eps.json — EPS=데이터벤더 컨센서스(변동 시 갱신) · PER=최신 종가÷EPS(매일 재계산, 대시보드 ⑩과 동일값). "+(hbm.eps_note||""),{size:13,italics:true,color:"94A3B8"}));
      }
   // (req3) HBM 3사 연도별 매출·영업이익·영업이익률 (삼성전자 전사+DS부문 병기)
   const fy=Array.isArray(hbm.fin_yearly)?hbm.fin_yearly:null;
@@ -562,7 +568,7 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
-  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:"-")),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(r.change!=null&&r.change!==""?r.change:"-")]),{left:[0]});
+  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:"-")),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(function(){ if(r.change!=null&&r.change!=="")return r.change; const j=parseFloat(String(r.jun||"").replace(/[^0-9.\-]/g,"")),m2=parseFloat(String(r.mar||"").replace(/[^0-9.\-]/g,"")); if(isFinite(j)&&isFinite(m2)){ const dd=+(j-m2).toFixed(2); return dd>0?("+"+dd+"%p 상향"):(dd<0?(dd+"%p 하향"):"변동 없음"); } return "-"; })()]),{left:[0]});
   if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
     f.distribution.forEach(x=>children.push(p("• "+(x.label||"")+": "+(x.count||""),{size:19}))); }
   if(f.policy_rate)children.push(p("현 정책금리: "+f.policy_rate,{bold:true,before:60}));
@@ -606,31 +612,20 @@ function renderCapex(){ const m=data.markets||{};
     children.push(p("확인처 — 1차 출처: 각사 SEC 공시(EDGAR 10-K/8-K) · 데이터 API: FMP(Financial Modeling Prep)",{size:13,color:"64748B"}));
     children.push(fsLink("SEC EDGAR 기업 공시검색 (10-K/8-K 원문)","https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=10-K"));
     children.push(fsLink("FMP API 문서 (financial-statements · analyst-estimates)","https://site.financialmodelingprep.com/developer/docs"));
-    { const c1=imagePara((cx.chart_capex)||"charts/capex_stack_ratio.png",660,289);
-      if(c1){ children.push(c1); children.push(p("빅테크 CAPEX 합계(스택)·매출 대비 비율 추이",{size:15,color:"94A3B8"})); }
-      const c2=imagePara((cx.chart_fcf)||"charts/capex_fcf.png",660,266);
-      if(c2){ children.push(c2); children.push(p("주요 빅테크 잉여현금흐름(FCF) 추이 — 자료: 각사 SEC/FMP, AI Research",{size:15,color:"94A3B8"})); } }
+    // (req6 2026-07-12) 대시보드와 동일한 4분할 회사별 라인 차트(Microsoft·Amazon·Alphabet·Meta·Oracle)
+    { const caps=[["charts/capex_capex.png","CAPEX 추이 (십억 달러) — 회사별"],["charts/capex_rev.png","매출 추이 (십억 달러) — 회사별"],
+                  ["charts/capex_fcf.png","잉여현금흐름 FCF (십억 달러) — 회사별"],["charts/capex_ratio.png","CAPEX / 매출 — AI 투자 강도 (%)"]];
+      let anyC=false;
+      caps.forEach(([f,cap])=>{ const im=imagePara(f,660,248); if(im){ children.push(im); children.push(p(cap+" — 자료: 각사 SEC/FMP, AI Research",{size:15,color:"94A3B8"})); anyC=true; } });
+      if(!anyC){ const c1=imagePara("charts/capex_stack_ratio.png",660,289); if(c1)children.push(c1); } }
     children.push(p("")); } }
 // (v3.12.0) HY 스프레드 — 3.1.1 금리·통화정책에 통합(하위 블록).
 function renderHY(){ const m=data.markets||{};
   if(m.hy_spread){ const c=m.hy_spread; children.push(p("■ 하이일드(HY) 스프레드",{bold:true,color:"1E40AF",before:140,size:22}));
     children.push(p("의미: 하이일드 스프레드(HY Spread)는 고위험 회사채 수익률과 미국 국채 수익률의 차이로, 시장이 신용위험을 얼마나 크게 보는지 보여주는 지표.",{italics:true,color:"64748B"}));
     children.push(p("시장영향: HY Spread 확대 = 신용불안·리스크오프·주식 약세 압력, HY Spread 축소 = 신용정상화·리스크온·주식 회복 기대.",{italics:true,color:"64748B"}));
-    const cols=[2000,1180,1080,1080,1080,1080,1080,1420];
-    const hdr=new TableRow({children:["지표 (OAS %)","현재","1일","1주","1개월","3개월","6개월","1년"].map((x,i)=>cell(x,{width:cols[i],header:true,align:AlignmentType.CENTER}))});
-    const lv=(v)=> (v===null||v===undefined)?"-":Number(v).toFixed(2)+"%";
-    const col=(v)=>{ if(v===null||v===undefined)return undefined; return Number(v)>Number(c.current)? positiveColor : (Number(v)<Number(c.current)? negativeColor: undefined); };
-    const row=new TableRow({children:[
-      cell("美 HY OAS",{width:cols[0],bold:true}),
-      cell(lv(c.current),{width:cols[1],align:AlignmentType.RIGHT,bold:true}),
-      cell(lv(c.d1),{width:cols[2],align:AlignmentType.RIGHT,color:col(c.d1)}),
-      cell(lv(c.w1),{width:cols[3],align:AlignmentType.RIGHT,color:col(c.w1)}),
-      cell(lv(c.m1),{width:cols[4],align:AlignmentType.RIGHT,color:col(c.m1)}),
-      cell(lv(c.m3),{width:cols[5],align:AlignmentType.RIGHT,color:col(c.m3)}),
-      cell(lv(c.m6),{width:cols[6],align:AlignmentType.RIGHT,color:col(c.m6)}),
-      cell(lv(c.y1),{width:cols[7],align:AlignmentType.RIGHT,color:col(c.y1)})]});
-    children.push(makeTable(cols,[hdr,row]));
-    children.push(p("표는 각 시점의 OAS 레벨(%). 과거치가 현재보다 높으면(초록) 그동안 스프레드가 축소(신용 개선)된 것.",{size:18,color:"64748B"}));
+    // (req1 2026-07-12) OAS 레벨 표 제거 — 차트+현재값 코멘트만 유지.
+    if(c.current!=null)children.push(p("현재 OAS: "+Number(c.current).toFixed(2)+"%",{bold:true,size:20}));
     const img=imagePara(c.chart||"charts/hy_oas.png",480,173); if(img)children.push(img);
     if(c.trend)children.push(p("추세 평가: "+c.trend,{bold:true}));
     if(c.comment)children.push(p(c.comment));
@@ -1089,7 +1084,7 @@ function renderMacroIndicators(){
       cell(o.interp||"-",{width:w[7],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
   { const ic=imagePara(inf.chart||'charts/macro_inflation.png',660,259); if(ic){ children.push(ic); } }
-  { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표 (별도 표시)",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); } }
+  { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); } }
   children.push(p(""));
 
   // 3.1.3 고용 — 추세1Y 제거, 통합 그래프 하나

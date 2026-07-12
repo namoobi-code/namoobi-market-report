@@ -67,13 +67,6 @@ META = {
    "cadence": "연 1~2회 (조사기관 전망 갱신 시)",
    "source": "Yole Group · TrendForce · SK하이닉스 IR",
  },
- "hbm_qual": {
-   "label": "HBM 공급 인증 진행상황  ★점유율 선행",
-   "meaning": "각 업체가 NVIDIA/AMD 등에 어느 세대 HBM을 어느 단계(qualified → volume_shipping)까지 공급하는지.",
-   "howto": "인증 통과 → 양산 출하까지 보통 1~2분기. 즉 지금의 인증 상태가 다음 분기 점유율을 미리 알려준다. 삼성이 신규 qualified 되면 점유율 반등 신호.",
-   "cadence": "비정기 (인증·양산 발표 시)",
-   "source": "Silicon Analysts 공개 API",
- },
  "hbm_ddr5_gap": {
    "label": "HBM : DDR5 GB당 단가 격차",
    "meaning": "HBM과 범용 DDR5의 GB당 가격 비율.",

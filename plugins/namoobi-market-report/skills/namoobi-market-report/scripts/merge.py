@@ -252,9 +252,13 @@ try:
     _hep = os.path.join(_CWROOT, 'db', 'hbm_eps.json')
     try:
         _sd = json.load(open(_hep, encoding='utf-8')); _store = _sd.get('data') if (isinstance(_sd, dict) and 'data' in _sd) else (_sd or {})
-    except Exception: _store = {}
+        _pnote = _sd.get('price_note') if isinstance(_sd, dict) else None
+    except Exception: _store = {}; _pnote = None
     if not isinstance(_store, dict): _store = {}
-    def _norm_hbm(n): return _re_hb.sub(r'\s*\(.*$', '', str(n)).strip()
+    def _norm_hbm(n):
+        n = _re_hb.sub(r'\s*\(.*$', '', str(n)).strip()
+        if n.lower().startswith('micron') or n == '마이크론': return 'Micron'
+        return n
     def _hbm_num(v):
         if isinstance(v, (int, float)): return float(v)
         if v is None: return None
@@ -269,7 +273,7 @@ try:
     _merged = []
     for _k in _names:
         _so = dict(_store.get(_k) or {}); _co = _curmap.get(_k) or {}
-        _row = {'name': _co.get('name') or _k, 'currency': (_co.get('currency') or _so.get('currency') or '')}
+        _row = {'name': ('Micron (MU)' if _k == 'Micron' else (_co.get('name') or _k)), 'currency': (_co.get('currency') or _so.get('currency') or '')}
         for _f in _flds:
             _cv = _co.get(_f)
             if _hbm_num(_cv) is not None:
@@ -278,13 +282,28 @@ try:
                 _row[_f] = _so.get(_f)               # 비수치/결측 → DB 보완
         _so['currency'] = _row['currency']
         _merged.append(_row); _store[_k] = _so
+    # (req13 2026-07-12) PER 단일화 — db/hbm_eps.json 의 prices(fetch_memory 가 매일 갱신)로 PER=현재가÷EPS 재계산.
+    #   HBMAgent 가 옛 주가 기준 PER 를 보내도 여기서 항상 최신가 기준으로 통일된다(대시보드 ⑩과 동일값).
+    try:
+        _prc = (_sd.get('prices') if isinstance(_sd, dict) else None) or {}
+        for _row in _merged:
+            _pnm = _norm_hbm(_row.get('name'))
+            _pv = _hbm_num((_prc.get(_pnm) or {}).get('price'))
+            if _pv:
+                for _yy in ('2025', '2026', '2027', '2028'):
+                    _ev = _hbm_num(_row.get('y%s_eps' % _yy))
+                    if _ev:
+                        _row['y%s_per' % _yy] = round(_pv / _ev, 2)
+                        (_store.setdefault(_pnm, {}))['y%s_per' % _yy] = _row['y%s_per' % _yy]
+    except Exception as _pe13: print('  [req13] PER 재계산 skip:', _pe13)
     if _merged:
         _hb2['eps_yearly'] = _merged; m['hbm'] = _hb2
         try:
             os.makedirs(os.path.dirname(_hep), exist_ok=True)
-            json.dump({'as_of': RD_ISO, 'source': 'field-level carry-forward', 'data': _store}, open(_hep, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+            json.dump({'as_of': RD_ISO, 'source': 'field-level carry-forward', 'price_note': _pnote, 'data': _store}, open(_hep, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         except Exception: pass
         print('  [req4-fix] HBM eps_yearly carry-forward:', len(_merged), '개사 (비수치·결측은 DB 보완)')
+        if _pnote: _hb2['eps_note'] = _pnote
 except Exception as _hce: print('  [req4-fix] hbm carry-forward skip:', _hce)
 
 # 3.1 주요지표(매크로 대시보드) — nmr_macro.json(MacroAgent: FMP economics/treasury + FRED) 오버라이드, 없으면 내장 예시·추정값
@@ -532,6 +551,34 @@ for _r in ((macro.get('sentiment') or {}).get('rows') or []):
     if isinstance(_r, dict) and 'VKOSPI' in str(_r.get('name', '')).upper():
         _r['name'] = 'KSVKOSPI (KOSPI Volatility)'
         if _vk: _reuse(_r, _vk)
+# (req8 2026-07-12) KSVKOSPI 이력을 KRX 공식(deriv_signals.db kr_derivatives_daily.vkospi)으로 보강 —
+#   1년치 일별로 anchors(1w~1y)·prev_pct 를 계산해 nmr_vkospi_history.json 최상위 키로 저장('-' 근절, 매 실행 자동).
+try:
+    import sqlite3 as _sq3
+    _ddbp = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/deriv_signals.db') or [None])[0]
+    _vhp = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json') or [None])[0]
+    if _ddbp and _vhp:
+        _vh0 = json.load(open(_vhp, encoding='utf-8'))
+        _daily = _vh0.setdefault('daily', {})
+        for _dtx, _vv in _sq3.connect(_ddbp).execute("SELECT date, vkospi FROM kr_derivatives_daily WHERE vkospi IS NOT NULL"):
+            if _dtx and _vv is not None:
+                _daily.setdefault(str(_dtx)[:10], {'date': str(_dtx)[:10], 'close': float(_vv)})
+        _pts = sorted((k, (v or {}).get('close')) for k, v in _daily.items() if isinstance(v, dict) and v.get('close') is not None)
+        if len(_pts) >= 2:
+            _lastd = dt.date.fromisoformat(_pts[-1][0]); _curv = float(_pts[-1][1])
+            _vh0['current'] = _curv; _vh0['prev_close'] = float(_pts[-2][1])
+            _vh0['chg'] = round(_curv - float(_pts[-2][1]), 2)
+            _vh0['prev_pct'] = _vh0['1d_pct'] = round((_curv / float(_pts[-2][1]) - 1) * 100, 2)
+            for _k2, _dy in [('1w_pct', 7), ('1mo_pct', 30), ('3mo_pct', 91), ('6mo_pct', 182), ('1y_pct', 365)]:
+                _tg = (_lastd - dt.timedelta(days=_dy)).isoformat()
+                _cn = [pp for pp in _pts if pp[0] <= _tg]
+                if _cn: _vh0[_k2] = round((_curv / float(_cn[-1][1]) - 1) * 100, 2)
+            _vh0['source'] = 'KRX 공식 VKOSPI 일별(deriv_signals.db) + investing.com 보조'
+            json.dump(_vh0, open(_vhp, 'w', encoding='utf-8'), ensure_ascii=False)
+            try: json.dump(_vh0, open(os.path.join(W, 'nmr_vkospi_history.json'), 'w', encoding='utf-8'), ensure_ascii=False)
+            except Exception: pass
+            print('  [req8] VKOSPI 공식이력 보강:', len(_pts), '일 · 1y', _vh0.get('1y_pct'))
+except Exception as _ve8: print('  [req8] VKOSPI 공식이력 보강 skip:', _ve8)
 # (req10) VKOSPI 이력 DB(nmr_vkospi_history.json)에서 1주~1년·prev_pct(1일=D-1) 주입 → '-' 제거
 try:
     _vh = LCF('nmr_vkospi_history.json')
@@ -594,7 +641,7 @@ try:
     _CREV={"Microsoft":[245,282,329,384,455,535],"Amazon":[638,717,824,933,1064,1189],"Alphabet":[350,403,486,580,680,788],"Meta":[165,201,253,302,352,406],"Oracle":[53,57,67,89,104,120]}
     _CFCF={"Microsoft":[74,72,-31,-29,-15,4],"Alphabet":[73,73,13,-13,-3,16],"Meta":[54,46,11,-1,3,14],"Amazon":[33,8,-39,-63,-72,-73],"Oracle":[12,0,-24,-59,-57,-56]}
     _bc=m.get('bigtech_capex') or {}; _rows=_bc.get('rows') or []
-    _rows=[_r for _r in _rows if str(_r.get('company','')).split(' (')[0].strip() not in ('Meta','META','Meta Platforms')]  # (req2) Meta 삭제
+    # (req6 2026-07-12) 구 'Meta 삭제' 필터 폐지 — 표·차트 모두 Meta 포함 5개사
     _bc['rows']=_rows
     def _has(v): return v not in (None,'','-') and str(v).strip() not in ('미공개','미확인','미상','N/A','n/a','-','TBD','tbd')
     _ALIAS={'MSFT':'Microsoft','MICROSOFT':'Microsoft','GOOGL':'Alphabet','GOOG':'Alphabet','ALPHABET':'Alphabet','GOOGLE':'Alphabet','AMZN':'Amazon','AMAZON':'Amazon','META':'Meta','FB':'Meta','ORCL':'Oracle','ORACLE':'Oracle'}
@@ -647,13 +694,7 @@ _hpts = sorted([(dt.date.fromisoformat(str(d)[:10]), float(v)) for d, v in _hser
 if _hpts:
     m['hy_spread']['current'] = round(_hpts[-1][1], 2)
     m['hy_spread']['asof'] = str(_hpts[-1][0])
-if len(_hpts) >= 2:
-    _last = _hpts[-1][0]
-    m['hy_spread']['d1'] = round(_hpts[-2][1], 2)
-    for _k, _days in [('w1', 7), ('m1', 30), ('m3', 91), ('m6', 182), ('y1', 365)]:
-        _tgt = _last - dt.timedelta(days=_days)
-        _cand = [p for p in _hpts if p[0] <= _tgt] or [_hpts[0]]
-        m['hy_spread'][_k] = round(_cand[-1][1], 2)
+# (req1 2026-07-12) OAS 레벨 표 제거 — d1~y1 앵커 계산 폐지(차트+현재값·코멘트만 유지).
 m['index_rebalance'] = {k: v for k, v in rb.items() if k != 'latest_change_date'}
 
 crd = dict(cr); crd['charts'] = {'btc': 'charts/coin_btc.png', 'eth': 'charts/coin_eth.png', 'xrp': 'charts/coin_xrp.png', 'sol': 'charts/coin_sol.png', 'fng': 'charts/fng_1y.png'}
@@ -756,7 +797,25 @@ try:
     _er = (_mc.get('employment') or {}).get('rows')
     _mc.setdefault('employment', {})['rows'] = _ndb.sync('employment', (_er if not _MDEF else None), _today, _mx(_er, ['asof', 'release']) or _run_m, _dd)
     _rt['policy_rates'] = _ndb.sync('policy_rates', (_rt.get('policy_rates') if not _MDEF else None), _today, _run_m, _dd)
-    _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', (_rt.get('fomc_meetings') if not _MDEF else None), _today, _mx(_rt.get('fomc_meetings'), ['date']) or _run_m, _dd)
+    # (req2 2026-07-12) FOMC 회의: USMacroExtras(nmr_usmacro.json) 수집분 1순위 + DB와 날짜 union —
+    #   과거 1년 실제 결정(인상/인하/동결)이 미래 예정 회의에 밀려 유실되지 않게 한다. marker=최신일|건수.
+    _fm_new = um.get('fomc_meetings') if isinstance(um.get('fomc_meetings'), list) else (_rt.get('fomc_meetings') if not _MDEF else None)
+    _fm_db = _ndb.get('fomc_meetings', _dd) or []
+    if isinstance(_fm_new, list) and _fm_new:
+        _fm_map = {str(x.get('date')): x for x in (_fm_db if isinstance(_fm_db, list) else []) if isinstance(x, dict) and x.get('date')}
+        for _x in _fm_new:
+            if isinstance(_x, dict) and _x.get('date'): _fm_map[str(_x['date'])] = _x
+        _fm_u = sorted(_fm_map.values(), key=lambda x: str(x.get('date')))
+        _cut_lo = (dt.date.fromisoformat(_today) - dt.timedelta(days=370)).isoformat()
+        _fm_u = [x for x in _fm_u if str(x.get('date')) >= _cut_lo]
+        # (사용자 피드백 2026-07-12) '예정' 회의는 향후 3개만 수록 (과거 1년 실제 결정은 전부 유지)
+        _fm_past = [x for x in _fm_u if str(x.get('date')) <= _today]
+        _fm_fut = [x for x in _fm_u if str(x.get('date')) > _today][:3]
+        _fm_u = _fm_past + _fm_fut
+    else:
+        _fm_u = None
+    _rt['fomc_meetings'] = _ndb.sync('fomc_meetings', _fm_u, _today,
+                                     ((_mx(_fm_u, ['date']) or _run_m) + '|' + str(len(_fm_u))) if _fm_u else _run_m, _dd)
     _dp = m.get('fomc_dotplot') or {}
     m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
     m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
@@ -795,6 +854,26 @@ try:
     _sc_ok = _sc_canon(_sci)
     m['semi_cycle'] = _ndb.sync('semi_cycle', (_sci if _sc_ok else None), _today,
                                 ((_sci or {}).get('asof') or _run_m) if _sc_ok else _run_m, _dd)
+    # (req7 2026-07-12) 3대 조기경보 '판정상태' 매일 누적 → db/series_semi_status.json
+    #   정량 미공개 신호(재고주수·CAPEX YoY)도 판정(안전=0/주의=1/경보=2)을 타임라인으로 축적해 차트화한다.
+    try:
+        _scd = m.get('semi_cycle') or {}
+        def _st2n(s):
+            s = str(s or '')
+            for _kw, _nv in (('경보', 2), ('하강', 2), ('위험', 2), ('주의', 1), ('둔화', 1), ('안전', 0), ('양호', 0)):
+                if _kw in s: return _nv
+            return None
+        _svals = {}
+        for _z in (_scd.get('signals') or []):
+            _nm2 = str(_z.get('name') or '')
+            _key7 = 'inventory' if '재고' in _nm2 else ('capex_yoy' if 'CAPEX' in _nm2.upper() else ('price_qoq' if ('계약가' in _nm2 or 'QOQ' in _nm2.upper() or 'DRAM' in _nm2.upper()) else None))
+            if _key7:
+                _nv2 = _st2n(_z.get('status'))
+                if _nv2 is not None: _svals[_key7] = _nv2
+        if _svals:
+            _ndb.dbseries('semi_status', [[_today, _svals]], _dd)
+            print('  [req7] semi 판정상태 누적:', _svals)
+    except Exception as _se7: print('  [req7] semi status 누적 skip:', _se7)
 
     # (v3.58) 3.1.9 메모리 가격 — fetch_memory.py(TrendForce 공개 가격표) 결과 적재.
     #   ① db/memory.json     : 최신 스냅샷 4개 표 + hbm + leading + meta (표 렌더용)

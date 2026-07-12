@@ -315,4 +315,14 @@ def _ch_emp():
         ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
         if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
         ax.set_title(t,fontsize=8,color=SLATE); ax.grid(True,alpha=0.2); ax.set_xticks([])
-        for s in ["top","right"]: a
+        for s in ["top","right"]: ax.spines[s].set_visible(False)
+    for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
+    for _j in range(_n,len(axs)): axs[_j].axis("off")
+    fig.suptitle("미국 고용·경기 지표 최근 1년 (초기 실업수당 청구=주간·나머지 월간)",fontsize=9.5,color=SLATE)
+    fig.subplots_adjust(top=0.90,bottom=0.06,left=0.07,right=0.97,hspace=0.62,wspace=0.6)
+    plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
+_safe("macro_employment", _ch_emp)
+# (2026-06-29) 3.1.5 선행EPS/PER 차트(_fwd / macro_spx_fwd / macro_kospi_fwd) 제거됨 — 섹션 삭제
+_miss=[r for r in REQUIRED if r not in _made]
+print("macro charts -> 생성 %d/%d | 실패:%s | 누락:%s"%(len([r for r in REQUIRED if r in _made]),len(REQUIRED),(",".join(_failed) or "없음"),(",".join(_miss) or "없음")))
+if _miss: print("WARN_MACRO_MISSING="+",".join(_miss))
