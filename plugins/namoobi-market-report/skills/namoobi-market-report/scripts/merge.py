@@ -695,7 +695,34 @@ if _hpts:
     m['hy_spread']['current'] = round(_hpts[-1][1], 2)
     m['hy_spread']['asof'] = str(_hpts[-1][0])
 # (req1 2026-07-12) OAS 레벨 표 제거 — d1~y1 앵커 계산 폐지(차트+현재값·코멘트만 유지).
-m['index_rebalance'] = {k: v for k, v in rb.items() if k != 'latest_change_date'}
+_rbu = rb.get('index_rebalance') if (isinstance(rb, dict) and isinstance(rb.get('index_rebalance'), dict)) else rb
+# (2026-07-12) 리밸런싱 정규화 — 에이전트 산출 {date,type,in,out}/{period,announce_date,effective_date} 를 빌더 스키마로
+def _ir_norm(_ir):
+    for _k in ('sp500', 'nasdaq100'):
+        _b = _ir.get(_k) or {}
+        _ev = []
+        for _e in (_b.get('events') or []):
+            if not isinstance(_e, dict): continue
+            if 'add' in _e or 'remove' in _e: _ev.append(_e); continue
+            _ev.append({'title': ' · '.join(x for x in [str(_e.get('date', '')), str(_e.get('type', ''))] if x),
+                        'add': _e.get('in') or _e.get('additions') or [],
+                        'remove': _e.get('out') or _e.get('deletions') or [],
+                        'note': _e.get('note', '')})
+        if _ev: _b['events'] = _ev
+        _ns = []
+        for _s0 in (_b.get('schedule') or []):
+            if isinstance(_s0, dict):
+                _ns.append({'q': _s0.get('q') or _s0.get('cycle') or _s0.get('quarter') or _s0.get('period') or '-',
+                            'cycle': _s0.get('cycle') or _s0.get('period') or '',
+                            'announce': _s0.get('announce') or _s0.get('announce_date') or '-',
+                            'effective': _s0.get('effective') or _s0.get('effective_date') or '-',
+                            'note': _s0.get('note') or ''})
+            else: _ns.append(_s0)
+        if _ns: _b['schedule'] = _ns
+    return _ir
+try: _rbu = _ir_norm(dict(_rbu))
+except Exception as _ire: print('  [ir_norm] skip:', _ire)
+m['index_rebalance'] = {k: v for k, v in _rbu.items() if k != 'latest_change_date'}
 
 crd = dict(cr); crd['charts'] = {'btc': 'charts/coin_btc.png', 'eth': 'charts/coin_eth.png', 'xrp': 'charts/coin_xrp.png', 'sol': 'charts/coin_sol.png', 'fng': 'charts/fng_1y.png'}
 # (fix) 김치프리미엄 coins[] 구성 (빌더는 kimchi_premium.coins[{symbol,u,b,pp,status}] 필요) — 6.3 미표시 문제
