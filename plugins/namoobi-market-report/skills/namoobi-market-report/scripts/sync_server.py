@@ -38,6 +38,7 @@ def main():
         return 0
 
     base = Path(base)
+    dbroot = Path(dbroot)  # (2026-07-12) str/str 나눗셈 예외 수정 — find()가 str 반환
     # (v3.59.1) 키 스테이징 — /tmp 금지(샌드박스 권한 차단 실측 2026-07-11).
     # ssh 는 키 600 권한을 요구 → 쓰기 가능한 경로에 복사: /dev/shm → outputs/nmr_build → outputs → cwd.
     import atexit, shutil, stat

@@ -53,7 +53,12 @@ def main():
     if not all(_have(m) for m in ("numpy", "pandas", "yfinance")):
         print("[deriv] 필수 라이브러리 설치 시도(requirements.txt)...")
         try:
-            subprocess.run([PY, "-m", "pip", "install", "-q", "-r",
+            # (2026-07-12) yfinance>=1.5 의 curl_cffi(11MB) 의존성이 무거워 한 번에 깔면 외부
+            # bash 45초 제한에 잘린다 → --prefer-binary + curl_cffi 선설치로 분할(각 단계 best-effort).
+            subprocess.run([PY, "-m", "pip", "install", "-q", "--prefer-binary",
+                            "--break-system-packages", "curl_cffi"], timeout=300)
+            subprocess.run([PY, "-m", "pip", "install", "-q", "--prefer-binary",
+                            "--break-system-packages", "-r",
                             os.path.join(BASE, "requirements.txt")], timeout=900)
         except Exception as e:
             print("  [deriv] pip 실패(무시):", repr(e)[:90])
@@ -63,6 +68,14 @@ def main():
 
     # 2) DB 없으면 최초 백필, 있으면 증분 갱신
     db = os.environ.get("DERIV_DB") or os.path.join(BASE, "deriv_signals.db")
+    if not (os.path.exists(db) and os.path.getsize(db) > 10000):
+        # (2026-07-12) 지정 DB 미존재 시 정본(server/data) 자동 폴백 — 옛 SKILL 경로(_market_report_data)로
+        # 호출돼도 재백필 없이 기존 이력을 계속 쓴다.
+        import glob as _g
+        _alt = sorted(_g.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/deriv_signals.db"))
+        if _alt and os.path.getsize(_alt[0]) > 10000:
+            db = _alt[0]; os.environ["DERIV_DB"] = db
+            print("[deriv] 지정 DB 없음 → 정본 폴백:", db)
     if os.path.exists(db) and os.path.getsize(db) > 10000:
         _run(["daily_update.py"], 300)
     else:
