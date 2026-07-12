@@ -88,6 +88,11 @@ def main():
                 by.update({r[0]: r[1] for r in (srv.get("data") or [])})   # 서버값 우선
                 out = sorted(([d, v] for d, v in by.items()), key=lambda x: x[0])
                 srv["data"] = out
+                # (2026-07-12) 기준일 자동 기록 — 서버 구버전 nmr_db 가 as_of 공란으로 쓴 경우 최신 데이터일로 채움
+                if not srv.get("as_of"):
+                    import re as _re
+                    _mk = str(srv.get("marker") or "")[:10]
+                    srv["as_of"] = _mk if _re.fullmatch(r"\d{4}-\d{2}-\d{2}", _mk) else (out[-1][0][:10] if out else "")
                 json.dump(srv, open(lp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
                 merged_n += 1
             except Exception as e:
