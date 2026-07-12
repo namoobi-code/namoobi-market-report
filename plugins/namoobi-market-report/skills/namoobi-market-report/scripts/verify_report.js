@@ -59,6 +59,13 @@ houses(d.global_securities,'GlobalIB','weekly7');
 { const tn=(d.news&&d.news.top_news)||[]; const n=tn.filter(x=>!(x&&x.source_url)).length; if(tn.length&&n) warnings.push('[req10] top_news without source_url: '+n+'/'+tn.length); }
 // req11: portfolio basis present (no false precision)
 { const pf=(d.analysis&&d.analysis.portfolios)||{}; Object.keys(pf).forEach(k=>{ const p=pf[k]; if(p&&typeof p==='object'&&!Array.isArray(p)&&!p.basis) warnings.push('[req11] portfolio '+k+' missing basis'); }); }
+// (v3.63) req28: 캘린더 3종 출처(grounding) — docx 2.1/2.2/2.3 · 대시보드 모두 '출처' 열을 렌더한다.
+//   출처 없는 이벤트는 근거 없는 일정이므로 수록 자체를 금한다(agents/data-schema 규칙). 여기서 강제한다.
+{ const cals=[['events_calendar','2.1 향후 1개월'],['events_calendar_longterm','2.2 중장기'],['bigtech_events','2.3 빅테크']];
+  cals.forEach(([k,lab])=>{ const ev=(d.news&&d.news[k])||[]; if(!ev.length) return;
+    const miss=ev.filter(e=>!(e&&e.source)).length;
+    if(miss===ev.length) problems.push('[req28] '+lab+' 전 건 출처 없음 ('+miss+'/'+ev.length+') — source·source_url 필수(추측 일정 금지)');
+    else if(miss) warnings.push('[req28] '+lab+' 출처 누락 '+miss+'/'+ev.length+'건'); }); }
 // req12: events_calendar date sanity -- not past-dated vs report_date
 { const ev=(d.news&&d.news.events_calendar)||[]; const ref=new Date((d.metadata&&d.metadata.report_date)||Date.now()); const r0=new Date(ref.toDateString()); let pst=0; ev.forEach(e=>{ const x=new Date(String((e&&e.date)||'').slice(0,10)); if(!isNaN(x)&&x<r0) pst++; }); if(pst) warnings.push('[req12] events_calendar past-dated entries: '+pst); }
 
