@@ -196,8 +196,16 @@ function simpleTable(w,header,body,opts){ opts=opts||{}; const leftCols=opts.lef
   children.push(makeTable(w,rows)); }
 function renderBigtechEvents(){ const ev=data.news&&data.news.bigtech_events; if(!Array.isArray(ev)||!ev.length)return;
   children.push(h("2.3 빅테크 주요 이벤트 (신제품·신기술)",2));
-  simpleTable([1300,2900,900,2680,1700],["시기","이벤트","중요도","예상 영향","출처"],
-    ev.map(e=>[e.date??"-",e.event??"-",e.importance??"-",e.expected_impact??e.impact??"-",(e.source||(e.source_url?"링크":"-"))]),{left:[1,3,4],boldCols:[1]});
+  { const bw=[1300,2900,900,2680,1700];
+    const brows=[new TableRow({children:["시기","이벤트","중요도","예상 영향","출처"].map((c,j)=>cell(c,{width:bw[j],header:true,align:AlignmentType.CENTER}))}),
+      ...ev.map((e,k)=>{ const alt=(k+1)%2===0;
+        const srcRuns=(e.source||e.source_url)?[linkRun(e.source||"링크",e.source_url,{size:18})]:[cellRun("-",{size:18})];
+        return new TableRow({children:[cell(e.date??"-",{width:bw[0],alt,align:AlignmentType.CENTER}),
+          cell(e.event??"-",{width:bw[1],alt,bold:true}),
+          cell(e.importance??"-",{width:bw[2],alt,align:AlignmentType.CENTER}),
+          cell(e.expected_impact??e.impact??"-",{width:bw[3],alt}),
+          cell("",{width:bw[4],alt,runs:srcRuns})]}); })];
+    children.push(makeTable(bw,brows)); }
   if(data.news.bigtech_events_comment) children.push(p(data.news.bigtech_events_comment)); }
 function markSign(x){ const t=String(x||""); if(/^[\s]*[+]/.test(t)) return positiveColor; if(/^[\s]*[-−]/.test(t)) return negativeColor; return undefined; }
 function renderKoreaExtras(){ const m=data.markets||{};
@@ -822,14 +830,31 @@ function notBigtechEvent(e){ return !BIGTECH_EVENT_RE.test(String((e&&e.event)||
 children.push(h("2.1 향후 1개월 (전체 중요도)",2));
 if (data.news && Array.isArray(data.news.events_calendar) && data.news.events_calendar.length) {
   const ew=[1200,900,2500,900,2560,1300];
-  const er=[["날짜","지역","이벤트","중요도","예상 영향","출처"],...data.news.events_calendar.filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.importance??"-",e.expected_impact??"-",(e.source||(e.source_url?"링크":"-"))])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:ew[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1||j===3)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0,color:(j===3&&i>0&&String(c).includes("★★★"))?"DC2626":undefined}))}));
+  const evs1=data.news.events_calendar.filter(notBigtechEvent);
+  const er=[new TableRow({children:["날짜","지역","이벤트","중요도","예상 영향","출처"].map((c,j)=>cell(c,{width:ew[j],header:true,align:AlignmentType.CENTER}))}),
+    ...evs1.map((e,k)=>{ const alt=(k+1)%2===0;
+      const srcRuns=(e.source||e.source_url)?[linkRun(e.source||"링크",e.source_url,{size:18})]:[cellRun("-",{size:18})];
+      return new TableRow({children:[cell(e.date??"-",{width:ew[0],alt,align:AlignmentType.CENTER}),
+        cell(e.region??"-",{width:ew[1],alt,align:AlignmentType.CENTER}),
+        cell(e.event??"-",{width:ew[2],alt,bold:true}),
+        cell(e.importance??"-",{width:ew[3],alt,align:AlignmentType.CENTER,color:String(e.importance||"").includes("★★★")?"DC2626":undefined}),
+        cell(e.expected_impact??"-",{width:ew[4],alt}),
+        cell("",{width:ew[5],alt,runs:srcRuns})]}); })];
   children.push(makeTable(ew,er));
 } else children.push(p("(1개월 이벤트 없음)"));
 children.push(p(""));
 children.push(h("2.2 중장기 1개월~1년 (★★★만)",2));
 if (data.news && Array.isArray(data.news.events_calendar_longterm) && data.news.events_calendar_longterm.length) {
   const lw=[1300,1000,2700,2760,1600];
-  const lr=[["날짜","지역","이벤트","예상 영향","출처"],...data.news.events_calendar_longterm.filter(function(e){return e&&e.event;}).filter(notBigtechEvent).map(e=>[e.date??"-",e.region??"-",e.event??"-",e.expected_impact??"-",(e.source||(e.source_url?"링크":"-"))])].map((r,i)=>new TableRow({children:r.map((c,j)=>cell(c,{width:lw[j],header:i===0,alt:i>0&&i%2===0,align:(j===0||j===1)?AlignmentType.CENTER:AlignmentType.LEFT,bold:j===2&&i>0}))}));
+  const evs2=data.news.events_calendar_longterm.filter(function(e){return e&&e.event;}).filter(notBigtechEvent);
+  const lr=[new TableRow({children:["날짜","지역","이벤트","예상 영향","출처"].map((c,j)=>cell(c,{width:lw[j],header:true,align:AlignmentType.CENTER}))}),
+    ...evs2.map((e,k)=>{ const alt=(k+1)%2===0;
+      const srcRuns=(e.source||e.source_url)?[linkRun(e.source||"링크",e.source_url,{size:18})]:[cellRun("-",{size:18})];
+      return new TableRow({children:[cell(e.date??"-",{width:lw[0],alt,align:AlignmentType.CENTER}),
+        cell(e.region??"-",{width:lw[1],alt,align:AlignmentType.CENTER}),
+        cell(e.event??"-",{width:lw[2],alt,bold:true}),
+        cell(e.expected_impact??"-",{width:lw[3],alt}),
+        cell("",{width:lw[4],alt,runs:srcRuns})]}); })];
   children.push(makeTable(lw,lr));
   children.push(p("※ 중장기는 ★★★만 수록. 미확정은 (예정) 표기.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(중장기 이벤트 없음)"));
