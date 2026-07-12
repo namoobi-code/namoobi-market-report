@@ -17,7 +17,7 @@ import os, sys, subprocess
 BASE = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.getcwd(), "nmr_deriv_positioning.json")
-# 2번째 인자(선택) = 안정 DB 경로. 지정하면 재백필 방지·이력 유지(권장: ..\_market_report_data\deriv_signals.db).
+# 2번째 인자(선택) = 안정 DB 경로. 지정하면 재백필 방지·이력 유지(권장: ..\namoobi-market-report-server\data\deriv_signals.db).
 # 플러그인은 매 실행 git 추출본($RUN)에서 코드를 돌리므로, DB만은 영구 경로로 분리해야 매번 1년 백필을 반복하지 않는다.
 if len(sys.argv) > 2 and sys.argv[2].strip():
     os.environ["DERIV_DB"] = os.path.abspath(sys.argv[2])

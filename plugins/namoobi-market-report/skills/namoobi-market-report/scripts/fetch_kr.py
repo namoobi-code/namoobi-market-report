@@ -62,7 +62,7 @@ def inv(mkt, itype):
 
 def _hy_cache():  # v3.14: FRED 차단 시 영구 누적 캐시(연결폴더) 폴백 — HY 표·차트 항상 채움
     import glob as _g
-    for p in [os.path.join(os.getcwd(), '_market_report_data', 'nmr_hy_history.json')] + _g.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_hy_history.json') + _g.glob('/sessions/*/mnt/outputs/_market_report_data/nmr_hy_history.json'):
+    for p in [os.path.join(os.getcwd(), '_market_report_data', 'nmr_hy_history.json')] + _g.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_hy_history.json') + _g.glob('/sessions/*/mnt/outputs/_market_report_data/nmr_hy_history.json'):
         try:
             s = (json.load(open(p)).get('series')) or []
             if len(s) >= 5: return {'series': s, 'points': {'current': s[-1]}, 'source': 'persistent cache (FRED 차단 폴백)'}
@@ -131,7 +131,7 @@ if isinstance(hy, dict):
     json.dump(hy, open('nmr_hy_series.json', 'w'), ensure_ascii=False)
     try:  # v3.14: 영구 누적 캐시 갱신(연결폴더) — FRED 차단돼도 다음 실행이 폴백
         import glob as _g
-        _cp = _g.glob('/sessions/*/mnt/claudeCowork/_market_report_data')
+        _cp = _g.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data')
         if _cp:
             _hp = os.path.join(_cp[0], 'nmr_hy_history.json')
             _hist = {}

@@ -18,14 +18,14 @@ def _report_path():
     for a in sys.argv[1:]:
         if a.endswith(".json") and os.path.exists(a) and "report_data" in a: return a
     c=(sorted(glob.glob(O+"/_market_report_data/report_data_*.json")) or sorted(glob.glob(O+"/report_data_*.json"))
-       or sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/report_data_*.json")))  # v3.13.1: 연결폴더 직전 report_data 폴백 → FRED 실패해도 HY 차트 항상 렌더
+       or sorted(glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/report_data_*.json")))  # v3.13.1: 연결폴더 직전 report_data 폴백 → FRED 실패해도 HY 차트 항상 렌더
     return c[-1] if c else None
 series=None; cur=None
 # (req3 fix) 일별 1년+ 시계열 우선: nmr_hy_history.json(캐시, {"series":[[YYYY-MM-DD,oas],...]}) 도 후보에 포함 →
 #   FRED 일별 OAS 가 이미 캐시돼 있으면 6점 폴백이 아니라 일별 곡선으로 렌더된다.
 _hy_cands=["hy_oas.json", O+"/hy_oas.json", O+"/nmr_hy_series.json",
            O+"/nmr_hy_history.json", O+"/_market_report_data/nmr_hy_history.json"] \
-          + sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_hy_history.json"))
+          + sorted(glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_hy_history.json"))
 for cand in _hy_cands:
     if os.path.exists(cand):
         try:

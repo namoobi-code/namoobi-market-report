@@ -13,7 +13,7 @@ for fp in [os.path.join(O, "fonts", "nmr_kr.ttf"), os.environ.get("NMR_FONT", ""
 plt.rcParams["axes.unicode_minus"] = False
 
 def load():
-    for p in [os.path.join(O, "nmr_factset.json")] + glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_factset.json"):
+    for p in [os.path.join(O, "nmr_factset.json")] + glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_factset.json"):
         try: return json.load(open(p, encoding="utf-8"))
         except Exception: pass
     return {}

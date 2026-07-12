@@ -4,7 +4,7 @@
 import json,os,sys,glob
 W=sys.argv[1] if len(sys.argv)>1 else '.'
 RD=sorted(glob.glob(W+'/_market_report_data/report_data_*.json'))[-1]
-CWs=glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data'); CW=CWs[0] if CWs else (W+'/_market_report_data')
+CWs=glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data'); CW=CWs[0] if CWs else (W+'/_market_report_data')
 today=os.environ.get('NMR_DATE_ISO','2026-06-26')
 d=json.load(open(RD)); mac=d['markets']['macro']; rates=mac.get('rates',{})
 cache_path=CW+'/nmr_valcache.json'

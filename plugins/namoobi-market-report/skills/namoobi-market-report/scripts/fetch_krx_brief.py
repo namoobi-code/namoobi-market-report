@@ -4,7 +4,7 @@
 # '공매도 데일리 브리프' PDF를 내려받아 페이지별 PNG 캡쳐를 만든다 (sandbox·stdlib·Chrome 불필요).
 #
 # [DB화 — Big-Arch] 회차 마커 = 게시글 att_seq.
-#   - 영구 저장소: <connected>/_market_report_data/krx_brief/<key>_<att_seq>/ (원본 pdf + 페이지 PNG)
+#   - 영구 저장소: <connected>/namoobi-market-report-server/data/krx_brief/<key>_<att_seq>/ (원본 pdf + 페이지 PNG)
 #   - DB:          <connected>/namoobi-market-report-server/db/krx_brief.json (marker="krx:<seq>|short:<seq>")
 #   - 마커 불변(기존꺼랑 같음) → 다운로드·캡쳐 생략, 저장본 PNG 를 charts/ 로 복사(재사용).
 #   - 마커 변경(신규 회차)   → PDF 다운로드 → pdftocairo(폴백 pdftoppm) PNG 캡쳐 → 영구 저장 + charts/ 복사.
@@ -54,7 +54,7 @@ def work_dir():
     return (glob.glob('/sessions/*/mnt/outputs') or ['.'])[0] + '/nmr_build'
 
 def store_base():
-    for pat in ('/sessions/*/mnt/claudeCowork/_market_report_data', '/sessions/*/mnt/outputs/_market_report_data'):
+    for pat in ('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data', '/sessions/*/mnt/outputs/_market_report_data'):
         g = glob.glob(pat)
         if g: return g[0]
     d = (glob.glob('/sessions/*/mnt/outputs') or ['.'])[0] + '/_market_report_data'

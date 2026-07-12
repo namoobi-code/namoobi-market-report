@@ -78,6 +78,6 @@ node build_report.js sample_data.json out.docx     # 샘플 docx 생성
 ## 메모
 
 - `version` 을 안 올리면 업데이트로 인식되지 않는다 — 변경 시 항상 semver 로 올릴 것
-- `node_modules`, 생성된 `*.docx`, `_market_report_data/`, `nmr_build/` 는 .gitignore 로 제외
+- `node_modules`, 생성된 `*.docx`, `namoobi-market-report-server/data/`, `nmr_build/` 는 .gitignore 로 제외
 - 기존 `namoobi-plugins`(global-market-report v0.3.0)는 별도 저장소로 그대로 두고, 이 저장소가 후속 버전
 - **샌드박스(bash) 에서 이 저장소 파일을 읽을 때 잘려 보일 수 있다** — 호스트 원본은 정상이며, Read 도구(호스트 직접 읽기)가 신뢰 기준. 패키징·복사 작업은 반드시 검증 동반.

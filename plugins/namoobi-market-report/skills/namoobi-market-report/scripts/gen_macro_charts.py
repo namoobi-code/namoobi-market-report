@@ -12,7 +12,7 @@ os.makedirs("charts", exist_ok=True)
 BLUE="#1E40AF"; RED="#DC2626"; GREEN="#059669"; AMBER="#D97706"; PURPLE="#7C3AED"; SLATE="#334155"
 def _loadjson(*names):
     _SD=os.path.dirname(os.path.abspath(__file__))
-    _CW=(sorted(glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data"))[:1] or [""])[0]
+    _CW=(sorted(glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data"))[:1] or [""])[0]
     for c in names:
         for p in [c, os.path.join(O,c), os.path.join(_SD,c)]+([os.path.join(_CW,c)] if _CW else []):
             if os.path.exists(p):
@@ -86,7 +86,7 @@ try:
         except Exception: _idx={}
         if _ndb._pairs(S.get("us2y_daily")): _idx["us2y"]=S["us2y_daily"]
         _vh=None
-        for _vp in [os.path.join(O,"nmr_vkospi_history.json")]+glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json"):
+        for _vp in [os.path.join(O,"nmr_vkospi_history.json")]+glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_vkospi_history.json"):
             try: _vh=json.load(open(_vp)); break
             except Exception: pass
         if _vh:

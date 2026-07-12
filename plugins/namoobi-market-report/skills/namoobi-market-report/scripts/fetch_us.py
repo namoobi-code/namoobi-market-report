@@ -279,7 +279,7 @@ def _vkospi_cache_enrich(base):
     import datetime as _dt
     if not base or base.get('current') is None: return base
     cur = base['current']
-    cdir = (sorted(glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data'))
+    cdir = (sorted(glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data'))
             or sorted(glob.glob('/sessions/*/mnt/outputs/_market_report_data')) or ['.'])[0]
     cpath = os.path.join(cdir, 'nmr_vkospi_history.json')
     try: hist = json.load(open(cpath)) if os.path.exists(cpath) else {'series': []}

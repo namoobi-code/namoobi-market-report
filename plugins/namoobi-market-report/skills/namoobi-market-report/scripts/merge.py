@@ -20,7 +20,7 @@ def L(p):
         print('load fail', p, e); return {}
 
 # (v3.39) 휘발 데이터 carry-forward: WORK 우선 → 없으면 연결폴더 영구본 → 사용분은 연결폴더에 저장(다음 회차 폴백)
-_CWROOT = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data') or [os.path.join(W, '_market_report_data')])[0]
+_CWROOT = (glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data') or [os.path.join(W, '_market_report_data')])[0]
 def LCF(name):
     d = L(name)
     if not d:
@@ -76,7 +76,7 @@ if isinstance(dpv, dict) and (dpv.get('rows') or dpv.get('index')): m['deriv_pos
 def _deriv_carry(cur):
     try:
         import glob as _g
-        cands=sorted(_g.glob('/sessions/*/mnt/claudeCowork/_market_report_data/report_data_*.json'))+sorted(_g.glob(os.path.join(W,'_market_report_data','report_data_*.json')))
+        cands=sorted(_g.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/report_data_*.json'))+sorted(_g.glob(os.path.join(W,'_market_report_data','report_data_*.json')))
         cands=[c for c in cands if RD not in os.path.basename(c)]
         prev=None
         for c in reversed(cands):
@@ -542,7 +542,7 @@ _vk = mk.get('vkospi')
 if not (isinstance(_vk, dict) and _vk.get('current') is not None):
     # (req27) KSVKOSPI 폴백: 일별 캐시(nmr_vkospi_history.json) 최신값 — 라이브 실패 시에도 stale 기본값/'-' 금지
     try:
-        _vp = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json') or glob.glob(os.path.join(W,'_market_report_data','nmr_vkospi_history.json')) or [None])[0]
+        _vp = (glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_vkospi_history.json') or glob.glob(os.path.join(W,'_market_report_data','nmr_vkospi_history.json')) or [None])[0]
         if _vp:
             _vser = (json.load(open(_vp)).get('series') or [])
             if _vser: _vk = {'current': _vser[-1][1], 'trend': '캐시(CNBC .KSVKOSPI 일별누적)', 'anchors': _vser}
@@ -555,8 +555,8 @@ for _r in ((macro.get('sentiment') or {}).get('rows') or []):
 #   1년치 일별로 anchors(1w~1y)·prev_pct 를 계산해 nmr_vkospi_history.json 최상위 키로 저장('-' 근절, 매 실행 자동).
 try:
     import sqlite3 as _sq3
-    _ddbp = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/deriv_signals.db') or [None])[0]
-    _vhp = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json') or [None])[0]
+    _ddbp = (glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/deriv_signals.db') or [None])[0]
+    _vhp = (glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_vkospi_history.json') or [None])[0]
     if _ddbp and _vhp:
         _vh0 = json.load(open(_vhp, encoding='utf-8'))
         _daily = _vh0.setdefault('daily', {})
@@ -583,7 +583,7 @@ except Exception as _ve8: print('  [req8] VKOSPI 공식이력 보강 skip:', _ve
 try:
     _vh = LCF('nmr_vkospi_history.json')
     if not isinstance(_vh, dict):
-        _vp2 = (glob.glob('/sessions/*/mnt/claudeCowork/_market_report_data/nmr_vkospi_history.json') or [None])[0]
+        _vp2 = (glob.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_vkospi_history.json') or [None])[0]
         _vh = json.load(open(_vp2)) if _vp2 else None
     if isinstance(_vh, dict):
         for _r in ((macro.get('sentiment') or {}).get('rows') or []):

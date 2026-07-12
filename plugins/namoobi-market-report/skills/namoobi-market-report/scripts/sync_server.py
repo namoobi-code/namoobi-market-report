@@ -24,7 +24,7 @@ def find(pats):
 
 
 def main():
-    base = find(['/sessions/*/mnt/claudeCowork/_market_report_data',
+    base = find(['/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data',
                  '/sessions/*/mnt/outputs/_market_report_data'])
     # (2026-07-12) DB 정본은 서버코드 저장소로 이전 — base(_market_report_data)와 분리됐다.
     dbroot = find(['/sessions/*/mnt/claudeCowork/namoobi-market-report-server',

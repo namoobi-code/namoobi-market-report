@@ -20,7 +20,7 @@ def _bad_release(v):
 def loadj(name):
     for p in ([os.path.join(WORK,name)]+glob.glob("/sessions/*/mnt/outputs/nmr_build/"+name)
              +glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/"+name)   # DB 정본(db/*.json)
-             +glob.glob("/sessions/*/mnt/claudeCowork/_market_report_data/"+name)):
+             +glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/"+name)):
         try: return json.load(open(p,encoding="utf-8"))
         except Exception: pass
     return {}
