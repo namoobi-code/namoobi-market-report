@@ -66,6 +66,7 @@ build_report.js 가 기대하는 통합 JSON 구조. 각 섹션은 해당 에이
 impact 값: `★ 강세` / `▲ 양면` / `▼ 부정` / `■ 중립` (보강 표기 허용).
 (v3.3.0) `source`/`source_url`/`published_date` 는 출처 grounding 용. top_news 는 출처 확인된 항목만 수록. 날짜 미확정 이벤트는 `date: "(미확정)"`.
 events_calendar 는 향후 1개월 전체 중요도(★~★★★) 7~12건, events_calendar_longterm 은 1개월~1년 ★★★만 6~10건 — 모두 날짜순.
+⚠️ **(v3.63) 출처는 3개 캘린더 모두 필수** — `events_calendar` · `events_calendar_longterm` · `bigtech_events` 전부 `source`·`source_url` 을 채운다. 빌더가 docx 2.1/2.2/2.3 표에 **"출처" 열**을 렌더하고 대시보드도 같은 열을 쓰므로, 비면 "-" 로 남아 **근거 없는 일정**이 된다. 출처를 못 찾은 이벤트는 수록하지 않는다(추측 일정 금지).
 (구버전 호환: fx_snapshot 에 USD_KRW 등 현재가 문자열이 있으면 빌더가 폴백 렌더링한다.)
 
 ## markets
@@ -180,7 +181,7 @@ rare_earth 는 REMX (VanEck Rare Earth/Strategic Metals ETF) 프록시.
 
 ## (v3.5.0) 추가 필드 스키마 — 모두 선택(없으면 섹션 자동 생략)
 
-- `news.bigtech_events`: [{date:str, event:str, importance:"★|★★|★★★", expected_impact:str}], `news.bigtech_events_comment`:str.
+- `news.bigtech_events`: [{date:str, event:str, importance:"★|★★|★★★", expected_impact:str, **source:str, source_url:str**}], `news.bigtech_events_comment`:str.
 - `markets.korea_flows`: [{market:str, trend:str, comment:str}], `markets.korea_flows_comment`:str.
 - `markets.korea_leading`: [{period:str, mom:str, note:str}], `markets.korea_leading_comment`:str.
 - `markets.korea_themes`: [{theme:str, direction:"▲ 강세|▼ 부정|■ 양면", comment:str}] — 12종 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·건설(v3.50)·건설기계·항공·정유(v3.50.1)), `markets.korea_themes_intro`/`korea_themes_comment`:str.
