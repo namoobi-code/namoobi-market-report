@@ -1230,6 +1230,7 @@ function renderDerivPositioning(){ const m=data.markets||{};
       cell(r.ret5||"-",{width:iw[3],alt:a,size:15,align:AlignmentType.CENTER})]}));});
     children.push(makeTable(iw,ir)); }
   children.push(p("② 지표별 현재값 · z-스코어  (굵은 셀=|z|≥1.5 신호; 파랑=양수·빨강=음수)",{bold:true,size:18,color:"1E40AF",before:120}));
+  children.push(p("※ z 공란 안내 — 풋콜비율·IV 스큐·딜러 감마(GEX)는 옵션 체인의 과거 스냅샷이 공개 소스에 존재하지 않아 2026-07-11 수집 개시분부터 자체 누적 중이며, 롤링 60거래일(약 3개월)이 쌓이는 2026년 10월경부터 z-스코어가 자동 산출된다. 그때까지 해당 칸은 현재값만 표시. 한국 외국인·기관 수급 z 도 주간 이력 누적 후 순차 산출.",{size:14,italics:true,color:"94A3B8"}));
   const zw=[2760,2200,2200,2200]; const zr=[hdrRow(["지표","S&P 500","Nasdaq 100","KOSPI200"],zw)];
   const fz=(c)=>{ const z=(c&&c.z!=null&&!isNaN(c.z))?Number(c.z):null; const sig=(z!=null&&Math.abs(z)>=1.5);
     return {t:String((c&&c.v)||"-")+"  (z "+(z==null?"—":((z>=0?"+":"")+z.toFixed(2)))+")", s:sig, c:sig?(z>=0?"1D4ED8":"B91C1C"):"0F172A"}; };
