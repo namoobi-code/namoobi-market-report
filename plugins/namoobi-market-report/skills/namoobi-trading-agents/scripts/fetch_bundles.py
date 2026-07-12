@@ -15,6 +15,8 @@ def jget(name):
         return json.loads(r.read())
 try:
     s3=jget("ta_stage3"); s2=jget("ta_stage2")
+    try: flag=jget("ta_flag")
+    except Exception: flag=None
 except Exception as e:
     print(f"서버 접속 실패: {type(e).__name__}: {e}", file=sys.stderr); sys.exit(1)
 
@@ -32,5 +34,9 @@ try:
     stale=(date.today()-d).days>5
 except Exception: stale=True
 names={g:[x.get("종목") for x in items] for g,items in groups.items()}
-print(("STALE" if stale else "OK"), td)
+flag_tok="FLAG_MISSING"
+if flag and flag.get("completed"):
+    flag_tok=f"FLAG {flag['completed']} ({flag.get('flag_file','')})"
+    if flag.get("trade_date") and flag["trade_date"]!=td: flag_tok+=" MISMATCH"
+print(("STALE" if stale else "OK"), td, flag_tok)
 print(json.dumps(names, ensure_ascii=False))
