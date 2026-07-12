@@ -138,14 +138,16 @@ def main():
     else:
         print("[sync] ⚠️ 업로드할 docx 없음")
 
-    # ── 6) 서버 보고서 회전 (날짜별 최종본 × 최근 KEEP_DAYS 일)
+    # ── 6) 서버 보고서 회전 — (2026-07-12 사용자 req) 최신 5건은 무조건 보존, 그보다 오래된 것만
+    #      '날짜별 최종본 × 최근 KEEP_DAYS일' 규칙 적용 (아카이브 "최신 5건" 표시가 항상 5건 차도록)
     ok &= run(
         f'{SSH} {SERVER} "cd {REMOTE}/reports && '
-        f'ls -1 *.docx 2>/dev/null | sed -E \'s/.*_([0-9]{{8}})_[0-9]{{4}}\\.docx/\\1/\' | sort -u | head -n -{KEEP_DAYS} | '
-        f'while read d; do rm -f global_market_report_\\${{d}}_*.docx; done; '
-        f'ls -1 *.docx 2>/dev/null | sed -E \'s/.*_([0-9]{{8}})_[0-9]{{4}}\\.docx/\\1/\' | sort | uniq -d | '
-        f'while read d; do ls -1 global_market_report_\\${{d}}_*.docx | head -n -1 | xargs -r rm -f; done"',
-        f"보고서 회전 (최근 {KEEP_DAYS}일)")
+        f'ls -1t *.docx 2>/dev/null | tail -n +6 > /tmp/nmr_old.txt; '
+        f'cat /tmp/nmr_old.txt | sed -E \'s/.*_([0-9]{{8}})_[0-9]{{4}}\\.docx/\\1/\' | sort -u | head -n -{KEEP_DAYS} | '
+        f'while read d; do grep \"_\${{d}}_\" /tmp/nmr_old.txt | xargs -r rm -f; done; '
+        f'cat /tmp/nmr_old.txt | sed -E \'s/.*_([0-9]{{8}})_[0-9]{{4}}\\.docx/\\1/\' | sort | uniq -d | '
+        f'while read d; do grep \"_\${{d}}_\" /tmp/nmr_old.txt | sort | head -n -1 | xargs -r rm -f; done; rm -f /tmp/nmr_old.txt"',
+        f"보고서 회전 (최신 5건 보존 + 이전분 날짜별 1건×{KEEP_DAYS}일)")
 
     # ── 7) ⭐ 서버 전용 데이터를 PC로 되가져오기 (서버 소실 대비 백업)
     #    poll.db 는 서버가 1일 2회 수집해 쌓는, 서버에만 존재하는 시계열이다.
