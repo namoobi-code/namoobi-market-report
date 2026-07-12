@@ -14,11 +14,21 @@ def jget(name):
     with urllib.request.urlopen(f"{BASE}/api/db/{name}", timeout=20) as r:
         return json.loads(r.read())
 try:
-    s3=jget("ta_stage3"); s2=jget("ta_stage2")
     try: flag=jget("ta_flag")
     except Exception: flag=None
+    # 서버가 스크리닝 생성 중이면 데이터를 읽지 않는다 (혼합·부분 데이터 사용 방지)
+    if flag and flag.get("status")=="running":
+        print("RUNNING", flag.get("started","?")); sys.exit(2)
+    if flag and flag.get("status")=="failed":
+        print("PIPELINE_FAILED", flag.get("failed_at","?"), (flag.get("error") or "")[:120]); sys.exit(4)
+    s3=jget("ta_stage3"); s2=jget("ta_stage2")
+except SystemExit: raise
 except Exception as e:
     print(f"서버 접속 실패: {type(e).__name__}: {e}", file=sys.stderr); sys.exit(1)
+
+# 파일 간 정합: stage2와 stage3의 기준 거래일이 다르면 파이프라인이 중간에 끊긴 것
+if s2.get("trade_date")!=s3.get("trade_date"):
+    print("INCONSISTENT", s2.get("trade_date"), s3.get("trade_date")); sys.exit(5)
 
 json.dump(s2, open(f"{WORK}/ta_stage2.json","w"), ensure_ascii=False)
 groups={"KR1":s3["kr"][:5],"KR2":s3["kr"][5:10],"US1":s3["us"][:5],"US2":s3["us"][5:10]}
