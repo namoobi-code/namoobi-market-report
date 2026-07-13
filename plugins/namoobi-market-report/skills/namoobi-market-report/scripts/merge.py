@@ -248,6 +248,7 @@ except Exception as _he: print('  [req6] hbm eps_yearly skip:', _he)
 #   결측·다중출처 장문·'미확인' 등 비수치는 마지막 정상 DB값으로 보완한다. (통째 덮어써 2027E/2028E/PER 를 잃던 문제 방지)
 try:
     import re as _re_hb
+    import nmr_db as _ndb
     _hb2 = m.get('hbm') or {}
     _hep = os.path.join(_ndb._dbdir(), 'hbm_eps.json')   # DB 정본 = namoobi-market-report-server/db
     try:
@@ -704,9 +705,10 @@ def _ir_norm(_ir):
         for _e in (_b.get('events') or []):
             if not isinstance(_e, dict): continue
             if 'add' in _e or 'remove' in _e: _ev.append(_e); continue
-            _ev.append({'title': ' · '.join(x for x in [str(_e.get('date', '')), str(_e.get('type', ''))] if x),
-                        'add': _e.get('in') or _e.get('additions') or [],
-                        'remove': _e.get('out') or _e.get('deletions') or [],
+            _ev.append({'title': (' · '.join(x for x in [str(_e.get('date', '') or _e.get('quarter', '') or _e.get('period', '')), str(_e.get('type', ''))] if x) or '변경 내역'),
+                        'effective': _e.get('effective') or _e.get('effective_date') or '',
+                        'add': _e.get('in') or _e.get('additions') or _e.get('adds') or [],
+                        'remove': _e.get('out') or _e.get('deletions') or _e.get('drops') or _e.get('removes') or [],
                         'note': _e.get('note', '')})
         if _ev: _b['events'] = _ev
         _ns = []

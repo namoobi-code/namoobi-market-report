@@ -130,28 +130,49 @@ else:
     _trend(fig.add_subplot(gs[1,0]),"nand_spot",    "③ NAND 현물(스팟)",   "USD")
     _trend(fig.add_subplot(gs[1,1]),"nand_contract","④ NAND 고정거래(계약)","USD")
 
-    # ⑤ 스팟 − 계약 갭 (핵심 선행지표)
+    # ⑤ 스팟 − 계약 갭 (핵심 선행지표 — 2026-07-13 req: 매일 변하는 지표이므로 일별 추세선)
     ax5=fig.add_subplot(gs[2,0])
-    g=lambda k: {r["item"]: r["avg"] for r in (T.get(k) or {}).get("rows",[])}
-    ds,dc,ns,nc=g("dram_spot"),g("dram_contract"),g("nand_spot"),g("nand_contract")
-    PAIRS=[("DDR4 8Gb","DDR4 8Gb (1Gx8) 3200","DDR4 8Gb 1Gx8",ds,dc),
-           ("DDR4 16Gb","DDR4 16Gb (2Gx8) 3200","DDR4 16Gb 2Gx8",ds,dc),
-           ("NAND 64Gb","MLC 64Gb 8GBx8","NAND 64Gb 8Gx8 MLC",ns,nc),
-           ("NAND 32Gb","MLC 32Gb 4GBx8","NAND 32Gb 4Gx8 MLC",ns,nc)]
-    lab,val=[],[]
-    for l,si,ci,S,K in PAIRS:
-        if si in S and ci in K and K[ci]:
-            lab.append(l); val.append((S[si]/K[ci]-1)*100)
-    if val:
-        ax5.bar(lab,val,width=0.5,color=[C_GAP if v>0 else C_DDR4 for v in val])
-        for i,v in enumerate(val):
-            ax5.text(i, v+(3 if v>0 else -7), "%+.0f%%"%v, ha="center",
-                     fontsize=11, fontweight="bold")
+    PAIRS5=[("DDR4 8Gb","DDR4 8Gb (1Gx8) 3200","DDR4 8Gb 1Gx8","dram_spot","dram_contract"),
+           ("DDR4 16Gb","DDR4 16Gb (2Gx8) 3200","DDR4 16Gb 2Gx8","dram_spot","dram_contract"),
+           ("NAND 64Gb","MLC 64Gb 8GBx8","NAND 64Gb 8Gx8 MLC","nand_spot","nand_contract"),
+           ("NAND 32Gb","MLC 32Gb 4GBx8","NAND 32Gb 4Gx8 MLC","nand_spot","nand_contract")]
+    SER5={k:_series(k) for k in ("dram_spot","dram_contract","nand_spot","nand_contract")}
+    def _gap_series(si,ci,sk,ck):
+        smap={r[0]:(r[1] or {}).get(si) for r in SER5[sk]}
+        cmap={r[0]:(r[1] or {}).get(ci) for r in SER5[ck]}
+        out=[]; last_c=None
+        for d in sorted(set(list(smap))|set(list(cmap))):
+            if cmap.get(d): last_c=cmap[d]
+            sv=smap.get(d)
+            if sv and last_c: out.append((d,(sv/last_c-1)*100.0))
+        return out
+    _drawn5=False; COLS5=[C_SK,C_SAMS,C_MICRON,C_ETC]
+    for _i5,(l5,si,ci,sk,ck) in enumerate(PAIRS5):
+        g5=_gap_series(si,ci,sk,ck)
+        if len(g5)>=2:
+            xs5=[datetime.strptime(d,"%Y-%m-%d") for d,_ in g5]; ys5=[v for _,v in g5]
+            ax5.plot(xs5,ys5,marker="o",ms=3.2,lw=1.7,color=COLS5[_i5%4],label="%s %+.0f%%"%(l5,ys5[-1]))
+            _drawn5=True
+    if _drawn5:
         ax5.axhline(0,color="#888",lw=0.9)
-        ax5.set_ylim(min(val)*1.5 if min(val)<0 else 0, max(val)*1.28)
-    ax5.set_title("⑤ 스팟-계약 갭 (계약가 인상 압력 선행지표)",fontsize=13,fontweight="bold")
+        ax5.legend(fontsize=8.5,ncol=2,frameon=False,loc="center right")
+        for lb in ax5.get_xticklabels(): lb.set_fontsize(8)
+    else:
+        g=lambda k: {r["item"]: r["avg"] for r in (T.get(k) or {}).get("rows",[])}
+        ds,dc,ns,nc=g("dram_spot"),g("dram_contract"),g("nand_spot"),g("nand_contract")
+        lab,val=[],[]
+        for l5,si,ci,sk,ck in PAIRS5:
+            S=ds if sk=="dram_spot" else ns; K=dc if ck=="dram_contract" else nc
+            if si in S and ci in K and K[ci]: lab.append(l5); val.append((S[si]/K[ci]-1)*100)
+        if val:
+            ax5.bar(lab,val,width=0.5,color=[C_GAP if v>0 else C_DDR4 for v in val])
+            for i,v in enumerate(val):
+                ax5.text(i, v+(3 if v>0 else -7), "%+.0f%%"%v, ha="center", fontsize=11, fontweight="bold")
+            ax5.axhline(0,color="#888",lw=0.9)
+            ax5.set_ylim(min(val)*1.5 if min(val)<0 else 0, max(val)*1.28)
+    ax5.set_title("⑤ 스팟-계약 갭 일별 추세 (계약가 인상 압력 선행지표)",fontsize=13,fontweight="bold")
     ax5.set_ylabel("%",fontsize=9); _style(ax5)
-    _cap(ax5,"[계산] 현물÷계약-1. 현물이 계약가를 크게 상회하면 다음 계약 협상의 인상 압력\n     → 메모리 3사 실적 선행지표")
+    _cap(ax5,"[계산] 현물÷계약-1 일별 추세(계약가는 월 1회 갱신 — 직전 갱신값 carry). 갭 확대=다음 계약\n     협상 인상 압력 → 메모리 3사 실적 선행지표. 시계열 누적 시작 2026-07-11")
 
     # ⑥ HBM 업체별 점유율 (실측)
     ax6=fig.add_subplot(gs[2,1])
