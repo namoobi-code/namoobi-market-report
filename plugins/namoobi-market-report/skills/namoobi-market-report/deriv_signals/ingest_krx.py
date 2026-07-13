@@ -12,6 +12,7 @@ KOSPI200 파생 수집 디스패처.
   폴백(1차 실패 시)    네이버 / data.go.kr(금융위 파생상품시세정보)
         기존 경로 유지 — 리포트가 절대 비지 않도록.
 """
+import re
 import warnings, urllib.request, urllib.parse, json, time, collections, math, datetime as _dt
 import pandas as pd
 from config import DATA_GO_KR_KEY
@@ -275,47 +276,104 @@ def ingest_naver_t0(con):
     return n
 
 
+def _krx_opt_base(con):
+    """KRX T+1 코스피200 옵션 근월물 행사가별 OI — KIS 가 훑지 않은 '꼬리' 행사가를 채우는 기준."""
+    try:
+        from krx_openapi import call_range
+        import datetime as _d
+        ds = [(_d.date.today() - _d.timedelta(days=i)).strftime("%Y%m%d") for i in range(1, 6)]
+        r = call_range("drv", "opt_bydd_trd", ds)
+    except Exception:
+        return None
+    for d in sorted(r, reverse=True):
+        rows = [x for x in (r[d] or [])
+                if str(x.get("PROD_NM", "")).strip() == "코스피200 옵션"
+                and "야간" not in str(x.get("ISU_NM", ""))]
+        if not rows:
+            continue
+        ym = min(re.findall(r"20\d{4}", " ".join(str(x.get("ISU_NM", "")) for x in rows)) or ["0"])
+        base = {"call": {}, "put": {}}
+        for x in rows:
+            nm = str(x.get("ISU_NM", ""))
+            if ym not in nm:
+                continue
+            m = re.findall(r"([\d,]+\.\d+)", nm)
+            if not m:
+                continue
+            k = _f(m[-1])
+            v = _f(x.get("ACC_OPNINT_QTY"))
+            side = "call" if x.get("RGHT_TP_NM") == "CALL" else "put"
+            base[side][k] = v
+        if base["call"] or base["put"]:
+            print(f"  [KRX 기준] {d} {ym}물 행사가 {len(base['call'])}개 (콜 OI {sum(base['call'].values()):,.0f} / 풋 {sum(base['put'].values()):,.0f})")
+            return base
+    return None
+
+
 def ingest_kis_t0(con):
-    """【T+0 · 최상위】 KIS Open API — 미결제약정·PCR·IV스큐 (KRX T+1 을 대체).
+    """【T+0 · 최상위】 KIS Open API — 미결제약정·PCR·IV스큐·딜러감마.
 
-    KRX OPEN API 는 OI·PCR 을 T+1 로만 준다. 네이버는 선물 '가격'은 주지만 OI 는 안 준다.
-    KIS 는 HTS 와 동일한 실시간 데이터를 준다 — display-board-callput(FHPIF05030100)이
-    행사가별 미결제약정(hts_otst_stpl_qty)·내재변동성(hts_ints_vltl)·그릭스를 전부 준다.
+    KRX OPEN API 는 파생 전 항목이 T+1 이라 폭락 당일 시그널이 하루 늦는다. KIS 는 HTS 와 같은
+    당일 데이터를 준다(실측: KRX 7/10 K=1145 풋 OI 94 → KIS 7/13 119 로 정확히 이어짐).
 
-    키(SECURITY/kis.json)가 없으면 조용히 skip → 기존 KRX T+1 경로가 그대로 돈다.
-    ⚠️ 공식 문서가 "1초당 최대 1건 권장"이라 명시 — 하루 2회 배치에서만 호출한다.
+    ⚠️ 옵션 전광판(display-board-callput)은 쓰지 않는다 — 행사가 '최고가부터 100행'만 주고
+       연속조회가 없어, 지수가 급락하면 ATM 이 창 밖으로 나가 PCR 이 쓰레기값이 된다(실측).
+       대신 행사가별 개별 조회로 체인을 훑되, KRX T+1 OI 상위 99% 행사가만 훑고
+       나머지 꼬리는 KRX 값으로 채워 '전 체인 PCR' 을 T+0 정확도로 만든다.
+
+    키(SECURITY/.env)가 없으면 조용히 skip → 기존 KRX T+1 경로가 그대로 돈다.
     """
     import sys as _sys
     from pathlib import Path as _Path
     try:
         _sys.path.insert(0, str(_Path(__file__).resolve().parent))
         import kis_api
+        if not kis_api._creds():
+            print("  [KIS] 키 없음 — skip (KRX T+1 유지)")
+            return 0
     except Exception as e:
         print("  [KIS] 모듈 로드 실패(비차단):", type(e).__name__)
         return 0
+
     n = 0
+    spot = None
     try:
-        ob = kis_api.option_board()
-        if ob and ob.get("pcr_oi"):
-            con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_oi,iv_skew_25d)
-                           VALUES(?,?,?,?)
-                           ON CONFLICT(id,date) DO UPDATE SET
-                             pcr_oi=excluded.pcr_oi,
-                             iv_skew_25d=COALESCE(excluded.iv_skew_25d, kr_derivatives_daily.iv_skew_25d)""",
-                        (KID, ob["asof"], ob["pcr_oi"], ob.get("iv_skew")))
-            con.commit(); n += 1
-            print(f"  [KIS T+0] PCR {ob['pcr_oi']} (콜 OI {ob['call_oi']:,.0f} / 풋 OI {ob['put_oi']:,.0f})"
-                  + (f" · IV스큐 {ob['iv_skew']}" if ob.get("iv_skew") is not None else ""))
         fo = kis_api.futures_oi()
         if fo and fo.get("oi"):
+            spot = fo["price"]
             con.execute("""INSERT INTO kr_derivatives_daily(id,date,oi)
                            VALUES(?,?,?)
                            ON CONFLICT(id,date) DO UPDATE SET oi=excluded.oi""",
                         (KID, fo["asof"], fo["oi"]))
             con.commit(); n += 1
-            print(f"  [KIS T+0] 선물 OI {fo['oi']:,.0f} (증감 {fo.get('oi_chg')})")
+            print(f"  [KIS T+0] 선물 {fo['expiry']} 미결제 {fo['oi']:,.0f} (증감 {fo['oi_chg']:+,.0f}) · 현재가 {fo['price']}")
     except Exception as e:
-        print("  [KIS] T+0 skip(비차단):", repr(e)[:70])
+        print("  [KIS] 선물 skip:", repr(e)[:80])
+
+    if spot is None:
+        # 선물 한 방이 실패했다면 KIS 가 죽은 것(키 차단·장애). 옵션 체인(수백 콜)은 시도조차 하지 않는다.
+        print("  [KIS] 선물 응답 없음 → 옵션 체인 skip (KRX T+1 유지)")
+        return n
+    try:
+        base = _krx_opt_base(con)
+        oc = kis_api.option_chain(spot=spot, krx_base=base)
+        if oc and oc.get("pcr_oi"):
+            con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_oi,pcr_vol,iv_skew_25d,gex)
+                           VALUES(?,?,?,?,?,?)
+                           ON CONFLICT(id,date) DO UPDATE SET
+                             pcr_oi      = excluded.pcr_oi,
+                             pcr_vol     = COALESCE(excluded.pcr_vol,     kr_derivatives_daily.pcr_vol),
+                             iv_skew_25d = COALESCE(excluded.iv_skew_25d, kr_derivatives_daily.iv_skew_25d),
+                             gex         = COALESCE(excluded.gex,         kr_derivatives_daily.gex)""",
+                        (KID, oc["asof"], oc["pcr_oi"], oc.get("pcr_vol"),
+                         oc.get("iv_skew"), oc.get("gex")))
+            con.commit(); n += 1
+            print(f"  [KIS T+0] {oc['expiry']}물 PCR(OI) {oc['pcr_oi']} · PCR(거래량) {oc.get('pcr_vol')} "
+                  f"· IV스큐 {oc.get('iv_skew')} · GEX {oc.get('gex')}억  "
+                  f"[{oc['scanned']}/{oc['strikes']} 행사가 T+0, {oc['src']}]")
+    except Exception as e:
+        print("  [KIS] 옵션 skip:", repr(e)[:80])
+
     if n:
         log(con, "ingest_kis_t0", n)
     return n
