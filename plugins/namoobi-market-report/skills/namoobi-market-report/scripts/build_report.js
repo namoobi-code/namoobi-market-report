@@ -430,7 +430,7 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
     // (req13 2026-07-12) 대시보드 ⑩과 단일 소스(db/hbm_eps.json) — EPS=컨센서스(변동 시 갱신) · PER=최신 종가÷EPS 매일 재계산
-    children.push(p("EPS 출처: [네이버 실적]·[네이버 컨센서스] = 네이버 기업실적분석에서 매일 자동 갱신(연도키·isConsensus 명시라 매핑 확실). 표기 없는 연도(2027~2028)는 네이버 미제공 → 애널리스트 컨센서스(MCP/DB). PER = 최신 종가 ÷ EPS 매일 재계산. "+(hbm.eps_note||""),{size:13,italics:true,color:"94A3B8"}));
+    children.push(p("EPS 출처: [네이버 실적]·[네이버 컨센서스] = 네이버 기업실적분석에서 매일 자동 갱신(연도키·isConsensus 명시라 매핑 확실). 출처는 네이버 PC 종목분석(FnGuide) — 2025 실적 + 2026~2028 컨센서스 3년치를 매일 자동 갱신한다. 표기 없는 셀은 기존 소스(MCP/DB). PER = 최신 종가 ÷ EPS 매일 재계산. "+(hbm.eps_note||""),{size:13,italics:true,color:"94A3B8"}));
     // (v3.64) 네이버 당일 컨센서스 병기 — 위 표는 DB carry-forward 라 컨센서스 상향이 반영 안 될 수 있다.
     //   2026-07-13 실측: SK하이닉스 DB 2026 EPS 110,559(PER 16.7배) vs 네이버 당일 318,735(PER 5.79배) — 3배 괴리.
     //   PER 16.7배와 5.8배는 투자판단이 완전히 다르므로 정본(당일값)을 나란히 보여주고 괴리를 경고한다.
