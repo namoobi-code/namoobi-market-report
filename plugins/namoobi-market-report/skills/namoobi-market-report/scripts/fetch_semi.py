@@ -151,6 +151,63 @@ for _nm,_tk in (list(stocks.items())+etfs_ordered):
 kr_series["caps"]=_caps
 print("  [caps] 시총·상장주식수 매일수집:", len(_caps), "종")
 
+# ══════════════════════════════════════════════════════════════════
+#  (v3.64) 네이버 보강 — 수급·컨센서스·외인소진율 (KRX OPEN API 는 T+1 이라 못 쓰던 것들)
+#
+#  Yahoo 는 종가·수익률만 준다. 한국 종목을 볼 때 정작 중요한
+#  "오늘 누가 사고 팔았나(외국인/기관/개인)"·"애널리스트 목표주가는 얼마인가"가 빠져 있었다.
+#  네이버 /integration 이 종목당 1콜로 당일 값을 전부 준다. (KRX 는 T+1 이라 오늘 수급을 못 준다)
+#
+#  ⚠️ Yahoo 의 한국 개별종목 '시가' 는 부정확하다 (SK하이닉스 2026-07-13:
+#     Yahoo 2,113,000 vs KRX/네이버 2,207,000). 시가·고저가는 네이버 값을 쓴다.
+# ══════════════════════════════════════════════════════════════════
+def _naver_detail(code6):
+    u = "https://m.stock.naver.com/api/stock/%s/integration" % code6
+    rq = _ur.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+    d = json.loads(_ur.urlopen(rq, timeout=10).read().decode("utf-8"))
+    T = {x.get("key"): x.get("value") for x in (d.get("totalInfos") or [])}
+    def n(k):
+        v = T.get(k)
+        if not v: return None
+        try: return float(str(v).replace(",", "").replace("%", "").replace("원", "").replace("배", ""))
+        except Exception: return None
+    out = {}
+    for k, kk in (("시가","open"),("고가","high"),("저가","low"),("전일","prev_close"),
+                  ("외인소진율","foreign_rate"),("PER","per"),("추정PER","fwd_per"),
+                  ("추정EPS","fwd_eps"),("52주 최고","hi52"),("52주 최저","lo52")):
+        v = n(k)
+        if v is not None: out[kk] = v
+    dt = (d.get("dealTrendInfos") or [{}])[0]
+    if dt.get("bizdate"):
+        out["flows"] = {"date": dt.get("bizdate"),
+                        "foreign": dt.get("foreignerPureBuyQuant"),
+                        "inst": dt.get("organPureBuyQuant"),
+                        "indiv": dt.get("individualPureBuyQuant"),
+                        "foreign_hold": dt.get("foreignerHoldRatio")}
+    cs = d.get("consensusInfo") or {}
+    if cs.get("priceTargetMean"):
+        try:
+            tgt = float(str(cs["priceTargetMean"]).replace(",", ""))
+            out["consensus"] = {"target": tgt, "recomm": cs.get("recommMean"), "asof": cs.get("createDate")}
+        except Exception: pass
+    return out
+
+_nv = {}
+for _nm, _tk in (list(stocks.items()) + etfs_ordered):
+    try:
+        _d = _naver_detail(_tk.split(".")[0])
+        if _d:
+            c = (_caps.get(_nm) or {}).get("price")
+            if c and (_d.get("consensus") or {}).get("target"):
+                _d["consensus"]["upside_pct"] = round((_d["consensus"]["target"] / c - 1) * 100, 1)
+            _nv[_nm] = _d
+    except Exception:
+        pass
+kr_series["naver"] = _nv
+_fl = sum(1 for v in _nv.values() if v.get("flows"))
+_cs = sum(1 for v in _nv.values() if v.get("consensus"))
+print("  [naver] 보강 %d종 — 당일수급 %d · 목표주가 %d · 시가·외인소진율 포함" % (len(_nv), _fl, _cs))
+
 json.dump(kr_series, open("nmr_kr_series.json", "w", encoding="utf-8"), ensure_ascii=False)
 json.dump(kr_series.get("themes", {}), open("nmr_themeseries1y.json", "w", encoding="utf-8"), ensure_ascii=False)  # [브리지] gen_rest_charts theme_*
 print(f"WROTE nmr_kr_series.json — themes {len(kr_series['themes'])} stocks {len(kr_series['stocks'])} etfs {len(kr_series['etfs'])} | ok {ok} miss {miss} | daily {sum(len(v) for v in daily.values())}")

@@ -146,6 +146,7 @@ m['korea_leading_comment'] = lead_comment(kl)
 
 # 테마 (nmr_semi.json 의 선정/방향/코멘트 + nmr_kr_series.json 의 시계열 join)
 themes = krs.get('themes', {}); kr_daily = krs.get('daily') or {}; theme_etf = krs.get('theme_etf') or {}; trows = []
+kr_naver = krs.get('naver') or {}
 d_themes = kr_daily.get('themes') or {}
 for t in (semi.get('korea_themes') or []):
     nm = t.get('theme'); s = themes.get(nm) or []
@@ -204,6 +205,24 @@ for i, x in enumerate(semi.get('semi_ai_etfs', [])[:20]):
         if _ds.get('1d_pct') is not None: r['1d_pct'] = _ds['1d_pct']
         if _ds.get('prev_close') is not None: r['prev_close'] = _ds['prev_close']
     se.append(r)
+# (v3.64) 네이버 보강 주입 — 당일 수급(외국인/기관/개인)·목표주가 컨센서스·외인소진율·정확한 시가.
+#   Yahoo 는 종가·수익률만 준다. 한국 종목에서 정작 중요한 '오늘 누가 사고 팔았나'와
+#   '애널리스트 목표주가'가 통째로 빠져 있었다. KRX OPEN API 는 T+1 이라 오늘 수급을 못 준다.
+#   ⚠️ 시가는 네이버(KRX 공식)를 쓴다 — Yahoo 의 한국 개별종목 시가는 부정확하다
+#      (SK하이닉스 2026-07-13: Yahoo 2,113,000 vs KRX/네이버 2,207,000).
+_nvm = (krs.get('naver') if isinstance(krs, dict) else None) or {}
+if _nvm:
+    def _nvov(lst):
+        for _x in lst:
+            _n = _nvm.get(_x.get('name'))
+            if not _n: continue
+            for _k in ('open', 'high', 'low', 'foreign_rate', 'per', 'fwd_per', 'fwd_eps'):
+                if _n.get(_k) is not None: _x[_k] = _n[_k]
+            if _n.get('flows'):    _x['flows'] = _n['flows']
+            if _n.get('consensus'): _x['consensus'] = _n['consensus']
+    _nvov(ss); _nvov(se)
+    print('  [naver] 종목·ETF 보강 주입: %d종 (수급·목표주가·외인소진율)' % len(_nvm))
+
 m['semi_ai_stocks'] = ss; m['semi_ai_stocks_comment'] = semi.get('semi_ai_stocks_comment', '')
 m['semi_ai_etfs'] = se; m['semi_ai_etfs_comment'] = semi.get('semi_ai_etfs_comment', '')
 # [DB화·시총 매일] krs.caps(다음 라이브 시총·주식수)로 시총/AUM 덮어쓰기 → stale 방지·주식수 변동 자동 반영 + 시총/AUM순 정렬

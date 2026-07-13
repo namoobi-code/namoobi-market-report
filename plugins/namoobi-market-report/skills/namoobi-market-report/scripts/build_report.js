@@ -293,9 +293,27 @@ function renderKoreaExtras(){ const m=data.markets||{};
       const n=(typeof v==="number")?v:parseFloat(String(v).replace(/[^0-9.]/g,"")); if(!isFinite(n)||n<=0)return String(v);
       if(n>=10000){const jo=Math.floor(n/10000),eok=Math.round(n%10000); return eok?(jo.toLocaleString()+"조 "+eok.toLocaleString()+"억원"):(jo.toLocaleString()+"조원");}
       return Math.round(n).toLocaleString()+"억원"; };
-    const semiDesc=(x)=>[ new TextRun({text:(x.name||"-")+"  ",bold:true,size:20}),
+    // (v3.64) 네이버 보강 — 당일 수급·목표주가 컨센서스·외인소진율.
+    //   Yahoo 는 종가·수익률만 준다. 한국 종목에서 '오늘 누가 사고 팔았나'와
+    //   '애널리스트 목표주가'가 빠져 있었다(KRX OPEN API 는 T+1 이라 오늘 수급을 못 준다).
+    const _kq=(v)=>{ const n=parseFloat(String(v||"").replace(/[+,]/g,"")); if(!isFinite(n))return null;
+      const a=Math.abs(n); const s2=(n>0?"+":"−");
+      return s2+(a>=10000?(a/10000).toFixed(1)+"만주":Math.round(a).toLocaleString()+"주"); };
+    const semiDesc=(x)=>{ const runs=[ new TextRun({text:(x.name||"-")+"  ",bold:true,size:20}),
       new TextRun({text:("시총/AUM: "+fmtAUM(x.aum)),size:16,color:"475569"}),
       new TextRun({text:(x.note?("   — "+x.note):""),size:16,color:"64748B"}) ];
+      const f=x.flows, c=x.consensus;
+      if(f){ const F=_kq(f.foreign),I=_kq(f.inst),P=_kq(f.indiv);
+        runs.push(new TextRun({text:"수급("+String(f.date||"").replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3")+")  ",size:14,color:"94A3B8",break:1}));
+        if(F) runs.push(new TextRun({text:"외국인 "+F+"   ",size:14,bold:true,color:/−/.test(F)?"2563EB":"DC2626"}));
+        if(I) runs.push(new TextRun({text:"기관 "+I+"   ",size:14,bold:true,color:/−/.test(I)?"2563EB":"DC2626"}));
+        if(P) runs.push(new TextRun({text:"개인 "+P,size:14,bold:true,color:/−/.test(P)?"2563EB":"DC2626"}));
+        if(x.foreign_rate!=null) runs.push(new TextRun({text:"   외인소진율 "+x.foreign_rate+"%",size:14,color:"64748B"})); }
+      if(c&&c.target){ runs.push(new TextRun({text:"목표주가 "+Math.round(c.target).toLocaleString()+"원",size:14,bold:true,color:"7C3AED",break:1}));
+        if(c.upside_pct!=null) runs.push(new TextRun({text:"  (상승여력 "+(c.upside_pct>0?"+":"")+c.upside_pct+"%)",size:14,color:c.upside_pct>0?"DC2626":"2563EB"}));
+        runs.push(new TextRun({text:"  · 투자의견 "+(c.recomm||"-")+" · 기준 "+(c.asof||"-"),size:13,color:"94A3B8"}));
+        if(x.fwd_per!=null) runs.push(new TextRun({text:"  · 추정PER "+x.fwd_per+"배",size:13,color:"64748B"})); }
+      return runs; };
     if(Array.isArray(m.semi_ai_stocks)&&m.semi_ai_stocks.length){
       children.push(p("■ 반도체/AI 대표 국내 종목 (시총순)",{bold:true,color:"1E40AF",before:120}));
       children.push(makeTable(RW,retRows(m.semi_ai_stocks,"semi_s",semiDesc)));
