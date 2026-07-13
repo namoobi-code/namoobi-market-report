@@ -317,6 +317,52 @@ try:
                         (_store.setdefault(_pnm, {}))['y%s_per' % _yy] = _row['y%s_per' % _yy]
     except Exception as _pe13: print('  [req13] PER 재계산 skip:', _pe13)
 
+    # ★★ (v3.65) 네이버 연도별 실적/컨센서스로 EPS 자동 갱신 (2025 실적 · 2026 컨센서스)
+    #   네이버 기업실적분석은 연도 키(202512·202612)와 isConsensus 플래그를 명시적으로 준다
+    #   → 매핑이 확실하므로 추측이 아니다. 해당 연도만 정확히 덮어쓴다.
+    #   2027~2028 은 네이버가 제공하지 않으므로 기존 소스(MCP/애널리스트) 그대로 둔다.
+    #
+    #   실측(2026-07-13): 2025 실적은 DB와 정합(SK 60,372 vs 58,955)이나
+    #   2026 컨센서스는 DB 가 3배 낡아 있었다(SK 110,559 vs 318,735 → PER 16.7배 vs 5.79배).
+    try:
+        _annm = {}
+        for _v in ((m.get('memory') or {}).get('valuation') or []):
+            _a = _v.get('annual_naver')
+            if _a: _annm[_norm_hbm(_v.get('name'))] = _a
+        if _annm:
+            _upd = []
+            _prc2 = (_sd.get('prices') if isinstance(_sd, dict) else None) or {}
+            for _row in _merged:
+                _pnm = _norm_hbm(_row.get('name'))
+                _a = _annm.get(_pnm)
+                if not _a: continue
+                for _yy in ('2025', '2026', '2027', '2028'):
+                    _ny = _a.get(_yy)
+                    if not _ny or _ny.get('eps') is None: continue   # 네이버에 없는 연도는 건드리지 않는다
+                    _old = _hbm_num(_row.get('y%s_eps' % _yy))
+                    _new = _ny['eps']
+                    if _old is None or abs(_new / _old - 1) > 0.02:   # 2% 초과 차이만 갱신
+                        _row['y%s_eps' % _yy] = _new
+                        (_store.setdefault(_pnm, {}))['y%s_eps' % _yy] = _new
+                        _row['y%s_src' % _yy] = ('네이버 컨센서스' if _ny.get('is_consensus') else '네이버 실적')
+                        # ⚠️ PER 재계산(req13)은 이 블록보다 먼저 돌기 때문에, 갱신한 EPS 의 PER 을
+                        #    여기서 다시 계산해야 한다. 안 하면 새 EPS 에 옛 PER 이 붙는다.
+                        _pv2 = _hbm_num((_prc2.get(_pnm) or {}).get('price'))
+                        if _pv2 and _new:
+                            _row['y%s_per' % _yy] = round(_pv2 / _new, 2)
+                            (_store.setdefault(_pnm, {}))['y%s_per' % _yy] = _row['y%s_per' % _yy]
+                        _upd.append('%s %s: EPS %s → %s (%s)%s' % (
+                            _row.get('name'), _yy,
+                            (f"{_old:,.0f}" if _old else '없음'), f"{_new:,.0f}",
+                            '컨센서스' if _ny.get('is_consensus') else '실적',
+                            (' · PER %s배' % _row.get('y%s_per' % _yy)) if _row.get('y%s_per' % _yy) else ''))
+            if _upd:
+                print('  ★ [네이버 연도별] EPS 갱신 %d건 (연도키·isConsensus 명시 → 매핑 확실):' % len(_upd))
+                for _u in _upd: print('     -', _u)
+            else:
+                print('  [네이버 연도별] DB 와 정합 — 갱신 없음')
+    except Exception as _ae65: print('  [네이버 연도별] skip:', _ae65)
+
     # ★ (v3.64) 네이버 당일 컨센서스 대조 — 낡은 DB 추정치를 조용히 쓰지 않는다.
     #   fetch_memory 가 네이버에서 '당해년도 추정EPS'(국내 증권사 컨센서스 집계)를 매일 가져온다.
     #   DB(hbm_eps) 의 연도별 추정치는 carry-forward 라 컨센서스가 대폭 상향돼도 갱신되지 않는다.

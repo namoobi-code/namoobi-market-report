@@ -416,18 +416,21 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   if(ey&&ey.length){ children.push(p("■ HBM 3사 연도별 EPS · PER 예상치 (실측·컨센서스)",{bold:true,color:"1E40AF",before:100,size:20}));
     const w=[1500,1760,1760,1760,1760,1200]; const rows=[hdrRow(["종목","2025(실적)","2026(E)","2027(E)","2028(E)","통화"],w)];
     const _fnum=(x)=>(typeof x==="number")?x.toLocaleString():x;
-    const cc=(e,pp)=>{ const he=(e!=null&&e!==""), hp=(pp!=null&&pp!=="");
-      if(!he&&!hp)return "- 컨센서스 미공개"; return (he?("EPS "+_fnum(e)):"EPS -")+(hp?(" · PER "+pp+"x"):" · PER -"); };
+    // (v3.65) 네이버 연도별(실적/컨센서스)로 갱신된 셀은 출처를 표시한다 — 어느 값이 검증된 것인지 보이게.
+    const cc=(e,pp,src)=>{ const he=(e!=null&&e!==""), hp=(pp!=null&&pp!=="");
+      if(!he&&!hp)return "- 컨센서스 미공개";
+      const base=(he?("EPS "+_fnum(e)):"EPS -")+(hp?(" · PER "+pp+"x"):" · PER -");
+      return base+(src?("\n["+src+"]"):""); };
     ey.forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name||"-",{width:w[0],alt:a,bold:true}),
-      cell(cc(o.y2025_eps,o.y2025_per),{width:w[1],alt:a,size:13,align:AlignmentType.CENTER}),
-      cell(cc(o.y2026_eps,o.y2026_per),{width:w[2],alt:a,size:13,align:AlignmentType.CENTER}),
-      cell(cc(o.y2027_eps,o.y2027_per),{width:w[3],alt:a,size:13,align:AlignmentType.CENTER}),
-      cell(cc(o.y2028_eps,o.y2028_per),{width:w[4],alt:a,size:13,align:AlignmentType.CENTER}),
+      cell(cc(o.y2025_eps,o.y2025_per,o.y2025_src),{width:w[1],alt:a,size:13,align:AlignmentType.CENTER}),
+      cell(cc(o.y2026_eps,o.y2026_per,o.y2026_src),{width:w[2],alt:a,size:13,align:AlignmentType.CENTER}),
+      cell(cc(o.y2027_eps,o.y2027_per,o.y2027_src),{width:w[3],alt:a,size:13,align:AlignmentType.CENTER}),
+      cell(cc(o.y2028_eps,o.y2028_per,o.y2028_src),{width:w[4],alt:a,size:13,align:AlignmentType.CENTER}),
       cell(o.currency||"",{width:w[5],alt:a,size:13,align:AlignmentType.CENTER})]})); });
     children.push(makeTable(w,rows));
     // (req13 2026-07-12) 대시보드 ⑩과 단일 소스(db/hbm_eps.json) — EPS=컨센서스(변동 시 갱신) · PER=최신 종가÷EPS 매일 재계산
-    children.push(p("단일 소스: db/hbm_eps.json — EPS=데이터벤더 컨센서스(변동 시 갱신) · PER=최신 종가÷EPS(매일 재계산, 대시보드 ⑩과 동일값). "+(hbm.eps_note||""),{size:13,italics:true,color:"94A3B8"}));
+    children.push(p("EPS 출처: [네이버 실적]·[네이버 컨센서스] = 네이버 기업실적분석에서 매일 자동 갱신(연도키·isConsensus 명시라 매핑 확실). 표기 없는 연도(2027~2028)는 네이버 미제공 → 애널리스트 컨센서스(MCP/DB). PER = 최신 종가 ÷ EPS 매일 재계산. "+(hbm.eps_note||""),{size:13,italics:true,color:"94A3B8"}));
     // (v3.64) 네이버 당일 컨센서스 병기 — 위 표는 DB carry-forward 라 컨센서스 상향이 반영 안 될 수 있다.
     //   2026-07-13 실측: SK하이닉스 DB 2026 EPS 110,559(PER 16.7배) vs 네이버 당일 318,735(PER 5.79배) — 3배 괴리.
     //   PER 16.7배와 5.8배는 투자판단이 완전히 다르므로 정본(당일값)을 나란히 보여주고 괴리를 경고한다.
