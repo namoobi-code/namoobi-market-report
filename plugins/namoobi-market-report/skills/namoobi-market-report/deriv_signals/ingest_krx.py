@@ -275,8 +275,41 @@ def ingest_naver_t0(con):
     return n
 
 
+def ingest_vkospi_cnbc(con):
+    """【T+0 자동】 VKOSPI 당일값 — CNBC .KSVKOSPI (무인증·실시간).
+
+    ⚠️ 종전 주석은 "네이버·야후에 VKOSPI 가 없어 T+0 무료 소스 부재"라며 수동 override 만
+       받았다. 사실이 아니다 — CNBC 가 당일값을 준다. 이미 fetch_us.py(3.1.12 심리)가
+       같은 소스로 KSVKOSPI 를 받고 있었는데 deriv 쪽만 몰라서 T+1(KRX) 로 굴러갔다.
+       2026-07-13 실측: CNBC 83.33 (15:51 KST 갱신) · KRX 는 당일값 미공표.
+
+    수동 override 는 그대로 남긴다(CNBC 장애 시 대비) — 아래 ingest_vkospi_override().
+    """
+    import datetime as _dt
+    import urllib.request as _ur
+    u = ("https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol"
+         "?symbols=.KSVKOSPI&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json")
+    try:
+        raw = _ur.urlopen(_ur.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=12).read()
+        q = json.loads(raw)["FormattedQuoteResult"]["FormattedQuote"][0]
+        v = float(str(q.get("last", "")).replace(",", ""))
+        d = str(q.get("last_time", ""))[:10]          # 예: 2026-07-13T15:51:10.000+0900
+        if not (len(d) == 10 and v > 0):
+            print("  VKOSPI(CNBC) 응답 이상 — skip")
+            return 0
+        con.execute("""INSERT INTO kr_derivatives_daily(id,date,vkospi) VALUES(?,?,?)
+                       ON CONFLICT(id,date) DO UPDATE SET vkospi=excluded.vkospi""",
+                    (KID, d, v))
+        con.commit()
+        print(f"  VKOSPI(CNBC T+0) ✓ {d} = {v}")
+        return 1
+    except Exception as e:
+        print("  VKOSPI(CNBC) 실패 → override 폴백:", repr(e)[:60])
+        return 0
+
+
 def ingest_vkospi_override(con):
-    """【선택】 VKOSPI 당일값 수동/에이전트 주입 — 네이버·야후에 VKOSPI 가 없어 T+0 무료 소스 부재.
+    """【폴백】 VKOSPI 당일값 수동/에이전트 주입 — CNBC(ingest_vkospi_cnbc) 실패 시 대비.
 
     급변동일에 Claude in Chrome 이 data.krx.co.kr(국내 IP·브라우저에서만 접근 가능)에서
     당일 VKOSPI 를 읽어 아래 JSON 을 만들어 두면 반영된다. 파일이 없으면 조용히 skip.
@@ -331,7 +364,11 @@ def ingest_krx(con, begin, end, opt_days=90):
     except Exception as e:
         print("  네이버 T+0 skip:", repr(e)[:70])
     try:
-        n += ingest_vkospi_override(con)
+        # VKOSPI T+0: CNBC 자동 수집이 1차, 수동 override 는 폴백
+        if not ingest_vkospi_cnbc(con):
+            n += ingest_vkospi_override(con)
+        else:
+            n += 1
     except Exception as e:
         print("  VKOSPI override skip:", repr(e)[:60])
 
