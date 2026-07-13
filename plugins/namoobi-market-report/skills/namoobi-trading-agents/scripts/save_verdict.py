@@ -25,8 +25,22 @@ for g in ("KR1","KR2","US1","US2"):
     try:
         for b in json.load(open(f"{WORK}/grp_{g}.json")):
             key=b.get("종목")
-            px[key]={"close":(b.get("기술지표") or {}).get("close"),
-                     "code":b.get("코드") or b.get("티커"),"시장":"KR" if g.startswith("KR") else "US"}
+            t=(b.get("기술지표") or {})
+            code=b.get("코드") or b.get("티커")
+            kr=g.startswith("KR")
+            # ⚠️ Yahoo 는 한국 종목에 잘못된 접미사를 줘도 에러 대신 '엉뚱한 종목' 데이터를 반환한다
+            #    (006910.KS → 딴 종목 3,475원). 그래서 정확한 심볼을 판정 시점에 못박아 남긴다.
+            #    price_date 도 같이 남긴다 — trade_date(KRX 기준일)는 1영업일 지연돼 가격일과 다르다.
+            ysym=(code if not kr else
+                  code + (".KQ" if str(b.get("시장","")).upper().startswith("KOSDAQ") else ".KS"))
+            px[key]={"close":t.get("close"),
+                     "prev_close":t.get("prev_close"),
+                     "ret_1d":t.get("ret_1d"),
+                     "price_date":t.get("price_date"),
+                     "atr_pct":t.get("atr_pct"),
+                     "code":code, "ysym":ysym,
+                     "시장":"KR" if kr else "US",
+                     "거래소":b.get("시장")}
     except Exception: pass
 approved=[r for r in risk.get("심사대상",[]) if r.get("승인")]
 out={"trade_date":td,"as_of":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
