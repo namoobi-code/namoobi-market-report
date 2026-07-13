@@ -4,7 +4,8 @@
 # 스레드 병렬 → 단독 ~10초(각 bash 호출은 독립 45초 예산). FRED 는 비차단·빠른 실패.
 # 산출: nmr_kr_ohlcv.json, nmr_kr_invest.json, nmr_hy_series.json(비차단)
 # 사용: python3 fetch_kr.py [WORK_DIR]
-import json, urllib.request, datetime as dt, time, sys, os
+import json
+import urllib.request, urllib.request, datetime as dt, time, sys, os
 from concurrent.futures import ThreadPoolExecutor
 _SDIR = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, _SDIR)  # v3.16: chdir 전에 확보(nmr_fred 임포트용)
 if len(sys.argv) > 1 and os.path.isdir(sys.argv[1]):
@@ -52,13 +53,68 @@ def build_ohlcv(yh, daum):
             ohlcv.append([date, close, close, close, close, vol])
     return ohlcv, flows
 
+def _inv_naver(mkt, itype):
+    """네이버 폴백 — 투자자별 매매 상위 (finance.naver.com sise_deal_rank iframe).
+
+    ⚠️ Daum 이 1차인 이유: 네이버는 이 표만 **하루 늦다**.
+       2026-07-13 실측 — Daum=당일(LG이노텍 -10.9%·SK스퀘어 -17.6%, 오늘 급락주)
+                        네이버=07/10(전 영업일)
+       그래서 네이버로 '전면 교체'하면 오히려 후퇴한다. 폴백으로만 쓴다.
+       (단위: 네이버는 백만원 → 억원 환산)
+    """
+    import re as _re
+    sosok = '01' if mkt == 'KOSPI' else '02'
+    gub = '9000' if itype == 'FOREIGN' else '1000'
+    out = {}
+    for typ in ('buy', 'sell'):
+        u = ('https://finance.naver.com/sise/sise_deal_rank_iframe.naver'
+             f'?sosok={sosok}&investor_gubun={gub}&type={typ}')
+        try:
+            raw = urllib.request.urlopen(urllib.request.Request(u, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36',
+                'Referer': 'https://finance.naver.com/sise/sise_deal_rank.naver'}), timeout=12).read()
+            h = raw.decode('euc-kr', 'ignore')
+        except Exception:
+            out[typ] = []; continue
+        asof = (_re.search(r'(\d{2}\.\d{2}\.\d{2})', _re.sub(r'<[^>]+>', ' ', h)) or [None, ''])[0]
+        rows = []
+        for tr in _re.findall(r'<tr[^>]*>(.*?)</tr>', h, _re.S):
+            # HTML: <a href="/item/main.naver?code=005930" class="tltle" ...>삼성전자</a>
+            #   → code 뒤에 바로 '">' 가 오지 않는다. [^>]* 로 속성들을 건너뛴다.
+            nm = _re.search(r'code=\d{6}"[^>]*>([^<]+)</a>', tr)
+            if not nm: continue
+            tds = [_re.sub(r'<[^>]+>', '', t).replace('&nbsp;', '').strip()
+                   for t in _re.findall(r'<td[^>]*>(.*?)</td>', tr, _re.S)]
+            if len(tds) < 3: continue
+            try: eok = round(float(tds[2].replace(',', '')) / 100)   # 백만원 → 억원
+            except Exception: continue
+            word = '순매수' if typ == 'buy' else '순매도'
+            rows.append({'name': nm.group(1),
+                         'detail': f"{word} {abs(eok):,}억원 (네이버 폴백 · 기준 {asof})"})
+            if len(rows) >= 10: break
+        out[typ] = rows
+    return out.get('buy', []), out.get('sell', [])
+
+
 def inv(mkt, itype):
-    u = f'https://finance.daum.net/api/trend/investor_purchase?page=1&perPage=10&market={mkt}&investorType={itype}&pagination=true'
-    j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.daum.net/domestic/influential_investors'}))
-    d = j.get('data', {})
-    def lst(arr): return [{'name': x['name'], 'detail': f"순매수 {round(x['straightPurchasePrice'] / 1e8):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
-    def lstS(arr): return [{'name': x['name'], 'detail': f"순매도 {abs(round(x['straightPurchasePrice'] / 1e8)):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
-    return lst(d.get('BUY')), lstS(d.get('SELL'))
+    """투자자별 순매수/순매도 상위 10종.
+
+    1차 = Daum(당일) · 2차 = 네이버(전 영업일).
+    Daum 단일 의존이라 차단되면 3.2.2 가 통째로 비었다 → 폴백 추가.
+    """
+    try:
+        u = f'https://finance.daum.net/api/trend/investor_purchase?page=1&perPage=10&market={mkt}&investorType={itype}&pagination=true'
+        j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.daum.net/domestic/influential_investors'}))
+        d = j.get('data', {})
+        def lst(arr): return [{'name': x['name'], 'detail': f"순매수 {round(x['straightPurchasePrice'] / 1e8):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
+        def lstS(arr): return [{'name': x['name'], 'detail': f"순매도 {abs(round(x['straightPurchasePrice'] / 1e8)):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
+        b, s = lst(d.get('BUY')), lstS(d.get('SELL'))
+        if b or s:
+            return b, s
+        print(f'  [inv] Daum 빈 응답({mkt}/{itype}) → 네이버 폴백')
+    except Exception as e:
+        print(f'  [inv] Daum 실패({mkt}/{itype}: {type(e).__name__}) → 네이버 폴백')
+    return _inv_naver(mkt, itype)
 
 def _hy_cache():  # v3.14: FRED 차단 시 영구 누적 캐시(연결폴더) 폴백 — HY 표·차트 항상 채움
     import glob as _g
