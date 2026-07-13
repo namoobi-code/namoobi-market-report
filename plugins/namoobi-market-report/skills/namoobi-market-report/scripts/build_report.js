@@ -428,6 +428,25 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
     children.push(makeTable(w,rows));
     // (req13 2026-07-12) 대시보드 ⑩과 단일 소스(db/hbm_eps.json) — EPS=컨센서스(변동 시 갱신) · PER=최신 종가÷EPS 매일 재계산
     children.push(p("단일 소스: db/hbm_eps.json — EPS=데이터벤더 컨센서스(변동 시 갱신) · PER=최신 종가÷EPS(매일 재계산, 대시보드 ⑩과 동일값). "+(hbm.eps_note||""),{size:13,italics:true,color:"94A3B8"}));
+    // (v3.64) 네이버 당일 컨센서스 병기 — 위 표는 DB carry-forward 라 컨센서스 상향이 반영 안 될 수 있다.
+    //   2026-07-13 실측: SK하이닉스 DB 2026 EPS 110,559(PER 16.7배) vs 네이버 당일 318,735(PER 5.79배) — 3배 괴리.
+    //   PER 16.7배와 5.8배는 투자판단이 완전히 다르므로 정본(당일값)을 나란히 보여주고 괴리를 경고한다.
+    const _lv=ey.filter(o=>o&&o.consensus_live);
+    if(_lv.length){
+      children.push(p("■ 당일 컨센서스 (네이버 — 국내 증권사 집계, 매일 갱신)",{bold:true,color:"7C3AED",before:100,size:19}));
+      const lw2=[1700,2000,1400,2000,3060];
+      const lr=[hdrRow(["종목","추정EPS (당해년도)","추정PER","목표주가","위 표(DB 추정치)와의 괴리"],lw2)];
+      _lv.forEach((o,i)=>{ const a=i%2===1; const c=o.consensus_live||{}; const gap=o.consensus_gap_pct;
+        lr.push(new TableRow({children:[
+          cell(o.name||"-",{width:lw2[0],alt:a,bold:true,size:14}),
+          cell(c.fwd_eps!=null?Math.round(c.fwd_eps).toLocaleString():"-",{width:lw2[1],alt:a,size:13,align:AlignmentType.RIGHT}),
+          cell(c.fwd_per!=null?(c.fwd_per+"배"):"-",{width:lw2[2],alt:a,size:13,bold:true,align:AlignmentType.RIGHT,color:"7C3AED"}),
+          cell(c.target!=null?(Math.round(c.target).toLocaleString()+"원"):"-",{width:lw2[3],alt:a,size:13,align:AlignmentType.RIGHT}),
+          cell(gap!=null?("⚠️ "+gap+"% 어긋남 — DB 추정치 재조사 필요"):"정합 (30% 이내)",
+               {width:lw2[4],alt:a,size:12,bold:gap!=null,color:gap!=null?"DC2626":"64748B"})]})); });
+      children.push(makeTable(lw2,lr));
+      children.push(p("추정EPS = 당해년도 국내 증권사 컨센서스 집계(네이버, 매일 갱신). 위의 연도별 표는 DB carry-forward 값이라 컨센서스가 대폭 상향되면 낡을 수 있다 — 괴리가 크면 이 표의 당일값을 정본으로 본다. Micron 은 국내 컨센서스 미제공(MCP/DB 사용).",{size:13,italics:true,color:"94A3B8"}));
+    }
      }
   // (req3) HBM 3사 연도별 매출·영업이익·영업이익률 (삼성전자 전사+DS부문 병기)
   const fy=Array.isArray(hbm.fin_yearly)?hbm.fin_yearly:null;

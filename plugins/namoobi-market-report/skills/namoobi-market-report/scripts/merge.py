@@ -316,6 +316,43 @@ try:
                         _row['y%s_per' % _yy] = round(_pv / _ev, 2)
                         (_store.setdefault(_pnm, {}))['y%s_per' % _yy] = _row['y%s_per' % _yy]
     except Exception as _pe13: print('  [req13] PER 재계산 skip:', _pe13)
+
+    # ★ (v3.64) 네이버 당일 컨센서스 대조 — 낡은 DB 추정치를 조용히 쓰지 않는다.
+    #   fetch_memory 가 네이버에서 '당해년도 추정EPS'(국내 증권사 컨센서스 집계)를 매일 가져온다.
+    #   DB(hbm_eps) 의 연도별 추정치는 carry-forward 라 컨센서스가 대폭 상향돼도 갱신되지 않는다.
+    #   실제로 2026-07-13 시점에 3배 어긋나 있었다:
+    #     SK하이닉스 DB 2026 EPS 110,559(PER 16.7배)  vs  네이버 당일 318,735(PER 5.79배)
+    #     삼성전자   DB 2026 EPS  16,693(PER 15.3배)  vs  네이버 당일  46,664(PER 5.45배)
+    #   PER 16.7배와 5.8배는 투자판단이 완전히 다르다 → 괴리 30% 초과면 경고 + 보고서에 병기.
+    try:
+        _val = ((m.get('memory') or {}).get('valuation')) or []
+        _liv = {}
+        for _v in _val:
+            _cl = _v.get('consensus_live') or {}
+            if _cl.get('fwd_eps'):
+                _liv[_norm_hbm(_v.get('name'))] = {
+                    'fwd_eps': _cl['fwd_eps'], 'fwd_per': _v.get('per_fwd') or _cl.get('fwd_per'),
+                    'target': _cl.get('target'), 'asof': _cl.get('asof')}
+        if _liv:
+            _warn = []
+            for _row in _merged:
+                _pnm = _norm_hbm(_row.get('name'))
+                _lv = _liv.get(_pnm)
+                if not _lv: continue
+                _row['consensus_live'] = _lv          # 보고서 표에 병기
+                _dbe = _hbm_num(_row.get('y2026_eps'))
+                if _dbe and _lv['fwd_eps']:
+                    _gap = abs(_lv['fwd_eps'] / _dbe - 1) * 100
+                    if _gap > 30:
+                        _row['consensus_gap_pct'] = round(_gap, 1)
+                        _warn.append('%s: DB 2026 EPS %s vs 네이버 당일 %s (%.0f%% 괴리)'
+                                     % (_row.get('name'), f"{_dbe:,.0f}", f"{_lv['fwd_eps']:,.0f}", _gap))
+            if _warn:
+                print('  ⚠️ [컨센서스 괴리] DB 추정치가 시장 컨센서스와 크게 다르다 — 재조사 필요:')
+                for _w in _warn: print('     -', _w)
+            else:
+                print('  [컨센서스] 네이버 당일값과 DB 추정치 정합 (괴리 30% 이내)')
+    except Exception as _ce64: print('  [컨센서스] 대조 skip:', _ce64)
     if _merged:
         _hb2['eps_yearly'] = _merged; m['hbm'] = _hb2
         try:
