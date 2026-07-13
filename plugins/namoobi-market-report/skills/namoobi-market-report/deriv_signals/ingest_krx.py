@@ -275,6 +275,52 @@ def ingest_naver_t0(con):
     return n
 
 
+def ingest_kis_t0(con):
+    """【T+0 · 최상위】 KIS Open API — 미결제약정·PCR·IV스큐 (KRX T+1 을 대체).
+
+    KRX OPEN API 는 OI·PCR 을 T+1 로만 준다. 네이버는 선물 '가격'은 주지만 OI 는 안 준다.
+    KIS 는 HTS 와 동일한 실시간 데이터를 준다 — display-board-callput(FHPIF05030100)이
+    행사가별 미결제약정(hts_otst_stpl_qty)·내재변동성(hts_ints_vltl)·그릭스를 전부 준다.
+
+    키(SECURITY/kis.json)가 없으면 조용히 skip → 기존 KRX T+1 경로가 그대로 돈다.
+    ⚠️ 공식 문서가 "1초당 최대 1건 권장"이라 명시 — 하루 2회 배치에서만 호출한다.
+    """
+    import sys as _sys
+    from pathlib import Path as _Path
+    try:
+        _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+        import kis_api
+    except Exception as e:
+        print("  [KIS] 모듈 로드 실패(비차단):", type(e).__name__)
+        return 0
+    n = 0
+    try:
+        ob = kis_api.option_board()
+        if ob and ob.get("pcr_oi"):
+            con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_oi,iv_skew_25d)
+                           VALUES(?,?,?,?)
+                           ON CONFLICT(id,date) DO UPDATE SET
+                             pcr_oi=excluded.pcr_oi,
+                             iv_skew_25d=COALESCE(excluded.iv_skew_25d, kr_derivatives_daily.iv_skew_25d)""",
+                        (KID, ob["asof"], ob["pcr_oi"], ob.get("iv_skew")))
+            con.commit(); n += 1
+            print(f"  [KIS T+0] PCR {ob['pcr_oi']} (콜 OI {ob['call_oi']:,.0f} / 풋 OI {ob['put_oi']:,.0f})"
+                  + (f" · IV스큐 {ob['iv_skew']}" if ob.get("iv_skew") is not None else ""))
+        fo = kis_api.futures_oi()
+        if fo and fo.get("oi"):
+            con.execute("""INSERT INTO kr_derivatives_daily(id,date,oi)
+                           VALUES(?,?,?)
+                           ON CONFLICT(id,date) DO UPDATE SET oi=excluded.oi""",
+                        (KID, fo["asof"], fo["oi"]))
+            con.commit(); n += 1
+            print(f"  [KIS T+0] 선물 OI {fo['oi']:,.0f} (증감 {fo.get('oi_chg')})")
+    except Exception as e:
+        print("  [KIS] T+0 skip(비차단):", repr(e)[:70])
+    if n:
+        log(con, "ingest_kis_t0", n)
+    return n
+
+
 def ingest_vkospi_cnbc(con):
     """【T+0 자동】 VKOSPI 당일값 — CNBC .KSVKOSPI (무인증·실시간).
 
@@ -363,6 +409,11 @@ def ingest_krx(con, begin, end, opt_days=90):
         n += ingest_naver_t0(con)
     except Exception as e:
         print("  네이버 T+0 skip:", repr(e)[:70])
+    # KIS(한국투자증권) — OI·PCR·IV스큐 T+0. 키 없으면 0 반환(비차단) → KRX T+1 경로 유지.
+    try:
+        n += ingest_kis_t0(con)
+    except Exception as e:
+        print("  KIS T+0 skip:", repr(e)[:70])
     try:
         # VKOSPI T+0: CNBC 자동 수집이 1차, 수동 override 는 폴백
         if not ingest_vkospi_cnbc(con):
