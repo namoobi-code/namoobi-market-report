@@ -61,7 +61,11 @@ Yahoo `^KS200`·네이버 KPI200 지수 feed는 이상치가 많아 **KODEX 200 
 > 외국인 순매수가 KOSPI200 최강 선행신호임을 데이터가 확인.
 
 ### 3-3. KOSPI200 선물 베이시스·옵션 확장
-- 선물 최근월 스냅샷: `ingest_kr.kospi200_futures_snapshot()` (네이버 당일값) → 베이시스 참고용.
+- **T+0 당일값 (핵심, 2026-07-13 신설)**: KRX OPEN API 는 **T+1 공표**라 당일 급변을 못 본다.
+  `ingest_krx.ingest_naver_t0()` 가 네이버 m.stock API(`/api/index/FUT/price` 선물, `/api/index/KPI200/price` 현물)로
+  당일 현물·선물·베이시스를 브리지하고, 다음 영업일 KRX 공식값이 자동 덮어쓴다(항상 실행).
+  ※ "네이버는 파생 미제공"이라는 과거 판단은 오류 — 선물(FUT)은 제공되며 **VKOSPI 만 없음**
+  (VKOSPI 당일값은 `vkospi_override.json` 으로 수동/에이전트 주입 가능, data.krx 는 해외 IP 차단).
 - **1년 소급·옵션 PCR/IV**: 무료 확장은 **공공데이터포털(data.go.kr) '금융위원회_파생상품시세정보'**
   무료 API 키 권장(KOSPI200 선물·옵션 일별 시세/미결제). 또는 KRX 계정(`KRX_ID`/`KRX_PW`)+pykrx.
 

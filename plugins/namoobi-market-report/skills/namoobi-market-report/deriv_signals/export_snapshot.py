@@ -77,8 +77,13 @@ for iid, name in IDS:
 usopt = {r[0]: dict(zip(["id", "pcr_oi", "iv_skew_25d", "gex"], r)) for r in
          con.execute("SELECT id,pcr_oi,iv_skew_25d,gex FROM options_daily").fetchall()}
 kr = _last("kr_derivatives_daily", "KOSPI200")
-kr_pcr = one("SELECT pcr_oi FROM kr_derivatives_daily WHERE id='KOSPI200' AND pcr_oi IS NOT NULL ORDER BY date DESC LIMIT 1")
-kr_pcr = kr_pcr[0] if kr_pcr else None
+_r = one("SELECT date, pcr_oi FROM kr_derivatives_daily WHERE id='KOSPI200' AND pcr_oi IS NOT NULL ORDER BY date DESC LIMIT 1")
+kr_pcr_date, kr_pcr = (_r[0], _r[1]) if _r else (None, None)
+# VKOSPI: 당일 행이 결측(KRX T+1 공표)일 수 있으므로 '최신 비NULL 값+날짜'를 쓴다(stale-guard).
+_r = one("SELECT date, vkospi FROM kr_derivatives_daily WHERE id='KOSPI200' AND vkospi IS NOT NULL ORDER BY date DESC LIMIT 1")
+kr_vk_date, kr_vk = (_r[0], _r[1]) if _r else (None, None)
+_r = one("SELECT z_vkospi FROM zscores_daily WHERE id='KOSPI200' AND date=?", (kr_vk_date,)) if kr_vk_date else None
+kr_vk_z = _r[0] if _r else None
 
 I = {iid: _last("indicators_daily", iid) for iid, _ in IDS}
 Z = {iid: _last("zscores_daily", iid) for iid, _ in IDS}
@@ -124,8 +129,11 @@ rows = [
     #   미국은 VIX 가 별도 축이라 여기서는 KOSPI200 열만 채운다.
     {"label": "VKOSPI (변동성지수)", "cells": [
         cellv("—", None), cellv("—", None),
-        cellv(("-" if I['KOSPI200'].get('vkospi') is None else f"{I['KOSPI200']['vkospi']:.2f}"),
-              Z['KOSPI200'].get('z_vkospi'))]},
+        # 당일 결측 시 최신 비NULL 값에 날짜를 병기(예: "45.20 (07-10)") — 지연분임을 표에서 즉시 인지.
+        cellv(("-" if kr_vk is None else
+               (f"{kr_vk:.2f}" if kr_vk_date == I['KOSPI200'].get('date')
+                else f"{kr_vk:.2f} ({(kr_vk_date or '')[5:]})")),
+              (Z['KOSPI200'].get('z_vkospi') if kr_vk_date == I['KOSPI200'].get('date') else kr_vk_z))]},
 ]
 
 # 활성 신호 (|z|>=1.5)
@@ -154,12 +162,26 @@ asof_price = one("SELECT max(date) FROM prices_daily WHERE id='SPX'")[0]
 asof_cot = one("SELECT max(report_date) FROM positioning_weekly WHERE id='SPX'")[0]
 asof_flow = one("SELECT max(report_date) FROM positioning_weekly WHERE id='KOSPI200'")[0]
 asof_usopt = one("SELECT max(date) FROM options_daily")[0]
-_r = one("SELECT max(date) FROM kr_derivatives_daily WHERE id='KOSPI200' AND vkospi IS NOT NULL")
-asof_krx = _r[0] if _r else None
+asof_krx = kr_vk_date
+_r = one("SELECT max(date) FROM kr_derivatives_daily WHERE id='KOSPI200' AND basis_bp IS NOT NULL")
+asof_basis = _r[0] if _r else None
+asof_kr_spot = I['KOSPI200'].get('date')
+
+# ── stale-guard: 당일 급변동(|spot_ret|≥3%)인데 일부 축이 T+1 지연분이면 경고를 신호 목록 맨 앞에 삽입.
+#    signals 배열은 빌더가 그대로 리스트 렌더 → build_report.js 수정 없이 보고서에 노출된다.
+_ret = num(I['KOSPI200'].get('spot_ret'))
+if asof_kr_spot and _ret is not None and abs(_ret) >= 0.03:
+    _stale = [f"{lbl} {d}" for lbl, d in (("VKOSPI", kr_vk_date), ("풋콜비율", kr_pcr_date))
+              if d and d < asof_kr_spot]
+    if _stale:
+        signals.insert(0, (f"⚠ 당일 KOSPI200 {_ret*100:+.1f}% 급변동 — {' · '.join(_stale)} 값은 "
+                           f"KRX T+1 공표 지연분(당일 미반영). 해당 축 z-신호는 참고만 할 것."))
 
 out = {
     "asof": (f"가격 {asof_price} · 미국 COT {asof_cot}(주간) · KOSPI200 수급 {asof_flow} · "
-             f"미국 옵션 {asof_usopt} · KRX(공식 지수·선물·VKOSPI) {asof_krx or 'n/a'}"),
+             f"미국 옵션 {asof_usopt} · KOSPI200 현물·베이시스 {asof_basis or 'n/a'}"
+             f"{'(T+0 네이버 브리지)' if asof_basis and asof_krx and asof_basis > asof_krx else ''}"
+             f" · KRX 공표(VKOSPI 등) {asof_krx or 'n/a'}"),
     "index": index, "rows": rows, "signals": signals,
     "market_us": "베이시스 프리미엄이나 포지셔닝은 방어적(선물 OI 감소·리얼머니 축소·딜러 감마 확인).",
     "market_kr": "현물·수급과 선물 베이시스 신호가 엇갈리면 방향 미확정 — 외국인 순매수 전환이 핵심 트리거.",
