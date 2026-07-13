@@ -440,12 +440,12 @@ function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
     Object.keys(MT).forEach(k=>{ const o=MT[k]||{}; if(!o.label)return; const a=(j++)%2===1;
       const daily=/매일/.test(String(o.cadence||""));
       mrows.push(new TableRow({children:[
-        cell(o.label,{width:mw[0],alt:a,bold:true,size:13}),
+        cell(o.label,{width:mw[0],alt:a,bold:true,size:13,color:(o.dbviz===true?"DC2626":undefined)}),
         cell(o.cadence||"-",{width:mw[1],alt:a,size:12,bold:true,color:daily?"15803D":"B45309"}),
         cell(o.meaning||"",{width:mw[2],alt:a,size:12,color:"334155"}),
         cell(o.howto||"",{width:mw[3],alt:a,size:12,color:"64748B"})]})); });
     if(j){ children.push(makeTable(mw,mrows));
-      children.push(p("녹색=매일 갱신 · 주황=주/월/분기/연 단위 갱신. 출처: TrendForce 공개 가격표 · Silicon Analysts 공개 API · Yahoo Finance · 관세청 오픈API.",{size:12,italics:true,color:"94A3B8"})); }
+      children.push(p("빨간 지표명=DB 누적·3.1.9 그래프/표로 업데이트 중인 지표. 녹색=매일 갱신 · 주황=주/월/분기/연 단위 갱신. 출처: TrendForce 공개 가격표 · Silicon Analysts 공개 API · Yahoo Finance · 관세청 오픈API.",{size:12,italics:true,color:"94A3B8"})); }
   }
   children.push(p("")); }
 

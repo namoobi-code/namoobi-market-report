@@ -135,3 +135,11 @@ if __name__ == "__main__":
         print(f"  의미 : {v['meaning']}")
         print(f"  해석 : {v['howto']}")
         print(f"  출처 : {v['source']}")
+
+# (2026-07-13 req) dbviz: DB(series_mem_*/hbm_eps) 누적 + 3.1.9 그래프·표로 업데이트 중인 지표.
+#   빌더가 지표 사전에서 지표명을 빨간색으로 렌더해 인지시킨다. (kr_semi_export 는 3.1.10 렌더라 제외)
+_DBVIZ = {"dram_spot","dram_contract","nand_spot","nand_contract","spot_contract_gap",
+          "hbm_share","hbm_asp","hbm_market","hbm_ddr5_gap","sox","hbm_demand_proxy",
+          "mem_vs_gpu","kospi_concentration","valuation"}
+for _k, _v in META.items():
+    _v["dbviz"] = _k in _DBVIZ
