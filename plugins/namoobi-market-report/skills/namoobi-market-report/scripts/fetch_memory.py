@@ -176,6 +176,11 @@ def compute_ddr5_gap(result):
                     mm = _re3.search(r"(\d+)\s*GB", it)
                     if mm:
                         ddr5 = float(r["avg"]); ddr5_gb = float(mm.group(1)); ddr5_src = it + " 모듈가 환산"; break
+        ddr5s = None  # (2026-07-13 req) DDR5 현물 — 매일 변동하는 주지표 분모
+        for r in ((result.get("tables") or {}).get("dram_spot") or {}).get("rows", []):
+            it = str(r.get("item", ""))
+            if "DDR5 16Gb" in it and "eTT" not in it and r.get("avg"):
+                ddr5s = float(r["avg"]); break
         if asp and ddr5 and cap_gb:
             h_gb = asp / cap_gb; d_gb = ddr5 / ddr5_gb
             ratio = round(h_gb / d_gb, 1)
@@ -183,6 +188,10 @@ def compute_ddr5_gap(result):
                 "hbm_per_gb": round(h_gb, 2), "ddr5_per_gb": round(d_gb, 2), "ratio": ratio,
                 "basis": f"HBM3E {cap_gb:.0f}GB 스택 ASP ${asp:,.0f} ÷ {cap_gb:.0f}GB vs {ddr5_src} ${ddr5:.2f} ÷ {ddr5_gb:.0f}GB (환산 추정)",
                 "source": "Silicon Analysts 공개 API + TrendForce 공개 가격표"}
+            if ddr5s:
+                ds_gb = ddr5s / 2.0
+                result["hbm"]["ddr5_gap"]["ddr5_spot_per_gb"] = round(ds_gb, 2)
+                result["hbm"]["ddr5_gap"]["ratio_spot"] = round(h_gb / ds_gb, 1)
             print(f"[memory] ✅ HBM:DDR5 격차  {ratio}배 (HBM ${h_gb:.1f}/GB vs DDR5 ${d_gb:.2f}/GB)")
     except Exception as e:
         print(f"[memory] ⚠️ HBM:DDR5 격차 계산 실패(비차단): {e}")
@@ -264,6 +273,9 @@ def accumulate(result, dbdir):
     gap = (hbm.get("ddr5_gap") or {})
     if gap.get("ratio") is not None:
         snaps["hbm_ddr5_gap"] = {"HBM $/GB": gap.get("hbm_per_gb"), "DDR5 $/GB": gap.get("ddr5_per_gb"), "배율": gap.get("ratio")}
+        if gap.get("ratio_spot") is not None:
+            snaps["hbm_ddr5_gap"]["DDR5현물 $/GB"] = gap.get("ddr5_spot_per_gb")
+            snaps["hbm_ddr5_gap"]["배율(현물)"] = gap.get("ratio_spot")
 
     n = 0
     for key, snap in snaps.items():

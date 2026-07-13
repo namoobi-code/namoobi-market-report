@@ -230,7 +230,14 @@ else:
     gser=_series("hbm_ddr5_gap")
     if len(gser)>=2:
         xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in gser]
-        ax9a.plot(xs,[r[1].get("배율") for r in gser],marker="o",ms=5,lw=2.0,color=C_SPOT)
+        ysS=[r[1].get("배율(현물)") for r in gser]
+        ysC=[(r[1].get("배율(계약)") if r[1].get("배율(계약)") is not None else r[1].get("배율")) for r in gser]
+        if any(v is not None for v in ysS):
+            _lS=[v for v in ysS if v is not None]
+            ax9a.plot(xs,ysS,marker="o",ms=5,lw=2.2,color=C_SPOT,label="vs DDR5 현물 %.1f배 (매일)"%_lS[-1])
+        _lC=[v for v in ysC if v is not None]
+        ax9a.plot(xs,ysC,marker="o",ms=4,lw=1.6,color=C_DDR4,ls="--",label=("vs DDR5 계약 %.1f배 (월1회 계단)"%_lC[-1]) if _lC else "vs 계약")
+        ax9a.legend(fontsize=9,frameon=False)
         ax9a.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d")); ax9a.margins(x=0.06)
         ax9a.set_title("⑨ HBM : DDR5 GB당 단가 격차 (배)  (누적 %d일)"%len(gser),fontsize=13,fontweight="bold")
     elif gser:
