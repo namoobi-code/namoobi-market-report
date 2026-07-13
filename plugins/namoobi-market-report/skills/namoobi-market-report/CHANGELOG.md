@@ -1,5 +1,13 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.66.0 (plugin 1.24.0, 2026-07-13) — 3.1.13 파생 T+0 보강 — 당일 급변(코스피 -8.9%) 미반영 사고 근본 수정 (네이버 T+0 브리지·VKOSPI override·stale-guard)
+
+
+**사고** — 7/13 코스피 -8.9% 폭락일에 3.1.13(파생 포지셔닝 선행신호)이 7/10 데이터로 렌더. 실측 결과 ① KRX OPEN API 는 **T+1 공표**(당일 23시에도 basDd=당일 → 0행), ② `ingest_krx()` 가 1차(KRX) 성공 시 즉시 return 해 네이버 폴백이 영영 실행되지 않음(주석 "naver 베이시스 항상"과 코드 불일치), ③ "네이버는 파생 미제공" 판단은 **오류** — `m.stock.naver.com/api/index/FUT/price`(코스피200 선물 당일 OHLC)·`KPI200/price`(현물)를 T+0 제공(VKOSPI 만 진짜 없음. data.krx 는 샌드박스 IP 차단(LOGOUT), investing 은 Cloudflare 차단 확인).
+- **ingest_krx.py `ingest_naver_t0()` 신설(항상 실행)**: 네이버 m.stock API 로 KRX 미공표 구간(당일 포함)의 현물·선물·베이시스를 브리지. KRX 최신일 '이후' 날짜만 채우고, 다음 영업일 KRX 공식값(prices DELETE+재적재 / derivatives COALESCE)이 자동 덮어써 정본 유지. 검증: 7/13 spot 1,078.78(-9.85%)·basis +104bp(z=+2.00) 당일 생성, KRX 공백(7/10)도 자동 브리지.
+- **`ingest_vkospi_override()` 신설(선택)**: VKOSPI 는 T+0 무료 소스 부재 → 급변동일에 Claude in Chrome 이 data.krx.co.kr(국내 IP 필요)에서 읽어 `vkospi_override.json`({"date","vkospi"}, DERIV_DB 폴더)을 만들면 주입.
+- **export_snapshot.py stale-guard**: VKOSPI/PCR 은 최신 비NULL 값+날짜 병기(예: "85.48 (07-09)"), 당일 |spot_ret|≥3% 인데 T+1 지연 축이 있으면 ⚠경고를 signals 맨 앞에 삽입(빌더 무수정 렌더). asof 에 "KOSPI200 현물·베이시스 …(T+0 네이버 브리지)" 구분 표기.
+
 ## v3.62.0 (2026-07-12) — req1~14 일괄 반영 (HY 표 폐지·FOMC 복원·FactSet 갱신로직·CAPEX 대시보드형·HBM 11패널·EPS 단일소스·KSVKOSPI 공식이력·조기경보 타임라인) + 품질게이트 확장
 - **(req1) HY 표 폐지**: build_report.js 3.1.1 HY 블록에서 OAS 레벨 표(현재~1년) 제거 — 현재값+1년 차트만 유지. merge.py d1~y1 앵커 계산 폐지(차트용 series DB는 유지).
 - **(req2) FOMC 회의 복원**: merge.py 가 `nmr_usmacro.json` 의 fomc_meetings 를 1순위로 읽고 DB와 날짜 union — 과거 1년 실제 결정 유실 버그 수정(종전엔 um 키를 아예 안 읽음). 예정 회의는 향후 3개만 수록. marker=최신일|건수.
@@ -665,9 +673,4 @@
 > - **UsEtfAgent — 사용자 참고 HTML 정합**: 연결폴더에 `3.2.2_미국ETF시황.html` 가 있으면 현재가·수익률·추세평가를 그 값으로 정합(HTML 우선).
 
 > **v3.6.11 변경점 (2026-06-14 사용자 피드백 — 반도체표·원자재추세·버크셔)**
-> - **CommoditiesAgent — trend 한글 필수**: 에너지·금속·농산물·전략광물 각 행의 `trend` 는 **반드시 한글 간략 평가**(예: `"1년 +26% 강세, 3개월 -16% 조정"`). **"up"/"down" 영문 단어 금지**(실측 위반). 섹션별 `energy_comment`/`metals_comment`/`agri_comment` 와 별개로 각 행 trend 도 채운다. (빌더도 v3.6.11 `koTrend` 로 영문/빈 trend 를 수익률 기반 한글로 자동 생성하지만, 에이전트가 우선 채울 것.)
-> - **KoreaMacroAgent — 반도체/AI 표 11행**: `semi_ai_breakdown` 은 **대표 종목 3개(삼성전자·SK하이닉스·삼성전기) + 한국 상장 반도체/AI ETF 중 AUM 상위 8개 = 총 11행, 시총/AUM 내림차순**. 각 행 `aum`(억원/조원) 필수, `note`(1줄 설명). **`semi_ai_comment`(현황 2~3문장: 삼성·SK 시총·HBM·AI 슈퍼사이클·ETF 자금흐름) 필수**. 각 행 1Y 주봉 series 를 `nmr_semi_series.json[종목/ETF명]`(키는 breakdown name 과 정확히 일치)으로 저장 → `charts/semi_<i>.png`(시총순). ETF 2개만 넣지 말 것.
-> - **BerkshireAgent — 상위 보유 최대 20**: `top_holdings` 는 포트폴리오 비중 **상위 최대 20종**(각 {name,ticker,weight_or_value,note}). 5종만 넣지 말 것. `new_buys/added/reduced/exited` 와 별개.
-
-> **v3.6.12 변경점 (2026-06-14 사용자 피드백 — 반도체/AI 종목10+ETF20 2그룹)**
-> - **KoreaMacroAgent — 반도체/AI 2그룹 대폭 확대**: 기존 `semi_ai_breakdown`(단일 11행) 대신 **두 그룹**을 수집한다. ① `markets.semi_ai_stocks` = 국내 반도체/AI 관련 **종목 시총 상위 10개**(삼성전자·SK하이닉스 포함, 한미반도체·삼성전기·주성엔지니어링·원익IPS·리노공업·이오테크닉스·DB하이텍·HPSP 등에서 시총순), 각 {name, a
+> - **CommoditiesAgent — trend 한글 필수**: 에너지·금속·농산물·전략광물 각 행의 `trend` 는 **반드시 한글 간략 평가**(예: `"1년

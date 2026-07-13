@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.21.0 · SKILL v3.54.0)
+# Namoobi Market Report (plugin v1.24.0 · SKILL v3.66.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -115,7 +115,7 @@ description: |
   ├─ News / Crypto(정성: CoinInfo) / Macro(FMP economics·treasury + FRED → nmr_macro.json)
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (상시 수집 — DB가 변동체크·재사용) USMacroExtras·IndexRebalance·NewsBerk·HBM
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_asia_etf.py + fetch_appc.py + fetch_brokers_tele.py + fetch_krx_brief.py + fetch_memory.py  (美/글로벌·한국 시세·시계열·경기선행·부록C 밸류체인·증권사 텔레그램 7사·KRX 브리프 2종, Chrome 불필요)
-  ├─ [bash 비차단] deriv_signals/run_for_report.py "$WORK/nmr_deriv_positioning.json" "<connected>/namoobi-market-report-server/data/deriv_signals.db"  (3.1.13 파생 포지셔닝 라이브 — 런처가 ①의존성 자동설치 ②DB없으면 run_backfill(1회 1년)·있으면 daily_update ③export_snapshot→JSON. **완전 비차단**: 실패해도 빌더 내장 스냅샷(DERIV_POS_DEFAULT)으로 렌더. ⚠️ **의존성 선설치(45초 벽 회피)**: 샌드박스 bash 호출은 45초 제한이라 런처 내부 pip(yfinance→curl_cffi 11MB)가 잘리기 쉽다 — 런처 실행 전 별도 bash 호출 2회로 `pip install -q curl_cffi --prefer-binary --break-system-packages` → `pip install -q yfinance cot_reports --prefer-binary --break-system-packages` 를 선설치한다(이미 설치돼 있으면 수 초). DB는 다른 DB섹션과 동일하게 `namoobi-market-report-server\data\deriv_signals.db` 영구 경로에 두어 매 실행 재백필 방지(2번째 인자 또는 DERIV_DB 환경변수). data.go.kr 키는 상위 `SECURITY/secrets.env` 자동 탐색. **(v3.51)** KRX OPEN API 키(`SECURITY/openapi.krx.co.kr.txt`)로 KOSPI200 현물·베이시스·OI·VKOSPI 를 1차 수집하고, 같은 런처가 **`nmr_krx_market.json`**(krx_market_snapshot.py — 코스피/코스닥/코스피200·VKOSPI·코스피200 섹터 등락 상하위·국고채 수익률·KRX 금현물·ETF 거래대금 상위+괴리율)도 함께 생성해 **국내 시장데이터의 웹서치 의존을 대체**한다(글로벌 지표는 KRX 범위 밖 → 기존 소스 유지). 큰 모듈 truncation 방지 위해 $RUN 추출본에서 실행)
+  ├─ [bash 비차단] deriv_signals/run_for_report.py "$WORK/nmr_deriv_positioning.json" "<connected>/namoobi-market-report-server/data/deriv_signals.db"  (3.1.13 파생 포지셔닝 라이브 — 런처가 ①의존성 자동설치 ②DB없으면 run_backfill(1회 1년)·있으면 daily_update ③export_snapshot→JSON. **완전 비차단**: 실패해도 빌더 내장 스냅샷(DERIV_POS_DEFAULT)으로 렌더. ⚠️ **의존성 선설치(45초 벽 회피)**: 샌드박스 bash 호출은 45초 제한이라 런처 내부 pip(yfinance→curl_cffi 11MB)가 잘리기 쉽다 — 런처 실행 전 별도 bash 호출 2회로 `pip install -q curl_cffi --prefer-binary --break-system-packages` → `pip install -q yfinance cot_reports --prefer-binary --break-system-packages` 를 선설치한다(이미 설치돼 있으면 수 초). DB는 다른 DB섹션과 동일하게 `namoobi-market-report-server\data\deriv_signals.db` 영구 경로에 두어 매 실행 재백필 방지(2번째 인자 또는 DERIV_DB 환경변수). data.go.kr 키는 상위 `SECURITY/secrets.env` 자동 탐색. **(v3.51)** KRX OPEN API 키(`SECURITY/openapi.krx.co.kr.txt`)로 KOSPI200 현물·베이시스·OI·VKOSPI 를 1차 수집하고, 같은 런처가 **`nmr_krx_market.json`**(krx_market_snapshot.py — 코스피/코스닥/코스피200·VKOSPI·코스피200 섹터 등락 상하위·국고채 수익률·KRX 금현물·ETF 거래대금 상위+괴리율)도 함께 생성해 **국내 시장데이터의 웹서치 의존을 대체**한다(글로벌 지표는 KRX 범위 밖 → 기존 소스 유지). 큰 모듈 truncation 방지 위해 $RUN 추출본에서 실행. **(v3.66) T+0 당일 반영**: KRX OPEN API 는 T+1 공표라 런처의 `ingest_naver_t0()` 가 네이버 m.stock API 로 당일 현물·선물·베이시스를 자동 브리지한다(코드가 항상 실행 — 별도 조치 불필요). 단 **VKOSPI 는 T+0 무료 소스가 없으므로**, 당일 KOSPI 가 ±3% 이상 급변한 날에는 런처 실행 **전에** Claude in Chrome 으로 data.krx.co.kr(또는 네이버 뉴스 검색의 당일 VKOSPI 보도치)에서 당일 VKOSPI 를 확인해 `<connected>/namoobi-market-report-server/data/vkospi_override.json` 에 `{"date":"YYYY-MM-DD","vkospi":값}` 으로 저장하면 파이프라인이 주입한다(파일 없으면 D-1 값에 날짜 병기 + ⚠stale 경고가 자동 렌더되므로 비차단))
   └─ SecuritiesAgent=삼성·미래에셋·한투 3사만 메인세션 Chrome(`browser_batch` 3탭 navigate·`javascript_tool` 타깃추출·단계별 screenshot 금지) + KOSIS OECD CLI 자료갱신일 체크 1탭(3.1.4 — reuse면 스킵); 텔레그램 7사는 fetch_brokers_tele.py. 배치 발행 직후 동시 진행
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_macro_charts.py·gen_cli_chart.py → charts/*.png
@@ -411,12 +411,4 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 | 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
 |------|-----------|----------------|-----------|
 | UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
-| Goldman Sachs | 매크로·원자재·경제전망 | goldmansachs.com/insights | 수시 |
-| J.P. Morgan | 글로벌 전략·시장 전망 | jpmorgan.com/insights/global-research | 수시 |
-| Morgan Stanley | 미국주식 전략 (Thoughts on the Market) | morganstanley.com/insights | 주간 |
-| BlackRock | ETF·자산배분 (BII Weekly Commentary, 매주 월요일) | blackrock.com/corporate/insights/blackrock-investment-institute | 주간 |
-
-
-수집 시 주의:
-- **원문 리포트(목표주가·종목분석 PDF)는 고객 전용** — 공개 Insights 페이지와 언론 보도(Reuters/CNBC 등, 예: "Goldman S&P target" 검색)로 하우스 뷰 핵심 메시지만 수집한다.
-- 보조 수단: UsStockInfo MCP `get_recommendations`(종목별 월가 컨센서스), Bigdata.com MCP `bigdata_search`(있으면).
+| Goldman Sachs | 매크로·원자재·경제전망 | goldmans
