@@ -32,6 +32,41 @@ def yahoo_ohlc(sym):
         out[d] = [round(o, 2), round(h, 2), round(l, 2), round(c, 2)]
     return out
 
+def naver_ohlc(idx):
+    """(fix 2026-07-14) 야후 ^KS11/^KQ11 은 특정일 O/H/L 을 종가로 뭉개 도지봉을 만든다
+    (예 2026-07-13 코스피 -8.95% 폭락일이 O=H=L=C=6806.93). 네이버 m.stock(KRX 공식가)로 결손봉을 덮어쓴다."""
+    out = {}
+    def f(v):
+        try: return float(str(v).replace(',', ''))
+        except Exception: return None
+    for page in range(1, 6):          # pageSize 는 60 이 상한(100 이상은 HTTP 400) → 5페이지 = 약 300거래일
+        try:
+            u = f'https://m.stock.naver.com/api/index/{idx}/price?pageSize=60&page={page}'
+            j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://m.stock.naver.com/'}))
+            if not j: break
+            for x in j:
+                d = str(x.get('localTradedAt', ''))[:10]
+                o, h, l, c = f(x.get('openPrice')), f(x.get('highPrice')), f(x.get('lowPrice')), f(x.get('closePrice'))
+                if d and None not in (o, h, l, c):
+                    out[d] = [round(o, 2), round(h, 2), round(l, 2), round(c, 2)]
+        except Exception as e:
+            print(f'  [ohlc] 네이버 폴백 실패({idx} p{page}: {type(e).__name__})')
+            break
+    return out
+
+
+def repair_ohlc(yh, nv, label=''):
+    """야후 결손봉(O==H==L==C) 또는 야후 누락일을 네이버 공식가로 교체."""
+    n = 0
+    for d, v in (nv or {}).items():
+        cur = yh.get(d)
+        if cur is None or (cur[0] == cur[1] == cur[2] == cur[3]):
+            if not (v[0] == v[1] == v[2] == v[3]):
+                yh[d] = v; n += 1
+    if n: print(f'  [ohlc] {label} 결손봉 {n}일 네이버(KRX 공식) 복구')
+    return yh
+
+
 def daum_days(mkt):
     u = f'https://finance.daum.net/api/market_index/days?page=1&perPage=250&market={mkt}&pagination=true'
     j = json.loads(get(u)); rows = []
@@ -106,8 +141,15 @@ def inv(mkt, itype):
         u = f'https://finance.daum.net/api/trend/investor_purchase?page=1&perPage=10&market={mkt}&investorType={itype}&pagination=true'
         j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.daum.net/domestic/influential_investors'}))
         d = j.get('data', {})
-        def lst(arr): return [{'name': x['name'], 'detail': f"순매수 {round(x['straightPurchasePrice'] / 1e8):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
-        def lstS(arr): return [{'name': x['name'], 'detail': f"순매도 {abs(round(x['straightPurchasePrice'] / 1e8)):,}억원 (주가 {x['changeRate'] * 100:+.1f}%)"} for x in (arr or [])[:10]]
+        # (fix 2026-07-14) Daum investor_purchase 의 금액은 '직전 거래일 마감 확정치'인데
+        # changeRate 는 '조회 시점 현재가' 등락률이라, 한 셀에 서로 다른 시점이 섞여
+        # "SK하이닉스 순매도 1.4조 (주가 +0.5%)" 같은 모순 문장이 나왔다.
+        # → 금액(확정)과 현재가 등락률을 명확히 분리 표기하고, 순매수액 합계를 함께 돌려
+        #    호출부가 기준일(asof)을 일별 확정수급과 대조해 스스로 보정하게 한다.
+        def lst(arr): return [{'name': x['name'], 'detail': f"순매수 {round(x['straightPurchasePrice'] / 1e8):,}억원 · 현재가 {x['changeRate'] * 100:+.1f}%",
+                               'amt': x['straightPurchasePrice'] / 1e8} for x in (arr or [])[:10]]
+        def lstS(arr): return [{'name': x['name'], 'detail': f"순매도 {abs(round(x['straightPurchasePrice'] / 1e8)):,}억원 · 현재가 {x['changeRate'] * 100:+.1f}%",
+                                'amt': x['straightPurchasePrice'] / 1e8} for x in (arr or [])[:10]]
         b, s = lst(d.get('BUY')), lstS(d.get('SELL'))
         if b or s:
             return b, s
@@ -164,6 +206,8 @@ with ThreadPoolExecutor(max_workers=9) as ex:
     f_hy = ex.submit(safe, hy_series)
 ks_y, kq_y, ks_d, kq_d = f_ksy.result(), f_kqy.result(), f_ksd.result(), f_kqd.result()
 
+ks_y = repair_ohlc(ks_y, naver_ohlc('KOSPI'), 'KOSPI')
+kq_y = repair_ohlc(kq_y, naver_ohlc('KOSDAQ'), 'KOSDAQ')
 ko, kf = build_ohlcv(ks_y, ks_d); qo, qf = build_ohlcv(kq_y, kq_d)
 json.dump({'kospi_ohlcv': ko, 'kosdaq_ohlcv': qo, 'kospi_flows_daily': kf, 'kosdaq_flows_daily': qf},
           open('nmr_kr_ohlcv.json', 'w'), ensure_ascii=False)
@@ -173,7 +217,21 @@ def ok2(x): return isinstance(x, tuple)
 if ok2(f_iff.result()) and ok2(f_ifi.result()) and ok2(f_iqf.result()) and ok2(f_iqi.result()):
     (ks_f_b, ks_f_s), (ks_i_b, ks_i_s) = f_iff.result(), f_ifi.result()
     (kq_f_b, kq_f_s), (kq_i_b, kq_i_s) = f_iqf.result(), f_iqi.result()
-    invest = {'asof': ks_d[-1][0],
+    # (fix 2026-07-14) 기준일 자가보정: Daum 종목별 수급은 T-1 확정치일 수 있다.
+    # 외국인 top10 순매수 합계를 최근 거래일들의 '확정 외국인 순매수'와 대조해 가장 가까운 날을 기준일로 삼는다.
+    def _calib_asof(bl, sl, flows):
+        try:
+            net = sum(x.get('amt', 0) for x in (bl or [])) + sum(x.get('amt', 0) for x in (sl or []))
+            cands = flows[-3:]
+            best = min(cands, key=lambda r: abs(r[1] - net))
+            return best[0], round(net)
+        except Exception:
+            return (flows[-1][0] if flows else ''), None
+    _asof, _net10 = _calib_asof(ks_f_b, ks_f_s, kf)
+    if _asof != ks_d[-1][0]:
+        print(f'  [inv] 기준일 보정: {ks_d[-1][0]} → {_asof} (외국인 top10 합 {_net10}억, 당일 확정 {kf[-1][1]}억)')
+    invest = {'asof': _asof,
+              'note': '금액=' + _asof + ' 마감 확정 순매수/순매도(다음금융 investor_purchase). 등락률은 조회 시점 현재가 기준이라 기준일 등락률과 다를 수 있음.',
               'kospi_foreign_buy': ks_f_b, 'kospi_foreign_sell': ks_f_s, 'kospi_inst_buy': ks_i_b, 'kospi_inst_sell': ks_i_s,
               'kosdaq_foreign_buy': kq_f_b, 'kosdaq_foreign_sell': kq_f_s, 'kosdaq_inst_buy': kq_i_b, 'kosdaq_inst_sell': kq_i_s}
     json.dump(invest, open('nmr_kr_invest.json', 'w'), ensure_ascii=False)
