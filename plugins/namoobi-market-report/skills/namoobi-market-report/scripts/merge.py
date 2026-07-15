@@ -805,28 +805,14 @@ def _ir_norm(_ir):
     for _k in ('sp500', 'nasdaq100'):
         _b = _ir.get(_k) or {}
         _ev = []
-        _grp = {}   # (fix 2026-07-14) 종목별 평면행 {date,action,ticker,name,biz,reason} → 날짜별 add/remove 그룹핑
-        _ord = []
         for _e in (_b.get('events') or []):
             if not isinstance(_e, dict): continue
             if 'add' in _e or 'remove' in _e: _ev.append(_e); continue
-            if _e.get('ticker') and (_e.get('action') or _e.get('type')):
-                _d = str(_e.get('date') or _e.get('effective') or _e.get('effective_date') or '변경 내역')
-                if _d not in _grp:
-                    _grp[_d] = {'title': _d, 'effective': _e.get('effective') or _e.get('effective_date') or '',
-                                'add': [], 'remove': [], 'note': ''}
-                    _ord.append(_d)
-                _act = str(_e.get('action') or _e.get('type') or '')
-                _side = 'remove' if ('편출' in _act or 'remov' in _act.lower() or 'delet' in _act.lower() or 'drop' in _act.lower()) else 'add'
-                _grp[_d][_side].append({'ticker': _e.get('ticker', ''), 'name': _e.get('name', ''),
-                                        'biz': _e.get('biz', ''), 'reason': _e.get('reason', '')})
-                continue
             _ev.append({'title': (' · '.join(x for x in [str(_e.get('date', '') or _e.get('quarter', '') or _e.get('period', '')), str(_e.get('type', ''))] if x) or '변경 내역'),
                         'effective': _e.get('effective') or _e.get('effective_date') or '',
                         'add': _e.get('in') or _e.get('additions') or _e.get('adds') or [],
                         'remove': _e.get('out') or _e.get('deletions') or _e.get('drops') or _e.get('removes') or [],
                         'note': _e.get('note', '')})
-        for _d in sorted(_ord, reverse=True): _ev.append(_grp[_d])
         if _ev: _b['events'] = _ev
         _ns = []
         for _s0 in (_b.get('schedule') or []):

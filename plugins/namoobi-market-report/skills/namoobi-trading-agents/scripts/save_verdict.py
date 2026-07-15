@@ -55,10 +55,11 @@ cnt={k:sum(1 for v in verdicts if v.get("판정")==k) for k in ("채택","관망
 L.append(f"**판정 분포**: 채택 {cnt['채택']} · 관망 {cnt['관망']} · 탈락 {cnt['탈락']}\n")
 if approved:
     L.append("## 최종 승인 (리스크 심사 통과)\n")
-    L.append("| 종목 | 시장 | 확신도 | 비중 가이드 | 사유 |")
-    L.append("|---|---|--:|---|---|")
+    L.append("| 종목 | 시장 | 확신도 | 비중 가이드 | 손절선 | 무효화 조건 | 사유 |")
+    L.append("|---|---|--:|---|--:|---|---|")
     for r in approved:
-        L.append(f"| {r['종목']} | {r.get('시장','')} | {r.get('확신도','')} | {r.get('비중가이드','')} | {r.get('사유','')} |")
+        sl=r.get('손절선'); sl=f"{sl:,.0f}" if isinstance(sl,(int,float)) else (sl or '-')
+        L.append(f"| {r['종목']} | {r.get('시장','')} | {r.get('확신도','')} | {r.get('비중가이드','')} | {sl} | {r.get('무효화','-')} | {r.get('사유','')} |")
 else:
     L.append("## 최종 승인: 없음\n")
 rej=[r for r in risk.get("심사대상",[]) if not r.get("승인")]

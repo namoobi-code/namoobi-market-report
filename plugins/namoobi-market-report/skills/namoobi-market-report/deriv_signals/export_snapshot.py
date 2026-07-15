@@ -124,9 +124,7 @@ rows = [
         cellv(("-" if usopt.get('NDX', {}).get('iv_skew_25d') is None else f"{usopt['NDX']['iv_skew_25d']:+.3f}"), None),
         cellv(("-" if kr.get('iv_skew_25d') is None else f"{kr['iv_skew_25d']:+.1f}"), Z['KOSPI200'].get('z_iv_skew_25d'))]},
     {"label": "딜러 감마 (GEX)", "cells": [
-        # (2026-07-15) KOSPI200 GEX 종전 하드코딩 "—" → KIS 옵션체인 T+0 값(억원) 배선.
-        cellv(gbn('SPX'), None), cellv(gbn('NDX'),
-        None), cellv(("—" if kr.get('gex') is None else f"{kr['gex']:+,.0f}억"), Z['KOSPI200'].get('z_gex'))]},
+        cellv(gbn('SPX'), None), cellv(gbn('NDX'), None), cellv("—", Z['KOSPI200'].get('z_gex'))]},
     # VKOSPI(韓 공식 변동성지수) — 옵션체인 붕괴로 못 쓰는 PCR/IV스큐를 대체하는 변동성·공포 축.
     #   미국은 VIX 가 별도 축이라 여기서는 KOSPI200 열만 채운다.
     {"label": "VKOSPI (변동성지수)", "cells": [

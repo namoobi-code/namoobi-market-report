@@ -29,15 +29,7 @@ def fetch_channel(handle, tries=3):
     last = ''
     for i in range(tries):
         try:
-            h = None
-            for _host in ('t.me', 'telegram.me'):   # t.me 가 DNS 미허용인 샌드박스 → telegram.me 별칭 폴백
-                try:
-                    h = urllib.request.urlopen(urllib.request.Request(f'https://{_host}/s/{handle}', headers={'User-Agent': 'Mozilla/5.0'}), timeout=15).read().decode('utf-8', 'replace')
-                    break
-                except Exception:
-                    h = None
-            if h is None:
-                raise RuntimeError('telegram host unreachable')
+            h = urllib.request.urlopen(urllib.request.Request(f'https://t.me/s/{handle}', headers={'User-Agent': 'Mozilla/5.0'}), timeout=15).read().decode('utf-8', 'replace')
             out = []
             for b in re.split(r'<div class="tgme_widget_message ', h)[1:]:
                 mt = re.search(r'js-message_text"[^>]*>(.*?)</div>', b, re.S)
