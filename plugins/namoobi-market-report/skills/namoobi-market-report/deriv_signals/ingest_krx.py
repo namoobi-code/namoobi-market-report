@@ -356,7 +356,8 @@ def ingest_kis_t0(con):
         return n
     try:
         base = _krx_opt_base(con)
-        oc = kis_api.option_chain(spot=spot, krx_base=base)
+        # 커버리지 90%: OI 상위 90% 행사가만 T+0, 꼬리는 KRX 보정. 신규 3일창(2.4건/초)에서 ~80초.
+        oc = kis_api.option_chain(spot=spot, krx_base=base, coverage=0.90, max_calls=220)
         if oc and oc.get("pcr_oi"):
             con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_oi,pcr_vol,iv_skew_25d,gex)
                            VALUES(?,?,?,?,?,?)
