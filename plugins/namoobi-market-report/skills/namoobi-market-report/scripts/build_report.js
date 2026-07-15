@@ -276,7 +276,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
       });
       return rows; };
     // 테마 (8개 고정 순서)
-    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주","건설","건설기계","항공","정유"];  // (v3.50) 건설 + (v3.50.1) 건설기계·항공·정유 추가
+    const THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주","건설","건설기계","항공","정유","K푸드","K화장품"];  // (v3.50) 건설 + (v3.50.1) 건설기계·항공·정유 + (v3.63) K푸드·K화장품 추가
     const themeArr=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
     const tByName={}; themeArr.forEach(t=>{ if(t&&t.theme)tByName[t.theme]=t; });
     const themeEtfs=m.korea_theme_etfs||{};
@@ -616,7 +616,7 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
-  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:"-")),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(function(){ if(r.change!=null&&r.change!=="")return r.change; const j=parseFloat(String(r.jun||"").replace(/[^0-9.\-]/g,"")),m2=parseFloat(String(r.mar||"").replace(/[^0-9.\-]/g,"")); if(isFinite(j)&&isFinite(m2)){ const dd=+(j-m2).toFixed(2); return dd>0?("+"+dd+"%p 상향"):(dd<0?(dd+"%p 하향"):"변동 없음"); } return "-"; })()]),{left:[0]});
+  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:(r.period!=null?r.period:"-"))),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(function(){ if(r.change!=null&&r.change!=="")return r.change; const j=parseFloat(String(r.jun||"").replace(/[^0-9.\-]/g,"")),m2=parseFloat(String(r.mar||"").replace(/[^0-9.\-]/g,"")); if(isFinite(j)&&isFinite(m2)){ const dd=+(j-m2).toFixed(2); return dd>0?("+"+dd+"%p 상향"):(dd<0?(dd+"%p 하향"):"변동 없음"); } return "-"; })()]),{left:[0]});
   if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
     f.distribution.forEach(x=>children.push(p("• "+(x.label||"")+": "+(x.count||""),{size:19}))); }
   if(f.policy_rate)children.push(p("현 정책금리: "+f.policy_rate,{bold:true,before:60}));
@@ -624,7 +624,7 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   if(Array.isArray(f.background)&&f.background.length){ children.push(p("배경 및 시장 영향",{bold:true,color:"1E40AF",before:100,size:20}));
     f.background.forEach(b=>children.push(p("• "+b,{size:19}))); }
   if(f.market_impact)children.push(p("시장 영향: "+f.market_impact,{color:"0F766E"}));
-  if(Array.isArray(f.sources)&&f.sources.length)children.push(p("출처: "+f.sources.join(" · "),{size:14,color:"94A3B8"}));
+  if(Array.isArray(f.sources)&&f.sources.length)children.push(p("출처: "+f.sources.map(function(s){return (s&&typeof s==="object")?(s.source||s.item||s.url||""):s;}).filter(Boolean).join(" · "),{size:14,color:"94A3B8"}));
   children.push(p("")); }
 
 // (v3.12.0→v3.49) 3.1.8 AI 빅테크 CAPEX — 3.1(매크로 대시보드)로 이동, 차트 풀폭(좌우 여백 제거).
@@ -1442,7 +1442,10 @@ if (data.global_securities) { let gi=0;
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 발간물:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
     else if(!sec.key_message&&!(gVF[key]&&sec[gVF[key][0]])) children.push(p("(수집 실패 또는 비공개)",{italics:true,color:"94A3B8"})); }
   if(Array.isArray(data.global_securities.common_themes)&&data.global_securities.common_themes.length){ children.push(h("8.6 글로벌 IB 공통 핵심 주제",2)); data.global_securities.common_themes.forEach(t=>children.push(bullet(t))); }
-  if(data.global_securities.wall_street_consensus){ var _w=data.global_securities.wall_street_consensus; var _ws=(_w&&typeof _w==="object")?Object.keys(_w).map(function(k){var v=_w[k];return k+": "+((v&&typeof v==="object")?Object.keys(v).map(function(a){return a+" "+v[a];}).join(", "):String(v));}).join("  /  "):String(_w); children.push(h("8.7 월가 컨센서스",2)); children.push(p(_ws)); }
+  if(data.global_securities.wall_street_consensus){ var _w=data.global_securities.wall_street_consensus;
+    var _wsFmt=function(v){ if(v==null)return ""; if(Array.isArray(v))return v.map(function(it){ return (it&&typeof it==="object")?[(it.firm||it.broker||it.name||""),(it.target!=null?it.target:""),(it.as_of?("("+it.as_of+")"):"")].filter(Boolean).join(" "):String(it); }).join(", "); if(typeof v==="object")return Object.keys(v).map(function(a){return a+" "+_wsFmt(v[a]);}).join(", "); return String(v); };
+    var _wsLabel={sp500_year_end_2026_targets:"S&P500 2026년말 목표치",note:"비고"};
+    var _ws=(_w&&typeof _w==="object")?Object.keys(_w).map(function(k){return (_wsLabel[k]||k)+": "+_wsFmt(_w[k]);}).join("  /  "):String(_w); children.push(h("8.7 월가 컨센서스",2)); children.push(p(_ws)); }
   children.push(p("※ 해외 IB 원문은 고객 전용 — 공개 Insights·언론 보도 기반 요약입니다.",{italics:true,color:"94A3B8",size:18}));
 } else children.push(p("(글로벌 IB 데이터 없음)"));
 children.push(new Paragraph({children:[new PageBreak()]}));
