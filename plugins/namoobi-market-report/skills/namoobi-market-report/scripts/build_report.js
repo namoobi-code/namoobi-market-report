@@ -1260,6 +1260,7 @@ function renderDerivPositioning(){ const m=data.markets||{};
   children.push(h("3.1.13 파생시장 포지셔닝 기반 현물 선행신호 분석",3));
   children.push(p("선물 베이시스·순포지션/수급·풋콜비율·IV 스큐·딜러 감마(GEX)를 롤링 z-score(60거래일)로 표준화한 현재 스냅샷. |z|≥1.5는 통계적으로 이례적인 신호.",{size:15,italics:true,color:"94A3B8"}));
   if(dp.asof)children.push(p("기준일 — "+dp.asof,{size:14,color:"64748B"}));
+  children.push(p("※ 기준일 안내 — 미국 COT는 CFTC 공표 구조상 최신분(화요일 포지션 기준·금요일 공표)으로 1주 내외 지연이 정상이며, 일중 타이밍이 아닌 주간 포지셔닝(구조적 쏠림) 지표다. 선물 베이시스·KOSPI200 현물/수급·미국 옵션(PCR·IV·GEX)은 당일~T+1 데이터로 단기 신호를 담당한다.",{size:13,italics:true,color:"94A3B8"}));
   if(Array.isArray(dp.index)&&dp.index.length){
     children.push(p("① 지수 현황 (종가·수익률)",{bold:true,size:18,color:"1E40AF",before:100}));
     const iw=[3000,2360,2000,2000]; const ir=[hdrRow(["지수","종가","1일","5일"],iw)];
