@@ -97,7 +97,9 @@ def _deriv_carry(cur):
                     cell['z']=pcz['z']; n+=1
                 if str(cell.get('v') or '').strip() in ('','-','—') and str(pcz.get('v') or '').strip() not in ('','-','—'):
                     cell['v']=pcz['v']
-        if n and prev.get('asof'): cur['asof']=str(cur.get('asof') or '')+' · (일부 z 캐리포워드: '+str(prev.get('asof'))+')'
+        if n and prev.get('asof'):
+            _pa=str(prev.get('asof')).split(' · (일부 z 캐리포워드')[0]  # (fix 2026-07-16) 직전 asof의 기존 캐리포워드 문구 제거 — 괄호 중첩 누적 방지
+            cur['asof']=str(cur.get('asof') or '')+' · (일부 z 캐리포워드: '+_pa+')'
         return cur, n
     except Exception as _e:
         print('  [deriv] carry-forward skip:', _e); return cur, 0
