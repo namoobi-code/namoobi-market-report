@@ -15,6 +15,7 @@ ASIA_ETF = {
  "371160": ("china", "TIGER 차이나항셍테크",          "중국 빅테크(항셍테크)"),
  "414780": ("china", "TIGER 차이나과창판STAR50(합성)", "중국 기술·혁신주(과창판 STAR50)"),
  "256750": ("china", "KODEX 차이나심천ChiNext(합성)",  "중국 성장주·창업판(선전 ChiNext)"),
+ "0053L0": ("china", "TIGER 차이나휴머노이드로봇",     "중국 휴머노이드 로봇 순수 테마(유비테크·회천기술 등, 2025-05 상장)"),  # (2026-07-17 추가)
  "241180": ("japan", "TIGER 일본니케이225",           "일본 대형주(닛케이225·가격가중)"),
  "101280": ("japan", "KODEX 일본TOPIX100",           "일본 시총가중 대표(TOPIX100)—밸류업 수혜 금융·내수"),
  "465660": ("japan", "TIGER 일본반도체FACTSET",       "일본 반도체 소부장(소재·부품·장비)"),
@@ -28,6 +29,7 @@ ASIA_ETF = {
  "FXI":  ("china", "중국 대형주",      "정책·국유 대형주·본토 대형 흐름을 보기 좋음 (iShares China Large-Cap)"),
  "KWEB": ("china", "중국 인터넷/플랫폼", "중국 기술·플랫폼 성장에 직접 베팅하는 테마 ETF (KraneShares CSI China Internet)"),
  "EWH":  ("china", "홍콩",           "중국 본토보다 금융·부동산·중국 경유 노출 성격 (iShares MSCI Hong Kong)"),
+ "KOID": ("china", "글로벌 휴머노이드 로봇", "미·중·일 휴머노이드·피지컬AI 밸류체인 (KraneShares KOID, 2025-06 상장)"),  # (2026-07-17 추가)
  "EWJ":  ("japan", "일본",           "일본 주식시장 전체를 넓게 담는 가장 무난한 코어 (iShares MSCI Japan)"),
  "DXJ":  ("japan", "일본(환헤지 성격)",  "엔화 약세 환경에서 환율 리스크를 줄여보는 선택지 (WisdomTree Japan Hedged Equity)"),
  "EWT":  ("taiwan","대만",           "AI 반도체 밸류체인에 직접 연결되는 핵심 아시아 노출 (iShares MSCI Taiwan)"),
@@ -99,7 +101,7 @@ def daum_series(code):
 
 def work(item):
     code,(grp,name,desc)=item
-    is_us = not code.isdigit()          # (v3.50) 미국 티커(알파벳) = 달러 종가, .KS 미부착·Daum 폴백 없음
+    is_us = code.isalpha()              # (v3.50→2026-07-17 fix) 한국 신종목코드는 영숫자 혼합(0053L0 등)이라 isdigit 판별이 깨짐 — 미국 티커=전부 알파벳
     try:
         pts, meta, first = fetch_series(code if is_us else code+".KS")
         cur = meta.get("regularMarketPrice")
