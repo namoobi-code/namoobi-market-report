@@ -306,15 +306,36 @@ else:
     _qb={}
     for d,row in aser: _qb[_q(d)]=row   # 분기 내 마지막 관측
     qs=sorted(_qb)
-    if qs:
+    # (2026-07-17 사용자 req) 과거 추이 — 계약 ASP '보도치'(2024~2025) 병행. ⚠️ 현재 지표는 2026-06 시작
+    #   '스팟가'라 기준이 다름(계약 대비 4~9배) → 하나의 선으로 잇지 않고 구분선·라벨로 분리 표기.
+    bfa={q:row for q,row in (BF.get("hbm_asp_quarterly") or [])}
+    bqs=sorted(bfa)
+    if qs or bqs:
+        cats=bqs+qs
+        _pos={c:i for i,c in enumerate(cats)}
+        _bfc=["#9CA3AF","#EF9F27","#8B5CF6","#64748B"]
+        bitems=sorted({k for q in bqs for k in bfa[q]})
+        for i,it in enumerate(bitems):
+            pts=[(q,bfa[q][it]) for q in bqs if bfa[q].get(it)]
+            if not pts: continue
+            ax7a.plot([_pos[p[0]] for p in pts],[p[1] for p in pts],marker="s",ms=6,lw=1.4,ls="--",
+                      mfc="white",color=_bfc[i%len(_bfc)],label="%s (계약 ASP·보도치)"%it)
+            for q,v in pts:
+                ax7a.annotate("$%s"%format(int(v),","),(_pos[q],v),textcoords="offset points",xytext=(0,-13),fontsize=7,color=_bfc[i%len(_bfc)])
         items=sorted({k for q in qs for k in _qb[q]})
         for i,it in enumerate(items):
-            ys=[_qb[q].get(it) for q in qs]
-            ax7a.plot(range(len(qs)),ys,marker="o",ms=7,lw=1.8,color=PAL[i%len(PAL)],label=it)
-            for j,v in enumerate(ys):
-                if v: ax7a.annotate("$%s"%format(int(v),","),(j,v),textcoords="offset points",xytext=(6,5),fontsize=8,fontweight="bold")
-        ax7a.set_xticks(range(len(qs))); ax7a.set_xticklabels(qs)
-        ax7a.margins(x=0.15,y=0.15); ax7a.legend(fontsize=7.5,frameon=False,loc="center left")
+            pts=[(q,_qb[q][it]) for q in qs if _qb[q].get(it)]
+            if not pts: continue
+            ax7a.plot([_pos[p[0]] for p in pts],[p[1] for p in pts],marker="o",ms=7,lw=1.8,color=PAL[i%len(PAL)],label="%s (스팟 지표)"%it)
+            for q,v in pts:
+                ax7a.annotate("$%s"%format(int(v),","),(_pos[q],v),textcoords="offset points",xytext=(6,5),fontsize=8,fontweight="bold")
+        if bqs and qs:
+            _dv=(_pos[qs[0]]+_pos[bqs[-1]])/2.0
+            ax7a.axvline(_dv,color="#CBD5E1",lw=1.2,ls=":")
+            ax7a.text(_dv-0.06,0.98,"계약 ASP 보도치(참고) ◀",transform=ax7a.get_xaxis_transform(),ha="right",va="top",fontsize=7.5,color="#94A3B8")
+            ax7a.text(_dv+0.06,0.98,"▶ 스팟가 지표(2026-06 시작 · 기준 다름)",transform=ax7a.get_xaxis_transform(),ha="left",va="top",fontsize=7.5,color="#94A3B8")
+        ax7a.set_xticks(range(len(cats))); ax7a.set_xticklabels(cats,fontsize=8)
+        ax7a.margins(x=0.08,y=0.18); ax7a.legend(fontsize=6.8,frameon=False,loc="center left")
         ax7a.set_title("⑦ HBM ASP 추이 (USD/스택 · 분기 축) — 변동주기: 분기 1회 내외",fontsize=13,fontweight="bold")
     elif aser:
         it=aser[-1][1]; nm=list(it.keys()); vv=[it[k] for k in nm]
@@ -323,7 +344,7 @@ else:
         ax7a.set_xticklabels(nm,fontsize=7.5); ax7a.set_ylim(top=max(vv)*1.2)
         ax7a.set_title("⑦ HBM ASP (USD/스택)  (누적 1일 — 매일 08:30 자동 누적)",fontsize=13,fontweight="bold")
     else: ax7a.set_visible(False)
-    if aser: ax7a.set_ylabel("USD",fontsize=9); _style(ax7a); _cap(ax7a,"[추정] Silicon Analysts 공개 API · 서버 매일 2회 누적을 분기 마지막 관측으로 표시 · %s\n     ※ 소스 API 단위붕괴 값(12-Hi 8.33)은 가드로 제거 — 분기 시계열은 2026Q3 부터 누적"%CAD.get("asp",""))
+    if aser or (BF.get("hbm_asp_quarterly") or []): ax7a.set_ylabel("USD",fontsize=9); _style(ax7a); _cap(ax7a,"[추정] 점선=계약 ASP 보도치(TrendForce·Silicon Analysts $/GB 표 환산 등 — 출처별 용량 가정 상이) · 실선=Silicon Analysts 스팟가 지표(2026-06-06 시작, 소급 불가) · %s\n     ⚠️ 두 구간은 서로 다른 가격 기준(계약 vs 스팟, 4~9배 레벨차)이라 연결하지 않음 — 점프는 가격 급등이 아니라 지표 교체"%CAD.get("asp",""))
 
     # ⑧ HBM 시장규모·수요 증가율 (req9 2026-07-12 — 연간, Yole 추정)
     ax8a=fig.add_subplot(gs[3,1])
