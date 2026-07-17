@@ -177,6 +177,20 @@ plt.tight_layout(); plt.savefig(os.path.join(W, "charts", "krliq_4.png"), bbox_i
 SUM["crd_kosdaq_t"] = round(crq[lq], 2); SUM["kosdaq_share"] = round(cra[sxs[-1]], 1)
 SUM["kosdaq_chg5_e"] = round(sum(v for _, v in chg[-5:]))
 
+# ── (2026-07-17) VKOSPI 1년 스파크 — 3.1.12 심리 표 추세열용 (deriv_signals.db 이력, 종전 미생성 404) ──
+if vk:
+    try:
+        fig, ax = plt.subplots(figsize=(3.0, 0.8), dpi=100)
+        ys = [y for _, y, _ in vk][-250:]
+        col = "#DC2626" if ys[-1] >= ys[0] else "#059669"   # 변동성 상승=적색(위험)
+        ax.plot(range(len(ys)), ys, color=col, lw=1.4)
+        ax.axis("off"); fig.patch.set_alpha(0)
+        plt.savefig(os.path.join(W, "charts", "spark_vkospi.png"), bbox_inches="tight",
+                    pad_inches=0.02, transparent=True)
+        plt.close()
+    except Exception as _e:
+        print("spark_vkospi skip:", _e)
+
 json.dump(SUM, open(os.path.join(W, "nmr_krliq_summary.json"), "w", encoding="utf-8"), ensure_ascii=False)
 print("krliq charts OK:", {k: SUM[k] for k in ("as_of", "deposit_t", "crd_t", "opp_amt_e", "kosdaq_chg5_e")},
       "| verdict:", V and V["label"])
