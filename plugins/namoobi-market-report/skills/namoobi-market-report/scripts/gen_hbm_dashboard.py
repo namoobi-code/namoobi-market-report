@@ -300,14 +300,22 @@ else:
     # (req7-⑦) 오염 가드 — HBM 스택가($100 미만 값·비 HBM 항목은 단위붕괴/프록시 오염) 제거
     aser=[[d,{k:v for k,v in (row or {}).items() if str(k).startswith("HBM") and (v or 0)>=100}] for d,row in aser]
     aser=[r for r in aser if r[1]]
-    if len(aser)>=2:
-        xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in aser]
-        items=sorted({k for r in aser for k in r[1]})
+    # (2026-07-17 사용자 req) 분기 축 — ASP 는 분기 1회 내외 변동이라 일별 축은 일직선. 분기 마지막 관측만 표시.
+    def _q(dstr):
+        y,m=int(dstr[:4]),int(dstr[5:7]); return "%dQ%d"%(y,(m-1)//3+1)
+    _qb={}
+    for d,row in aser: _qb[_q(d)]=row   # 분기 내 마지막 관측
+    qs=sorted(_qb)
+    if qs:
+        items=sorted({k for q in qs for k in _qb[q]})
         for i,it in enumerate(items):
-            ax7a.plot(xs,[r[1].get(it) for r in aser],marker="o",ms=4,lw=1.8,color=PAL[i%len(PAL)],label=it)
-        ax7a.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d")); ax7a.margins(x=0.06)
-        ax7a.legend(fontsize=7,frameon=False)
-        ax7a.set_title("⑦ HBM ASP 추이 (USD/스택)  (누적 %d일)"%len(aser),fontsize=13,fontweight="bold")
+            ys=[_qb[q].get(it) for q in qs]
+            ax7a.plot(range(len(qs)),ys,marker="o",ms=7,lw=1.8,color=PAL[i%len(PAL)],label=it)
+            for j,v in enumerate(ys):
+                if v: ax7a.annotate("$%s"%format(int(v),","),(j,v),textcoords="offset points",xytext=(6,5),fontsize=8,fontweight="bold")
+        ax7a.set_xticks(range(len(qs))); ax7a.set_xticklabels(qs)
+        ax7a.margins(x=0.15,y=0.15); ax7a.legend(fontsize=7.5,frameon=False,loc="center left")
+        ax7a.set_title("⑦ HBM ASP 추이 (USD/스택 · 분기 축) — 변동주기: 분기 1회 내외",fontsize=13,fontweight="bold")
     elif aser:
         it=aser[-1][1]; nm=list(it.keys()); vv=[it[k] for k in nm]
         ax7a.bar(nm,vv,width=0.5,color=[C_HBM3E,C_HBM4,C_SPOT][:len(nm)])
@@ -315,7 +323,7 @@ else:
         ax7a.set_xticklabels(nm,fontsize=7.5); ax7a.set_ylim(top=max(vv)*1.2)
         ax7a.set_title("⑦ HBM ASP (USD/스택)  (누적 1일 — 매일 08:30 자동 누적)",fontsize=13,fontweight="bold")
     else: ax7a.set_visible(False)
-    if aser: ax7a.set_ylabel("USD",fontsize=9); _style(ax7a); _cap(ax7a,"[추정] Silicon Analysts 공개 API · 서버 매일 2회(06:45·15:45 KST) 누적 · %s\n     ※ 2026-07-13~16 소스 API 단위붕괴 값(12-Hi 8.33)은 필터로 제거"%CAD.get("asp",""))
+    if aser: ax7a.set_ylabel("USD",fontsize=9); _style(ax7a); _cap(ax7a,"[추정] Silicon Analysts 공개 API · 서버 매일 2회 누적을 분기 마지막 관측으로 표시 · %s\n     ※ 소스 API 단위붕괴 값(12-Hi 8.33)은 가드로 제거 — 분기 시계열은 2026Q3 부터 누적"%CAD.get("asp",""))
 
     # ⑧ HBM 시장규모·수요 증가율 (req9 2026-07-12 — 연간, Yole 추정)
     ax8a=fig.add_subplot(gs[3,1])
@@ -370,7 +378,7 @@ else:
         ax9a.plot(xs,ysC,marker="o",ms=4,lw=1.6,color=C_DDR4,ls="--",label=("vs DDR5 계약 %.1f배 (월1회 계단)"%_lC[-1]) if _lC else "vs 계약")
         ax9a.legend(fontsize=9,frameon=False)
         ax9a.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d")); ax9a.margins(x=0.06)
-        ax9a.set_title("⑨ HBM : DDR5 GB당 단가 격차 (배)  (누적 %d일)"%len(gser),fontsize=13,fontweight="bold")
+        ax9a.set_title("⑨ HBM : DDR5 GB당 단가 격차 (배) — 변동주기: 매일(DDR5 현물 분모)",fontsize=13,fontweight="bold")
     elif gser:
         g1=gser[-1][1]
         ax9a.bar(["HBM $/GB","DDR5 $/GB"],[g1.get("HBM $/GB") or 0,g1.get("DDR5 $/GB") or 0],width=0.45,color=[C_HBM3E,C_DDR4])
