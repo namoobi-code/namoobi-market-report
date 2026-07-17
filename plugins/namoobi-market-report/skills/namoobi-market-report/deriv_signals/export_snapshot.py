@@ -124,20 +124,22 @@ rows = [
         cellv(fmt_comma(I['SPX'].get('oi_chg_w'), " (주)"), Z['SPX'].get('z_oi_chg_w')),
         cellv(fmt_comma(I['NDX'].get('oi_chg_w'), " (주)"), Z['NDX'].get('z_oi_chg_w')),
         cellv(fmt_comma(I['KOSPI200'].get('oi_chg_w'), " (5일)"), Z['KOSPI200'].get('z_oi_chg_w'))]},
+    # (2026-07-17) 美 옵션 3종 z: 종전 하드코딩 None → zscores 배선. Z_MINP=30 이라 30거래일
+    #   (수집개시 7/11 기준 ≈ 2026-08-21 전후) 도달 시 'z making' 이 자동으로 실제 z 로 전환된다.
     {"label": "풋콜비율 (OI)", "cells": [
-        cellv(("-" if usopt.get('SPX', {}).get('pcr_oi') is None else f"{usopt['SPX']['pcr_oi']:.2f}"), None),
-        cellv(("-" if usopt.get('NDX', {}).get('pcr_oi') is None else f"{usopt['NDX']['pcr_oi']:.2f}"), None),
+        cellv(("-" if usopt.get('SPX', {}).get('pcr_oi') is None else f"{usopt['SPX']['pcr_oi']:.2f}"), Z['SPX'].get('z_pcr_oi')),
+        cellv(("-" if usopt.get('NDX', {}).get('pcr_oi') is None else f"{usopt['NDX']['pcr_oi']:.2f}"), Z['NDX'].get('z_pcr_oi')),
         cellv(("-" if kr_pcr is None else f"{kr_pcr:.2f}"), Z['KOSPI200'].get('z_pcr_oi'))]},
     {"label": "IV 스큐", "cells": [
-        cellv(("-" if usopt.get('SPX', {}).get('iv_skew_25d') is None else f"{usopt['SPX']['iv_skew_25d']:+.3f}"), None),
-        cellv(("-" if usopt.get('NDX', {}).get('iv_skew_25d') is None else f"{usopt['NDX']['iv_skew_25d']:+.3f}"), None),
+        cellv(("-" if usopt.get('SPX', {}).get('iv_skew_25d') is None else f"{usopt['SPX']['iv_skew_25d']:+.3f}"), Z['SPX'].get('z_iv_skew_25d')),
+        cellv(("-" if usopt.get('NDX', {}).get('iv_skew_25d') is None else f"{usopt['NDX']['iv_skew_25d']:+.3f}"), Z['NDX'].get('z_iv_skew_25d')),
         cellv(("-" if kr_sk is None else
                (f"{kr_sk:+.1f}" if kr_sk_date == I['KOSPI200'].get('date')
                 else f"{kr_sk:+.1f} ({(kr_sk_date or '')[5:]})")), kr_sk_z)]},
     {"label": "딜러 감마 (GEX)", "cells": [
         # (2026-07-15) KOSPI200 GEX 종전 하드코딩 "—" → KIS 옵션체인 T+0 값(억원) 배선.
         # (2026-07-17) 당일 결측 시 최신 비NULL(백필/전일) 폴백 + 날짜 병기 — IV스큐 동일.
-        cellv(gbn('SPX'), None), cellv(gbn('NDX'), None),
+        cellv(gbn('SPX'), Z['SPX'].get('z_gex')), cellv(gbn('NDX'), Z['NDX'].get('z_gex')),
         cellv(("—" if kr_gx is None else
                (f"{kr_gx:+,.0f}억" if kr_gx_date == I['KOSPI200'].get('date')
                 else f"{kr_gx:+,.0f}억 ({(kr_gx_date or '')[5:]})")), kr_gx_z)]},
