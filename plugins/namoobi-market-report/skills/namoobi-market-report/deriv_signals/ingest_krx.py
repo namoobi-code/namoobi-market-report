@@ -358,6 +358,14 @@ def ingest_kis_t0(con):
         base = _krx_opt_base(con)
         # 커버리지 90%: OI 상위 90% 행사가만 T+0, 꼬리는 KRX 보정. 신규 3일창(2.4건/초)에서 ~80초.
         oc = kis_api.option_chain(spot=spot, krx_base=base, coverage=0.90, max_calls=220)
+        # (장전 가드 · 2026-07-17) KRX 파생 정규장(08:45~) 전 실행이면 거래량·IV 기반 지표는 구조적으로 왜곡
+        #   (당일 거래량≈0 → PCR(Vol) 퇴화, 이론가 IV → 스큐·GEX 왜곡. 실측: 06:22 실행에서 PCR(Vol) 4,199).
+        #   → pcr_vol/iv_skew/gex 는 기록하지 않는다(COALESCE 가 기존값 유지). OI·PCR(OI) 는 전일 정산 연속이라 T+0 유효.
+        if oc:
+            _kst = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+            if (_kst.hour, _kst.minute) < (9, 15):
+                print(f"  [KIS] 장전({_kst:%H:%M} KST) — PCR(Vol)/IV스큐/GEX 미기록(거래량·IV 왜곡), OI·PCR(OI)만 T+0 기록")
+                oc["pcr_vol"] = None; oc["iv_skew"] = None; oc["gex"] = None
         if oc and oc.get("pcr_oi"):
             con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_oi,pcr_vol,iv_skew_25d,gex)
                            VALUES(?,?,?,?,?,?)
