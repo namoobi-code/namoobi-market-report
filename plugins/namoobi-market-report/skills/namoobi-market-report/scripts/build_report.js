@@ -1324,10 +1324,11 @@ function renderKrLiquidity(){ const kl=(data.markets||{}).kr_liquidity;
   children.push(p("목적 — ① 예탁금+거래대금: 대기자금이 실제로 시장에 들어오는지 · ② M2+코스피/코스닥: 거시 유동성과 주가 추세 · ③ 신용융자+변동성+반대매매: 레버리지 과열 · ④ 코스닥 신용: 마진콜 조기경보. 서버가 1일 3회(06:35/14:10/16:10 KST) 자동 수집한 시계열 기반.",{size:14,color:"475569"}));
   if(V.label) children.push(p(`① 자동 판정: ${V.label} (${V.tone}) — 예탁금 5일 ${V.dep_5d_pct>0?"+":""}${V.dep_5d_pct}% · 회전배수 5일 ${V.turn_5d_chg>0?"+":""}${V.turn_5d_chg}p · 기준 ${String(V.as_of).replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3")} (T+2)`,{bold:true,size:16,color:toneC}));
   children.push(p("판정 규칙(2×2): 예탁금 증가×회전배수 상승=유입·가동(강세) / 증가×하락=유입·관망(중립) / 감소×상승=이탈·소진성 회전(경계) / 감소×하락=이탈·위축(약세)",{size:13,italics:true,color:"94A3B8"}));
-  const caps=[["charts/krliq_1.png",258,"① 예탁금·거래대금·코스피(상) + 회전배수(하) — 판정은 차트 제목에 자동 표기"],
-              ["charts/krliq_2.png",150,"② M2 YoY vs 코스피·코스닥 YoY (월별 10년 · M2 약 2개월 지연 · ECOS)"],
-              ["charts/krliq_3.png",275,"③ 신용융자·코스피·VKOSPI(상) + 미수금 기반 반대매매금액·비중(하)"],
-              ["charts/krliq_4.png",275,"④ 코스닥 신용잔고·지수·비중(상) + 잔고 일간 증감(하) — 마진콜 근사"]];
+  // 높이는 원본 PNG 종횡비 그대로 (gen_krliq_charts figsize: ①8.8×6.2 ②8.8×3.6 ③④8.8×6.6 인치) — 납작하게 늘리면 좌우로 퍼져 보임(2026-07-17 피드백)
+  const caps=[["charts/krliq_1.png",465,"① 예탁금·거래대금·코스피(상) + 회전배수(하) — 판정은 차트 제목에 자동 표기"],
+              ["charts/krliq_2.png",270,"② M2 YoY vs 코스피·코스닥 YoY (월별 10년 · M2 약 2개월 지연 · ECOS)"],
+              ["charts/krliq_3.png",495,"③ 신용융자·코스피·VKOSPI(상) + 미수금 기반 반대매매금액·비중(하)"],
+              ["charts/krliq_4.png",495,"④ 코스닥 신용잔고·지수·비중(상) + 잔고 일간 증감(하) — 마진콜 근사"]];
   let shown=0;
   for(const [fp,hh,cap] of caps){ const img=imagePara(fp,660,hh);
     if(img){ children.push(img); children.push(p(cap,{size:13,color:"94A3B8",align:AlignmentType.CENTER})); shown++; }
