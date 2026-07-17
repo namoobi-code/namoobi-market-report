@@ -33,6 +33,11 @@ const tRows=Array.isArray(m.korea_theme_rows)?m.korea_theme_rows:[];
 if(tRows.length<14) problems.push(`[req3] 3.2.3 theme rows ${tRows.length}<14 (v3.63: +K-food/K-beauty)`);
 let tMiss=tRows.filter(t=>!cExists(t.chart)).map(t=>t.theme||'?');
 if(tMiss.length) problems.push(`[req3] 3.2.3 theme trend charts missing ${tMiss.length}/${tRows.length}: ${tMiss.join(', ')}`);
+// req3b (v3.64): 3.1.14 국내 유동성·레버리지 — kr_liquidity + 판정 + 차트 4종
+{ const kl=m.kr_liquidity;
+  if(!kl||!kl.as_of) problems.push('[req3b] 3.1.14 markets.kr_liquidity missing (fetch_krliq.py -> gen_krliq_charts.py)');
+  else { if(!kl.verdict||!kl.verdict.label) problems.push('[req3b] 3.1.14 verdict missing (deposit/turnover 5d)');
+    for(let i=1;i<=4;i++) if(!cExists('charts/krliq_'+i+'.png')) problems.push('[req3b] 3.1.14 chart krliq_'+i+'.png missing/broken'); } }
 // req4: semi stocks (>=10) + charts
 const ss=Array.isArray(m.semi_ai_stocks)?m.semi_ai_stocks:[];
 if(ss.length<10) problems.push(`[req4] 3.2.3 semi stocks ${ss.length}<10`);

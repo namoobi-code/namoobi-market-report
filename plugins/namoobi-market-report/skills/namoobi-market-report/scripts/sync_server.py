@@ -178,6 +178,9 @@ def main():
         print("[sync] krx_brief 업로드 skip:", _ke)
     ok &= run(f'{SCP} {SERVER}:{REMOTE}/poll.db {shlex.quote(str(base / "poll.db"))}',
               "poll.db 백업 회수 (김프·공포탐욕)")
+    # (v3.64) kr_liquidity.db 도 서버가 cron 1일 3회 수집하는 서버 원본 → PC 백업 회수 (3.1.14)
+    run(f'{SCP} {SERVER}:{REMOTE}/kr_liquidity.db {shlex.quote(str(base / "kr_liquidity.db"))}',
+        "kr_liquidity.db 백업 회수 (3.1.14 유동성·레버리지)")
 
     print(f"[sync] {'완료' if ok else '일부 실패(비차단)'} → http://namoobi.duckdns.org")
     return 0

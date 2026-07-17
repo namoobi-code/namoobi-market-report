@@ -93,6 +93,7 @@ function validate(d) {
   needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.4 OECD CLI 통합 차트");
   if(M.customs&&M.customs.series){ needChart(true,"charts/수출_전체_24개월.png","3.1.10 수출 전체 차트"); needChart(true,"charts/수출_반도체_24개월.png","3.1.10 수출 반도체 차트"); }
   needChart(M.hy_spread, "charts/hy_oas.png","3.1.1 HY 스프레드 차트");
+  if(M.kr_liquidity) for(let i=1;i<=4;i++) needChart(true,"charts/krliq_"+i+".png","3.1.14 유동성·레버리지 차트 "+i);
   { const KB=M.krx_brief||{};  // (v3.54) 3.2.4/3.2.5 KRX 브리프 — 데이터 있으면 캡쳐 필수
     if(KB.krx&&KB.krx.pages) for(let i=1;i<=KB.krx.pages;i++) needChart(true,"charts/krx_brief_p"+i+".png","3.2.4 KRX 증시 Brief 캡쳐 p"+i);
     if(KB.short&&KB.short.pages) for(let i=1;i<=KB.short.pages;i++) needChart(true,"charts/short_brief_p"+i+".png","3.2.5 공매도 데일리 브리프 캡쳐 p"+i); }
@@ -1207,6 +1208,7 @@ function renderMacroIndicators(){
     children.push(makeTable(w,rows)); }
   children.push(p(""));
   renderDerivPositioning();   // 3.1.13 파생시장 포지셔닝→현물 선행신호 (스냅샷·z매트릭스·활성신호·해석)
+  renderKrLiquidity();        // 3.1.14 국내 유동성·레버리지 점검판 (판정+차트4종, 서버 1일 3회 수집)
 }
 
 // (v3.44) 3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계 — DB: db/customs.json, 변경 시에만 재수집·차트 재생성
@@ -1310,6 +1312,29 @@ function renderDerivPositioning(){ const m=data.markets||{};
   if(dp.synthesis){ children.push(p("⑤ 종합",{bold:true,size:18,color:"1E40AF",before:80}));
     children.push(p(dp.synthesis,{size:16})); }
   children.push(p("데이터: yfinance · CFTC COT · 네이버 투자자별 매매동향 · data.go.kr(파생상품·지수 시세) · 파이프라인 deriv_signals/. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
+  children.push(p("")); }
+
+// (v3.64) 3.1.14 국내 유동성·레버리지 점검판 — 서버 1일 3회 수집(금융위·다음·ECOS) → fetch_krliq → gen_krliq_charts.
+// 데이터 없으면 섹션 비차단 생략(경고만).
+function renderKrLiquidity(){ const kl=(data.markets||{}).kr_liquidity;
+  if(!kl||!kl.as_of){ console.error("  (경고) markets.kr_liquidity 없음 → 3.1.14 생략"); return; }
+  const V=kl.verdict||{};
+  const toneC={"강세":"0A7D33","중립":"8A6D00","경계":"B45309","약세":"B91C1C"}[V.tone]||"334155";
+  children.push(h("3.1.14 국내 유동성·레버리지 점검판",3));
+  children.push(p("목적 — ① 예탁금+거래대금: 대기자금이 실제로 시장에 들어오는지 · ② M2+코스피/코스닥: 거시 유동성과 주가 추세 · ③ 신용융자+변동성+반대매매: 레버리지 과열 · ④ 코스닥 신용: 마진콜 조기경보. 서버가 1일 3회(06:35/14:10/16:10 KST) 자동 수집한 시계열 기반.",{size:14,color:"475569"}));
+  if(V.label) children.push(p(`① 자동 판정: ${V.label} (${V.tone}) — 예탁금 5일 ${V.dep_5d_pct>0?"+":""}${V.dep_5d_pct}% · 회전배수 5일 ${V.turn_5d_chg>0?"+":""}${V.turn_5d_chg}p · 기준 ${String(V.as_of).replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3")} (T+2)`,{bold:true,size:16,color:toneC}));
+  children.push(p("판정 규칙(2×2): 예탁금 증가×회전배수 상승=유입·가동(강세) / 증가×하락=유입·관망(중립) / 감소×상승=이탈·소진성 회전(경계) / 감소×하락=이탈·위축(약세)",{size:13,italics:true,color:"94A3B8"}));
+  const caps=[["charts/krliq_1.png",258,"① 예탁금·거래대금·코스피(상) + 회전배수(하) — 판정은 차트 제목에 자동 표기"],
+              ["charts/krliq_2.png",150,"② M2 YoY vs 코스피·코스닥 YoY (월별 10년 · M2 약 2개월 지연 · ECOS)"],
+              ["charts/krliq_3.png",275,"③ 신용융자·코스피·VKOSPI(상) + 미수금 기반 반대매매금액·비중(하)"],
+              ["charts/krliq_4.png",275,"④ 코스닥 신용잔고·지수·비중(상) + 잔고 일간 증감(하) — 마진콜 근사"]];
+  let shown=0;
+  for(const [fp,hh,cap] of caps){ const img=imagePara(fp,660,hh);
+    if(img){ children.push(img); children.push(p(cap,{size:13,color:"94A3B8",align:AlignmentType.CENTER})); shown++; }
+    else console.error("  (경고) "+fp+" 없음 → 3.1.14 차트 생략"); }
+  const nn=v=>(v==null?"—":v);
+  children.push(p(`최신(T+2 ${String(kl.as_of).replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3")}): 예탁금 ${nn(kl.deposit_t)}조 · 신용융자 ${nn(kl.crd_t)}조(코스닥 ${nn(kl.crd_kosdaq_t)}조, 비중 ${nn(kl.kosdaq_share)}%) · 반대매매 ${nn(kl.opp_amt_e)}억(미수금 대비 ${nn(kl.opp_ratio)}%) · 코스닥 신용 5일 증감 ${nn(kl.kosdaq_chg5_e)}억 · M2 YoY ${nn(kl.m2_yoy)}% vs KOSPI ${nn(kl.kospi_yoy)}% / KOSDAQ ${nn(kl.kosdaq_yoy)}%`,{size:15,color:"334155"}));
+  children.push(p("유의 — 반대매매 통계는 위탁매매 미수금(D+2 미납) 기반만 공표(금투협 원천, T+2). 신용융자 담보부족(마진콜) 반대매매는 공표 통계가 없어 ④ 코스닥 신용잔고 급감으로 간접 추정(상환·강제청산 구분 불가). 반대매매 급증은 선행지표가 아닌 후행 확인 지표이며 역사적으로 항복(단기 바닥) 국면과 동행하는 경우가 많음. 데이터: 금융위 공공데이터(금투협 원천) · 다음금융(T+0) · 한국은행 ECOS. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
   children.push(p("")); }
 
 const M7_OUTLOOK_DEFAULT = { as_of: "2026-07-03 종가", rows: [

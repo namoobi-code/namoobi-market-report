@@ -41,6 +41,7 @@ inv = L('nmr_kr_invest.json'); lead = L('nmr_leading.json'); sec = L('nmr_securi
 tr = L('nmr_trendtext.json')
 m7o = L('nmr_m7.json')  # (v3.46) 3.1.7 미국 빅테크(M7) 실적전망 라이브 데이터(있으면 내장 스냅샷 대체)
 dpv = L('nmr_deriv_positioning.json')  # (v3.47) 3.1.13 파생 포지셔닝 라이브(있으면 내장 스냅샷 대체)
+krl = L('nmr_krliq_summary.json')  # (v3.64) 3.1.14 국내 유동성·레버리지 (fetch_krliq→gen_krliq_charts, 서버 1일 3회 수집분)
 
 def san(s): return str(s).replace('/', '_').replace(' ', '_')
 
@@ -71,6 +72,7 @@ def koTrend(r):
 m = {}
 if isinstance(m7o, dict) and m7o.get('rows'): m['m7_outlook'] = m7o  # 3.1.7 라이브 오버라이드
 if isinstance(dpv, dict) and (dpv.get('rows') or dpv.get('index')): m['deriv_positioning'] = dpv  # 3.1.13 라이브 오버라이드
+if isinstance(krl, dict) and krl.get('as_of'): m['kr_liquidity'] = krl  # 3.1.14 (없으면 섹션 비차단 생략)
 # (fix 2026-07-09) deriv 캐리포워드: 라이브가 특정 열(예: KOSPI200)의 z/값 산출에 실패하면 null·'-'·'—' 로 새는데,
 # 직전 정상 report_data 의 같은 지표·같은 열 셀에서 z(및 빈 v)를 가져와 채운다(다른 캐리포워드와 동일 철학).
 def _deriv_carry(cur):
