@@ -84,6 +84,15 @@ _r = one("SELECT date, vkospi FROM kr_derivatives_daily WHERE id='KOSPI200' AND 
 kr_vk_date, kr_vk = (_r[0], _r[1]) if _r else (None, None)
 _r = one("SELECT z_vkospi FROM zscores_daily WHERE id='KOSPI200' AND date=?", (kr_vk_date,)) if kr_vk_date else None
 kr_vk_z = _r[0] if _r else None
+# (2026-07-17) IV스큐·GEX 도 stale-guard — 당일 KIS 스캔이 pcr 만 성공한 날 최신 비NULL(백필/전일)로 폴백, 날짜 병기.
+_r = one("SELECT date, iv_skew_25d FROM kr_derivatives_daily WHERE id='KOSPI200' AND iv_skew_25d IS NOT NULL ORDER BY date DESC LIMIT 1")
+kr_sk_date, kr_sk = (_r[0], _r[1]) if _r else (None, None)
+_r = one("SELECT z_iv_skew_25d FROM zscores_daily WHERE id='KOSPI200' AND date=?", (kr_sk_date,)) if kr_sk_date else None
+kr_sk_z = _r[0] if _r else None
+_r = one("SELECT date, gex FROM kr_derivatives_daily WHERE id='KOSPI200' AND gex IS NOT NULL ORDER BY date DESC LIMIT 1")
+kr_gx_date, kr_gx = (_r[0], _r[1]) if _r else (None, None)
+_r = one("SELECT z_gex FROM zscores_daily WHERE id='KOSPI200' AND date=?", (kr_gx_date,)) if kr_gx_date else None
+kr_gx_z = _r[0] if _r else None
 
 I = {iid: _last("indicators_daily", iid) for iid, _ in IDS}
 Z = {iid: _last("zscores_daily", iid) for iid, _ in IDS}
@@ -122,11 +131,16 @@ rows = [
     {"label": "IV 스큐", "cells": [
         cellv(("-" if usopt.get('SPX', {}).get('iv_skew_25d') is None else f"{usopt['SPX']['iv_skew_25d']:+.3f}"), None),
         cellv(("-" if usopt.get('NDX', {}).get('iv_skew_25d') is None else f"{usopt['NDX']['iv_skew_25d']:+.3f}"), None),
-        cellv(("-" if kr.get('iv_skew_25d') is None else f"{kr['iv_skew_25d']:+.1f}"), Z['KOSPI200'].get('z_iv_skew_25d'))]},
+        cellv(("-" if kr_sk is None else
+               (f"{kr_sk:+.1f}" if kr_sk_date == I['KOSPI200'].get('date')
+                else f"{kr_sk:+.1f} ({(kr_sk_date or '')[5:]})")), kr_sk_z)]},
     {"label": "딜러 감마 (GEX)", "cells": [
         # (2026-07-15) KOSPI200 GEX 종전 하드코딩 "—" → KIS 옵션체인 T+0 값(억원) 배선.
-        cellv(gbn('SPX'), None), cellv(gbn('NDX'),
-        None), cellv(("—" if kr.get('gex') is None else f"{kr['gex']:+,.0f}억"), Z['KOSPI200'].get('z_gex'))]},
+        # (2026-07-17) 당일 결측 시 최신 비NULL(백필/전일) 폴백 + 날짜 병기 — IV스큐 동일.
+        cellv(gbn('SPX'), None), cellv(gbn('NDX'), None),
+        cellv(("—" if kr_gx is None else
+               (f"{kr_gx:+,.0f}억" if kr_gx_date == I['KOSPI200'].get('date')
+                else f"{kr_gx:+,.0f}억 ({(kr_gx_date or '')[5:]})")), kr_gx_z)]},
     # VKOSPI(韓 공식 변동성지수) — 옵션체인 붕괴로 못 쓰는 PCR/IV스큐를 대체하는 변동성·공포 축.
     #   미국은 VIX 가 별도 축이라 여기서는 KOSPI200 열만 채운다.
     {"label": "VKOSPI (변동성지수)", "cells": [
