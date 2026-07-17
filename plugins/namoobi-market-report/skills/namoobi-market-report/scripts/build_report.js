@@ -1272,14 +1272,26 @@ function renderDerivPositioning(){ const m=data.markets||{};
     children.push(makeTable(iw,ir)); }
   children.push(p("② 지표별 현재값 · z-스코어  (굵은 셀=|z|≥1.5 신호; 파랑=양수·빨강=음수)",{bold:true,size:18,color:"1E40AF",before:120}));
   children.push(p("※ z 공란 안내 — KOSPI200 풋콜비율·IV 스큐·딜러 감마(GEX)는 KRX 지수옵션 일별통계(drv/opt_bydd_trd, IV·OI 전 행사가)로 롤링 60거래일 백필 완료(2026-07-17, deriv_signals/backfill_kr_opt.py)되어 z-스코어가 산출된다. 미국(SPX·NDX) 옵션 지표는 과거 체인의 무료 소스가 없어(KIS·네이버 포함 재검토 결과 불가) 2026-07-11 수집 개시분부터 자체 누적 중 — 60거래일이 쌓이는 2026년 10월경부터 z 자동 산출(그때까지 현재값 + 'z making' 표시). 한국 외국인·기관 수급 z 도 주간 이력 누적 후 순차 산출. N/A = 해당 지수에서 조사 불가 항목(VKOSPI 는 한국 전용 — 미국은 VIX).",{size:14,italics:true,color:"94A3B8"}));
-  const zw=[2760,2200,2200,2200]; const zr=[hdrRow(["지표","S&P 500","Nasdaq 100","KOSPI200"],zw)];
+  // (2026-07-17) '쉬운 의미' 열 — 지표 라벨별 한 줄 해설(초심자용). export 라벨과 접두 매칭.
+  const DPM={
+    "선물 베이시스":"선물가격−현물가격 차이. 플러스가 크면 '더 오른다'는 베팅이 몰린 것(위험선호), 마이너스면 하락 베팅 우세.",
+    "레버리지":"공격적 투기자금(美 레버리지펀드/韓 외국인)의 선물 순포지션. 플러스=상승 베팅, 마이너스=하락 베팅.",
+    "자산운용":"연기금·운용사 등 큰손 장기자금(韓은 기관)의 선물 순포지션. 방향이 바뀌면 추세 전환 신호.",
+    "선물 OI 변화":"열려 있는 선물 계약 수의 증감. 늘면 새 자금 유입(추세 강화), 줄면 포지션 청산(추세 약화).",
+    "풋콜비율":"풋(하락 보험)÷콜(상승 베팅). 지나치게 높으면 공포 과잉 — 역발상 반등 신호로 자주 쓰임.",
+    "IV 스큐":"하락 보험(풋)이 상승 베팅(콜)보다 얼마나 비싼가. 클수록 폭락 대비 수요가 큼(공포).",
+    "딜러 감마":"옵션 딜러의 헤지 성향. 플러스면 딜러가 변동을 눌러 시장 안정, 마이너스면 움직임을 증폭(급변 위험).",
+    "VKOSPI":"코스피200 옵션가격으로 계산한 '한국판 공포지수(VIX)'. 높을수록 시장이 큰 변동을 예상."};
+  const dpm=(lab)=>{lab=String(lab||"");for(const k in DPM)if(lab.startsWith(k))return DPM[k];return "";};
+  const zw=[1720,2600,1680,1680,1680]; const zr=[hdrRow(["지표","쉬운 의미","S&P 500","Nasdaq 100","KOSPI200"],zw)];
   const fz=(c)=>{ const z=(c&&c.z!=null&&!isNaN(c.z))?Number(c.z):null; const sig=(z!=null&&Math.abs(z)>=1.5);
     const hasV=c&&c.v!=null&&!["-","—",""].includes(String(c.v).trim());
     if(!hasV) return {t:"N/A", s:false, c:"94A3B8"};
     return {t:String(c.v)+"  (z "+(z==null?"making":((z>=0?"+":"")+z.toFixed(2)))+")", s:sig, c:sig?(z>=0?"1D4ED8":"B91C1C"):"0F172A"}; };
   dp.rows.forEach((r,i)=>{const a=i%2===1; const cs=(r.cells||[]).map(fz);
-    zr.push(new TableRow({children:[cell(r.label||"-",{width:zw[0],alt:a,bold:true,size:14})].concat(
-      cs.map((x,j)=>cell(x.t,{width:zw[j+1],alt:a,align:AlignmentType.CENTER,size:13,bold:x.s,color:x.c})))}));});
+    zr.push(new TableRow({children:[cell(r.label||"-",{width:zw[0],alt:a,bold:true,size:14}),
+      cell(dpm(r.label),{width:zw[1],alt:a,size:12,color:"475569"})].concat(
+      cs.map((x,j)=>cell(x.t,{width:zw[j+2],alt:a,align:AlignmentType.CENTER,size:13,bold:x.s,color:x.c})))}));});
   children.push(makeTable(zw,zr));
   const sg=Array.isArray(dp.signals)?dp.signals:[];
   children.push(p("③ 활성 신호 (|z|≥1.5)",{bold:true,size:18,color:(sg.length?"B91C1C":"1E40AF"),before:100}));
