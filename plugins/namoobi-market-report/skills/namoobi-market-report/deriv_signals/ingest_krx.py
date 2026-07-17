@@ -362,7 +362,7 @@ def ingest_kis_t0(con):
         #   (당일 거래량≈0 → PCR(Vol) 퇴화, 이론가 IV → 스큐·GEX 왜곡. 실측: 06:22 실행에서 PCR(Vol) 4,199).
         #   → pcr_vol/iv_skew/gex 는 기록하지 않는다(COALESCE 가 기존값 유지). OI·PCR(OI) 는 전일 정산 연속이라 T+0 유효.
         if oc:
-            _kst = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+            _kst = _dt.datetime.utcnow() + _dt.timedelta(hours=9)
             if (_kst.hour, _kst.minute) < (9, 15):
                 print(f"  [KIS] 장전({_kst:%H:%M} KST) — PCR(Vol)/IV스큐/GEX 미기록(거래량·IV 왜곡), OI·PCR(OI)만 T+0 기록")
                 oc["pcr_vol"] = None; oc["iv_skew"] = None; oc["gex"] = None
@@ -386,6 +386,56 @@ def ingest_kis_t0(con):
     if n:
         log(con, "ingest_kis_t0", n)
     return n
+
+
+def ingest_server_close(con):
+    """【서버 마감 캡처 병합 · 2026-07-17】 서버 cron(15:48 KST, kis_close_capture.py)이 기록한
+    장 마감 KIS 지표(~/namoobi/data/kis_close.json)를 내려받아 해당 날짜의 NULL 셀만 채운다.
+
+    06시 예약 실행은 장전 가드로 PCR(Vol)/IV스큐/GEX 를 비우므로, 이 병합이 없으면 새벽
+    리포트에서 세 지표가 영구 공란이 된다. 기존 실측(장중 수동 실행 등)은 건드리지 않는다
+    (COALESCE 기존값 우선). 배포키 없음·서버 다운·파일 없음 전부 비차단 skip.
+    """
+    import os as _os, glob as _glob, json as _json, subprocess as _sp, tempfile as _tf, shutil as _sh
+    key = None
+    for pat in ("/sessions/*/mnt/*/SECURITY/nmr_deploy_key", "D:/claudeCowork/SECURITY/nmr_deploy_key"):
+        g = _glob.glob(pat)
+        if g:
+            key = g[0]; break
+    if not key:
+        return 0
+    try:
+        tk = _os.path.join(_tf.gettempdir(), "nmr_dk_pull")
+        _sh.copy(key, tk); _os.chmod(tk, 0o600)
+        r = _sp.run(["ssh", "-i", tk, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
+                     "ubuntu@141.147.160.13", "cat ~/namoobi/data/kis_close.json 2>/dev/null"],
+                    capture_output=True, text=True, timeout=30)
+        try:
+            _os.unlink(tk)
+        except Exception:
+            pass
+        if r.returncode != 0 or not (r.stdout or "").strip():
+            print("  [KIS 서버마감] 서버 캡처본 없음 — skip")
+            return 0
+        d = _json.loads(r.stdout)
+    except Exception as e:
+        print("  [KIS 서버마감] skip(비차단):", repr(e)[:60])
+        return 0
+    date = d.get("date")
+    if not date:
+        return 0
+    con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_vol,iv_skew_25d,gex,oi)
+                   VALUES(?,?,?,?,?,?)
+                   ON CONFLICT(id,date) DO UPDATE SET
+                     pcr_vol     = COALESCE(kr_derivatives_daily.pcr_vol,     excluded.pcr_vol),
+                     iv_skew_25d = COALESCE(kr_derivatives_daily.iv_skew_25d, excluded.iv_skew_25d),
+                     gex         = COALESCE(kr_derivatives_daily.gex,         excluded.gex),
+                     oi          = COALESCE(kr_derivatives_daily.oi,          excluded.oi)""",
+                (KID, date, d.get("pcr_vol"), d.get("iv_skew"), d.get("gex"), d.get("oi")))
+    con.commit()
+    print(f"  [KIS 서버마감] {date} 병합 — PCR(Vol) {d.get('pcr_vol')} · IV스큐 {d.get('iv_skew')} · GEX {d.get('gex')}")
+    log(con, "ingest_server_close", 1)
+    return 1
 
 
 def ingest_vkospi_cnbc(con):
@@ -481,6 +531,11 @@ def ingest_krx(con, begin, end, opt_days=90):
         n += ingest_kis_t0(con)
     except Exception as e:
         print("  KIS T+0 skip:", repr(e)[:70])
+    # 서버 마감 캡처 병합 — 서버 cron(15:48 KST)이 떠 둔 전일 마감 PCR(Vol)/IV스큐/GEX 로 NULL 셀 보강(비차단)
+    try:
+        n += ingest_server_close(con)
+    except Exception as e:
+        print("  KIS 서버마감 병합 skip:", repr(e)[:70])
     try:
         # VKOSPI T+0: CNBC 자동 수집이 1차, 수동 override 는 폴백
         if not ingest_vkospi_cnbc(con):
