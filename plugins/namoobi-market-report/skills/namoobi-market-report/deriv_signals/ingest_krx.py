@@ -424,16 +424,17 @@ def ingest_server_close(con):
     date = d.get("date")
     if not date:
         return 0
-    con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_vol,iv_skew_25d,gex,oi)
-                   VALUES(?,?,?,?,?,?)
+    con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_vol,iv_skew_25d,gex,oi,vkospi)
+                   VALUES(?,?,?,?,?,?,?)
                    ON CONFLICT(id,date) DO UPDATE SET
                      pcr_vol     = COALESCE(kr_derivatives_daily.pcr_vol,     excluded.pcr_vol),
                      iv_skew_25d = COALESCE(kr_derivatives_daily.iv_skew_25d, excluded.iv_skew_25d),
                      gex         = COALESCE(kr_derivatives_daily.gex,         excluded.gex),
-                     oi          = COALESCE(kr_derivatives_daily.oi,          excluded.oi)""",
-                (KID, date, d.get("pcr_vol"), d.get("iv_skew"), d.get("gex"), d.get("oi")))
+                     oi          = COALESCE(kr_derivatives_daily.oi,          excluded.oi),
+                     vkospi      = COALESCE(kr_derivatives_daily.vkospi,      excluded.vkospi)""",
+                (KID, date, d.get("pcr_vol"), d.get("iv_skew"), d.get("gex"), d.get("oi"), d.get("vkospi")))
     con.commit()
-    print(f"  [KIS 서버마감] {date} 병합 — PCR(Vol) {d.get('pcr_vol')} · IV스큐 {d.get('iv_skew')} · GEX {d.get('gex')}")
+    print(f"  [KIS 서버마감] {date} 병합 — PCR(Vol) {d.get('pcr_vol')} · IV스큐 {d.get('iv_skew')} · GEX {d.get('gex')} · VKOSPI {d.get('vkospi')}")
     log(con, "ingest_server_close", 1)
     return 1
 
