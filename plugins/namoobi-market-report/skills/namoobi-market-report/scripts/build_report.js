@@ -1320,22 +1320,47 @@ function renderKrLiquidity(){ const kl=(data.markets||{}).kr_liquidity;
   if(!kl||!kl.as_of){ console.error("  (경고) markets.kr_liquidity 없음 → 3.1.14 생략"); return; }
   const V=kl.verdict||{};
   const toneC={"강세":"0A7D33","중립":"8A6D00","경계":"B45309","약세":"B91C1C"}[V.tone]||"334155";
-  children.push(h("3.1.14 국내 유동성·레버리지 점검판",3));
-  children.push(p("목적 — ① 예탁금+거래대금: 대기자금이 실제로 시장에 들어오는지 · ② M2+코스피/코스닥: 거시 유동성과 주가 추세 · ③ 신용융자+변동성+반대매매: 레버리지 과열 · ④ 코스닥 신용: 마진콜 조기경보. 서버가 1일 3회(06:35/14:10/16:10 KST) 자동 수집한 시계열 기반.",{size:14,color:"475569"}));
-  if(V.label) children.push(p(`① 자동 판정: ${V.label} (${V.tone}) — 예탁금 5일 ${V.dep_5d_pct>0?"+":""}${V.dep_5d_pct}% · 회전배수 5일 ${V.turn_5d_chg>0?"+":""}${V.turn_5d_chg}p · 기준 ${String(V.as_of).replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3")} (T+2)`,{bold:true,size:16,color:toneC}));
-  children.push(p("판정 규칙(2×2): 예탁금 증가×회전배수 상승=유입·가동(강세) / 증가×하락=유입·관망(중립) / 감소×상승=이탈·소진성 회전(경계) / 감소×하락=이탈·위축(약세)",{size:13,italics:true,color:"94A3B8"}));
-  // 높이는 원본 PNG 종횡비 그대로 (gen_krliq_charts figsize: ①8.8×6.2 ②8.8×3.6 ③④8.8×6.6 인치) — 납작하게 늘리면 좌우로 퍼져 보임(2026-07-17 피드백)
-  const caps=[["charts/krliq_1.png",465,"① 예탁금·거래대금·코스피(상) + 회전배수(하) — 판정은 차트 제목에 자동 표기"],
-              ["charts/krliq_2.png",270,"② M2 YoY vs 코스피·코스닥 YoY (월별 10년 · M2 약 2개월 지연 · ECOS)"],
-              ["charts/krliq_3.png",495,"③ 신용융자·코스피·VKOSPI(상) + 미수금 기반 반대매매금액·비중(하)"],
-              ["charts/krliq_4.png",495,"④ 코스닥 신용잔고·지수·비중(상) + 잔고 일간 증감(하) — 마진콜 근사"]];
-  let shown=0;
-  for(const [fp,hh,cap] of caps){ const img=imagePara(fp,660,hh);
-    if(img){ children.push(img); children.push(p(cap,{size:13,color:"94A3B8",align:AlignmentType.CENTER})); shown++; }
-    else console.error("  (경고) "+fp+" 없음 → 3.1.14 차트 생략"); }
+  // (2026-07-17 피드백) 예제 3114_유동성레버리지_예제_최종4.docx 구조를 따른다:
+  //  제목(…점검) → 요약표(최신 관측치) → ①차트+판정 매트릭스+현재 → ②~④ 차트+설명문. 목적 한줄 나열·회색 캡션 없음.
+  //  차트 높이는 원본 PNG 종횡비 그대로 (figsize ①8.8×6.2 ②8.8×3.6 ③④8.8×6.6) — 납작하면 좌우로 퍼져 보임.
+  children.push(h("3.1.14 국내 유동성·레버리지 점검",3));
+  const fmtD=s=>String(s).replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3");
   const nn=v=>(v==null?"—":v);
-  children.push(p(`최신(T+2 ${String(kl.as_of).replace(/(\d{4})(\d{2})(\d{2})/,"$2/$3")}): 예탁금 ${nn(kl.deposit_t)}조 · 신용융자 ${nn(kl.crd_t)}조(코스닥 ${nn(kl.crd_kosdaq_t)}조, 비중 ${nn(kl.kosdaq_share)}%) · 반대매매 ${nn(kl.opp_amt_e)}억(미수금 대비 ${nn(kl.opp_ratio)}%) · 코스닥 신용 5일 증감 ${nn(kl.kosdaq_chg5_e)}억 · M2 YoY ${nn(kl.m2_yoy)}% vs KOSPI ${nn(kl.kospi_yoy)}% / KOSDAQ ${nn(kl.kosdaq_yoy)}%`,{size:15,color:"334155"}));
-  children.push(p("유의 — 반대매매 통계는 위탁매매 미수금(D+2 미납) 기반만 공표(금투협 원천, T+2). 신용융자 담보부족(마진콜) 반대매매는 공표 통계가 없어 ④ 코스닥 신용잔고 급감으로 간접 추정(상환·강제청산 구분 불가). 반대매매 급증은 선행지표가 아닌 후행 확인 지표이며 역사적으로 항복(단기 바닥) 국면과 동행하는 경우가 많음. 데이터: 금융위 공공데이터(금투협 원천) · 다음금융(T+0) · 한국은행 ECOS. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
+  const sgn=v=>(v==null?"—":(v>0?"+":"")+(+v).toLocaleString());
+  const vTxt=V.label?`자동 판정: ${V.label}(${V.tone}) — 예탁금 5일 ${V.dep_5d_pct>0?"+":""}${V.dep_5d_pct}% · 회전배수 5일 ${V.turn_5d_chg>0?"+":""}${V.turn_5d_chg}p`:"—";
+  children.push(p("요약 (최신 관측치)",{bold:true,size:18,color:"1E40AF",before:60}));
+  const gapTxt=(kl.kospi_yoy!=null&&kl.m2_yoy!=null)?((kl.kospi_yoy-kl.m2_yoy>20)?"유동성 증가율 대비 주가 상승률 괴리 — 과열 신호":"유동성 증가율과 주가 추세 동행"):"—";
+  simpleTable([2450,3350,1800,3600],["복합지표","최신 수치","기준일(지연)","판정/해석"],[
+    ["① 예탁금+거래대금",`예탁금 ${nn(kl.deposit_t)}조 · 회전배수 ${nn(kl.turnover)}배`,`${fmtD(kl.as_of)} (T+2)`,vTxt],
+    ["② M2+코스피/코스닥",`M2 YoY ${nn(kl.m2_yoy)}% · KOSPI ${nn(kl.kospi_yoy)}% · KOSDAQ ${nn(kl.kosdaq_yoy)}%`,`${kl.m2_month?String(kl.m2_month).replace(/(\d{4})(\d{2})/,"$1.$2"):"—"} (약 2개월)`,gapTxt],
+    ["③ 신용융자+변동성+반대매매",`신용융자 ${nn(kl.crd_t)}조 · 반대매매 ${nn(kl.opp_amt_e)}억(비중 ${nn(kl.opp_ratio)}%)`,`${fmtD(kl.opp_date||kl.as_of)} (T+2)`,"레버리지 수준 + 급락 후 강제청산 압력 확인"],
+    ["④ 코스닥 신용(마진콜 조기경보)",`코스닥 신용 ${nn(kl.crd_kosdaq_t)}조(비중 ${nn(kl.kosdaq_share)}%) · 5일 증감 ${sgn(kl.kosdaq_chg5_e)}억`,`${fmtD(kl.as_of)} (T+2)`,(kl.kosdaq_chg5_e!=null&&kl.kosdaq_chg5_e<0?"코스닥 잔고 순감 — 디레버리징(상환+강제청산 혼재) 진행":"코스닥 잔고 증가 — 레버리지 재축적")]
+  ],{left:[0]});
+  let shown=0;
+  const sect=(ttl,fp,hh,after)=>{ const img=imagePara(fp,660,hh);
+    if(!img){ console.error("  (경고) "+fp+" 없음 → 3.1.14 차트 생략"); return; }
+    children.push(p(ttl,{bold:true,size:18,color:"1E40AF",before:140}));
+    children.push(img); (after||[]).forEach(x=>children.push(x)); shown++; };
+  // ①
+  const mpos=({"유입·가동":[0,1],"유입·관망":[0,2],"이탈·소진성 회전":[1,1],"이탈·위축":[1,2]})[V.label]||null;
+  const mrows=[["예탁금 증가","유입·가동 (강세)","유입·관망 (중립)"],["예탁금 감소","이탈 속 소진성 회전 (경계)","이탈·위축 (약세)"]];
+  if(mpos) mrows[mpos[0]][mpos[1]]+=" ← 현재";
+  sect("① 예탁금 + 거래대금 — 대기자금이 실제로 시장에 들어오는지","charts/krliq_1.png",465,[
+    p("자동 판정 로직: 예탁금 5일 증감 × 회전배수(거래대금÷예탁금) 5일 방향의 2×2 매트릭스.",{bold:true,size:15})]);
+  if(shown){ simpleTable([2450,3500,3500],["","회전배수 상승","회전배수 하락"],mrows,{left:[0]});
+    if(V.label) children.push(p(`현재(${fmtD(V.as_of)} T+2): 예탁금 5일 ${V.dep_5d_pct>0?"+":""}${V.dep_5d_pct}% · 회전배수 5일 ${V.turn_5d_chg>0?"+":""}${V.turn_5d_chg}p → ${V.label}(${V.tone}). 판정 결과는 차트 제목에 자동 표기.`,{size:15,color:toneC,bold:true})); }
+  // ②
+  sect("② M2 + 코스피/코스닥 — 거시 유동성과 주가 추세","charts/krliq_2.png",270,[
+    p(`한국은행 ECOS 월별(M2 평잔·코스피/코스닥 월말 종가, 약 2개월 지연). 최근 KOSDAQ YoY ${nn(kl.kosdaq_yoy)}% vs KOSPI ${nn(kl.kospi_yoy)}% — M2 YoY(${nn(kl.m2_yoy)}%)를 크게 웃도는 주가 상승률은 유동성 초과 랠리, 하회하면 유동성 대비 저평가 신호.`,{size:15,color:"334155"})]);
+  // ③
+  sect("③ 신용융자 + 변동성 + 반대매매 — 레버리지 과열 점검","charts/krliq_3.png",495,[
+    p(`하단 반대매매 = 금융위 공공데이터 '미수금 대비 반대매매금액·비중'(일별 T+2, 금투협 원천) — 위탁매매 미수금(D+2 미납) 기반 강제청산의 공식 일별 통계. 급락 직후 반대매매 급증 + 비중 상승 = 강제청산 압력 확인. 최근 ${fmtD(kl.opp_date||kl.as_of)} ${nn(kl.opp_amt_e)}억원 · 비중 ${nn(kl.opp_ratio)}%.`,{size:15,color:"334155"}),
+    p("유의: 이 통계는 미수거래 반대매매만 포함 — 신용융자 담보부족(마진콜) 반대매매는 공표 통계가 없어 ④ 코스닥 신용잔고 급감으로 간접 추정한다.",{size:13,italics:true,color:"94A3B8"})]);
+  // ④
+  sect("④ 코스닥 신용 — 마진콜 조기경보","charts/krliq_4.png",495,[
+    p(`설계 근거: 마진콜 반대매매는 신용잔고율이 높은 코스닥 중소형주에서 먼저 터지므로, 코스닥 신용잔고의 상대적 급감이 조기 신호. 상단 = 코스닥 신용잔고 vs 코스닥 지수 vs 전체 중 코스닥 비중, 하단 = 잔고 일간 증감(감소=적색) — 자발적 상환+강제청산 합산의 근사치.`,{size:15,color:"334155"}),
+    p(`현재(${fmtD(kl.as_of)} T+2): 코스닥 신용 ${nn(kl.crd_kosdaq_t)}조(전체의 ${nn(kl.kosdaq_share)}%) · 5일 누적 ${sgn(kl.kosdaq_chg5_e)}억. 지수 하락률 대비 잔고 감소율이 비정상적으로 크면 강제청산(마진콜) 우세로 해석 — 단, 상환과 강제청산은 구분 불가(마진콜 직접 통계 부재).`,{size:15,color:"334155"})]);
+  children.push(p("반대매매 급증은 선행지표가 아닌 후행 확인 지표이며 역사적으로 항복(단기 바닥) 국면과 동행하는 경우가 많음. 데이터: 금융위 공공데이터(금투협 원천, T+2) · 다음금융(T+0) · 한국은행 ECOS — 서버 1일 3회(06:35/14:10/16:10 KST) 자동 수집. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
   children.push(p("")); }
 
 const M7_OUTLOOK_DEFAULT = { as_of: "2026-07-03 종가", rows: [
