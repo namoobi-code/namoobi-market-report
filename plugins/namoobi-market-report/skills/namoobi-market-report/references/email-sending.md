@@ -1,4 +1,13 @@
-# 이메일 발송 가이드 — Claude in Chrome 직접 발송 (v3.68)
+# 이메일 발송 가이드 (v3.69 — 1순위 서버 SMTP · 폴백 Chrome)
+
+> **★ v3.69 1순위 = 서버 SMTP 발송 (~10초 · Chrome 불필요 · 무인 예약에 최적)**
+> - 서버: `namoobi-market-report-server/scripts/send_report_mail.py` — Gmail SMTP_SSL(smtp.gmail.com:465) + **앱 비밀번호**(`keys/gmail_app_password.txt`, git 미포함) 로 namoobi@gmail.com 발신(보낸편지함에도 남음). 입력은 stdin JSON(to/bcc/subject/body/attach) — BCC 가 argv/ps 에 노출되지 않는다. `--check` 로 인증파일 존재 검사(exit 3=없음).
+> - PC(스킬): `scripts/send_mail_server.py <docx VM경로> "<제목>" <body파일> <scheduled|normal>` — 모드별 BCC 파일(// 주석 제외) 읽기 → sync 로 이미 올라간 docx 재사용(크기 대조, 없으면 scp) → ssh stdin 으로 서버 발송 → 마지막 줄 `SENT …` 확인. **exit 3 = 서버에 인증파일 미배포 → 아래 Chrome 폴백으로 진행.**
+> - **1회 준비물(사용자)**: Google 계정(2단계 인증) → 보안 → '앱 비밀번호' 생성(메일용) → `D:\claudeCowork\SECURITY\gmail_app_password.txt` 에 저장. 이후 sync_server 가 서버 keys/ 로 자동 배포. 이 파일은 메일 전체 권한 자격증명이므로 SECURITY 밖 복사·커밋·채팅 노출 금지.
+> - 샌드박스 SMTP 차단은 여전하다(아래 경고) — SMTP 는 **서버에서만** 나간다.
+> - 제한: 첨부 24MB 초과 시 스크립트가 거부(현 보고서 ~6.5MB 로 여유). Gmail 일일 발송 한도(개인 ~500통)와 무관한 소량 사용.
+
+## (폴백) Claude in Chrome 직접 발송 (v3.68)
 
 > **★ v3.68 표준 경로 = "초안 경유 발송" (2026-07-17/18 3회 실측으로 확정 — 전면 작성창 직발송 금지)**
 > 전면 작성창(`?view=cm&fs=1&…` 또는 #inbox?compose=new)은 ① 보내기 클릭이 조용히 무시되고(3회 중 3회 — 특히 첨부 업로드 직후) ② 첨부 대기 중 렌더러가 45초+ 프리즈되는 재발성 결함이 있다. 발송 소요가 8~12분까지 늘어난 원인. 아래 순서가 표준:

@@ -293,8 +293,9 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 ## Phase 5: 이메일 발송
 
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
-- SMTP·Gmail MCP 초안 방식 금지. **Claude in Chrome 로그인된 Gmail 직접 발송만** 사용.
-- **(v3.68 표준) 초안 경유 발송**: 전면 작성창(view=cm)의 '보내기'는 조용히 무시되는 재발성 결함(3회 실측) — prefill 로 초안만 만들고 `#drafts` 에서 열어 미니 작성창에서 첨부(업로드 progressbar 소멸 폴링)·발송한다. 발송 판정은 "메시지 전송됨" 토스트 또는 보낸편지함 실측. 렌더러 프리즈 시 탭 폐기→새 탭 재개. 상세=email-sending.md v3.68 절.
+- **(v3.69) 1순위 = 서버 SMTP 발송** — Phase 5.5 sync 를 **먼저** 수행해 docx 를 서버에 올린 뒤, `python3 "$SRC/send_mail_server.py" <docx VM경로> "<제목>" <body파일> <모드>` 1회로 발송(내부: 모드별 BCC 파일 읽기(// 제외)→ssh stdin JSON→서버 `send_report_mail.py` 가 Gmail SMTP(앱 비밀번호, keys/gmail_app_password.txt)로 발송, ~10초·Chrome 불필요·주소 argv 미노출). exit 0+"SENT"=성공. **exit 3(서버 인증파일 없음)·기타 실패 시에만** 아래 Chrome 경로로 폴백. 준비물: 사용자가 Google 계정 '앱 비밀번호'를 `SECURITY/gmail_app_password.txt` 에 1회 저장(2단계 인증 필요) — 배포는 sync_server 가 자동.
+- **(폴백 · v3.68) Chrome 초안 경유 발송**: 전면 작성창(view=cm)의 '보내기'는 조용히 무시되는 재발성 결함(3회 실측) — prefill 로 초안만 만들고 `#drafts` 에서 열어 미니 작성창에서 첨부(업로드 progressbar 소멸 폴링)·발송한다. 발송 판정은 "메시지 전송됨" 토스트 또는 보낸편지함 실측. 렌더러 프리즈 시 탭 폐기→새 탭 재개. 상세=email-sending.md.
+- (v3.69 순서 변경) **Phase 5.5(sync)를 Phase 5(발송)보다 먼저** 실행한다 — 게이트 통과본만 sync 하므로 깨진 데이터 노출 없음은 유지되고, 서버 발송이 sync 된 docx 를 그대로 첨부해 '대시보드=메일 동일 회차'도 유지된다. Chrome 폴백 시에도 순서 무관.
 - **(v3.53) Chrome 확장 미연결이면 먼저 직접 실행**: `list_connected_browsers` 가 `[]` 면 Phase 0-3 루틴대로 computer-use `request_access(["Google Chrome"])`(경고 시 같은 턴 재요청)→`open_application("Google Chrome")`→`wait(3)`→재확인. 프로필 피커가 뜨면 사용자에게 namoobi 프로필 1회 클릭 요청. 확장이 붙은 뒤 아래 절차 진행.
 - **Gmail 이 안 켜져 있으면** Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 navigate (로그인 상시 유지 — 비밀번호 단계 불필요).
 - **첨부는 docx** — 연결 폴더(`D:\claudeCowork\...docx`) Windows 경로로 첨부 (outputs·VM 경로는 거부됨). (`references/email-sending.md` 의 PDF 언급은 docx 로 간주 — 차기 정리 대상.)

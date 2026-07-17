@@ -181,6 +181,15 @@ def main():
     # (v3.64) kr_liquidity.db 도 서버가 cron 1일 3회 수집하는 서버 원본 → PC 백업 회수 (3.1.14)
     run(f'{SCP} {SERVER}:{REMOTE}/kr_liquidity.db {shlex.quote(str(base / "kr_liquidity.db"))}',
         "kr_liquidity.db 백업 회수 (3.1.14 유동성·레버리지)")
+    # (v3.69) Gmail 앱 비밀번호 자동 배포 — SECURITY 에 있으면 서버 keys/ 로 (서버 SMTP 발송용, git 미포함)
+    try:
+        _gp = sorted(glob.glob("/sessions/*/mnt/claudeCowork/SECURITY/gmail_app_password.txt"))
+        if _gp:
+            run(f'{SSH} {SERVER} "mkdir -p {REMOTE.rsplit("/",1)[0]}/keys"', "keys 디렉토리")
+            run(f'{SCP} {shlex.quote(_gp[0])} {SERVER}:{REMOTE.rsplit("/",1)[0]}/keys/gmail_app_password.txt',
+                "gmail_app_password 배포 (서버 SMTP 발송용)")
+    except Exception as _ge:
+        print("[sync] gmail_app_password 배포 skip:", _ge)
 
     print(f"[sync] {'완료' if ok else '일부 실패(비차단)'} → http://namoobi.duckdns.org")
     return 0
