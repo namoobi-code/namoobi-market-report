@@ -849,13 +849,19 @@ def _ir_norm(_ir):
         for _e in (_b.get('events') or []):
             if not isinstance(_e, dict): continue
             if 'add' in _e or 'remove' in _e: _ev.append(_e); continue
-            if _e.get('ticker') and (_e.get('action') or _e.get('type')):
+            if _e.get('ticker') and (_e.get('action') or _e.get('type') or _e.get('date') or _e.get('reason')):
+                # (fix 2026-07-17 근본원인) action/type 없이 {ticker,date,reason}만 있는 평면행도 그룹핑 —
+                # 종전엔 3번째 분기로 빠져 '날짜 제목 + 빈 add/remove' 껍데기 이벤트가 양산됨(3.3.2 빈 표 원인)
                 _d = str(_e.get('date') or _e.get('effective') or _e.get('effective_date') or '변경 내역')
                 if _d not in _grp:
                     _grp[_d] = {'title': _d, 'effective': _e.get('effective') or _e.get('effective_date') or '',
                                 'add': [], 'remove': [], 'note': ''}
                     _ord.append(_d)
                 _act = str(_e.get('action') or _e.get('type') or '')
+                if not _act:   # reason 텍스트에서 편입/편출 추론 (편입 우선 — "…4종목 제외" 같은 부수 언급 오분류 방지)
+                    _r0 = str(_e.get('reason') or '')
+                    _act = '편입' if ('편입' in _r0 or 'add' in _r0.lower() or 'join' in _r0.lower()) else \
+                           ('편출' if ('편출' in _r0 or '삭제' in _r0 or '제외' in _r0 or 'remov' in _r0.lower() or 'delet' in _r0.lower() or 'exit' in _r0.lower()) else '편입')
                 _side = 'remove' if ('편출' in _act or 'remov' in _act.lower() or 'delet' in _act.lower() or 'drop' in _act.lower()) else 'add'
                 _grp[_d][_side].append({'ticker': _e.get('ticker', ''), 'name': _e.get('name', ''),
                                         'biz': _e.get('biz', ''), 'reason': _e.get('reason', '')})
