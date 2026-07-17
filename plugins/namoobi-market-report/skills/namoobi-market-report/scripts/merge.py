@@ -1211,6 +1211,30 @@ try:
 except Exception as _e:
     print('  [R4] 국채 단일소스 강제 skip(비차단):', _e)
 
+# (2026-07-17) 서버 자체 수집 항목 명시 — docx 캡션(갱신주기·데이터 수집시점). 서버 cron 이 채우는 DB 는
+#   보고서 실행 시점 조사가 아님을 표기한다(사용자 req). as_of/marker = db/<item>.json 실측.
+try:
+    import nmr_db as _ndbS
+    _ddS = _ndbS._dbdir()
+    def _svnote(item, cadence):
+        _e = _ndbS._load(item, _ddS) or {}
+        _a = _e.get('as_of') or '-'; _mk = str(_e.get('marker') or '')[:28]
+        return ('※ 서버 자체 수집 항목 — 본 보고서 실행 시점 조사가 아니라 서버가 주기 수집·누적한 DB 를 사용(실행 시 변동체크·병합) · 갱신주기: '
+                + cadence + ' · 데이터 수집시점: ' + str(_a) + ((' (마커 ' + _mk + ')') if _mk else ''))
+    m['server_notes'] = {
+        'customs':   _svnote('customs',       '서버 자동 매일 2회(06:35·15:35 KST)'),
+        'leading':   _svnote('leading',       '서버 자동 매일 2회(06:35·15:35 KST)'),
+        'krx_brief': _svnote('krx_brief',     '서버 자동 매일 2회(06:35·15:35 KST)'),
+        'hy':        _svnote('series_hy_oas', '서버 자동 매일 2회(06:35·15:35 KST) + 실행 시 FRED 실측'),
+        'memory':    _svnote('memory',        '서버 자동 매일 2회(06:45·15:45 KST)'),
+    }
+    _dpS = m.get('deriv_positioning')
+    if isinstance(_dpS, dict) and _dpS.get('asof'):
+        _tagS = ' · ※ 서버 마감캡처 병합: 韓 PCR(Vol)·IV스큐·GEX·VKOSPI=서버 15:48 KST, 美 옵션=서버 06:40 KST (실행 시점 조사 아님)'
+        if _tagS.strip() not in str(_dpS['asof']): _dpS['asof'] = str(_dpS['asof']) + _tagS
+except Exception as _sne:
+    print('  server_notes skip(비차단):', repr(_sne)[:60])
+
 outp = os.path.join(W, '_market_report_data', f'report_data_{RD}.json')
 json.dump(data, open(outp, 'w'), ensure_ascii=False, indent=1)
 print('MERGED →', outp)

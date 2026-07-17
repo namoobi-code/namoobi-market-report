@@ -333,6 +333,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
     const kbBlk=(sec,ti,d,prefix)=>{ if(!d||!d.pages)return;
       children.push(h(sec+" "+ti,3));
       children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지 (회차 마커=게시글 att_seq · 원문 PDF 페이지 캡쳐)",{size:16,color:"94A3B8"}));
+      const _svKB=((data.markets||{}).server_notes||{}).krx_brief; if(_svKB) children.push(p(_svKB,{size:15,italics:true,color:"7C3AED"}));
       children.push(p((d.title||ti)+"   등록: "+(d.date||"-")+(d.stale_note?("   ⚠ "+d.stale_note):""),{bold:true,color:"1E40AF",before:80}));
       let shown=0;
       for(let i=1;i<=d.pages;i++){ const img=imagePara("charts/"+prefix+"_p"+i+".png",700,990); if(img){children.push(img);shown++;} }
@@ -346,6 +347,7 @@ function renderKoreaExtras(){ const m=data.markets||{};
 // (v3.12.0→v3.49) 3.1.9 메모리+HBM 대시보드 — 3.1(매크로 대시보드)로 이동. renderMacroIndicators 에서 호출.
 function renderHBM(){ const m=data.markets||{}; const hbm=(m.hbm)||{};
   children.push(h("3.1.9 반도체 주가 체크용 메모리+HBM 지표",3));
+  const _svMEM=((data.markets||{}).server_notes||{}).memory; if(_svMEM) children.push(p(_svMEM,{size:15,italics:true,color:"7C3AED"}));
   const img=imagePara((hbm.chart)||"charts/hbm_dashboard.png",720,980);
   const mem=(m.memory&&m.memory.tables)?m.memory:null;
   if(img){ children.push(p("① DRAM 현물(스팟) / ② DRAM 고정거래(계약) / ③ NAND 현물 / ④ NAND 고정거래 / ⑤ 스팟-계약 갭 / ⑥ HBM 업체별 점유율 / ⑦ HBM ASP 추이 / ⑧ HBM 시장규모·수요 증가율(연간, Yole·추정) / ⑨ HBM:DDR5 GB당 단가 격차(환산 추정) / ⑩ 선행지표 1년 성과 / ⑪ 메모리/GPU 상대강도 — 11개 패널. 가격·주가=공개 소스 실측, ⑦⑧⑨=공개 추정치 환산.",{italics:true,color:"64748B"})); children.push(img);
@@ -572,6 +574,7 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
 // (v3.31.0→v3.43.1) 3.1.5 경기선행지수(국내 순환변동치) — 3.1.4 OECD CLI 다음(확인 신호).
 function renderKoreaLeading(){ const m=data.markets||{};
   if(Array.isArray(m.korea_leading)&&m.korea_leading.length){ children.push(h("3.1.5 경기선행지수 순환변동치 (주가 동행 선행지표)",3));
+    const _svLD=((data.markets||{}).server_notes||{}).leading; if(_svLD) children.push(p(_svLD,{size:15,italics:true,color:"7C3AED"}));
     children.push(fsLink("출처 · 국가데이터처 e-나라지표 「산업활동동향」 선행종합지수 순환변동치(2020=100)", (m.korea_leading_source||"https://www.index.go.kr/unity/potal/main/EachDtlPageDetail.do?idx_cd=1057")));
     children.push(p("경기선행지수 순환변동치와 주식(특히 KOSPI)은 상당한 정비례 상관관계를 가지며, 선행지수 순환변동치가 주가를 약 2개월 정도 선행하여 움직이는 특징이 있습니다.",{italics:true,color:"64748B"}));
     children.push(p("• 100 이상 = 경기 확장 전망    • 100 이하 = 경기 침체 전망",{bold:true,size:18,color:"475569"}));
@@ -670,6 +673,7 @@ function renderCapex(){ const m=data.markets||{};
 // (v3.12.0) HY 스프레드 — 3.1.1 금리·통화정책에 통합(하위 블록).
 function renderHY(){ const m=data.markets||{};
   if(m.hy_spread){ const c=m.hy_spread; children.push(p("■ 하이일드(HY) 스프레드",{bold:true,color:"1E40AF",before:140,size:22}));
+    const _svHY=((data.markets||{}).server_notes||{}).hy; if(_svHY) children.push(p(_svHY,{size:15,italics:true,color:"7C3AED"}));
     children.push(p("의미: 하이일드 스프레드(HY Spread)는 고위험 회사채 수익률과 미국 국채 수익률의 차이로, 시장이 신용위험을 얼마나 크게 보는지 보여주는 지표.",{italics:true,color:"64748B"}));
     children.push(p("시장영향: HY Spread 확대 = 신용불안·리스크오프·주식 약세 압력, HY Spread 축소 = 신용정상화·리스크온·주식 회복 기대.",{italics:true,color:"64748B"}));
     // (req1 2026-07-12) OAS 레벨 표 제거 — 차트+현재값 코멘트만 유지.
@@ -1208,6 +1212,7 @@ function renderCustoms(){ const m=data.markets||{}; const cs=m.customs;
   if(!cs||!cs.series||!Array.isArray(cs.months)||!cs.months.length) return;
   children.push(h("3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계",3));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
+  const _svCS=((data.markets||{}).server_notes||{}).customs; if(_svCS) children.push(p(_svCS,{size:15,italics:true,color:"7C3AED"}));
   const lat=cs.latest||{}, pm=lat.pm||{}, p10=lat.p10||{}, p20=lat.p20||{};
   const ym=lat.yyyymm?(lat.yyyymm.slice(0,4)+"-"+lat.yyyymm.slice(4,6)):"";
   const fmt=v=>(v==null?"-":Number(v).toLocaleString("en-US"));
