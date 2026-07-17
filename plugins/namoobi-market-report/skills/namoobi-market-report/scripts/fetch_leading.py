@@ -47,14 +47,17 @@ def parse(html):
     P = TableParser(); P.feed(html)
     months, vals = [], []
     for r in P.rows:
-        ms = [c for c in r if re.match(r"^\d{6}월?$", c.replace(" ", ""))]
+        # (req6 2026-07-17) 잠정치 월 헤더 '202605월p'/'2026.05(p)' 대응 — p 접미 허용(종전 정규식이 최근 3개월을 탈락시켜 시계열이 2~5개월 뒤처졌다)
+        ms = [c for c in r if re.match(r"^\d{6}(\uc6d4)?[ ()pP]*$", c.replace("\xa0", " ").strip())]
         if len(ms) > len(months):
             months = [re.sub(r"[^0-9]", "", c)[:6] for c in ms]
         lbl = r[0] if r else ""
         if "선행" in lbl and "순환변동" in lbl:
             vals = list(r[1:])
     series = []
-    for mo, v in zip(months, vals):
+    # (req6) 우측 정렬 페어링 — 헤더/값 셀 수가 달라도 최신월 기준으로 맞춘다(좌측 zip 은 어긋나면 최근월이 밀린다)
+    n = min(len(months), len(vals))
+    for mo, v in zip(months[-n:], vals[-n:]):
         try: fv = float(re.sub(r"[, ]", "", v))
         except Exception: continue
         series.append([f"{mo[:4]}-{mo[4:6]}", fv])

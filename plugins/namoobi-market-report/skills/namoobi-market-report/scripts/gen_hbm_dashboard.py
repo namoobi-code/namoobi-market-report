@@ -75,6 +75,40 @@ def _series(key):
             except Exception: pass
     return []
 
+# (req7 2026-07-17) 변동주기 라벨 — 그래프마다 명시(수집 주기가 아니라 값이 실제 바뀌는 주기)
+CAD = {"dram_spot": "변동주기: 매일(영업일 18:10 GMT+8)", "dram_contract": "변동주기: 월 1회(매월 말)",
+       "nand_spot": "변동주기: 주 1회 내외", "nand_contract": "변동주기: 월 1회(매월 말)",
+       "gap": "변동주기: 매일(현물 분자)", "share": "변동주기: 분기 1회 내외(벤더 집계 발표 시)",
+       "asp": "변동주기: 분기 1회 내외(신제품·계약 갱신 시)", "market": "변동주기: 연 1~2회(조사기관 전망 갱신)",
+       "ddr5gap": "변동주기: 매일(DDR5 현물 분모)", "lead": "변동주기: 매일", "rs": "변동주기: 매일(주가) · EPS 컨센서스=수시"}
+
+def _resample(ser, mode):
+    """일별 [(date,{item:val})..] → 주별/월별 마지막 관측값."""
+    if mode not in ("weekly", "monthly"): return ser
+    from datetime import datetime as _dt
+    out = {}
+    for d, row in ser:
+        t = _dt.strptime(d, "%Y-%m-%d")
+        k = ("%d-W%02d" % t.isocalendar()[:2]) if mode == "weekly" else t.strftime("%Y-%m")
+        out[k] = (d, row)  # 같은 버킷은 마지막 관측으로 덮음
+    return [out[k] for k in sorted(out)]
+
+def _backfill():
+    """(req7 2026-07-17) 공개 보도치 백필 — db/mem_backfill.json (에이전트 리서치 시드)."""
+    O = _outdir()
+    for pat in (O + "/nmr_mem_backfill.json",
+                O + "/namoobi-market-report-server/db/mem_backfill.json",
+                "/sessions/*/mnt/claudeCowork/namoobi-market-report-server/db/mem_backfill.json"):
+        for c in sorted(glob.glob(pat)):
+            try:
+                d = json.load(open(c, encoding="utf-8"))
+                return d.get("data") or d
+            except Exception:
+                pass
+    return {}
+
+BF = _backfill()
+
 D, SRC = _memdb()
 if not D or not D.get("tables"):
     print("memory: 데이터 없음 — hbm_dashboard 차트 생략(비차단)")
@@ -88,10 +122,63 @@ else:
     def _cap(ax, t, y=-0.27):
         ax.text(0,y,t,transform=ax.transAxes,fontsize=9,color="#666",va="top")
 
-    def _trend(ax, key, title, ylab):
-        """누적 시계열이 2점 이상이면 추세선, 1점이면 현재값 막대."""
+    def _trend(ax, key, title, ylab, mode="daily"):
+        """(req7 v3.67) mode: daily=USD 라인 / index=지수화(첫날=100, 일직선 방지·최신 USD는 범례에)
+        / weekly·monthly=버킷 마지막 관측 + monthly 는 보도치 백필 라인 병행."""
         ser=_series(key)
         t=T.get(key) or {}
+        # 월별/주별 리샘플 + (monthly) 보도치 백필 오버레이
+        if mode in ("weekly","monthly") and ser:
+            rs=_resample(ser, mode)
+            items=sorted({k for _,r in rs for k in r})
+            bfmap = (BF.get("dram_contract_monthly") if key=="dram_contract" else
+                     BF.get("nand_contract_monthly") if key=="nand_contract" else {}) or {}
+            drew=False
+            # ① 보도치 월별 라인 (계약가 이력 — TrendForce/DRAMeXchange 월말 보도)
+            for j,(bfn,bfser) in enumerate(sorted(bfmap.items())):
+                if not bfser: continue
+                bx=[datetime.strptime(m+"-15","%Y-%m-%d") for m,_ in bfser]
+                by=[v for _,v in bfser]
+                ax.plot(bx,by,marker="s",ms=4,lw=1.6,ls="--",color=PAL[j%len(PAL)],label="%s (보도치)"%bfn)
+                for xx,yy in [(bx[-1],by[-1])]:
+                    ax.annotate("$%.2f"%yy,(xx,yy),textcoords="offset points",xytext=(4,4),fontsize=7)
+                drew=True
+            # ② 자체 누적(월/주 버킷 마지막 관측)
+            for i,it in enumerate(items):
+                pts=[(d,row.get(it)) for d,row in rs if row.get(it) is not None]
+                if not pts: continue
+                xs=[datetime.strptime(p[0],"%Y-%m-%d") for p in pts]
+                ax.plot(xs,[p[1] for p in pts],marker="o",ms=5,lw=1.8,color=PAL[i%len(PAL)],
+                        label=it if len(items)<=8 else None)
+                drew=True
+            if drew:
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%y-%m" if mode=="monthly" else "%m-%d")); ax.margins(x=0.05)
+                ax.legend(fontsize=6.2,frameon=False,ncol=2)
+                ax.set_title("%s  (%s 축%s)"%(title, "월별" if mode=="monthly" else "주별",
+                             " · 점선=보도치 백필" if (mode=="monthly" and bfmap) else ""),fontsize=13,fontweight="bold")
+                ax.set_ylabel(ylab,fontsize=9); _style(ax)
+                _cap(ax,"[실측] TrendForce 공개 가격표 · 갱신 %s · %s%s"%(t.get("last_update") or "", CAD.get(key,""),
+                     "\n     점선=공개 보도치 백필(월말 고정가 보도) · 실선/점=자체 누적(2026-07-11~)" if (mode=="monthly" and bfmap) else ""))
+                return
+        if len(ser)>=2 and mode=="index":
+            xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in ser]
+            items=sorted({k for r in ser for k in r[1]})
+            for i,it in enumerate(items):
+                v=[r[1].get(it) for r in ser]
+                base=next((x for x in v if x),None)
+                if not base: continue
+                idx=[(x/base*100.0 if x else None) for x in v]
+                last=next((x for x in reversed(v) if x),None)
+                ax.plot(xs,idx,marker="o",ms=3.5,lw=1.7,color=PAL[i%len(PAL)],
+                        label="%s  $%.2f"%(it,last) if last else it)
+            ax.axhline(100,color="#888",lw=0.8,ls="--")
+            ax.set_xticks(xs if len(xs)<=8 else xs[::max(1,len(xs)//7)])
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d")); ax.margins(x=0.06)
+            ax.legend(fontsize=6.2,frameon=False,ncol=2)
+            ax.set_title("%s  (지수화 100 · 누적 %d일)"%(title,len(ser)),fontsize=13,fontweight="bold")
+            ax.set_ylabel("첫날=100",fontsize=9); _style(ax)
+            _cap(ax,"[실측] TrendForce 공개 가격표 · 갱신 %s · %s\n     규격별 가격대(3~80달러)가 달라 USD 축에선 일직선처럼 보임 → 첫날=100 지수화(최신 달러값은 범례)"%(t.get("last_update") or "", CAD.get(key,"")))
+            return
         if len(ser)>=2:
             xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in ser]
             items=sorted({k for r in ser for k in r[1]})
@@ -115,7 +202,7 @@ else:
             ax.set_ylim(top=max(vs)*1.2)
             ax.set_title("%s  (누적 1일 — 내일부터 추세선)"%title,fontsize=13,fontweight="bold")
         ax.set_ylabel(ylab,fontsize=9); _style(ax)
-        _cap(ax,"[실측] TrendForce 공개 가격표 · 갱신 %s"%(t.get("last_update") or ""))
+        _cap(ax,"[실측] TrendForce 공개 가격표 · 갱신 %s · %s"%(t.get("last_update") or "", CAD.get(key,"")))
 
     fig=plt.figure(figsize=(16.0,21.8), dpi=150)
     fig.suptitle("반도체 주가 체크용 메모리·HBM 지표 (가격·주가 실측 + ⑦⑧⑨ 공개 추정 환산)",
@@ -125,10 +212,10 @@ else:
     gs=fig.add_gridspec(6,2, top=0.935, bottom=0.045, left=0.055, right=0.985,
                         hspace=0.95, wspace=0.22)
 
-    _trend(fig.add_subplot(gs[0,0]),"dram_spot",    "① DRAM 현물(스팟)",   "USD")
-    _trend(fig.add_subplot(gs[0,1]),"dram_contract","② DRAM 고정거래(계약)","USD")
-    _trend(fig.add_subplot(gs[1,0]),"nand_spot",    "③ NAND 현물(스팟)",   "USD")
-    _trend(fig.add_subplot(gs[1,1]),"nand_contract","④ NAND 고정거래(계약)","USD")
+    _trend(fig.add_subplot(gs[0,0]),"dram_spot",    "① DRAM 현물(스팟)",   "USD", mode="index")
+    _trend(fig.add_subplot(gs[0,1]),"dram_contract","② DRAM 고정거래(계약)","USD", mode="monthly")
+    _trend(fig.add_subplot(gs[1,0]),"nand_spot",    "③ NAND 현물(스팟)",   "USD", mode="weekly")
+    _trend(fig.add_subplot(gs[1,1]),"nand_contract","④ NAND 고정거래(계약)","USD", mode="monthly")
 
     # ⑤ 스팟 − 계약 갭 (핵심 선행지표 — 2026-07-13 req: 매일 변하는 지표이므로 일별 추세선)
     ax5=fig.add_subplot(gs[2,0])
@@ -172,26 +259,47 @@ else:
             ax5.set_ylim(min(val)*1.5 if min(val)<0 else 0, max(val)*1.28)
     ax5.set_title("⑤ 스팟-계약 갭 일별 추세 (계약가 인상 압력 선행지표)",fontsize=13,fontweight="bold")
     ax5.set_ylabel("%",fontsize=9); _style(ax5)
-    _cap(ax5,"[계산] 현물÷계약-1 일별 추세(계약가는 월 1회 갱신 — 직전 갱신값 carry). 갭 확대=다음 계약\n     협상 인상 압력 → 메모리 3사 실적 선행지표. 시계열 누적 시작 2026-07-11")
+    _cap(ax5,"[계산] 현물÷계약-1 일별 추세(계약가는 월 1회 갱신 — 직전 갱신값 carry). 갭 확대=다음 계약 협상 인상 압력. %s\n     ※ NAND 32Gb 갭 0%% 부근은 정상 — 구형 저용량 규격은 현물 수요가 없어 현물≈계약. 시계열 누적 시작 2026-07-11"%CAD.get("gap",""))
 
     # ⑥ HBM 업체별 점유율 (실측)
     ax6=fig.add_subplot(gs[2,1])
     sh=H.get("share") or []
-    if sh:
+    bfq=BF.get("hbm_share_quarterly") or []
+    _V6={"SK Hynix":C_SK,"SK hynix":C_SK,"Samsung":C_SAMS,"Micron":C_MICRON}
+    if bfq:
+        # (req7-⑥) 분기 추이 — 보도치 분기 시계열 + 최신 실측 포인트
+        qs=[q for q,_ in bfq]
+        for vd,cc in _V6.items():
+            ys=[(row.get(vd) if isinstance(row,dict) else None) for _,row in bfq]
+            if not any(y is not None for y in ys): continue
+            ax6.plot(range(len(qs)),ys,marker="o",ms=5,lw=1.8,color=cc,label=vd)
+        # 최신 실측(오늘) 포인트 추가
+        for r in sh:
+            vd=str(r.get("vendor") or ""); cc=_V6.get(vd)
+            if cc and r.get("share_pct") is not None:
+                ax6.scatter([len(qs)-0.7+1],[r["share_pct"]],color=cc,marker="D",s=42,zorder=5)
+                ax6.annotate("%.0f%%"%r["share_pct"],(len(qs)+0.3,r["share_pct"]),fontsize=8,fontweight="bold",color=cc)
+        ax6.set_xticks(list(range(len(qs)))+[len(qs)+0.3]); ax6.set_xticklabels(qs+["최신\n실측"],fontsize=7.5)
+        ax6.legend(fontsize=7.5,frameon=False)
+        ax6.set_title("⑥ HBM 업체별 점유율 — 분기 추이 (보도치+최신 실측)",fontsize=13,fontweight="bold")
+    elif sh:
         nm=[r["vendor"] for r in sh]; vv=[r.get("share_pct") or 0 for r in sh]
         ax6.bar(nm,vv,width=0.5,color=[C_SAMS,C_SK,C_MICRON,C_ETC][:len(nm)])
         for i,v in enumerate(vv):
             ax6.text(i,v+1.2,"%.0f%%"%v,ha="center",fontsize=12,fontweight="bold")
         ax6.set_ylim(0,max(vv)*1.25)
+        ax6.set_title("⑥ HBM 업체별 점유율 (최신 실측)",fontsize=13,fontweight="bold")
     else:
         ax6.set_visible(False)
-    ax6.set_title("⑥ HBM 업체별 점유율 (최신 실측)",fontsize=13,fontweight="bold")
     ax6.set_ylabel("%",fontsize=9); _style(ax6)
-    _cap(ax6,"[실측] Silicon Analysts 공개 API · %s"%(D.get("asof") or ""))
+    _cap(ax6,"[실측+보도치] Silicon Analysts 공개 API(최신) · Counterpoint/TrendForce 분기 보도(추이) · %s · %s"%(D.get("asof") or "", CAD.get("share","")))
 
     # ⑦ HBM ASP 추이 (req10 2026-07-12 — docx에도 표시)
     ax7a=fig.add_subplot(gs[3,0])
     aser=_series("hbm_asp")
+    # (req7-⑦) 오염 가드 — HBM 스택가($100 미만 값·비 HBM 항목은 단위붕괴/프록시 오염) 제거
+    aser=[[d,{k:v for k,v in (row or {}).items() if str(k).startswith("HBM") and (v or 0)>=100}] for d,row in aser]
+    aser=[r for r in aser if r[1]]
     if len(aser)>=2:
         xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in aser]
         items=sorted({k for r in aser for k in r[1]})
@@ -207,7 +315,7 @@ else:
         ax7a.set_xticklabels(nm,fontsize=7.5); ax7a.set_ylim(top=max(vv)*1.2)
         ax7a.set_title("⑦ HBM ASP (USD/스택)  (누적 1일 — 매일 08:30 자동 누적)",fontsize=13,fontweight="bold")
     else: ax7a.set_visible(False)
-    if aser: ax7a.set_ylabel("USD",fontsize=9); _style(ax7a); _cap(ax7a,"[추정] Silicon Analysts 공개 API · 서버 daily cron(08:30 KST) 누적")
+    if aser: ax7a.set_ylabel("USD",fontsize=9); _style(ax7a); _cap(ax7a,"[추정] Silicon Analysts 공개 API · 서버 매일 2회(06:45·15:45 KST) 누적 · %s\n     ※ 2026-07-13~16 소스 API 단위붕괴 값(12-Hi 8.33)은 필터로 제거"%CAD.get("asp",""))
 
     # ⑧ HBM 시장규모·수요 증가율 (req9 2026-07-12 — 연간, Yole 추정)
     ax8a=fig.add_subplot(gs[3,1])
@@ -219,10 +327,33 @@ else:
             ax8a.text(i,v*1.02,"$%dB"%v,ha="center",fontsize=11,fontweight="bold")
             if i>0 and mv[i-1]:
                 ax8a.text(i,v*0.5,"+%.0f%% YoY"%((v/mv[i-1]-1)*100),ha="center",fontsize=9,color="white",fontweight="bold")
+        # (req7-⑧) 이전 전망 빈티지 병행 — 전망치가 어떻게 상향/하향돼 왔는지 추세 비교
+        vint=BF.get("hbm_market_vintage") or []
+        _vc=["#9CA3AF","#F5A623","#7C4DFF","#E2342E"]
+        def _yri(y): 
+            import re as _re8
+            m=_re8.search(r"\d{4}",str(y)); return int(m.group(0)) if m else 0
+        _cats=sorted({str(y) for y in yrs} | {str(k) for _v in vint for k in (_v.get("forecast") or {})}, key=_yri)
+        _pos={c:i for i,c in enumerate(_cats)}
+        # 막대를 통합 카테고리 위치로 다시 그린다(정렬 어긋남 방지)
+        ax8a.clear()
+        ax8a.bar([_pos[str(y)] for y in yrs],mv,width=0.5,color=C_MKT)
+        for _bi,(_y,_v0) in enumerate(zip(yrs,mv)):
+            ax8a.text(_pos[str(_y)],_v0*1.02,"$%dB"%_v0,ha="center",fontsize=11,fontweight="bold")
+            if _bi>0 and mv[_bi-1]:
+                ax8a.text(_pos[str(_y)],_v0*0.5,"+%.0f%% YoY"%((_v0/mv[_bi-1]-1)*100),ha="center",fontsize=9,color="white",fontweight="bold")
+        for _vi,_v in enumerate(vint):
+            fc=_v.get("forecast") or {}
+            ky=sorted(fc.keys(),key=_yri)
+            if not ky: continue
+            ax8a.plot([_pos[str(k)] for k in ky],[fc[k] for k in ky],marker="s",ms=5,lw=1.4,ls="--",color=_vc[_vi%len(_vc)],
+                      label="%s %s 전망"%(_v.get("by",""),_v.get("published","")))
+        ax8a.set_xticks(range(len(_cats))); ax8a.set_xticklabels(_cats)
+        if vint: ax8a.legend(fontsize=7,frameon=False,loc="upper left")
         ax8a.set_ylim(top=max(mv)*1.22)
-        ax8a.set_title("⑧ HBM 시장규모 · 수요 증가율 (연간, 추정)",fontsize=13,fontweight="bold")
+        ax8a.set_title("⑧ HBM 시장규모 · 수요 증가율 (연간 · 전망 빈티지 비교)",fontsize=13,fontweight="bold")
         ax8a.set_ylabel("십억 달러",fontsize=9); _style(ax8a)
-        _cap(ax8a,"[추정] Yole Group·TrendForce 연간 전망 — 연 1~2회 갱신(조사기관 발표 시)")
+        _cap(ax8a,"[추정] 막대=최신 전망(Yole·TrendForce) · 점선=과거 발표 시점별 전망(빈티지) — 상향 반복=수요 서프라이즈 지속. %s"%CAD.get("market",""))
     else: ax8a.set_visible(False)
 
     # ⑨ HBM:DDR5 GB당 단가 격차 (req12 2026-07-12 — 환산 추정, 매일 계산)
@@ -248,7 +379,7 @@ else:
         ax9a.set_title("⑨ HBM : DDR5 GB당 단가 = %s배  (누적 1일 — 내일부터 추세선)"%(g1.get("배율") or "-"),fontsize=13,fontweight="bold")
     else: ax9a.set_visible(False)
     if gser: ax9a.set_ylabel("USD/GB · 배",fontsize=9); _style(ax9a)
-    _cap(ax9a,"[환산 추정] HBM3E 스택 ASP÷용량 vs DDR5 계약가 $/GB 환산(칩가 없으면 모듈가 환산). 통상 5~6배 —\n     배율 급락 = 범용 DRAM 급등(삼성 상대 유리) 신호")
+    _cap(ax9a,"[환산 추정] HBM3E 스택 ASP÷용량 vs DDR5 $/GB. 실선=현물 분모(매일 변동)·점선=계약 분모(월1회 계단 — 일직선이 정상). %s\n     통상 5~6배 — 배율 급락 = 범용 DRAM 급등(삼성 상대 유리) 신호"%CAD.get("ddr5gap",""))
 
     # ─── (v3.60) 선행지표 2패널 ────────────────────────────────────────
     LD=D.get("leading") or {}
@@ -256,22 +387,44 @@ else:
     # ⑩ 선행지표 1년 성과 — 수요처(NVDA) vs 공급자(MU) 괴리
     ax7=fig.add_subplot(gs[4,1])
     ORD=["SOX","NVDA","AMD","TSM","KOSPI","MU"]
-    ln=[LD[k]["label"] for k in ORD if LD.get(k) and LD[k].get("chg_1y_pct") is not None]
-    lv=[LD[k]["chg_1y_pct"] for k in ORD if LD.get(k) and LD[k].get("chg_1y_pct") is not None]
-    if lv:
-        cols=[C_SPOT,C_DDR4,C_DDR5,C_NAND,C_ETC,C_SK][:len(lv)]
-        ax7.bar(ln,lv,width=0.55,color=cols)
-        for i,v in enumerate(lv):
-            ax7.text(i, v+(max(lv)*0.02 if v>=0 else max(lv)*-0.05), "%+.0f%%"%v,
-                     ha="center", fontsize=10, fontweight="bold")
-        ax7.axhline(0,color="#888",lw=0.9)
-        ax7.set_ylim(min(0,min(lv)*1.2), max(lv)*1.22)
-        ax7.set_xticks(range(len(ln))); ax7.set_xticklabels(ln,fontsize=7.5)
+    _c10={"SOX":C_ETC,"NVDA":C_DDR4,"AMD":C_HBM4,"TSM":C_NAND,"KOSPI":"#0EA5E9","MU":C_SK}
+    _drew10=False
+    for k in ORD:
+        e=LD.get(k) or {}
+        ser=e.get("series_1y") or []
+        if len(ser)>=30:
+            base=ser[0][1]
+            if not base: continue
+            xs=[datetime.strptime(d,"%Y-%m-%d") for d,_ in ser]
+            ys=[v/base*100.0 for _,v in ser]
+            _lw=2.4 if k in ("NVDA","MU") else 1.3
+            ax7.plot(xs,ys,lw=_lw,color=_c10.get(k,"#999"),
+                     label="%s %+.0f%%"%(e.get("label",k), e.get("chg_1y_pct") or (ys[-1]-100)))
+            _drew10=True
+    if _drew10:
+        ax7.axhline(100,color="#888",lw=0.8,ls="--")
+        ax7.xaxis.set_major_formatter(mdates.DateFormatter("%y-%m"))
+        ax7.legend(fontsize=7,frameon=False,ncol=2,loc="upper left")
+        ax7.set_title("⑩ 선행지표 1년 추이 — 수요처(NVDA) vs 공급자(MU) · 지수화 100",fontsize=13,fontweight="bold")
+        ax7.set_ylabel("1년 전=100",fontsize=9); _style(ax7)
     else:
-        ax7.set_visible(False)
-    ax7.set_title("⑩ 선행지표 1년 성과 — 수요처(엔비디아) vs 공급자(마이크론)",fontsize=13,fontweight="bold")
-    ax7.set_ylabel("%",fontsize=9); _style(ax7)
-    _cap(ax7,"[실측] Yahoo Finance · 반도체 업황(SOX) · HBM 수요처(NVDA·AMD) · CoWoS 병목(TSM)\n     공급자(MU)가 수요처를 크게 앞서면 = 메모리가 협상력을 쥔 공급부족 국면")
+        # (폴백) 1년 시계열 미확보 회차 — 기존 1년 성과 막대
+        ln=[LD[k]["label"] for k in ORD if LD.get(k) and LD[k].get("chg_1y_pct") is not None]
+        lv=[LD[k]["chg_1y_pct"] for k in ORD if LD.get(k) and LD[k].get("chg_1y_pct") is not None]
+        if lv:
+            cols=[C_SPOT,C_DDR4,C_DDR5,C_NAND,C_ETC,C_SK][:len(lv)]
+            ax7.bar(ln,lv,width=0.55,color=cols)
+            for i,v in enumerate(lv):
+                ax7.text(i, v+(max(lv)*0.02 if v>=0 else max(lv)*-0.05), "%+.0f%%"%v,
+                         ha="center", fontsize=10, fontweight="bold")
+            ax7.axhline(0,color="#888",lw=0.9)
+            ax7.set_ylim(min(0,min(lv)*1.2), max(lv)*1.22)
+            ax7.set_xticks(range(len(ln))); ax7.set_xticklabels(ln,fontsize=7.5)
+            ax7.set_title("⑩ 선행지표 1년 성과 — 수요처(엔비디아) vs 공급자(마이크론)",fontsize=13,fontweight="bold")
+            ax7.set_ylabel("%",fontsize=9); _style(ax7)
+        else:
+            ax7.set_visible(False)
+    _cap(ax7,"[실측] Yahoo Finance 1년 일별(지수화 100) · SOX=업황 · NVDA·AMD=수요처 · TSM=CoWoS 병목 · MU=공급자 · %s\n     공급자(MU, 굵은 주황)가 수요처(NVDA, 굵은 파랑)를 크게 앞서면 = 메모리가 협상력을 쥔 공급부족 국면"%CAD.get("lead",""))
 
     # ⑪ 메모리/GPU 상대강도 — 가치 이동 신호 (누적 2일↑이면 추세선)
     ax8=fig.add_subplot(gs[5,0])
@@ -302,7 +455,7 @@ else:
         ax8.set_visible(False)
     if len(rser)>=2: ax8.set_ylabel("배",fontsize=9)
     _style(ax8)
-    _cap(ax8,"[계산] 1년 상승률 비율. 1 초과 = 가치가 수요처(GPU)→공급자(메모리)로 이동 = 공급부족 심화\n     꺾이기 시작하면 공급부족 완화 = 사이클 고점 경계 신호")
+    _cap(ax8,"[계산] 1년 상승률 비율. 1 초과 = 가치가 수요처(GPU)→공급자(메모리)로 이동 = 공급부족 심화 · %s\n     꺾이기 시작하면 공급부족 완화 = 사이클 고점 경계 신호"%CAD.get("rs",""))
 
     OUT="charts/hbm_dashboard.png"
     os.makedirs("charts",exist_ok=True)

@@ -707,6 +707,41 @@ m['macro'] = macro
 _pr = L('nmr_policyrates.json')
 if isinstance(_pr, dict) and _pr.get('policy_rates'):
     (macro.setdefault('rates', {}))['policy_rates'] = _pr['policy_rates']
+    # (req2 2026-07-17) 정책금리 결정이력(monthly) upsert — 그래프 소스(nmr_policyrates_monthly.json)에
+    #   신규 결정을 추가하는 로직이 없어 표(실측)와 그래프가 어긋났다(실측: 한국 7/16 2.75% 인상 미반영).
+    #   각국 실측 {rate, asof(결정일)} 를 series 에 upsert 하고 current 를 갱신, 영구본에 저장한다.
+    try:
+        import re as _reP
+        _prm = LCF('nmr_policyrates_monthly.json') or {}
+        _ser = _prm.setdefault('series', {}); _cur = _prm.setdefault('current', {})
+        _chg = 0
+        for _row in _pr['policy_rates']:
+            _c = str(_row.get('country') or '').strip()
+            _map = {'미국': '미국', 'US': '미국', '한국': '한국', '일본': '일본', '중국': '중국',
+                    '유로존': '유로존', '영국': '영국'}
+            _c = next((_map[k] for k in _map if k in _c), None)
+            if not _c:
+                continue
+            _rt_s = str(_row.get('rate') or '')
+            _nums = [float(x) for x in _reP.findall(r'\d+\.?\d*', _rt_s)]
+            if not _nums:
+                continue
+            _rv = _nums[-1] if _c == '미국' else _nums[0]  # 미국=목표범위 상단
+            _ao = str(_row.get('asof') or '')[:10]
+            if not _reP.match(r'^\d{4}-\d{2}-\d{2}$', _ao):
+                continue
+            _sl = _ser.setdefault(_c, [])
+            if not any(str(p[0])[:10] == _ao for p in _sl):
+                if (not _sl) or abs(float(_sl[-1][1]) - _rv) > 1e-9:
+                    _sl.append([_ao, _rv]); _sl.sort(key=lambda p: str(p[0])); _chg += 1
+            if _cur.get(_c) != _rv:
+                _cur[_c] = _rv; _chg += 1
+        if _chg:
+            _prm['updated'] = RD_ISO[:10]
+            json.dump(_prm, open(os.path.join(_CWROOT, 'nmr_policyrates_monthly.json'), 'w'), ensure_ascii=False)
+            print('  [req2] 정책금리 monthly upsert:', _chg, '건 반영(그래프 소스 최신화)')
+    except Exception as _pe:
+        print('  [req2] 정책금리 monthly upsert skip(비차단):', repr(_pe)[:60])
 # (REQ6/REQ5) 1년 금리차 차트·美10년물 실측 스파크 경로(생성 시 사용, 없으면 빌더가 자동 생략)
 _rt = macro.get('rates') or {}
 if isinstance(_rt.get('yield_curve'), dict): _rt['yield_curve']['chart'] = 'charts/macro_curve_1y.png'
@@ -843,7 +878,43 @@ def _ir_norm(_ir):
     return _ir
 try: _rbu = _ir_norm(dict(_rbu))
 except Exception as _ire: print('  [ir_norm] skip:', _ire)
-m['index_rebalance'] = {k: v for k, v in _rbu.items() if k != 'latest_change_date'}
+# (req8 2026-07-17) 리밸런싱 정규화 — 에이전트 산출 변형 스키마가 3.3.2 를 '-' 투성이로 깨뜨리는 것 방지:
+#   ① schedule 의 전부 빈('-'/공백) 행 드롭, 값 없이 note 만 있는 행은 불릿 문자열로 변환
+#   ② rule_change.rows 의 content/desc 키를 빌더가 읽는 detail 로 매핑
+#   ③ candidates 가 상태(status)만 있으면 {name,note} 2열형으로 변환(빈 '-' 4열표 방지)
+def _rebal_canon(r):
+    _e = lambda x: (x is None) or (str(x).strip() in ('', '-'))
+    for _ix in ('sp500', 'nasdaq100'):
+        _b = r.get(_ix)
+        if not isinstance(_b, dict):
+            continue
+        _sch = _b.get('schedule')
+        if isinstance(_sch, list):
+            _o = []
+            for _s in _sch:
+                if isinstance(_s, str):
+                    if _s.strip(): _o.append(_s)
+                    continue
+                if not isinstance(_s, dict):
+                    continue
+                _core = [_s.get('q') or _s.get('cycle') or _s.get('quarter'), _s.get('announce'), _s.get('effective')]
+                if all(_e(x) for x in _core):
+                    if not _e(_s.get('note')): _o.append(str(_s.get('note')))
+                    continue
+                _o.append(_s)
+            _b['schedule'] = ([x for x in _o if isinstance(_o[0], str)] if (_o and all(isinstance(x, str) for x in _o)) else _o)
+        _rc = _b.get('rule_change')
+        if isinstance(_rc, dict) and isinstance(_rc.get('rows'), list):
+            for _rw in _rc['rows']:
+                if isinstance(_rw, dict) and _e(_rw.get('detail')) and _e(_rw.get('change')):
+                    for _k2 in ('content', 'desc', 'description', 'summary'):
+                        if not _e(_rw.get(_k2)):
+                            _rw['detail'] = _rw[_k2]; break
+        _cd = _b.get('candidates')
+        if isinstance(_cd, list) and _cd and all(isinstance(c, dict) and _e(c.get('biz')) and _e(c.get('valuation')) for c in _cd):
+            _b['candidates'] = [{'name': c.get('name'), 'note': (c.get('status') or c.get('note') or '')} for c in _cd]
+    return r
+m['index_rebalance'] = _rebal_canon({k: v for k, v in _rbu.items() if k != 'latest_change_date'})
 
 crd = dict(cr); crd['charts'] = {'btc': 'charts/coin_btc.png', 'eth': 'charts/coin_eth.png', 'xrp': 'charts/coin_xrp.png', 'sol': 'charts/coin_sol.png', 'fng': 'charts/fng_1y.png'}
 # (fix) 김치프리미엄 coins[] 구성 (빌더는 kimchi_premium.coins[{symbol,u,b,pp,status}] 필요) — 6.3 미표시 문제

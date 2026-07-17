@@ -676,6 +676,8 @@ function renderHY(){ const m=data.markets||{};
     const _svHY=((data.markets||{}).server_notes||{}).hy; if(_svHY) children.push(p(_svHY,{size:15,italics:true,color:"7C3AED"}));
     children.push(p("의미: 하이일드 스프레드(HY Spread)는 고위험 회사채 수익률과 미국 국채 수익률의 차이로, 시장이 신용위험을 얼마나 크게 보는지 보여주는 지표.",{italics:true,color:"64748B"}));
     children.push(p("시장영향: HY Spread 확대 = 신용불안·리스크오프·주식 약세 압력, HY Spread 축소 = 신용정상화·리스크온·주식 회복 기대.",{italics:true,color:"64748B"}));
+    // (req1 2026-07-17) 출처·관측 기준일 명시 — FRED 관측치는 T+1 공표라 기준일이 실행일과 다르다
+    children.push(fsLink("출처 · FRED BAMLH0A0HYM2 (ICE BofA US High Yield Index Option-Adjusted Spread) · 관측 기준일 "+String(c.asof||"-")+" (FRED T+1 공표 — 최신 관측일 기준)","https://fred.stlouisfed.org/series/BAMLH0A0HYM2"));
     // (req1 2026-07-12) OAS 레벨 표 제거 — 차트+현재값 코멘트만 유지.
     if(c.current!=null)children.push(p("현재 OAS: "+Number(c.current).toFixed(2)+"%",{bold:true,size:20}));
     const img=imagePara(c.chart||"charts/hy_oas.png",480,173); if(img)children.push(img);
@@ -1423,7 +1425,7 @@ if (data.crypto) {
   if (Array.isArray(c.top_gainers) && c.top_gainers.length) {
     children.push(h("6.4 24h Top Gainers / Losers",2)); const g=(c.top_gainers||[]).slice(0,5),l=(c.top_losers||[]).slice(0,5),mx=Math.max(g.length,l.length);
     const gr=[["순위","Top Gainer","변동","Top Loser","변동"]];
-    for(let i=0;i<mx;i++){ const _gp=g[i]?(g[i].change_pct!=null?g[i].change_pct:g[i].change_percent):null; const _lp=l[i]?(l[i].change_pct!=null?l[i].change_pct:l[i].change_percent):null; gr.push([String(i+1),g[i]?(g[i].symbol||g[i].name||"-"):"-",g[i]?fmtPct(_gp):"-",l[i]?(l[i].symbol||l[i].name||"-"):"-",l[i]?fmtPct(_lp):"-"]); }
+    for(let i=0;i<mx;i++){ const _gp=g[i]?(g[i].change_pct!=null?g[i].change_pct:(g[i].change_percent!=null?g[i].change_percent:g[i].change_24h)):null; const _lp=l[i]?(l[i].change_pct!=null?l[i].change_pct:(l[i].change_percent!=null?l[i].change_percent:l[i].change_24h)):null; /* (req9 2026-07-17) CryptoAgent 표준키 change_24h 폴백 */ gr.push([String(i+1),g[i]?(g[i].symbol||g[i].name||"-"):"-",g[i]?fmtPct(_gp):"-",l[i]?(l[i].symbol||l[i].name||"-"):"-",l[i]?fmtPct(_lp):"-"]); }
     children.push(makeTable([1000,2400,1900,2400,1660],gr.map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc,{width:[1000,2400,1900,2400,1660][j],header:i===0,alt:i>0&&i%2===0,align:AlignmentType.CENTER,color:(j===2&&i>0)?positiveColor:(j===4&&i>0)?negativeColor:undefined}))})))); }
 
 }
