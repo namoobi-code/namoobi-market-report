@@ -4,7 +4,7 @@
 # 사용: python3 merge.py [WORK_DIR] [REPORT_DATE_YYYYMMDD]
 #   WORK_DIR 없으면 cwd. REPORT_DATE 없으면 env NMR_DATE 또는 오늘(KST).
 #   mode 는 env NMR_MODE(scheduled/normal) 또는 'normal'.
-import json, os, sys, glob, datetime as dt
+import json, os, re, sys, glob, datetime as dt
 
 W = sys.argv[1] if (len(sys.argv) > 1 and os.path.isdir(sys.argv[1])) else '.'
 KST = dt.timezone(dt.timedelta(hours=9))
@@ -868,11 +868,24 @@ def _ir_norm(_ir):
                 continue
             _ev.append({'title': (' · '.join(x for x in [str(_e.get('date', '') or _e.get('quarter', '') or _e.get('period', '')), str(_e.get('type', ''))] if x) or '변경 내역'),
                         'effective': _e.get('effective') or _e.get('effective_date') or '',
-                        'add': _e.get('in') or _e.get('additions') or _e.get('adds') or [],
-                        'remove': _e.get('out') or _e.get('deletions') or _e.get('drops') or _e.get('removes') or [],
+                        'add': _e.get('in') or _e.get('additions') or _e.get('adds') or _e.get('added') or [],
+                        'remove': _e.get('out') or _e.get('deletions') or _e.get('drops') or _e.get('removes') or _e.get('removed') or [],
                         'note': _e.get('note', '')})
         for _d in sorted(_ord, reverse=True): _ev.append(_grp[_d])
         if _ev: _b['events'] = _ev
+        # (fix 2026-07-17) 타입 가드 — 에이전트가 문자열/dict/list 로 준 필드를 빌더 스키마로:
+        #  schedule 이 str 이면 종전 루프가 '글자 단위'로 순회해 한 글자짜리 불릿 수백 개를 양산(페이지 전체가 세로 글자 — 근본원인)
+        _sch0 = _b.get('schedule')
+        if isinstance(_sch0, str):
+            _b['schedule'] = [x.strip() for x in re.split(r'(?<=[.。])\s+', _sch0) if x.strip()]
+        _cr0 = _b.get('criteria')
+        if isinstance(_cr0, dict):   # dict 면 Array.isArray 실패로 '편입 기준' 섹션이 통째로 생략되던 문제
+            _b['criteria'] = [{'item': str(_k3), 'detail': str(_v3)} for _k3, _v3 in _cr0.items()]
+        elif isinstance(_cr0, str):
+            _b['criteria'] = [x.strip() for x in re.split(r'(?<=[.。])\s+', _cr0) if x.strip()]
+        _cn0 = _b.get('criteria_note')
+        if isinstance(_cn0, list):   # list 면 String() 이 콤마로 뭉쳐 찍히던 문제
+            _b['criteria_note'] = '  ◦ '.join(str(x) for x in _cn0 if str(x).strip())
         _ns = []
         for _s0 in (_b.get('schedule') or []):
             if isinstance(_s0, dict):
