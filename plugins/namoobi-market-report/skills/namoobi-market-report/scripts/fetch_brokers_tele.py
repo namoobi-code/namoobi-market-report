@@ -61,8 +61,63 @@ def fetch_firm(item):
     msgs = msgs[-N:]
     return key, {'label': label, 'channels': handles, 'asof': (msgs[-1]['datetime'][:10] if msgs else ''), 'recent': msgs}
 
+# ── (v3.66) KB·NH — 텔레그램 부적합(KB=봇/비공개·NH=전 채널 초대링크)이라 공개 홈페이지 수집 ──
+def _get(url, enc='utf-8'):
+    return urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}),
+                                  timeout=15).read().decode(enc, 'replace')
+
+def fetch_kb():
+    """KB증권 '오늘의 리서치' rc.kbsec.com/today/index.able — 로그인 無.
+    모닝/마감코멘트(데일리 시황) + 당일 발간 리포트 제목 전체."""
+    try:
+        h = _get('https://rc.kbsec.com/today/index.able')
+        body = re.sub(r'<script[\s\S]*?</script>', ' ', h)
+        txt = strip(body)
+        md = re.search(r'(20\d\d)년\s*(\d{1,2})월\s*(\d{1,2})일', txt)
+        asof = f"{md.group(1)}-{int(md.group(2)):02d}-{int(md.group(3)):02d}" if md else ''
+        items = re.findall(r'\[([^\[\]]{6,120})\]', txt)
+        seen, recent = set(), []
+        for t in items:
+            t = t.strip()
+            if t in seen or t.startswith('KB증권') or '이용안내' in t: continue
+            seen.add(t)
+            recent.append({'datetime': asof, 'title': t[:80], 'text': t[:300]})
+        return 'kb', {'label': 'KB증권', 'channels': ['rc.kbsec.com/today (오늘의 리서치 · 공개)'],
+                      'asof': asof, 'recent': recent[:max(N, 8)]}
+    except Exception as e:
+        return 'kb', {'label': 'KB증권', 'channels': ['rc.kbsec.com/today'], 'asof': '', 'recent': [], 'err': str(e)[:80]}
+
+def fetch_nh():
+    """NH투자증권 모바일 리서치 목록 — 로그인 無 (EUC-KR).
+    시황·투자전략(rshPprDitCd=02: Global Markets Morning Brief 데일리) + 최신 전체."""
+    recent, seen = [], set()
+    for url in ('https://m.nhqv.com/research/boardList?rshPprDitCd=02',
+                'https://m.nhsec.com/research/newestBoardList'):
+        try:
+            h = _get(url, 'cp949')
+            body = re.sub(r'<script[\s\S]*?</script>', ' ', h)
+            txt = strip(body)
+            # "제목 저자 2026.07.16" 패턴 — 날짜 앞의 제목 블록 추출
+            for m in re.finditer(r'([가-힣A-Za-z0-9\[\]〔〕《》()/&·%~+,.\'" \-]{8,110}?)\s+([가-힣]{2,4})?\s*(20\d\d\.\d{2}\.\d{2})', txt):
+                t = m.group(1).strip(' -·')
+                d = m.group(3).replace('.', '-')
+                if len(t) < 8 or t in seen or '로그' in t or '검색' in t: continue
+                seen.add(t)
+                recent.append({'datetime': d, 'title': t[:80], 'text': t[:300]})
+        except Exception:
+            pass
+    recent.sort(key=lambda m: m['datetime'])
+    recent = recent[-max(N, 8):]
+    return 'nh', {'label': 'NH투자증권', 'channels': ['m.nhqv.com/research (시황·전략 · 공개)', 'm.nhsec.com/research (최신 전체 · 공개)'],
+                  'asof': (recent[-1]['datetime'][:10] if recent else ''), 'recent': recent}
+
 with ThreadPoolExecutor(max_workers=4) as ex:  # 동시성 완화로 텔레그램 throttle 회피
     res = dict(ex.map(fetch_firm, FIRMS.items()))
+for fn in (fetch_kb, fetch_nh):   # (v3.66) KB·NH 공개 홈페이지 수집 — 실패해도 비차단(빈 recent)
+    try:
+        k, v = fn(); res[k] = v
+    except Exception as _e:
+        print('web-broker fail:', fn.__name__, _e)
 json.dump(res, open('nmr_brokers_tele.json', 'w'), ensure_ascii=False)
 miss = [k for k, v in res.items() if not v['recent']]
 for k, v in res.items():

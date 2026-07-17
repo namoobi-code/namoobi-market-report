@@ -1482,9 +1482,9 @@ if (data.crypto) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("7. 한국 주요 증권사 리서치",1));
-const secLabels={samsung:"삼성증권",miraeasset:"미래에셋증권",korea_inv:"한국투자증권",shinhan:"신한투자증권",kiwoom:"키움증권",meritz:"메리츠증권",hana:"하나증권",kyobo:"교보증권",yuanta:"유안타증권",hyundai:"현대차증권"};
-const secVF={shinhan:["asset_allocation_view","자산배분 시각"],miraeasset:["etf_emerging_view","ETF·신흥국 시각"],samsung:["derivatives_view","파생·선물 시각"],korea_inv:["ib_china_view","IB·중국 시각"],kiwoom:["global_etf_view","글로벌 ETF·신흥국 시각"],meritz:["sector_view","섹터·반도체 시각"],hana:["china_view","중국·글로벌 시각"],kyobo:["bond_view","채권·매크로 시각"],yuanta:["daily_view","데일리 섹터 시각"],hyundai:["industrial_view","산업·방산 시각"]};
-const coreSet=new Set(["samsung","miraeasset","korea_inv","shinhan","kiwoom","meritz"]);
+const secLabels={kb:"KB증권",nh:"NH투자증권",samsung:"삼성증권",miraeasset:"미래에셋증권",korea_inv:"한국투자증권",shinhan:"신한투자증권",kiwoom:"키움증권",meritz:"메리츠증권",hana:"하나증권",kyobo:"교보증권",yuanta:"유안타증권",hyundai:"현대차증권"};
+const secVF={kb:["strategy_view","시황·투자전략 시각"],nh:["global_strategy_view","글로벌 전략·시황 시각"],shinhan:["asset_allocation_view","자산배분 시각"],miraeasset:["etf_emerging_view","ETF·신흥국 시각"],samsung:["derivatives_view","파생·선물 시각"],korea_inv:["ib_china_view","IB·중국 시각"],kiwoom:["global_etf_view","글로벌 ETF·신흥국 시각"],meritz:["sector_view","섹터·반도체 시각"],hana:["china_view","중국·글로벌 시각"],kyobo:["bond_view","채권·매크로 시각"],yuanta:["daily_view","데일리 섹터 시각"],hyundai:["industrial_view","산업·방산 시각"]};
+const coreSet=new Set(["kb","nh","samsung","miraeasset","korea_inv","shinhan","kiwoom","meritz"]);  // (v3.66) KB·NH 핵심 승격 — 2026 상반기 베스트 증권사 1·2위(한경비즈니스)
 if (data.securities) { let idx=0;
   for(const key of Object.keys(secLabels)){ const sec=data.securities[key]; if(!sec||!coreSet.has(key))continue; idx++;
     children.push(h(`7.${idx} ${secLabels[key]}`,2));
