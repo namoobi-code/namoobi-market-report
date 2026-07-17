@@ -408,22 +408,44 @@ def ingest_server_close(con):
         tk = _os.path.join(_tf.gettempdir(), "nmr_dk_pull")
         _sh.copy(key, tk); _os.chmod(tk, 0o600)
         r = _sp.run(["ssh", "-i", tk, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
-                     "ubuntu@141.147.160.13", "cat ~/namoobi/data/kis_close.json 2>/dev/null"],
+                     "ubuntu@141.147.160.13",
+                     "cat ~/namoobi/data/kis_close.json 2>/dev/null; echo __NMRSEP__; cat ~/namoobi/data/us_options_close.json 2>/dev/null"],
                     capture_output=True, text=True, timeout=30)
         try:
             _os.unlink(tk)
         except Exception:
             pass
-        if r.returncode != 0 or not (r.stdout or "").strip():
+        part_kr, part_us = ((r.stdout or "").split("__NMRSEP__") + [""])[:2]
+        # ── 미국 옵션 서버 캡처 병합(2026-07-17): yfinance 옵션체인은 백필 불가 —
+        #    PC 미실행일의 options_daily 공백을 서버 cron(06:40 KST)이 메운 것을 INSERT OR IGNORE 로 흡수.
+        nus = 0
+        try:
+            for row in (_json.loads(part_us).get("rows") or []):
+                cur = con.execute("SELECT 1 FROM options_daily WHERE id=? AND date=?",
+                                  (row.get("id"), row.get("date"))).fetchone()
+                if cur:
+                    continue
+                con.execute("""INSERT OR IGNORE INTO options_daily
+                               (id,date,expiry_used,dte,pcr_oi,pcr_vol,iv_atm,iv_skew_25d,delta_imbalance,gex)
+                               VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                            tuple(row.get(k) for k in ("id","date","expiry_used","dte","pcr_oi","pcr_vol",
+                                                        "iv_atm","iv_skew_25d","delta_imbalance","gex")))
+                nus += 1
+            if nus:
+                con.commit()
+                print(f"  [US옵션 서버캡처] 공백 {nus}행 병합(options_daily)")
+        except Exception as _ue:
+            print("  [US옵션 서버캡처] skip(비차단):", repr(_ue)[:50])
+        if r.returncode != 0 or not part_kr.strip():
             print("  [KIS 서버마감] 서버 캡처본 없음 — skip")
-            return 0
-        d = _json.loads(r.stdout)
+            return nus
+        d = _json.loads(part_kr)
     except Exception as e:
         print("  [KIS 서버마감] skip(비차단):", repr(e)[:60])
         return 0
     date = d.get("date")
     if not date:
-        return 0
+        return nus
     con.execute("""INSERT INTO kr_derivatives_daily(id,date,pcr_vol,iv_skew_25d,gex,oi,vkospi)
                    VALUES(?,?,?,?,?,?,?)
                    ON CONFLICT(id,date) DO UPDATE SET
@@ -435,8 +457,8 @@ def ingest_server_close(con):
                 (KID, date, d.get("pcr_vol"), d.get("iv_skew"), d.get("gex"), d.get("oi"), d.get("vkospi")))
     con.commit()
     print(f"  [KIS 서버마감] {date} 병합 — PCR(Vol) {d.get('pcr_vol')} · IV스큐 {d.get('iv_skew')} · GEX {d.get('gex')} · VKOSPI {d.get('vkospi')}")
-    log(con, "ingest_server_close", 1)
-    return 1
+    log(con, "ingest_server_close", 1 + nus)
+    return 1 + nus
 
 
 def ingest_vkospi_cnbc(con):
