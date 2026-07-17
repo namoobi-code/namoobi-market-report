@@ -1271,7 +1271,7 @@ function renderDerivPositioning(){ const m=data.markets||{};
       cell(r.ret5||"-",{width:iw[3],alt:a,size:15,align:AlignmentType.CENTER})]}));});
     children.push(makeTable(iw,ir)); }
   children.push(p("② 지표별 현재값 · z-스코어  (굵은 셀=|z|≥1.5 신호; 파랑=양수·빨강=음수)",{bold:true,size:18,color:"1E40AF",before:120}));
-  children.push(p("※ z 공란 안내 — 풋콜비율·IV 스큐·딜러 감마(GEX)는 옵션 체인의 과거 스냅샷이 공개 소스에 존재하지 않아 2026-07-11 수집 개시분부터 자체 누적 중이며, 롤링 60거래일(약 3개월)이 쌓이는 2026년 10월경부터 z-스코어가 자동 산출된다. 그때까지 해당 칸은 현재값 + 'z making'(누적 진행 중)으로 표시. 한국 외국인·기관 수급 z 도 주간 이력 누적 후 순차 산출. N/A = 해당 지수에서 조사 불가 항목(KOSPI200 옵션 지표는 행사가 커버리지 한계로 VKOSPI 로 대체, VKOSPI 는 한국 전용 — 미국은 VIX).",{size:14,italics:true,color:"94A3B8"}));
+  children.push(p("※ z 공란 안내 — KOSPI200 풋콜비율·IV 스큐·딜러 감마(GEX)는 KRX 지수옵션 일별통계(drv/opt_bydd_trd, IV·OI 전 행사가)로 롤링 60거래일 백필 완료(2026-07-17, deriv_signals/backfill_kr_opt.py)되어 z-스코어가 산출된다. 미국(SPX·NDX) 옵션 지표는 과거 체인의 무료 소스가 없어(KIS·네이버 포함 재검토 결과 불가) 2026-07-11 수집 개시분부터 자체 누적 중 — 60거래일이 쌓이는 2026년 10월경부터 z 자동 산출(그때까지 현재값 + 'z making' 표시). 한국 외국인·기관 수급 z 도 주간 이력 누적 후 순차 산출. N/A = 해당 지수에서 조사 불가 항목(VKOSPI 는 한국 전용 — 미국은 VIX).",{size:14,italics:true,color:"94A3B8"}));
   const zw=[2760,2200,2200,2200]; const zr=[hdrRow(["지표","S&P 500","Nasdaq 100","KOSPI200"],zw)];
   const fz=(c)=>{ const z=(c&&c.z!=null&&!isNaN(c.z))?Number(c.z):null; const sig=(z!=null&&Math.abs(z)>=1.5);
     const hasV=c&&c.v!=null&&!["-","—",""].includes(String(c.v).trim());
