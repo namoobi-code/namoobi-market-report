@@ -517,6 +517,22 @@ def _macro_canon(macro):
         _r['us2y'] = {'current': 4.07, 'trend': '정책금리 기대 반영'}
     # [req11] 장단기 금리차(10Y-2Y) 정규화 — label·status·meaning·impact·note 항상 완전(빈값/undefined 방지)
     _yc = _r.get('yield_curve') if isinstance(_r.get('yield_curve'), dict) else {}
+    # (2차 req2 2026-07-18) 현재값 = 차트와 같은 DB 시계열의 마지막 점 — 조사시점 차이로
+    # 본문 수치와 그래프가 어긋나던 문제. 시계열이 있으면 그것이 항상 우선한다.
+    try:
+        import nmr_db as _ndb_yc
+        _dbd = _ndb_yc._dbdir()
+        def _last(name):
+            _p = os.path.join(_dbd, name + '.json')
+            _a = (json.load(open(_p, encoding='utf-8')) or {}).get('data') or []
+            return float(_a[-1][1]) if _a else None
+        _s10, _s2, _scv = _last('series_us10y_daily'), _last('series_us2y_daily'), _last('series_curve_10_2')
+        if _scv is not None:
+            _yc['spread'] = round(_scv, 2)
+        if _s10 is not None and isinstance(_r.get('us10y'), dict): _r['us10y']['current'] = round(_s10, 2)
+        if _s2 is not None and isinstance(_r.get('us2y'), dict): _r['us2y']['current'] = round(_s2, 2)
+    except Exception:
+        pass
     try: _sp = float(_yc['spread']) if _yc.get('spread') is not None else round(float(_r['us10y']['current'])-float(_r['us2y']['current']),2)
     except Exception: _sp = _yc.get('spread')
     if _sp is not None: _yc['spread'] = _sp
@@ -1214,6 +1230,26 @@ try:
     print('  [DB] 비매일 섹션 동기화: inflation/employment/policy_rates/fomc_meetings/dot_plot/leading/oecd_cli/customs/semi_cycle/memory/capex -> db/')
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)
+# (2차 req10 2026-07-18) 7.7 네이버 금융리서치 모음 — 서버 broker_reports DB(recent 2일치) 주입
+try:
+    import nmr_db as _ndb_br
+    _brd = json.load(open(os.path.join(_ndb_br._dbdir(), 'broker_reports.json'), encoding='utf-8'))
+    if isinstance(sec, dict) and _brd.get('recent'):
+        sec['naver_research'] = {'recent': _brd['recent'], 'as_of': _brd.get('as_of', '')}
+        _map = {'kb': 'KB증권', 'nh': 'NH투자증권', 'samsung': '삼성증권', 'miraeasset': '미래에셋증권',
+                'korea_inv': '한국투자증권', 'meritz': '메리츠증권'}
+        _byb = {f.get('broker'): f.get('reports') or [] for f in (_brd.get('firms') or [])}
+        _frm = sec.get('firm') if isinstance(sec.get('firm'), dict) else sec
+        for _k, _nm in _map.items():
+            _e = _frm.get(_k)
+            if isinstance(_e, dict) and _byb.get(_nm):
+                _kr = _e.get('key_reports') or []
+                if not _kr or not any((isinstance(x, dict) and x.get('url')) for x in _kr):
+                    _e['key_reports'] = [{'title': r['title'], 'url': r['url'], 'date': r.get('date', '')}
+                                         for r in _byb[_nm][:4]]
+except Exception:
+    pass
+
 data = {'report_date': RD_ISO,
         'metadata': {'report_date': RD_ISO, 'generated_at': now.strftime('%Y-%m-%d %H:%M KST'), 'mode': MODE},
         'news': news, 'markets': m, 'commodities': com, 'crypto': crd, 'analysis': an,

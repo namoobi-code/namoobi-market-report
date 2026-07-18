@@ -636,9 +636,10 @@ function renderCapex(){ const m=data.markets||{};
   if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.1.8 AI 빅테크 자본지출(CAPEX)",3));
     if(Array.isArray(cx.change_log)&&cx.change_log.length){ children.push(p("■ CAPEX 변동 이력 (매일 체크 · 변경분):",{bold:true,size:14,color:"DC2626"})); cx.change_log.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); }
     // (v3.35) 기업별 4행: CAPEX / 매출 / Capex매출 / FCF — 표값으로 두 차트 구동
-    // (req5 2026-07-18) 2028~29 는 API 로 매일 동일하게 받을 수 없는 추정이라 제거.
-    // 실적 2022~2025 + 가이던스/컨센서스 2026~27E — 홈피(db/capex.json) 표와 동일 구간.
-    const YR0=["2022","2023","2024","2025","2026","2027"]; const HD0=["2022","2023","2024","2025","2026E","2027E"];
+    // (2차 req32 2026-07-18) 공식 출처(가이던스·컨센서스)가 확인된 연도만 표시 —
+    // 2028~29 는 값이 있으면 그리고, 없으면 _keep 로직이 컬럼을 통째로 드롭한다. 추정치 임의 기입은 금지.
+    const YR0=["2022","2023","2024","2025","2026","2027","2028","2029"];
+    const HD0=["2022","2023","2024","2025","2026E","2027E","2028E","2029E"];
     // (req8) 핵심지표(CAPEX/FCF) 전무한 (전망)연도 컬럼 드롭 + 확인불가/미확인/미공개 정규화
     const _bad=(t)=>t.includes("확인불가")||t.includes("미확인")||t.includes("미공개");
     const _cellHas=(v)=>{const t=(v==null?"":String(v)).trim();return t!==""&&t!=="-"&&!_bad(t);};
@@ -649,7 +650,7 @@ function renderCapex(){ const m=data.markets||{};
     const num=(v)=>{let t=(v===null||v===undefined||v==="")?"-":(typeof v==="number"?(Number.isInteger(v)?String(v):v.toFixed(1)):String(v));return _bad(String(t))?"-":t;};
     const rows=[hdrRow(["항목 (십억 $)"].concat(HD),w)];
     cx.rows.forEach((r,ci)=>{ const a=ci%2===1;
-      rows.push(new TableRow({children:[cell(r.company||"-",{width:w[0],alt:a,bold:true})].concat(
+      rows.push(new TableRow({children:[cell((r.company||"-")+" · CAPEX",{width:w[0],alt:a,bold:true})].concat(  // (2차 req6) 첫 행이 CAPEX 값임을 명시
         YR.map((y,j)=>cell(num(r["y"+y]),{width:w[1+j],alt:a,align:AlignmentType.CENTER,bold:true})))}));
       rows.push(new TableRow({children:[cell("   └ 매출",{width:w[0],alt:a,size:16,color:"475569"})].concat(
         YR.map((y,j)=>cell(num(r["rev"+y]),{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16})))}));
@@ -1497,7 +1498,7 @@ children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("7. 한국 주요 증권사 리서치",1));
 const secLabels={kb:"KB증권",nh:"NH투자증권",samsung:"삼성증권",miraeasset:"미래에셋증권",korea_inv:"한국투자증권",shinhan:"신한투자증권",kiwoom:"키움증권",meritz:"메리츠증권",hana:"하나증권",kyobo:"교보증권",yuanta:"유안타증권",hyundai:"현대차증권"};
 const secVF={kb:["strategy_view","시황·투자전략 시각"],nh:["global_strategy_view","글로벌 전략·시황 시각"],shinhan:["asset_allocation_view","자산배분 시각"],miraeasset:["etf_emerging_view","ETF·신흥국 시각"],samsung:["derivatives_view","파생·선물 시각"],korea_inv:["ib_china_view","IB·중국 시각"],kiwoom:["global_etf_view","글로벌 ETF·신흥국 시각"],meritz:["sector_view","섹터·반도체 시각"],hana:["china_view","중국·글로벌 시각"],kyobo:["bond_view","채권·매크로 시각"],yuanta:["daily_view","데일리 섹터 시각"],hyundai:["industrial_view","산업·방산 시각"]};
-const coreSet=new Set(["kb","nh","samsung","miraeasset","korea_inv","shinhan","kiwoom","meritz"]);  // (v3.66) KB·NH 핵심 승격 — 2026 상반기 베스트 증권사 1·2위(한경비즈니스)
+const coreSet=new Set(["kb","nh","samsung","miraeasset","korea_inv","meritz"]);  // (2차 req10 2026-07-18) 6사 확정 — 신한·키움·기타 제거, 7.7=네이버 금융리서치 모음
 if (data.securities) { let idx=0;
   for(const key of Object.keys(secLabels)){ const sec=data.securities[key]; if(!sec||!coreSet.has(key))continue; idx++;
     children.push(h(`7.${idx} ${secLabels[key]}`,2));
@@ -1507,8 +1508,24 @@ if (data.securities) { let idx=0;
     const vf=secVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${viewText(sec[vf[0]])}`,{color:"0F766E"}));
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 리포트:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
     else children.push(p("(리포트 수집 실패 - 사이트 접근 제한)",{italics:true,color:"94A3B8"})); }
-  const others=Object.keys(secLabels).filter(k=>!coreSet.has(k)&&data.securities[k]);
-  if(others.length){ idx++; children.push(h(`7.${idx} 기타 증권사 (핵심 메시지 요약)`,2)); others.forEach(key=>{ const sec=data.securities[key]; const km=viewText(sec.key_message)||"(수집)"; children.push(p(`${secLabels[key]}: ${km}`)); }); }
+  // (2차 req10) 기타 증권사 요약 폐지 → 7.7 네이버 금융리서치 모음 (서버 DB, 최근 2일 · 테마별)
+  { const nvr=(data.securities.naver_research||{}).recent;
+    if(nvr&&typeof nvr==="object"){ idx++; children.push(h(`7.${idx} 네이버 금융리서치 모음 (최근 2일 · 테마별)`,2));
+      children.push(p("서버가 매일 2회 네이버 금융 리서치 6개 게시판(시황·투자전략·종목분석·산업분석·경제분석·채권분석)에서 수집 — 제목 클릭 시 원문.",{size:14,color:"64748B"}));
+      for(const [cat,arr] of Object.entries(nvr)){ if(!Array.isArray(arr)||!arr.length) continue;
+        children.push(p("■ "+cat+" ("+arr.length+"건)",{bold:true,size:20,color:"1E40AF",before:120}));
+        const w=[1400,1800,4200,1680]; const rows=[hdrRow(["작성일","증권사","제목","비고"],w)];
+        arr.slice(0,14).forEach((it,i)=>rows.push(new TableRow({children:[
+          cell((it.date||"").slice(5),{width:w[0],alt:i%2===0,align:AlignmentType.CENTER,size:15}),
+          cell(it.broker||"",{width:w[1],alt:i%2===0,size:15}),
+          new TableCell({borders,width:{size:w[2],type:WidthType.DXA},shading:i%2===0?altShading:undefined,
+            margins:{top:80,bottom:80,left:120,right:120},
+            children:[new Paragraph({children:[ (it.url&&HAS_LINK)
+              ? new ExternalHyperlink({link:String(it.url),children:[new TextRun({text:String(it.title||""),size:15,color:"1D4ED8",underline:{}})]})
+              : new TextRun({text:String(it.title||""),size:15}) ]})]}),
+          cell((it.stock||it.summary||"").slice(0,26),{width:w[3],alt:i%2===0,size:14,color:"64748B"})]})));
+        children.push(makeTable(w,rows)); }
+    } }
   if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ idx++; children.push(h(`7.${idx} 공통 핵심 주제`,2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
   // (7.9 투자자 유형별 추천 조합 — 사용자 요청으로 삭제됨)
 }
