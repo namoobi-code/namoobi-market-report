@@ -45,8 +45,11 @@ def fetch_channel(handle, tries=3):
                 if not mt: continue
                 txt = strip(mt.group(1))
                 if not txt or len(txt) < 8: continue
+                # (2026-07-19) 메시지 퍼머링크 — data-post="handle/12345" → https://t.me/handle/12345
+                dp = re.search(r'data-post="([^"]+)"', b)
+                url = ('https://t.me/' + dp.group(1)) if dp else ('https://t.me/' + handle)
                 out.append({'datetime': (tm.group(1)[:16].replace('T', ' ') if tm else ''),
-                            'title': txt.split('\n', 1)[0][:80], 'text': txt[:300]})
+                            'title': txt.split('\n', 1)[0][:80], 'text': txt[:300], 'url': url})
             if out: return out
         except Exception as e:
             last = str(e)

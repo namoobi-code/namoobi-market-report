@@ -96,6 +96,13 @@ description: |
 8장 IB **(req13)**: 각사에 `rep_pubs: [{title,url,date}]` (대표 발간물 2~3건, 공개 인사이트 페이지 링크) 필수 — 대시보드가 이 필드를 렌더한다.
 12장 **(req15)**: `action_items` 는 배열/사전({short_term,mid_term,long_term}) 모두 빌더 지원 — 비우지 말 것.
 
+### (2026-07-19) 증권사 대표 리포트 링크 — 출처 URL 필수
+`securities.firm[*].key_reports[]` 의 각 항목은 **반드시 `url` 을 채운다**:
+- 텔레그램 수집분: `fetch_brokers_tele.py` 가 이제 메시지 퍼머링크(`https://t.me/<handle>/<id>`)를 `recent[].url` 로 담는다 → 애널 에이전트는 이 url 을 key_reports 에 그대로 옮긴다.
+- NH·KB(공개 홈페이지): 게시물 URL 을 url 로.
+- url 을 못 구하면 비워둔다(빌더·대시보드가 그 증권사 '출처 채널'로 폴백 링크한다). **웹에 없는 제목을 네이버/구글 검색 링크로 거는 것은 금지**(검색해도 안 나와 오해를 준다).
+빌더 reportBullet(r, SRCCH[key]) · 대시보드 houses() 모두 url→직행, 없으면 출처채널(t.me/홈페이지) 링크로 통일.
+
 ## 보고서 품질 기준 (반드시 충족)
 
 생성되는 docx 는 다음 10개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.

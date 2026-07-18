@@ -179,10 +179,17 @@ function bullet(text,opts={}){ return new Paragraph({ numbering:{reference:"bull
 function cellRun(text,opts={}){ return new TextRun({text:String(text),bold:opts.bold||opts.header,size:opts.size??20,color:opts.header?"FFFFFF":opts.color}); }
 function linkRun(text,url,opts={}){ const t=String(text); if(url&&HAS_LINK){ return new ExternalHyperlink({link:String(url),
   children:[new TextRun({text:t,size:opts.size??20,color:"1D4ED8",underline:{}})]}); } return new TextRun({text:t,size:opts.size??20,color:opts.color}); }
-function reportBullet(r){ if(r&&typeof r==='object'){ const title=r.title||r.url||'-'; const dp=r.date?`  (${r.date})`:'';
-  if(r.url&&HAS_LINK){ return new Paragraph({numbering:{reference:"bullets",level:0},spacing:{after:60},
-    children:[new ExternalHyperlink({link:String(r.url),children:[new TextRun({text:String(title),size:22,color:"1D4ED8",underline:{}})]}),
-    new TextRun({text:dp,size:20,color:"64748B"})]}); } return bullet(String(title)+dp); } return bullet(String(r)); }
+// (2026-07-19) 출처 채널 폴백 — 텔레그램 발간물처럼 개별 url 이 없으면 그 증권사 출처 채널로 링크
+const SRCCH={shinhan:"https://t.me/shinhanresearch",kiwoom:"https://t.me/KiwoomResearch",meritz:"https://t.me/meritz_research",
+  hana:"https://t.me/HanaResearch",kyobo:"https://t.me/KyoboRSC",yuanta:"https://t.me/yuantaresearch",hyundai:"https://t.me/hmsecresearch",
+  kb:"https://rc.kbsec.com/today/index.able",nh:"https://m.nhqv.com/research/boardList?rshPprDitCd=02",
+  samsung:"https://www.samsungpop.com/mbw/research.do",miraeasset:"https://securities.miraeasset.com/bbs/board/message/list.do?categoryId=1521",
+  korea_inv:"https://research.truefriend.com"};
+function reportBullet(r,srcCh){ if(r&&typeof r==='object'){ const title=r.title||r.url||'-'; const dp=r.date?`  (${r.date})`:'';
+  const link=r.url||srcCh||''; const tail=r.url?dp:((srcCh?(srcCh.includes("t.me")?"  ✈️채널":"  ↗출처"):"")+dp);
+  if(link&&HAS_LINK){ return new Paragraph({numbering:{reference:"bullets",level:0},spacing:{after:60},
+    children:[new ExternalHyperlink({link:String(link),children:[new TextRun({text:String(title),size:22,color:"1D4ED8",underline:{}})]}),
+    new TextRun({text:tail,size:20,color:"64748B"})]}); } return bullet(String(title)+dp); } return bullet(String(r)); }
 function cell(text,opts={}){ return new TableCell({ borders, width:{size:opts.width,type:WidthType.DXA},
   shading:opts.header?headerShading:(opts.fill?{fill:opts.fill,type:ShadingType.CLEAR,color:"auto"}:(opts.alt?altShading:undefined)), margins:{top:80,bottom:80,left:120,right:120},
   children:[new Paragraph({alignment:opts.align??AlignmentType.LEFT, children:opts.runs||[cellRun(text,opts)]})] }); }
@@ -1506,7 +1513,7 @@ if (data.securities) { let idx=0;
     if(Array.isArray(sec.channels)&&sec.channels.length) children.push(p(`주요 채널: ${sec.channels.join(' / ')}`,{italics:true,color:"475569"}));
     if(sec.key_message) children.push(p(`오늘의 메시지: ${viewText(sec.key_message)}`));
     const vf=secVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${viewText(sec[vf[0]])}`,{color:"0F766E"}));
-    if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 리포트:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
+    if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 리포트:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r,SRCCH[key]))); }
     else children.push(p("(리포트 수집 실패 - 사이트 접근 제한)",{italics:true,color:"94A3B8"})); }
   // (2차 req10) 기타 증권사 요약 폐지 → 7.7 네이버 금융리서치 모음 (서버 DB, 최근 2일 · 테마별)
   { const nvr=(data.securities.naver_research||{}).recent;
@@ -1540,7 +1547,7 @@ if (data.global_securities) { let gi=0;
     if(Array.isArray(sec.channels)&&sec.channels.length) children.push(p(`공개 채널: ${sec.channels.join(' / ')}`,{italics:true,color:"475569"}));
     if(sec.key_message) children.push(p(`오늘의 메시지: ${viewText(sec.key_message)}`));
     const vf=gVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${viewText(sec[vf[0]])}`,{color:"0F766E"}));
-    if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 발간물:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r))); }
+    if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 발간물:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r,SRCCH[key]))); }
     else if(!sec.key_message&&!(gVF[key]&&sec[gVF[key][0]])) children.push(p("(수집 실패 또는 비공개)",{italics:true,color:"94A3B8"})); }
   if(Array.isArray(data.global_securities.common_themes)&&data.global_securities.common_themes.length){ children.push(h("8.6 글로벌 IB 공통 핵심 주제",2)); data.global_securities.common_themes.forEach(t=>children.push(bullet(t))); }
   if(data.global_securities.wall_street_consensus){ var _w=data.global_securities.wall_street_consensus;
