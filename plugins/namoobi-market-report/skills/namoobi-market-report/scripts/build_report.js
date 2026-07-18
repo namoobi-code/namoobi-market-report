@@ -636,7 +636,9 @@ function renderCapex(){ const m=data.markets||{};
   if(m.bigtech_capex&&Array.isArray(m.bigtech_capex.rows)&&m.bigtech_capex.rows.length){ const cx=m.bigtech_capex; children.push(h("3.1.8 AI 빅테크 자본지출(CAPEX)",3));
     if(Array.isArray(cx.change_log)&&cx.change_log.length){ children.push(p("■ CAPEX 변동 이력 (매일 체크 · 변경분):",{bold:true,size:14,color:"DC2626"})); cx.change_log.forEach(t=>children.push(p("• "+t,{size:14,color:"DC2626"}))); }
     // (v3.35) 기업별 4행: CAPEX / 매출 / Capex매출 / FCF — 표값으로 두 차트 구동
-    const YR0=["2024","2025","2026","2027","2028","2029"]; const HD0=["2024","2025","2026E","2027E","2028E","2029E"];
+    // (req5 2026-07-18) 2028~29 는 API 로 매일 동일하게 받을 수 없는 추정이라 제거.
+    // 실적 2022~2025 + 가이던스/컨센서스 2026~27E — 홈피(db/capex.json) 표와 동일 구간.
+    const YR0=["2022","2023","2024","2025","2026","2027"]; const HD0=["2022","2023","2024","2025","2026E","2027E"];
     // (req8) 핵심지표(CAPEX/FCF) 전무한 (전망)연도 컬럼 드롭 + 확인불가/미확인/미공개 정규화
     const _bad=(t)=>t.includes("확인불가")||t.includes("미확인")||t.includes("미공개");
     const _cellHas=(v)=>{const t=(v==null?"":String(v)).trim();return t!==""&&t!=="-"&&!_bad(t);};
@@ -657,10 +659,10 @@ function renderCapex(){ const m=data.markets||{};
         YR.map((y,j)=>{const v=r["fcf"+y];return cell(num(v),{width:w[1+j],alt:a,align:AlignmentType.CENTER,size:16,color:(typeof v==="number"&&v<0)?"DC2626":"0F172A"});}))}));
     });
     children.push(makeTable(w,rows));
-    children.push(p("단위: 십억 달러(USD). CAPEX·매출·FCF 모두 연도별 조사값 — 2024~2025=FMP 실측(capitalExpenditure·revenue·freeCashFlow) · 2026~2029(E)=매출 애널리스트 컨센서스·CAPEX 회사 가이던스·FCF(직전 영업CF×매출성장−CAPEX) 추정. Capex/매출=CAPEX÷매출. ORCL은 FMP 플랜 제한으로 공개치·추정. 아래 두 차트는 이 표값으로 그려집니다.",{size:13,color:"94A3B8"}));
+    children.push(p("단위: 십억 달러(USD). CAPEX·매출·FCF 모두 연도별 조사값 — 2024~2025=FMP 실측(capitalExpenditure·revenue·freeCashFlow) · 2026~2027(E)=매출 애널리스트 컨센서스·CAPEX 회사 가이던스·FCF(직전 영업CF×매출성장−CAPEX) 추정. Capex/매출=CAPEX÷매출. ORCL은 FMP 플랜 제한으로 공개치·추정. 아래 두 차트는 이 표값으로 그려집니다.",{size:13,color:"94A3B8"}));
     if(cx.source_actual) children.push(p("출처(실적 2024·2025): "+cx.source_actual,{size:13,color:"64748B"}));
     if(cx.source_estimates) children.push(p("출처(전망 2026E~): "+cx.source_estimates,{size:13,color:"64748B"}));
-    children.push(p("업데이트: 매일 자동 재수집 — 실적값(CAPEX·매출·FCF)은 매 실행 MCP(UsStockInfo get_financial_statement)로 각사 재무제표를 다시 읽어 db/capex.json 과 대조하고, 값이 바뀐 셀만 갱신한다(실제 변동은 분기 실적발표 시점). 미수집·결측 셀은 DB carry-forward. 전망값(2026E~, 수시 변동 가능)=각사 실적 컨퍼런스콜 CAPEX 가이던스 + 애널리스트 컨센서스. 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
+    children.push(p("업데이트: 매일 자동 재수집 — 실적 2022~2025 · 전망 2026~27E(2028 이후 추정치는 req5 로 제거). 실적값(CAPEX·매출·FCF)은 매 실행 MCP(UsStockInfo get_financial_statement)로 각사 재무제표를 다시 읽어 db/capex.json 과 대조하고, 값이 바뀐 셀만 갱신한다(실제 변동은 분기 실적발표 시점). 미수집·결측 셀은 DB carry-forward. 전망값(2026E~, 수시 변동 가능)=각사 실적 컨퍼런스콜 CAPEX 가이던스 + 애널리스트 컨센서스. 기준일 "+(cx.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
     children.push(p("확인처 — 1차 출처: 각사 SEC 공시(EDGAR 10-K/8-K) · 데이터 API: FMP(Financial Modeling Prep)",{size:13,color:"64748B"}));
     children.push(fsLink("SEC EDGAR 기업 공시검색 (10-K/8-K 원문)","https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=10-K"));
     children.push(fsLink("FMP API 문서 (financial-statements · analyst-estimates)","https://site.financialmodelingprep.com/developer/docs"));
@@ -1123,12 +1125,20 @@ function renderMacroIndicators(){
     const pc=imagePara(r.policy_rates_chart,648,243); if(pc){children.push(pc);} }
   // [5] FOMC 회의 일정·정책방향 (신규 회의 시 갱신)
   if(Array.isArray(r.fomc_meetings)){
-    children.push(p("■ FOMC 회의 일정·정책방향 (최근 1년 · 최신순)",{bold:true,color:"1E40AF",before:140,size:22}));
+    children.push(p("■ FOMC 회의 일정·정책방향 (미래 3 · 과거 5 · 최신순)",{bold:true,color:"1E40AF",before:140,size:22}));
     const w=[2200,2300,5580]; const rows=[hdrRow(["회의일","정책방향","결정·코멘트"],w)];
-    r.fomc_meetings.slice().sort((a,b)=>String(b&&b.date||"").localeCompare(String(a&&a.date||""))).forEach((mt,i)=>rows.push(new TableRow({children:[
+    // (req2 2026-07-18) '07-28~29'/'07-29' 중복을 종료일 기준 1건으로, 미래 3 + 과거 5 만
+    const _uq={}; r.fomc_meetings.forEach(mt=>{const dt=String(mt&&mt.date||"");
+      const end=dt.includes("~")?dt.slice(0,8)+dt.split("~").pop():dt;
+      if(!_uq[end]||String(mt.note||"").length>String(_uq[end].note||"").length)
+        _uq[end]=Object.assign({},mt,{date:end,_rng:dt.includes("~")?dt:(_uq[end]&&_uq[end]._rng)});});
+    const _all=Object.values(_uq).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const _td=new Date().toISOString().slice(0,10);
+    const _sel=[..._all.filter(m=>m.date>=_td).slice(-3),..._all.filter(m=>m.date<_td).slice(0,5)];
+    _sel.forEach((mt,i)=>{mt=Object.assign({},mt,{date:mt._rng||mt.date}); rows.push(new TableRow({children:[
       cell(mt.date,{width:w[0],alt:i%2===0,align:AlignmentType.CENTER,bold:true}),
       cell(mt.stance||mt.expectation||"",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER,bold:true,color:markStance(mt.stance||mt.expectation)}),  // (req2) expectation 폴백 — undefined 방지
-      cell(mt.note||"",{width:w[2],alt:i%2===0})]})));
+      cell(mt.note||"",{width:w[2],alt:i%2===0})]}));});
     children.push(makeTable(w,rows));
     children.push(p("의미: 연준 정책방향(매파/비둘기파) · 발표: 회의 후 즉시",{size:16,color:"64748B"}));
     children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
@@ -1474,7 +1484,10 @@ if (data.crypto) {
     const kr=[["코인","업비트 (KRW)","바이낸스 (USD)","프리미엄","상태"],...c.kimchi_premium.coins.map(co=>{const a=kA(co);return [co.symbol??"-",(a.u!==undefined&&a.u!==null)?`₩${Number(a.u).toLocaleString()}`:"-",(a.b!==undefined&&a.b!==null)?`$${a.b}`:"-",(a.pp!==undefined&&a.pp!==null)?`${a.pp}%`:"-",co.status||"-"];})].map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc,{width:[1200,2500,2400,1660,1600][j],header:i===0,alt:i>0&&i%2===0,align:AlignmentType.CENTER,bold:(j===0||j===3)&&i>0,color:(j===3&&i>0)?pctColor(kA(c.kimchi_premium.coins[i-1]).pp):undefined}))}));
     children.push(makeTable([1200,2500,2400,1660,1600],kr)); }
   if (Array.isArray(c.top_gainers) && c.top_gainers.length) {
-    children.push(h("6.4 24h Top Gainers / Losers",2)); const g=(c.top_gainers||[]).slice(0,5),l=(c.top_losers||[]).slice(0,5),mx=Math.max(g.length,l.length);
+    { // (req19 2026-07-18) 김프 30D 차트 — 서버 kimp_series 기반, gen_kimp_chart.py 산출물
+    const km=imagePara("charts/kimp_30d.png",660,336);
+    if(km){ children.push(km); children.push(p("김치 프리미엄 30D (BTC·ETH·XRP·SOL) — 업비트÷(바이낸스×USD/KRW)−1 · 서버 10분 수집 · 1년 백필 DB",{size:15,color:"94A3B8"})); } }
+  children.push(h("6.4 24h Top Gainers / Losers",2)); const g=(c.top_gainers||[]).slice(0,10),l=(c.top_losers||[]).slice(0,10),mx=Math.max(g.length,l.length); // (req11) 10종목
     const gr=[["순위","Top Gainer","변동","Top Loser","변동"]];
     for(let i=0;i<mx;i++){ const _gp=g[i]?(g[i].change_pct!=null?g[i].change_pct:(g[i].change_percent!=null?g[i].change_percent:g[i].change_24h)):null; const _lp=l[i]?(l[i].change_pct!=null?l[i].change_pct:(l[i].change_percent!=null?l[i].change_percent:l[i].change_24h)):null; /* (req9 2026-07-17) CryptoAgent 표준키 change_24h 폴백 */ gr.push([String(i+1),g[i]?(g[i].symbol||g[i].name||"-"):"-",g[i]?fmtPct(_gp):"-",l[i]?(l[i].symbol||l[i].name||"-"):"-",l[i]?fmtPct(_lp):"-"]); }
     children.push(makeTable([1000,2400,1900,2400,1660],gr.map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc,{width:[1000,2400,1900,2400,1660][j],header:i===0,alt:i>0&&i%2===0,align:AlignmentType.CENTER,color:(j===2&&i>0)?positiveColor:(j===4&&i>0)?negativeColor:undefined}))})))); }
@@ -1545,9 +1558,14 @@ if (data.analysis && data.analysis.portfolios) {
       children.push(makeTable([3400,1200,4760],[["자산","비중","구체적 방안 (종목·ETF)"],...pfo.allocation.map(a=>[a.asset||"-",`${a.weight_pct??"-"}%`,a.vehicle||"-"])].map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc,{width:[3400,1200,4760][j],header:i===0,alt:i>0&&i%2===0,bold:(j===0||j===1)&&i>0,align:j===1?AlignmentType.CENTER:AlignmentType.LEFT}))})))); children.push(p("")); }
   });
 }
-if (data.analysis && Array.isArray(data.analysis.action_items) && data.analysis.action_items.length) {
+// (req15 2026-07-18) action_items 는 배열일 수도, {short_term,mid_term,long_term} 사전일 수도 있다.
+// 사전형을 배열 검사로 걸러 12장이 통째로 빠지던 문제 수정.
+const _ai=data.analysis&&data.analysis.action_items;
+const _aiRows=Array.isArray(_ai)?_ai.map(it=>(it&&typeof it==="object")?((it.horizon?("["+it.horizon+"] "):"")+(it.item||it.text||it.action||"")):String(it))
+  :(_ai&&typeof _ai==="object")?[["단기","short_term"],["중기","mid_term"],["장기","long_term"]].flatMap(([lab,k])=>(_ai[k]||[]).map(t=>"["+lab+"] "+t)):[];
+if (_aiRows.length) {
   children.push(new Paragraph({children:[new PageBreak()]})); children.push(h("12. 액션 아이템 - 단기·중기·장기 체크리스트",1));
-  data.analysis.action_items.forEach(it=>children.push(bullet((it&&typeof it==="object")?((it.horizon?("["+it.horizon+"] "):"")+(it.item||it.text||it.action||"")):String(it))));
+  _aiRows.forEach(t=>children.push(bullet(t)));
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("13. 주의 사항 및 출처",1));
