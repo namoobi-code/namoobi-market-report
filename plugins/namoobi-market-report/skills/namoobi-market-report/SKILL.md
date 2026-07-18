@@ -89,6 +89,10 @@ description: |
 - `crypto_overview`·`crypto_movers`·`crypto_fng`·`kimp_series` **(req9~11·19)**: 위 암호화폐 규칙 참조.
 - `employment` + `series_emp_*` **(req3)**: FRED 값은 서버가 매일 07:40 자동 갱신(fred.key) — 보고서는 **ISM 제조업·서비스업 2종만** 조사해 갱신.
 - `fomc_meetings` **(req2)**: 이틀 회의는 종료일 기준 1건으로만 기록(예: 2026-07-28~29 한 줄, 같은 회의 단일일자 중복행 금지). 빌더가 미래3·과거5만 렌더.
+- `m7_estimates` **(req33)**: M7 EPS·매출 컨센서스 + 7/30/60일 전 값(리비전 방향)·목표가·투자의견 (Yahoo, 매일 06:00/15:00). 3.1.7 은 이 DB 기반으로 표만 구성.
+- `news_pool` **(req33)**: 주제별 뉴스 헤드라인 90건 (구글뉴스 RSS). 1장 Top10 은 이 풀에서 **선별·요약만** — 웹 재검색은 풀에 없는 특종 확인용으로만.
+- `factset_insight` **(req33)**: FactSet Earnings Insight 최신 발간물 제목·URL (주간). 3.1.6 링크는 여기서.
+- `etf_quotes` **(req33)**: 미국 주요 ETF 56종 시세·기간수익률 스냅샷. 3.3.1 표의 기초값 — fetch_us.py 실패 시 폴백으로도 사용.
 8장 IB **(req13)**: 각사에 `rep_pubs: [{title,url,date}]` (대표 발간물 2~3건, 공개 인사이트 페이지 링크) 필수 — 대시보드가 이 필드를 렌더한다.
 12장 **(req15)**: `action_items` 는 배열/사전({short_term,mid_term,long_term}) 모두 빌더 지원 — 비우지 말 것.
 
