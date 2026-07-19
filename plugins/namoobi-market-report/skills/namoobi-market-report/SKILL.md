@@ -274,6 +274,9 @@ cd "$WORK"
 python3 "$SRC/nmr_reasons.py" <outputs>/_market_report_data/report_data_YYYYMMDD.json
 # (req5 · v3.41) 표=차트 일치: merge 후 report_data 로 CAPEX 차트 재생성 (Phase 1.5 는 머지 전이라 내장 기본값으로 그려져 표와 어긋날 수 있음)
 python3 "$SRC/gen_capex_chart.py" <outputs>/_market_report_data/report_data_YYYYMMDD.json
+# (req2 2026-07-19) 정책금리 등 merge 가 DB·이력(nmr_policyrates_monthly upsert 등)을 갱신한 뒤에만 최신이 되는
+#   매크로 차트를 재생성 — Phase 1.5 시점 차트는 upsert 전 이력이라 표(예: 한국 7/16 인상)와 어긋난다.
+NMR_OUT="$WORK" python3 "$SRC/gen_macro_charts.py"
 node build_report.js \
   <outputs>/_market_report_data/report_data_YYYYMMDD.json \
   <outputs>/global_market_report_YYYYMMDD_HHMM.docx

@@ -1521,8 +1521,9 @@ if (data.securities) { let idx=0;
       children.push(p("서버가 매일 2회 네이버 금융 리서치 6개 게시판(시황·투자전략·종목분석·산업분석·경제분석·채권분석)에서 수집 — 제목 클릭 시 원문.",{size:14,color:"64748B"}));
       for(const [cat,arr] of Object.entries(nvr)){ if(!Array.isArray(arr)||!arr.length) continue;
         children.push(p("■ "+cat+" ("+arr.length+"건)",{bold:true,size:20,color:"1E40AF",before:120}));
-        const w=[1400,1800,4200,1680]; const rows=[hdrRow(["작성일","증권사","제목","비고"],w)];
-        arr.slice(0,14).forEach((it,i)=>rows.push(new TableRow({children:[
+        // (req6 2026-07-19) 컬럼 = 작성일·증권사(작성자)·제목(링크)·간단요약(서버 PDF 추출 summary, 없으면 종목명)
+        const w=[1100,1500,3800,2680]; const rows=[hdrRow(["작성일","증권사","제목","간단요약"],w)];
+        arr.slice(0,25).forEach((it,i)=>rows.push(new TableRow({children:[
           cell((it.date||"").slice(5),{width:w[0],alt:i%2===0,align:AlignmentType.CENTER,size:15}),
           cell(it.broker||"",{width:w[1],alt:i%2===0,size:15}),
           new TableCell({borders,width:{size:w[2],type:WidthType.DXA},shading:i%2===0?altShading:undefined,
@@ -1530,10 +1531,10 @@ if (data.securities) { let idx=0;
             children:[new Paragraph({children:[ (it.url&&HAS_LINK)
               ? new ExternalHyperlink({link:String(it.url),children:[new TextRun({text:String(it.title||""),size:15,color:"1D4ED8",underline:{}})]})
               : new TextRun({text:String(it.title||""),size:15}) ]})]}),
-          cell((it.stock||it.summary||"").slice(0,26),{width:w[3],alt:i%2===0,size:14,color:"64748B"})]})));
+          cell(String(it.summary||it.stock||"").slice(0,60),{width:w[3],alt:i%2===0,size:14,color:"64748B"})]})));
         children.push(makeTable(w,rows)); }
     } }
-  if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ idx++; children.push(h(`7.${idx} 공통 핵심 주제`,2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
+  if(Array.isArray(data.securities.common_themes)&&data.securities.common_themes.length){ idx++; children.push(h(`7.${idx} 공통 핵심 주제 (7.1~7.${idx-1} 종합)`,2)); data.securities.common_themes.forEach(t=>children.push(bullet(t))); }
   // (7.9 투자자 유형별 추천 조합 — 사용자 요청으로 삭제됨)
 }
 children.push(new Paragraph({children:[new PageBreak()]}));

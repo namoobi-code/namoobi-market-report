@@ -272,6 +272,8 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 **임무**: Phase 1 의 6개 JSON 전체를 입력으로 받아 종합 분석과 포트폴리오를 도출. **분석은 의견(opinion)이며, 반드시 Phase 1 에서 수집된 실제 데이터에 근거**해야 한다 — 입력 JSON 에 없는 수치·사실을 새로 만들어내지 말 것.
 
+> **(req1 2026-07-19) Executive Summary 최신성**: summary(와 1장 헤드라인 톤)는 **실행 시점 기준 최근 24시간 내 사건·시장 움직임을 최우선**으로 서술하고, 24시간 내 재료가 부족할 때만 48시간까지 확장한다. 그보다 오래된 데이터(예: 국내 직전 거래일이 2~3일 전인 주말 실행의 급락)는 **날짜 라벨을 붙여 배경 맥락으로만** 언급한다(예: "직전 거래일(7/16) 코스피 -6.37% 급락의 여진 속에…"). 주말·휴장일 실행이면 미국 최종 마감(금요일)·주말 크립토·지정학 뉴스가 리드가 된다.
+
 **프롬프트에 "outputs 의 nmr_*.json 6개 파일을 bash(cat) 로 읽으라"고 지시**하고 (긴 JSON 첨부 불필요 — v3.2.4) 아래를 요구:
 - `summary`: 3~5문장 Executive Summary (보고서 맨 앞에 들어감). 입력 데이터에서 드러난 사실만 요약.
 - `macro_view`: 매크로 톤 1문단
@@ -327,7 +329,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - S&P 500: 분기 리밸런싱 일정(발표=둘째 금요일경, 발효=셋째 금요일 마감 후 다음 영업일 개장 전), 최근 2개 분기(직전·당분기) 편입/편출 + 그 사이 비정기(M&A) 변경, 편입 기준(시총 ~$20.5B·흑자·유동성·float·12개월 경과·섹터 대표성), 최신 기준 변경(예: MegaCap 컨설팅 결과).
 - 나스닥 100: 연례 재구성(12월)·분기 리뷰·임시 변경의 편입/편출, 2026-05-01 패스트엔트리 룰 변경(상위 ~40위·15거래일 조기편입 / 10% float 폐지→3x cap / 10bp 중간편출 폐지→125위 밖 순위기반 정례편출), 패스트엔트리 후보 대형 IPO(SpaceX·OpenAI·Anthropic 등 시총·상장상태).
 **검색 예**: `"S&P 500 index changes <month> 2026 spglobal"`, `"Nasdaq-100 annual reconstitution December 2025"`, `"Nasdaq 100 quarterly changes June 2026"`, `"Nasdaq 100 fast entry rule 2026"`, `"SpaceX OpenAI Anthropic IPO 2026 valuation"`.
-**저장**: `markets.index_rebalance` = {sp500:{schedule[], events[], criteria[], criteria_note}, nasdaq100:{schedule[], events[], rule_change{rows[]}, candidates[]}, comment, asof}. 각 편입/편출 항목 `{ticker, name, biz(사업 한 줄), reason(편입/편출 사유)}`. 스키마 상세는 **필요시** `data-schema.md` 참조(매 실행 로딩 불필요). 별도 `nmr_rebalance.json` 저장 후 Phase 3 병합. 날짜·종목은 1차 출처로 grounding, 미확정은 `미확인` 표기. **(v3.8.1) 빌더 견고화: `schedule`/`criteria` 는 문자열배열(불릿) 또는 객체배열(표) 모두 허용, `rule_change.rows` 는 `{item,detail}` 또는 `{rule,before,after}` 모두 허용, `candidates` 는 `{name,note}` 또는 `{name,biz,valuation,status}` 모두 허용 — 어느 형태든 3.2.5 가 '-' 없이 렌더된다.**
+**저장**: `markets.index_rebalance` = {sp500:{schedule[], events[], criteria[], criteria_note}, nasdaq100:{schedule[], events[], rule_change{rows[]}, candidates[]}, comment, asof}. **(req9 2026-07-19) schedule 은 발표일(announce)·분기(q)를 실측으로 못 채우면 dict 에 "-" 를 넣지 말고 문자열 불릿(예: "적용일(발효): 2026-06-22")로 반환**한다 — dict 의 "-" 채움은 표에 "-" 셀로 새어나가 금지(merge 가 방어 변환하지만 애초에 생성 금지). events 의 effective 를 모르면 title(날짜)만으로 충분. 각 편입/편출 항목 `{ticker, name, biz(사업 한 줄), reason(편입/편출 사유)}`. 스키마 상세는 **필요시** `data-schema.md` 참조(매 실행 로딩 불필요). 별도 `nmr_rebalance.json` 저장 후 Phase 3 병합. 날짜·종목은 1차 출처로 grounding, 미확정은 `미확인` 표기. **(v3.8.1) 빌더 견고화: `schedule`/`criteria` 는 문자열배열(불릿) 또는 객체배열(표) 모두 허용, `rule_change.rows` 는 `{item,detail}` 또는 `{rule,before,after}` 모두 허용, `candidates` 는 `{name,note}` 또는 `{name,biz,valuation,status}` 모두 허용 — 어느 형태든 3.2.5 가 '-' 없이 렌더된다.**
 
 ### KoreaTechAgent / 수급 (3.2.1·3.2.2 — 1년 일별)
 - `nmr_kr_ohlcv.json` 의 `kospi_flows_daily`·`kosdaq_flows_daily` 는 **1년치 일별** 투자자 순매수 `[["YYYY-MM-DD", 외국인억원, 기관억원, 개인억원]..]` (1일치만 넣으면 누적순매수 차트가 평평해짐 — 반드시 1년).

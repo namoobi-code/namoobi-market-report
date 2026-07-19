@@ -793,12 +793,14 @@ for _r3 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
     if _r3.get('name') in _spk3: _r3['spark'] = _spk3[_r3['name']]
 _cap3 = LCF('nmr_capex.json')
 if isinstance(_cap3, dict) and _cap3.get('bigtech_capex'): m['bigtech_capex'] = _cap3['bigtech_capex']
-# [DB화] CAPEX 풀매트릭스 보강 — 표 actuals 우선 + 내장 컨센서스로 결측연도 채움 → 표·차트(2024~2029) 완전 일치
+# [DB화] CAPEX 풀매트릭스 보강 — 표 actuals 우선 + 내장 컨센서스로 결측연도 채움 → 표·차트(2024~2027) 완전 일치
+# (req5·req8 2026-07-19) 2028·2029 전면 제거 — 공식 출처(가이던스·컨센서스) 없는 추정이라 7/18 규칙대로 표·차트·DB 모두 2022~2027만.
+#   구 DB 잔존 y2028/y2029 는 아래 루프가 행에서 능동 삭제한다(홈피 표 27년까지와 통일).
 try:
-    _CY=[2024,2025,2026,2027,2028,2029]
-    _CCAP={"Microsoft":[44.5,64.6,190,215,235,255],"Amazon":[83,132,200,245,280,305],"Alphabet":[52.5,91.4,185,250,280,305],"Meta":[37.3,69.7,135,175,200,220],"Oracle":[7,21,55.7,92,95,100]}
-    _CREV={"Microsoft":[245,282,329,384,455,535],"Amazon":[638,717,824,933,1064,1189],"Alphabet":[350,403,486,580,680,788],"Meta":[165,201,253,302,352,406],"Oracle":[53,57,67,89,104,120]}
-    _CFCF={"Microsoft":[74,72,-31,-29,-15,4],"Alphabet":[73,73,13,-13,-3,16],"Meta":[54,46,11,-1,3,14],"Amazon":[33,8,-39,-63,-72,-73],"Oracle":[12,0,-24,-59,-57,-56]}
+    _CY=[2024,2025,2026,2027]
+    _CCAP={"Microsoft":[44.5,64.6,190,215],"Amazon":[83,132,200,245],"Alphabet":[52.5,91.4,185,250],"Meta":[37.3,69.7,135,175],"Oracle":[7,21,55.7,92]}
+    _CREV={"Microsoft":[245,282,329,384],"Amazon":[638,717,824,933],"Alphabet":[350,403,486,580],"Meta":[165,201,253,302],"Oracle":[53,57,67,89]}
+    _CFCF={"Microsoft":[74,72,-31,-29],"Alphabet":[73,73,13,-13],"Meta":[54,46,11,-1],"Amazon":[33,8,-39,-63],"Oracle":[12,0,-24,-59]}
     _bc=m.get('bigtech_capex') or {}; _rows=_bc.get('rows') or []
     # (req6 2026-07-12) 구 'Meta 삭제' 필터 폐지 — 표·차트 모두 Meta 포함 5개사
     _bc['rows']=_rows
@@ -816,6 +818,9 @@ try:
             if not _has(_r.get('fcf%d'%_y)): _r['fcf%d'%_y]=_CFCF[_co][_i]
             try: _r['ratio%d'%_y]=round(100*float(_r['y%d'%_y])/float(_r['rev%d'%_y]))
             except Exception: pass
+        for _dy in (2028, 2029):   # (req5·req8) 구 DB 잔존 2028·29 능동 삭제
+            for _pfx in ('y', 'rev', 'fcf', 'ratio'):
+                _r.pop('%s%d' % (_pfx, _dy), None)
     if _rows:
         m['bigtech_capex']['rows']=_rows
         try: json.dump({'bigtech_capex':m['bigtech_capex']}, open(os.path.join(_CWROOT,'nmr_capex.json'),'w',encoding='utf-8'), ensure_ascii=False)
@@ -937,6 +942,11 @@ def _rebal_canon(r):
                 _core = [_s.get('q') or _s.get('cycle') or _s.get('quarter'), _s.get('announce'), _s.get('effective')]
                 if all(_e(x) for x in _core):
                     if not _e(_s.get('note')): _o.append(str(_s.get('note')))
+                    continue
+                # (req9 2026-07-19) 발효일만 있는 행(q·announce='-')은 표 대신 불릿 문자열로 — '-' 셀 근절
+                if _e(_core[0]) and _e(_core[1]) and not _e(_core[2]):
+                    _o.append('적용일(발효): %s%s' % (_s.get('effective'),
+                              ('' if _e(_s.get('note')) else ' — ' + str(_s.get('note')))))
                     continue
                 _o.append(_s)
             _b['schedule'] = ([x for x in _o if isinstance(_o[0], str)] if (_o and all(isinstance(x, str) for x in _o)) else _o)
@@ -1231,9 +1241,24 @@ try:
 except Exception as _dbe:
     print('  [DB] 동기화 skip(비차단):', _dbe)
 # (2차 req10 2026-07-18) 7.7 네이버 금융리서치 모음 — 서버 broker_reports DB(recent 2일치) 주입
+# (req6 2026-07-19) 로컬 db/ 미존재 시 WORK 의 서버 캐시(server_broker_reports.json — Phase 1 curl)·HTTP 폴백.
 try:
     import nmr_db as _ndb_br
-    _brd = json.load(open(os.path.join(_ndb_br._dbdir(), 'broker_reports.json'), encoding='utf-8'))
+    _brd = {}
+    for _bp in (os.path.join(_ndb_br._dbdir(), 'broker_reports.json'),
+                os.path.join(W, 'server_broker_reports.json')):
+        try:
+            _cand = json.load(open(_bp, encoding='utf-8'))
+            if _cand.get('recent'):
+                _brd = _cand; break
+        except Exception:
+            pass
+    if not _brd.get('recent'):
+        try:
+            import urllib.request as _ur
+            _brd = json.loads(_ur.urlopen('http://141.147.160.13/api/db/broker_reports', timeout=10).read().decode('utf-8'))
+        except Exception:
+            _brd = {}
     if isinstance(sec, dict) and _brd.get('recent'):
         sec['naver_research'] = {'recent': _brd['recent'], 'as_of': _brd.get('as_of', '')}
         _map = {'kb': 'KB증권', 'nh': 'NH투자증권', 'samsung': '삼성증권', 'miraeasset': '미래에셋증권',

@@ -26,7 +26,15 @@ def loadj(name):
     return {}
 mom = loadj("nmr_mom.json")
 MOM_KEY = [("Core CPI","core_cpi"),("Core PCE","core_pce"),("PCE","pce"),("PPI","ppi"),("CPI (헤드","cpi")]
-INFL_REL = [("Core CPI","2026-06-10"),("Core PCE","2026-06-26"),("CPI","2026-06-10"),("PCE","2026-06-26"),("PPI","2026-06-11")]  # 물가 실제 발표일(5월 데이터→6월 발표)
+# (req3·req4 2026-07-19 근본수정) 발표일 하드코딩 폐지 — fetch_macro 가 FRED release/dates 로 실측한
+#   nmr_reldates.json 을 읽어 주입한다(하드코딩 날짜는 다음 달이 되면 반드시 틀어지는 구조였음).
+_RELD = loadj("nmr_reldates.json")
+def _rel(key):
+    v = (_RELD.get(key) or {}) if isinstance(_RELD, dict) else {}
+    return v.get("latest")
+INFL_REL = [("Core CPI", _rel("cpi")), ("Core PCE", _rel("pce")), ("CPI", _rel("cpi")),
+            ("PCE", _rel("pce")), ("PPI", _rel("ppi"))]
+INFL_REL = [(k, v) for k, v in INFL_REL if v]  # 실측 없으면 라벨 폴백("정기 발표")
 infl = (mac.get("inflation") or {})
 for r in (infl.get("rows") or []):
     nm = r.get("name") or ""
@@ -53,15 +61,57 @@ for r in (infl.get("rows") or []):
                     try: v = round((_lv[-1][1]/_lv[-2][1]-1)*100, 2)
                     except Exception: v = None
         if v is not None: r["mom"] = v
-    # (req2-fix2) 물가표 발표날짜에 라벨 대신 '실제 발표일' 주입 (고용표와 동일하게 날짜로 표기)
-    #   5월 데이터의 표준 미국 발표일정: CPI 06-10(수)·PPI 06-11(목)·PCE 06-26(금). 발표월 이동 시 갱신 대상.
-    if _bad_release(r.get("release")):
-        r["release"] = next((v for k,v in INFL_REL if k in nm), "정기 발표(BLS/BEA)")
-EMP_REL = [("실업수당","정기 발표(매주 목)"),("청구","정기 발표(매주 목)"),("NFP","2026-06-05"),("실업률","2026-06-05"),("소매판매","2026-06-17"),("ISM 제조","2026-06-01"),("ISM 서비","2026-06-03"),("GDP","2026-06-26")]
+    # (req3 2026-07-19) FRED 실측 발표일이 있으면 기존값(옛 DB 잔존 날짜 포함)을 '항상' 실측으로 교체.
+    _rv = next((v for k, v in INFL_REL if k in nm), None)
+    if _rv:
+        r["release"] = _rv
+    elif _bad_release(r.get("release")):
+        r["release"] = "정기 발표(BLS/BEA)"
+# (req4 2026-07-19) 고용 발표일 = FRED 실측 + ISM 값·기준월 주입("-" 근절)
+import datetime as _dt
+def _biz_day(year, month, n):
+    """해당 월의 n번째 영업일(주말 제외 — 미 연방공휴일 미반영 간이계산)."""
+    d = _dt.date(year, month, 1); cnt = 0
+    while True:
+        if d.weekday() < 5:
+            cnt += 1
+            if cnt == n: return d.isoformat()
+        d += _dt.timedelta(days=1)
+def _ism_rel(asof, n):
+    try:
+        y, mth = int(str(asof)[:4]), int(str(asof)[5:7])
+        mth += 1
+        if mth > 12: y, mth = y + 1, 1
+        return _biz_day(y, mth, n)
+    except Exception: return None
+_emp_series = (mac.get("series") or {}).get("employment") or {}
+def _last_pair(key):
+    arr = [x for x in (_emp_series.get(key) or []) if isinstance(x, (list, tuple)) and len(x) >= 2 and x[1] is not None]
+    return arr[-1] if arr else (None, None)
+EMP_REL = [("실업수당", _rel("claims") or "정기 발표(매주 목)"), ("청구", _rel("claims") or "정기 발표(매주 목)"),
+           ("NFP", _rel("empsit")), ("실업률", _rel("empsit")), ("소매판매", _rel("retail")), ("GDP", _rel("gdp"))]
+EMP_REL = [(k, v) for k, v in EMP_REL if v]
 for r in ((mac.get("employment") or {}).get("rows") or []):
-    if _bad_release(r.get("release")):
-        nm = r.get("name") or ""
-        r["release"] = next((v for k,v in EMP_REL if k in nm), "정기 발표(BLS/BEA/ISM)")
+    nm = r.get("name") or ""
+    # ISM 값·기준월이 비면 series 최신점으로 주입(값은 있는데 행이 비어 "-" 로 새는 문제 근본수정)
+    if "ISM" in nm:
+        _sk = "ism_mfg" if "제조" in nm else "ism_svc"
+        _am, _av = _last_pair(_sk)
+        if empty(r.get("value")) and _av is not None: r["value"] = _av
+        if empty(r.get("asof")) and _am: r["asof"] = _am
+        if _bad_release(r.get("release")) or True:
+            _cr = _ism_rel(r.get("asof"), 1 if "제조" in nm else 3)
+            if _cr: r["release"] = _cr
+        continue
+    # GDP 기준을 분기 표기로(예: 2026-01 → 2026 Q1)
+    if "GDP" in nm and isinstance(r.get("asof"), str) and len(r["asof"]) >= 7:
+        _qm = {"01": "Q1", "04": "Q2", "07": "Q3", "10": "Q4"}.get(r["asof"][5:7])
+        if _qm: r["asof"] = r["asof"][:4] + " " + _qm
+    _rv = next((v for k, v in EMP_REL if k in nm), None)
+    if _rv and ("정기 발표" not in str(_rv)):
+        r["release"] = _rv   # FRED 실측 발표일 — 옛 DB 잔존 날짜도 항상 교체
+    elif _bad_release(r.get("release")):
+        r["release"] = _rv or "정기 발표(BLS/BEA/ISM)"
 # (req3/7) KSVKOSPI 실측 주입(investing.com 파싱값)
 vk = loadj("nmr_vkospi_history.json"); vka = (vk.get("anchors") or {})
 for r in ((mac.get("sentiment") or {}).get("rows") or []):

@@ -123,3 +123,37 @@ json.dump({'macro': macro}, open(_mpath, 'w', encoding='utf-8'), ensure_ascii=Fa
 print('fetch_macro OK — infl', {k: len(v) for k, v in infl_lines.items()}, '| BEI', len(bei), '| curve', len(curve),
       '| fed_funds_5y', len(series['fed_funds_5y']), '| emp', {k: len(v) for k, v in series['employment'].items()})
 print('  rows: 물가', sum(1 for r in infl_rows if r['yoy'] is not None), '/6 채움 · 고용', sum(1 for r in emp_rows if r['value'] is not None), '/7 채움 (ISM 2개는 FRED 부재→DB 백필)')
+
+# ── (req3·req4 2026-07-19) 발표일 실측 — FRED release/dates API ──────────────────
+#   물가·고용 표의 '발표날짜'를 하드코딩/기억이 아니라 FRED 공식 발표일정에서 직접 가져온다.
+#   series→release 매핑 후 최근 발표일(오늘 이하)을 취함 → $WORK/nmr_reldates.json.
+#   nmr_reasons.py 가 이 파일을 읽어 rows.release 에 주입(무파일이면 '정기 발표' 라벨 폴백·비차단).
+try:
+    import urllib.request as _u2, datetime as _dt2
+    from nmr_fred import fred_key as _fk
+    _key = _fk()
+    if _key:
+        _today = _dt2.date.today().isoformat()
+        def _rel_dates(series_id):
+            try:
+                ru = ('https://api.stlouisfed.org/fred/series/release?series_id=%s&api_key=%s&file_type=json'
+                      % (series_id, _key))
+                rid = json.loads(_u2.urlopen(ru, timeout=10).read().decode())['releases'][0]['id']
+                du = ('https://api.stlouisfed.org/fred/release/dates?release_id=%s&api_key=%s&file_type=json'
+                      '&sort_order=desc&limit=10' % (rid, _key))
+                ds = [x['date'] for x in json.loads(_u2.urlopen(du, timeout=10).read().decode())['release_dates']]
+                past = [x for x in ds if x <= _today]
+                return {'latest': (past[0] if past else None),
+                        'next': (sorted(x for x in ds if x > _today)[0] if any(x > _today for x in ds) else None)}
+            except Exception:
+                return {}
+        _rmap = {'cpi': 'CPIAUCSL', 'ppi': 'PPIFIS', 'pce': 'PCEPI', 'empsit': 'PAYEMS',
+                 'retail': 'RSAFS', 'gdp': 'GDP', 'claims': 'ICSA'}
+        _rd = {k: _rel_dates(sid) for k, sid in _rmap.items()}
+        _rd['asof'] = _today
+        json.dump(_rd, open(os.path.join(W, 'nmr_reldates.json'), 'w', encoding='utf-8'), ensure_ascii=False)
+        print('  [reldates] FRED 발표일 실측:', {k: (v or {}).get('latest') for k, v in _rd.items() if k != 'asof'})
+    else:
+        print('  [reldates] FRED 키 없음 — 발표일 실측 생략(라벨 폴백)')
+except Exception as _rde:
+    print('  [reldates] skip(비차단):', _rde)
