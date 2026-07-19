@@ -1523,8 +1523,16 @@ if (data.securities) { let idx=0;
       restKeys.forEach((k,i)=>{ const s=data.securities[k]; const vf=secVF[k];
         const extra=[ (vf&&s[vf[0]])?viewText(s[vf[0]]):"",
           (Array.isArray(s.key_reports)&&s.key_reports.length)?("대표: "+String((s.key_reports[0]&&(s.key_reports[0].title||s.key_reports[0]))||"").slice(0,40)):"" ].filter(Boolean).join(" · ");
+        // (2026-07-19 사용자 req) 증권사명 아래에 텔레그램 채널 링크 표기
+        const tg=SRCCH[k]||""; const tgTxt=tg.replace("https://","");
+        const nameCell=new TableCell({borders,width:{size:w[0],type:WidthType.DXA},shading:i%2===0?altShading:undefined,
+          margins:{top:80,bottom:80,left:120,right:120},
+          children:[ new Paragraph({children:[new TextRun({text:secLabels[k],bold:true,size:18})]}),
+            new Paragraph({children:[ (tg&&HAS_LINK)
+              ? new ExternalHyperlink({link:tg,children:[new TextRun({text:"✈️ "+tgTxt,size:13,color:"1D4ED8",underline:{}})]})
+              : new TextRun({text:tgTxt,size:13,color:"64748B"}) ]}) ]});
         rows.push(new TableRow({children:[
-          cell(secLabels[k],{width:w[0],alt:i%2===0,bold:true}),
+          nameCell,
           cell(viewText(s.key_message||"").slice(0,180)||"-",{width:w[1],alt:i%2===0,size:16}),
           cell(extra.slice(0,120)||"-",{width:w[2],alt:i%2===0,size:15,color:"475569"})]})); });
       children.push(makeTable(w,rows)); } }
