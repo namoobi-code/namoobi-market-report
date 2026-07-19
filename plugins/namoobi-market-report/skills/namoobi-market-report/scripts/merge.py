@@ -757,6 +757,9 @@ if isinstance(_pr, dict) and _pr.get('policy_rates'):
         if _chg:
             _prm['updated'] = RD_ISO[:10]
             json.dump(_prm, open(os.path.join(_CWROOT, 'nmr_policyrates_monthly.json'), 'w'), ensure_ascii=False)
+            # (req2-fix 2026-07-19) WORK 에도 이중 기록 — 차트 생성기(_loadjson)가 O 에서 최신본을 바로 집도록
+            try: json.dump(_prm, open(os.path.join(W, 'nmr_policyrates_monthly.json'), 'w'), ensure_ascii=False)
+            except Exception: pass
             print('  [req2] 정책금리 monthly upsert:', _chg, '건 반영(그래프 소스 최신화)')
     except Exception as _pe:
         print('  [req2] 정책금리 monthly upsert skip(비차단):', repr(_pe)[:60])

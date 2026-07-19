@@ -11,13 +11,22 @@ O=os.environ.get("NMR_OUT") or (sorted(glob.glob("/sessions/*/mnt/outputs"))[-1]
 os.makedirs("charts", exist_ok=True)
 BLUE="#1E40AF"; RED="#DC2626"; GREEN="#059669"; AMBER="#D97706"; PURPLE="#7C3AED"; SLATE="#334155"
 def _loadjson(*names):
+    # (req2-fix 2026-07-19) 탐색 순서에서 스크립트 동봉 시드(_SD)를 '최후순위'로 강등 —
+    #   repo 시드(옛 이력)가 연결폴더 정본(merge 가 매 실행 upsert)을 가려 정책금리 차트가
+    #   표와 어긋나던 근본 원인. 또한 'updated' 필드가 있는 후보들은 최신본을 고른다.
     _SD=os.path.dirname(os.path.abspath(__file__))
     _CW=(sorted(glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data"))[:1] or [""])[0]
     for c in names:
-        for p in [c, os.path.join(O,c), os.path.join(_SD,c)]+([os.path.join(_CW,c)] if _CW else []):
+        _cands=[]
+        for p in [c, os.path.join(O,c)]+([os.path.join(_CW,c)] if _CW else [])+[os.path.join(_SD,c)]:
             if os.path.exists(p):
-                try: return json.load(open(p,encoding="utf-8"))
+                try: _cands.append(json.load(open(p,encoding="utf-8")))
                 except Exception: pass
+        if _cands:
+            _dated=[x for x in _cands if isinstance(x,dict) and x.get("updated")]
+            if len(_dated)>=2:
+                return max(_dated,key=lambda x:str(x.get("updated")))
+            return _cands[0]
     return None
 MAC={}
 def _load_series():

@@ -1128,7 +1128,7 @@ function renderMacroIndicators(){
   if(Array.isArray(r.policy_rates)){
     const w=[2100,1600,1700,4680]; const rows=[hdrRow(["국가","현재 정책금리","기준일","비고"],w)];
     r.policy_rates.forEach((c,i)=>rows.push(new TableRow({children:[cell(c.country,{width:w[0],alt:i%2===0,bold:true}),
-      cell(c.rate!=null?c.rate+"%":"-",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.asof||"-",{width:w[2],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.note||"",{width:w[3],alt:i%2===0,size:16})]})));
+      cell(c.rate!=null?(String(c.rate).trim().endsWith("%")?String(c.rate).trim():String(c.rate).trim()+"%"):"-",{width:w[1],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.asof||"-",{width:w[2],alt:i%2===0,align:AlignmentType.CENTER}),cell(c.note||"",{width:w[3],alt:i%2===0,size:16})]})));
     children.push(makeTable(w,rows));
     const pc=imagePara(r.policy_rates_chart,648,243); if(pc){children.push(pc);} }
   // [5] FOMC 회의 일정·정책방향 (신규 회의 시 갱신)
