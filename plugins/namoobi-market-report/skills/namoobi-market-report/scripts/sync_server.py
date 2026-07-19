@@ -65,8 +65,27 @@ def main():
         except Exception:
             pass
     atexit.register(_cleanup_key)
-    SSH = f"ssh -i {tmpkey} -o StrictHostKeyChecking=no -o ConnectTimeout=15"
-    SCP = f"scp -q -i {tmpkey} -o StrictHostKeyChecking=no"
+    # (v3.70 속도) ssh ControlMaster 연결 재사용 — 15여 회의 ssh/scp 가 핸드셰이크를 1회만 하도록.
+    #   45초 샌드박스 벽 이슈의 주범이 핸드셰이크 누적(~1-2s×15)과 차트 전량 재업로드였다.
+    _cm = None
+    for d in ("/dev/shm", os.path.dirname(tmpkey)):
+        try:
+            _p = os.path.join(d, ".nmr_cm")
+            open(_p + "_probe", "w").close(); os.remove(_p + "_probe")
+            _cm = _p; break
+        except Exception:
+            continue
+    CMOPT = (f" -o ControlMaster=auto -o ControlPath={_cm} -o ControlPersist=120" if _cm else "")
+    SSH = f"ssh -i {tmpkey} -o StrictHostKeyChecking=no -o ConnectTimeout=15{CMOPT}"
+    SCP = f"scp -q -i {tmpkey} -o StrictHostKeyChecking=no{CMOPT}"
+
+    def _close_master():
+        if _cm:
+            try:
+                subprocess.run(f"{SSH} -O exit {SERVER}", shell=True, capture_output=True, timeout=10)
+            except Exception:
+                pass
+    atexit.register(_close_master)
 
     def run(cmd, label):
         r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
@@ -111,9 +130,19 @@ def main():
         ok &= run(f'tar czf - -C {shlex.quote(str(dbroot))} db | {SSH} {SERVER} "cd {REMOTE} && tar xzf -"',
                   f"db/ 동기화 ({n}종)")
 
-    # ── 2) 파생 포지셔닝 SQLite
+    # ── 2) 파생 포지셔닝 SQLite — (v3.70) 서버 크론(05:50 daily_update)이 정본.
+    #     로컬이 더 새로울 때만 push(로컬 폴백 실행일), 아니면 서버본 보존(옛 DB로 덮어쓰기 금지).
     if (base / "deriv_signals.db").exists():
-        ok &= run(f'{SCP} {shlex.quote(str(base/"deriv_signals.db"))} {SERVER}:{REMOTE}/', "deriv_signals.db")
+        try:
+            _r = subprocess.run(f'{SSH} {SERVER} "stat -c %Y {REMOTE}/deriv_signals.db 2>/dev/null"',
+                                shell=True, capture_output=True, text=True, timeout=30)
+            _rmt = int((_r.stdout or "0").strip() or 0)
+        except Exception:
+            _rmt = 0
+        if os.path.getmtime(base / "deriv_signals.db") > _rmt + 60:
+            ok &= run(f'{SCP} {shlex.quote(str(base/"deriv_signals.db"))} {SERVER}:{REMOTE}/', "deriv_signals.db (로컬이 최신 → push)")
+        else:
+            print("[sync] ✅ deriv_signals.db — 서버본이 최신(크론 정본) → push 생략")
 
     # ── 3) 최신 report_data (CAPEX·HBM·파생포지셔닝·경기선행 등 보고서 전 섹션)
     rds = sorted(glob.glob(str(base / "report_data_*.json")), key=os.path.getmtime)
@@ -152,15 +181,30 @@ def main():
     # ── 7) ⭐ 서버 전용 데이터를 PC로 되가져오기 (서버 소실 대비 백업)
     #    poll.db 는 서버가 1일 2회 수집해 쌓는, 서버에만 존재하는 시계열이다.
     # (2026-07-12) 대시보드 추세 스파크 PNG 업로드 — app.js 가 /charts/spark_*.png 를 참조(미업로드=이미지 404)
+    # (v3.70 속도) 차트 업로드 = 원격 manifest(크기) 차분 → 변경분만 tar 1스트림.
+    #   구버전(패턴별 scp 전량 재업로드)은 재시도마다 ~30MB 를 다시 올려 45초 벽의 주범이었다.
     try:
         import glob as _g2
         _wk = sorted(_g2.glob("/sessions/*/mnt/outputs/nmr_build/charts"))
         if _wk:
-            run(f'{SSH} {SERVER} "mkdir -p {REMOTE}/charts"', "charts 원격 디렉토리")
-            for _pat in ("spark_*.png", "semi_s_*.png", "semi_e_*.png", "theme_*.png", "kospi_tech.png", "kosdaq_tech.png"):
-                _fl = sorted(_g2.glob(_wk[0] + "/" + _pat))
-                if _fl:
-                    run(f'{SCP} ' + " ".join(shlex.quote(x) for x in _fl) + f' {SERVER}:{REMOTE}/charts/', f"charts {_pat} ({len(_fl)}개)")
+            _pats = ("spark_*.png", "semi_s_*.png", "semi_e_*.png", "theme_*.png", "kospi_tech.png", "kosdaq_tech.png")
+            _fl = sorted({f for p in _pats for f in _g2.glob(_wk[0] + "/" + p)})
+            if _fl:
+                _r = subprocess.run(f'{SSH} {SERVER} "mkdir -p {REMOTE}/charts && cd {REMOTE}/charts && stat -c \'%s %n\' * 2>/dev/null"',
+                                    shell=True, capture_output=True, text=True, timeout=60)
+                _remote = {}
+                for _ln in (_r.stdout or "").splitlines():
+                    _sp = _ln.split(None, 1)
+                    if len(_sp) == 2:
+                        _remote[_sp[1]] = _sp[0]
+                _diff = [f for f in _fl if _remote.get(os.path.basename(f)) != str(os.path.getsize(f))]
+                if _diff:
+                    _names = " ".join(shlex.quote(os.path.basename(f)) for f in _diff)
+                    _mb = sum(os.path.getsize(f) for f in _diff) / 1e6
+                    run(f'tar czf - -C {shlex.quote(_wk[0])} {_names} | {SSH} {SERVER} "cd {REMOTE}/charts && tar xzf -"',
+                        f"charts 차분 tar ({len(_diff)}/{len(_fl)}개 · {_mb:.1f}MB)")
+                else:
+                    print(f"[sync] ✅ charts 변경 없음 ({len(_fl)}개 동일)")
     except Exception as _ce:
         print("[sync] charts 업로드 skip:", _ce)
     # (2026-07-12) 3.2.4/3.2.5 KRX 브리프 캡쳐 PNG 업로드 — 대시보드 이미지 표시용 (최신 회차만)

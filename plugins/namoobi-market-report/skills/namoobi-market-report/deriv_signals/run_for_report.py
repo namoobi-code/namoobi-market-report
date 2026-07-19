@@ -29,6 +29,58 @@ if os.environ.get("DERIV_DB"):
     print("[deriv] DB(안정):", os.environ["DERIV_DB"])
 
 
+def _server_first():
+    """(v3.70) 서버 크론(05:50 KST daily_update+export) 산출물이 신선하면 회수만 하고 끝낸다.
+    로컬 파이프라인(yfinance·COT·KRX 수집, 수 분)을 통째로 생략 — 45초 샌드박스 벽 이슈도 소멸.
+    실패·미신선 시 False 반환 → 기존 로컬 경로로 폴백. 강제 로컬은 NMR_DERIV_LOCAL=1."""
+    if os.environ.get("NMR_DERIV_LOCAL"):
+        return False
+    import glob as _g, shutil as _sh, stat as _st, time as _t
+    key = (sorted(_g.glob("/sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key")) or [None])[0]
+    if not key:
+        return False
+    tk = None
+    for d in ("/dev/shm", os.getcwd()):
+        try:
+            c = os.path.join(d, ".nmr_dk")
+            _sh.copyfile(key, c); os.chmod(c, _st.S_IRUSR | _st.S_IWUSR); tk = c; break
+        except Exception:
+            continue
+    if not tk:
+        return False
+    SRV = "ubuntu@141.147.160.13"
+    SSH = ["ssh", "-i", tk, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
+    SCP = ["scp", "-q", "-i", tk, "-o", "StrictHostKeyChecking=no"]
+    try:
+        r = subprocess.run(SSH + [SRV, "stat -c %Y ~/namoobi/data/deriv_snapshot.json 2>/dev/null"],
+                           capture_output=True, text=True, timeout=20)
+        mt = int((r.stdout or "0").strip() or 0)
+        if _t.time() - mt > 26 * 3600:   # 26시간 내 갱신본만 신선으로 인정
+            print("[deriv] 서버 스냅샷 미신선(%.1fh) → 로컬 폴백" % ((_t.time() - mt) / 3600 if mt else -1))
+            return False
+        ok1 = subprocess.run(SCP + [f"{SRV}:~/namoobi/data/deriv_snapshot.json", OUT],
+                             capture_output=True, timeout=30).returncode == 0
+        kout = os.path.join(os.path.dirname(os.path.abspath(OUT)), "nmr_krx_market.json")
+        subprocess.run(SCP + [f"{SRV}:~/namoobi/data/nmr_krx_market.json", kout],
+                       capture_output=True, timeout=30)
+        db = os.environ.get("DERIV_DB")
+        if db:  # 서버 DB가 정본 — 로컬 영구본을 서버 최신으로 동기화(이력 보존)
+            subprocess.run(SCP + [f"{SRV}:~/namoobi/data/deriv_signals.db", db],
+                           capture_output=True, timeout=60)
+        if ok1 and os.path.exists(OUT):
+            print("[deriv] ✅ 서버 크론 산출물 회수 완료(스냅샷·krx·db) — 로컬 파이프라인 생략")
+            return True
+        return False
+    except Exception as e:
+        print("[deriv] 서버 우선 실패(무시):", repr(e)[:80])
+        return False
+    finally:
+        try:
+            open(tk, "wb").write(b""); os.remove(tk)
+        except Exception:
+            pass
+
+
 def _run(args, timeout):
     try:
         r = subprocess.run([PY] + args, cwd=BASE, timeout=timeout,
@@ -49,6 +101,10 @@ def _have(mod):
 
 
 def main():
+    # 0) (v3.70) 서버 우선 — 서버 크론 산출물이 신선하면 회수하고 종료
+    if _server_first():
+        return 0
+
     # 1) 의존성 확인 → 없으면 1회 설치 시도(best-effort)
     if not all(_have(m) for m in ("numpy", "pandas", "yfinance")):
         print("[deriv] 필수 라이브러리 설치 시도(requirements.txt)...")
