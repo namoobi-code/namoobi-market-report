@@ -824,6 +824,23 @@ try:
         for _dy in (2028, 2029):   # (req5·req8) 구 DB 잔존 2028·29 능동 삭제
             for _pfx in ('y', 'rev', 'fcf', 'ratio'):
                 _r.pop('%s%d' % (_pfx, _dy), None)
+    # (2026-07-19 FCF 차트 2025 단절 근본수정) 차트·DB용 시리즈를 '완성된 표(rows)'에서 항상 재구성 —
+    #   에이전트 산출 fcf_series 가 실적연도(~2025)만 담아 와도 표=차트=db/capex.json 3자가 2022~2027 로 일치한다.
+    def _numz(_v):
+        try: return float(_v)
+        except Exception:
+            import re as _re2
+            _mm = _re2.search(r'-?\d+(?:\.\d+)?', str(_v) if _v is not None else '')
+            return float(_mm.group(0)) if _mm else None
+    _SY=[2022,2023,2024,2025,2026,2027]
+    for _sk,_pfx in (('capex_series','y'),('rev_series','rev'),('fcf_series','fcf')):
+        _bl={'years':list(_SY)}
+        for _r in _rows:
+            _co=str(_r.get('company','')).split(' (')[0].strip()
+            _co=_ALIAS.get(_co.upper(), _co)
+            if _co in _CCAP:
+                _bl[_co]=[_numz(_r.get('%s%d'%(_pfx,_yy))) for _yy in _SY]
+        if len(_bl)>1: _bc[_sk]=_bl
     if _rows:
         m['bigtech_capex']['rows']=_rows
         try: json.dump({'bigtech_capex':m['bigtech_capex']}, open(os.path.join(_CWROOT,'nmr_capex.json'),'w',encoding='utf-8'), ensure_ascii=False)
