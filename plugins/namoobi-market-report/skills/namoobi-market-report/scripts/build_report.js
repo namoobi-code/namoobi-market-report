@@ -1515,7 +1515,20 @@ if (data.securities) { let idx=0;
     const vf=secVF[key]; if(vf&&sec[vf[0]]) children.push(p(`${vf[1]}: ${viewText(sec[vf[0]])}`,{color:"0F766E"}));
     if(Array.isArray(sec.key_reports)&&sec.key_reports.length){ children.push(p("대표 리포트:",{bold:true,after:40})); sec.key_reports.forEach(r=>children.push(reportBullet(r,SRCCH[key]))); }
     else children.push(p("(리포트 수집 실패 - 사이트 접근 제한)",{italics:true,color:"94A3B8"})); }
-  // (2차 req10) 기타 증권사 요약 폐지 → 7.7 네이버 금융리서치 모음 (서버 DB, 최근 2일 · 테마별)
+  // (2026-07-19 사용자 req) 7.7 기타 증권사 요약 부활 — 텔레그램 기반 잔여 6사(신한·키움·하나·교보·유안타·현대차)
+  { const restKeys=["shinhan","kiwoom","hana","kyobo","yuanta","hyundai"].filter(k=>data.securities[k]&&(data.securities[k].key_message||data.securities[k].key_reports));
+    if(restKeys.length){ idx++; children.push(h(`7.${idx} 기타 증권사 요약 (텔레그램 기반)`,2));
+      children.push(p("공식 텔레그램 채널 최신 메시지 기반 1줄 요약 — 상세 리서치는 각 사 채널 참조.",{size:14,color:"64748B"}));
+      const w=[1700,5300,3080]; const rows=[hdrRow(["증권사","핵심 메시지","시각·대표 리포트"],w)];
+      restKeys.forEach((k,i)=>{ const s=data.securities[k]; const vf=secVF[k];
+        const extra=[ (vf&&s[vf[0]])?viewText(s[vf[0]]):"",
+          (Array.isArray(s.key_reports)&&s.key_reports.length)?("대표: "+String((s.key_reports[0]&&(s.key_reports[0].title||s.key_reports[0]))||"").slice(0,40)):"" ].filter(Boolean).join(" · ");
+        rows.push(new TableRow({children:[
+          cell(secLabels[k],{width:w[0],alt:i%2===0,bold:true}),
+          cell(viewText(s.key_message||"").slice(0,180)||"-",{width:w[1],alt:i%2===0,size:16}),
+          cell(extra.slice(0,120)||"-",{width:w[2],alt:i%2===0,size:15,color:"475569"})]})); });
+      children.push(makeTable(w,rows)); } }
+  // 7.8 네이버 금융리서치 모음 (서버 DB, 최근 2일 · 테마별)
   { const nvr=(data.securities.naver_research||{}).recent;
     if(nvr&&typeof nvr==="object"){ idx++; children.push(h(`7.${idx} 네이버 금융리서치 모음 (최근 2일 · 테마별)`,2));
       children.push(p("서버가 매일 2회 네이버 금융 리서치 6개 게시판(시황·투자전략·종목분석·산업분석·경제분석·채권분석)에서 수집 — 제목 클릭 시 원문.",{size:14,color:"64748B"}));
