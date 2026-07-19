@@ -722,7 +722,20 @@ except Exception as _ve:
     print('  [req10] VKOSPI 이력 주입 skip:', _ve)
 m['macro'] = macro
 # (REQ3) 실측 정책금리 — nmr_policyrates.json 있으면 추정치 대체
+# (2026-07-19 서버화 3) PolicyRatesAgent 폐지 — 에이전트 산출이 없으면 서버 daily DB
+#   (WORK/server_policy_rates.json — Phase 1 curl 캐시)를 동일 스키마로 변환해 사용.
 _pr = L('nmr_policyrates.json')
+if not (isinstance(_pr, dict) and _pr.get('policy_rates')):
+    try:
+        _spr = json.load(open(os.path.join(W, 'server_policy_rates.json'), encoding='utf-8'))
+        if _spr.get('rows'):
+            _pr = {'policy_rates': [
+                {'country': r.get('country'), 'rate': str(r.get('rate', '')).rstrip('%'),
+                 'asof': r.get('asof', ''), 'note': r.get('source', '서버 daily 실측 DB')}
+                for r in _spr['rows'] if r.get('rate')]}
+            print('  [policy] 서버 daily DB 사용(%d개국) — PolicyRatesAgent 불필요' % len(_pr['policy_rates']))
+    except Exception:
+        pass
 if isinstance(_pr, dict) and _pr.get('policy_rates'):
     (macro.setdefault('rates', {}))['policy_rates'] = _pr['policy_rates']
     # (req2 2026-07-17) 정책금리 결정이력(monthly) upsert — 그래프 소스(nmr_policyrates_monthly.json)에
