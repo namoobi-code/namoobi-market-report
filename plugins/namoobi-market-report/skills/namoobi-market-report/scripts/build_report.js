@@ -11,6 +11,12 @@ let data;
 try { data = JSON.parse(fs.readFileSync(inputPath, 'utf-8')); }
 catch (e) { console.error(`JSON parse fail: ${inputPath}\n${e.message}`); process.exit(1); }
 
+// (2026-07-20) 미국 종목 한글명 — 서버 db/us_krname.json(KIS 해외 마스터) ← sync_server 로 동기화됨.
+//   없거나 실패하면 빈 맵 → 기존처럼 영문명만 렌더(비차단).
+let USKR = {};
+try { USKR = (JSON.parse(fs.readFileSync('db/us_krname.json', 'utf-8')).map) || {}; } catch (e) { USKR = {}; }
+const krNm = t => USKR[String(t || '').trim().toUpperCase()] || '';
+
 // ── v3.6.24 스키마 정규화: 에이전트 출력 드리프트를 흡수해 '조용한 누락' 방지 ──
 // ── 구조적 정규화 (v3.6.29): 수익률 변화율 키 별칭 흡수 ──
 // 에이전트가 1m_pct/3m_pct/6m_pct·1mo/3mo/6mo 등으로 키를 내보내도 표준키(1w_pct/1mo_pct/3mo_pct/6mo_pct/1y_pct)로 통일.
@@ -1023,14 +1029,14 @@ function renderBerkshire(){ const b=data.berkshire; if(!b)return;
   if(b.summary)children.push(p(b.summary));
   if(b.cash)children.push(p("현금성 관련: "+b.cash,{size:18,color:"64748B"}));
   const sec=(title,arr)=>{ children.push(h(title,2));
-    if(Array.isArray(arr)&&arr.length){ simpleTable([2400,1700,5900],["종목","티커","내용"],arr.map(x=>[x.name||x.ticker||"-",x.ticker||"-",x.detail||x.note||x.reason||"-"]),{left:[2]}); }
+    if(Array.isArray(arr)&&arr.length){ simpleTable([2400,1700,5900],["종목","티커","내용"],arr.map(x=>[(x.name||x.ticker||"-")+(krNm(x.ticker)?" ("+krNm(x.ticker)+")":""),x.ticker||"-",x.detail||x.note||x.reason||"-"]),{left:[2]}); }
     else children.push(p("(이번 분기 해당 종목 없음)",{italics:true,color:"94A3B8",size:18})); };
   sec("A.1 신규 매수 (New)",b.new_buys);
   sec("A.2 비중 확대 (Added)",b.added);
   sec("A.3 비중 축소 (Reduced)",b.reduced);
   sec("A.4 전량 매도 (Exited)",b.exited);
   if(Array.isArray(b.top_holdings)&&b.top_holdings.length){ children.push(h("A.5 상위 보유 종목",2));
-    simpleTable([2300,1500,2400,3800],["종목","티커","비중/평가액","비고"],b.top_holdings.map(x=>[x.name||"-",x.ticker||"-",x.weight_or_value||"-",x.note||"-"]),{left:[3]}); }
+    simpleTable([2300,1500,2400,3800],["종목","티커","비중/평가액","비고"],b.top_holdings.map(x=>[(x.name||"-")+(krNm(x.ticker)?" ("+krNm(x.ticker)+")":""),x.ticker||"-",x.weight_or_value||"-",x.note||"-"]),{left:[3]}); }
   children.push(p("※ 13F는 미국 상장 주식 롱 포지션만 공시하며 분기 종료 후 최대 45일의 시차가 있습니다. 새 분기 13F가 공시되면 이 섹션을 업데이트합니다.",{size:18,italics:true,color:"64748B"}));
   if(Array.isArray(b.sources)&&b.sources.length){ children.push(p("출처:",{bold:true,size:18}));
     b.sources.forEach(sr=>children.push(reportBullet(sr))); }
@@ -1416,7 +1422,7 @@ function renderM7Outlook(){ const m=data.markets||{};
   const sigC=s=>{const t=String(s||"");return t.includes("긍정")?positiveColor:(t.includes("위험")?negativeColor:(t.includes("경계")?mixedColor:"64748B"));};
   const rows=[hdrRow(["기업","현재가·52주","컨센서스","평균목표주가·여력","목표주가 리비전","최근 가이던스","신호"],w)];
   rows0.forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
-    cell("",{width:w[0],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.name||"-",{bold:true,size:18}),new TextRun({text:o.ticker||"",size:14,color:"64748B",break:1})]}),
+    cell("",{width:w[0],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.name||"-",{bold:true,size:18}),new TextRun({text:(o.ticker||"")+(krNm(o.ticker)?" · "+krNm(o.ticker):""),size:14,color:"64748B",break:1})]}),
     cell("",{width:w[1],alt:a,align:AlignmentType.CENTER,runs:[cellRun(o.price!=null?String(o.price):"-",{bold:true,size:19}),new TextRun({text:o.chg52||"",size:15,color:markSign(o.chg52),break:1})]}),
     cell("",{width:w[2],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.consensus||"-",{bold:true,size:16}),new TextRun({text:o.consensus_detail||"",size:13,color:"64748B",break:1})]}),
     cell("",{width:w[3],alt:a,align:AlignmentType.CENTER,runs:[cellRun(o.target!=null?String(o.target):"-",{bold:true,size:19}),new TextRun({text:(o.upside||"")+" 여력",size:15,color:markSign(o.upside),break:1})]}),
