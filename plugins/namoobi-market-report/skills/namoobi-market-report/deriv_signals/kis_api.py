@@ -221,7 +221,7 @@ def futures_oi():
             "oi_chg": _f(o.get("otst_stpl_qty_icdc")),
             "asof": datetime.date.today().isoformat()}
 
-def option_chain(spot=None, coverage=0.99, krx_base=None, max_calls=600, time_budget=90):
+def option_chain(spot=None, coverage=0.99, krx_base=None, max_calls=600, time_budget=90, window=0.25):
     """코스피200 옵션 근월물 체인을 T+0 로 훑어 PCR·IV스큐·GEX 를 낸다.
 
     체인 전체(390 행사가 × 2 = 780 호출)는 모의(1건/초)에서 13분이라 과하다.
@@ -259,7 +259,7 @@ def option_chain(spot=None, coverage=0.99, krx_base=None, max_calls=600, time_bu
                 break
         scan = sorted(pick)
     else:
-        scan = [k for k in ks if spot * 0.75 <= k <= spot * 1.25][: max_calls // 2]
+        scan = [k for k in ks if spot * (1 - window) <= k <= spot * (1 + window)][: max_calls // 2]
 
     rows = []
     _t0 = time.time()
