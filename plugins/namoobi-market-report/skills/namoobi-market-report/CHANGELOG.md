@@ -1,5 +1,12 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.73.0 (plugin 1.27.0, 2026-07-21) — 오후 회차 실측 재발방지 4종 (WORK 초기화 불가·에이전트 스톨·증권사 수집원·key_message 공백)
+
+**① WORK 폴더 초기화 불가** — `rm -rf "$WORK"` 가 마운트 unlink 차단으로 전량 실패(직전 회차 파일 잔존). → Phase 0 을 **타임스탬프 폴더 생성 + `nmr_work_current.txt` 경로 파일**로 변경(콜 간 셸 변수·/dev/shm 휘발 대응), 핵심 규칙에 명문화.
+**② 에이전트 API 스톨** — 병렬 배치에서 News·GlobalSecurities 2건이 stalled mid-stream 으로 중단돼 산출 파일 미생성 → 재실행에 ~30분 추가(수집 56분의 주원인). → "산출물 존재 확인 후 없는 것만 재발행 + 재발행 시 검색 상한·기확인 사실 주입" 규약을 SKILL·agents.md 에 추가.
+**③ 삼성증권·미래에셋 수집원 부재** — 서버 네이버 DB에 삼성 0건·미래에셋 지연(7/16)으로 이틀 연속 '미확인' 표기. → **`fetch_brokers_tele.py` 에 공개 홈페이지 수집기 2종 신설**(sandbox 실측 2026-07-21: 삼성 `samsungpop.com/sscommon/.../research_pop.jsp` 리서치 탐색기 표[제목|작성자|발행일] 7건·당일 / 미래에셋 `securities.miraeasset.com/bbs/board/message/list.do?categoryId=1521` EUC-KR 표[작성일|제목|첨부|작성자] 5건·당일 + `view.do` 퍼머링크 복원). Chrome·로그인 불필요 — 핵심 6사 전부 무료 공개 수집원 확보.
+**④ key_message 공백** — key_reports 가 비었는데 key_message 도 비어 '왜 비었는지'가 사라지던 문제(삼성·미래에셋 실측, 이번 회차는 수동 보정). → **merge.py 가 자동으로 "기준일 충족 최신 공개 자료 미확인 (실행일 …)" 사유를 주입**(stale 필터로 비워진 경우 포함) — 게이트 req33 경고도 자동 해소.
+
 ## v3.72.0 (plugin 1.26.0, 2026-07-21) — 게이트 보강 req29~35 (검토: "새어나갈 수 있는 결함"의 코드화)
 
 req1~28 전수 매핑 결과 미커버 7영역 추가. **problem(차단)**: req29 Top News 신선도(D-2 초과 — SKILL req1 의 게이트화, D-2 는 미국 저녁기사 시차로 warning) · req30 fetch_kr 미실행(nmr_kr_ohlcv mtime != 실행일 — 침묵 carry-forward 감지) · req31 6장 크립토 필수요소(공포탐욕 current·김프 4종 SOL 포함·시장개요 시총·코인/공포탐욕 차트 5종 — 품질기준 8이 게이트에 없던 공백) · req32 분석 완결성(포트폴리오 3종 배분합 100±0.5·action_items 비움 금지) · req35 docx 산출물(3MB 하한 + GOODREPORT 골든 미디어수 90% 자동 비교 — 수동 비교의 코드화, verify 3번째 인자로 docx 경로 전달). **warning(표면화)**: req30 crypto as_of 스테일(서버 크론 사망 감지)·kospi 시계열 7일 초과 · req33 v3.71 stale 필터 부작용 감시(핵심 6사·IB 5사 빈 key_reports 인데 '미확인' 미표기 = 침묵 마스킹 의심) · req34 부록A 버크셔 보유/부록B ai_trends 10건·url/5장 환율 5쌍. SKILL Phase 4.5 verify 호출에 docx 경로 인자 추가. (v3.72.1 핫픽스: req30 mtime 을 KST 로 환산 — UTC 비교로 06시 실행분이 전일 오탐되던 버그, 양성 테스트에서 적발·수정)

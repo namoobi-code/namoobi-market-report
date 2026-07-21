@@ -1459,6 +1459,28 @@ try:
 except Exception as _fe:
     print('  stale filter skip(비차단):', repr(_fe)[:60])
 
+# (v3.73) 증권사·IB key_message 자동 정직화 — key_reports 가 비었는데 key_message 도 비면
+#   빌더·대시보드에 "(리포트 수집 실패)" 만 남아 '왜 비었는지'가 사라진다(게이트 req33 경고).
+#   stale 필터가 링크를 지운 경우도 포함해 사유 문장을 자동으로 채운다.
+try:
+    def _km_fix(sec):
+        if not isinstance(sec, dict): return 0
+        _n = 0
+        for _k, _v in sec.items():
+            if not isinstance(_v, dict) or 'strength' not in _v: continue
+            if (_v.get('key_reports') or []): continue
+            _msg = str(_v.get('key_message') or '').strip()
+            if _msg and '미확인' in _msg: continue
+            _base = '기준일 충족 최신 공개 자료 미확인'
+            _v['key_message'] = (_base + ' - ' + _msg) if _msg else (
+                _base + ' (실행일 ' + RD_ISO + ' 기준 신선도 기준 내 공개분이 수집되지 않음)')
+            _n += 1
+        return _n
+    _k1 = _km_fix(data.get('securities')); _k2 = _km_fix(data.get('global_securities'))
+    if _k1 or _k2: print('  [v3.73] key_message 정직화(미확인 사유 주입): KR %d · IB %d' % (_k1, _k2))
+except Exception as _ke:
+    print('  key_message fix skip(비차단):', repr(_ke)[:60])
+
 outp = os.path.join(W, '_market_report_data', f'report_data_{RD}.json')
 json.dump(data, open(outp, 'w'), ensure_ascii=False, indent=1)
 print('MERGED →', outp)

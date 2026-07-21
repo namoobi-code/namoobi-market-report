@@ -69,6 +69,55 @@ def _get(url, enc='utf-8'):
     return urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}),
                                   timeout=15).read().decode(enc, 'replace')
 
+def fetch_samsung():
+    """(v3.73) 삼성증권 '리서치 탐색기'(research_pop.jsp) — 로그인 無·sandbox 접근 확인(2026-07-21 실측).
+    표 구조 = [제목 | 작성자 | 발행일]. 네이버 리서치 게시판엔 삼성 리포트가 올라오지 않아
+    (서버 broker_reports 0건) 이 공개 페이지가 유일한 무료 수집원이다."""
+    U = 'https://www.samsungpop.com/sscommon/jsp/search/research/research_pop.jsp'
+    try:
+        h = _get(U)
+        recent = []
+        for r in re.findall(r'<tr[^>]*>([\s\S]{0,1200}?)</tr>', h):
+            tds = [strip(td) for td in re.findall(r'<td[^>]*>([\s\S]*?)</td>', r)]
+            if len(tds) < 3: continue
+            title, author, dt = tds[0], tds[1], tds[2]
+            m = re.search(r'(20\d\d)[.\-](\d{2})[.\-](\d{2})', dt)
+            if not m or len(title) < 6: continue
+            recent.append({'datetime': f"{m.group(1)}-{m.group(2)}-{m.group(3)}",
+                           'title': title[:80], 'text': (title + ' / ' + author)[:300], 'url': U})
+        recent.sort(key=lambda m: m['datetime'])
+        recent = recent[-max(N, 8):]
+        return 'samsung', {'label': '삼성증권', 'channels': ['samsungpop.com 리서치 탐색기 (오늘의 리포트 · 공개)'],
+                           'asof': (recent[-1]['datetime'][:10] if recent else ''), 'recent': recent}
+    except Exception as e:
+        return 'samsung', {'label': '삼성증권', 'channels': ['samsungpop.com 리서치 탐색기'], 'asof': '', 'recent': [], 'err': str(e)[:80]}
+
+def fetch_miraeasset():
+    """(v3.73) 미래에셋증권 리서치 게시판(categoryId=1521) — 로그인 無·EUC-KR·sandbox 접근 확인.
+    표 구조 = [작성일 | 제목 | 첨부 | 작성자], 링크 javascript:view('<messageId>','<messageNumber>').
+    서버 네이버 DB는 미래에셋 최신분이 며칠씩 지연돼 stale 판정되던 원인이라 공식 게시판을 직접 읽는다."""
+    LIST = 'https://securities.miraeasset.com/bbs/board/message/list.do?categoryId=1521'
+    try:
+        h = _get(LIST, 'cp949')
+        recent = []
+        for r in re.findall(r'<tr[^>]*>([\s\S]{0,1200}?)</tr>', h):
+            tds = [strip(td) for td in re.findall(r'<td[^>]*>([\s\S]*?)</td>', r)]
+            if len(tds) < 2: continue
+            m = re.search(r'(20\d\d)[.\-](\d{2})[.\-](\d{2})', tds[0])
+            if not m or len(tds[1]) < 6: continue
+            mid = re.search(r"view\('(\d+)','(\d+)'\)", r)
+            url = (f"https://securities.miraeasset.com/bbs/board/message/view.do?messageId={mid.group(1)}"
+                   f"&messageNumber={mid.group(2)}&categoryId=1521") if mid else LIST
+            author = tds[3] if len(tds) > 3 else ''
+            recent.append({'datetime': f"{m.group(1)}-{m.group(2)}-{m.group(3)}",
+                           'title': tds[1][:80], 'text': (tds[1] + ' / ' + author)[:300], 'url': url})
+        recent.sort(key=lambda m: m['datetime'])
+        recent = recent[-max(N, 8):]
+        return 'miraeasset', {'label': '미래에셋증권', 'channels': ['securities.miraeasset.com 리서치 게시판 (공개)'],
+                              'asof': (recent[-1]['datetime'][:10] if recent else ''), 'recent': recent}
+    except Exception as e:
+        return 'miraeasset', {'label': '미래에셋증권', 'channels': ['securities.miraeasset.com 리서치 게시판'], 'asof': '', 'recent': [], 'err': str(e)[:80]}
+
 def fetch_kb():
     """KB증권 '오늘의 리서치' rc.kbsec.com/today/index.able — 로그인 無.
     모닝/마감코멘트(데일리 시황) + 당일 발간 리포트 제목 전체."""
@@ -116,7 +165,7 @@ def fetch_nh():
 
 with ThreadPoolExecutor(max_workers=4) as ex:  # 동시성 완화로 텔레그램 throttle 회피
     res = dict(ex.map(fetch_firm, FIRMS.items()))
-for fn in (fetch_kb, fetch_nh):   # (v3.66) KB·NH 공개 홈페이지 수집 — 실패해도 비차단(빈 recent)
+for fn in (fetch_kb, fetch_nh, fetch_samsung, fetch_miraeasset):   # (v3.66 KB·NH · v3.73 삼성·미래에셋) 공개 홈페이지 수집 — 실패해도 비차단(빈 recent)
     try:
         k, v = fn(); res[k] = v
     except Exception as _e:
