@@ -249,6 +249,25 @@ try{
     else if(gold){ const gn=cnt(gold); if(gn>0&&nn<Math.floor(gn*0.9)) problems.push('[req35] docx 미디어 '+nn+' < 골든('+path.basename(gold)+') '+gn+'의 90% — 차트 대량 누락 의심'); }
     else if(nn<200) warnings.push('[req35] docx 미디어 '+nn+'<200 (GOODREPORT 골든 부재 — 절대 하한만 검사)');
   }catch(e){ warnings.push('[req35] docx 검사 실패: '+String(e).slice(0,60)); } } }
+// req36 (v3.74): 직렬화 사고 검출 — 객체를 문자열 셀에 넣어 "[object Object]" 로 새어나간 값(2026-07-21 10장 실측).
+{ const hits=[]; const walk=(o,path)=>{ if(o==null)return;
+    if(typeof o==='string'){ if(o.indexOf('[object Object]')>=0) hits.push(path); return; }
+    if(Array.isArray(o)){ o.forEach((x,i)=>walk(x,path+'['+i+']')); return; }
+    if(typeof o==='object'){ Object.keys(o).forEach(k=>walk(o[k],path+'.'+k)); } };
+  walk(d,'');
+  if(hits.length) problems.push('[req36] "[object Object]" 직렬화 사고 '+hits.length+'건: '+hits.slice(0,5).join(', '));
+  // 10장 asset_view 는 값이 객체여도 빌더(v3.74)가 평탄화하지만, 문자열화가 불가능한 형태면 표가 빈다.
+  const av=(d.analysis&&d.analysis.asset_view)||{};
+  const bad=Object.keys(av).filter(k=>{ const v=av[k]; if(typeof v==='string') return !v.trim();
+    if(v&&typeof v==='object') return !Object.values(v).some(x=>typeof x==='string'&&x.trim()); return true; });
+  if(bad.length) problems.push('[req36] 10장 asset_view 렌더 불가 항목: '+bad.join(','));
+}
+// req37 (v3.74): 3.1.11 사이클 단계 바 — current 가 list 의 어느 단계와도 매칭되지 않으면 강조가 사라진다.
+{ const st=(m.semi_cycle||{}).stages||{};
+  if(Array.isArray(st.list)&&st.list.length&&st.current){
+    const c=String(st.current);
+    if(!st.list.some(s=>c===s||c.startsWith(s)||c.includes(s)))
+      problems.push('[req37] 3.1.11 stages.current("'+c.slice(0,30)+'…") 가 list 와 불일치 — 단계 바 강조 불능'); } }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

@@ -518,10 +518,14 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
   const stg=sc.stages;
   if(stg&&Array.isArray(stg.list)&&stg.list.length){
     const w=Math.floor(10160/stg.list.length); const sw2=stg.list.map(()=>w);
-    const row=new TableRow({children:stg.list.map(s=>{const on=(s===stg.current);
+    // (v3.74) current 가 "상승(후반부) — …" 처럼 부연설명을 달고 오면 정확일치 비교가 실패해
+    //   어느 칸도 강조되지 않았다(2026-07-21 실측). 부분일치로 완화하고, 부연은 캡션으로 살린다.
+    const _cur=String(stg.current||""); let _hit=stg.list.find(s=>_cur===s) || stg.list.find(s=>_cur.startsWith(s)) || stg.list.find(s=>_cur.includes(s)) || "";
+    const row=new TableRow({children:stg.list.map(s=>{const on=(s===_hit);
       return _mcell([new Paragraph({alignment:AlignmentType.CENTER,children:[
         new TextRun({text:on?(s+" (현재)"):s,bold:on,size:on?19:15,color:on?"15803D":"94A3B8"})]})],w,on?"DCFCE7":"F8FAFC");})});
     children.push(makeTable(sw2,[row]));
+    if(_cur && _cur!==_hit) children.push(p("현재 단계: "+_cur,{size:15,bold:true,color:"15803D"}));  // (v3.74) 부연설명 보존
     if(stg.note)children.push(p(stg.note,{size:15,italics:true,color:"64748B"})); }
   const tl=Array.isArray(sc.tiles)?sc.tiles:[];
   if(tl.length){
@@ -1610,7 +1614,18 @@ if (data.analysis) { const a=data.analysis;
 }
 if (data.analysis && data.analysis.asset_view) {
   children.push(new Paragraph({children:[new PageBreak()]})); children.push(h("10. 자산별 단·중·장기 견해",1)); const av=data.analysis.asset_view;
-  const am=[["미국 주식",av.us_equity],["한국 주식",av.kr_equity],["중국 주식",av.china_equity||av.cn_equity],["일본 주식",av.japan_equity||av.jp_equity],["신흥시장 주식",av.em_equity],["유럽 주식",av.europe_equity||av.eu_equity],["한국 채권",av.kr_treasury||av.kr_bond],["美 국채",av.us_treasury||av.us_bond],["금 (Gold)",av.gold],["원유 (Oil)",av.oil],["비트코인 (BTC)",av.btc]];
+  // (v3.74) asset_view 값이 문자열/객체 어느 쪽이든 렌더 — 객체({short,mid,long} 등)를 그대로 셀에 넣으면
+  //   String(obj)="[object Object]" 로 표에 새어나갔다(2026-07-21 실측 사고). 라벨을 붙여 한 셀로 평탄화한다.
+  const _avf=(v)=>{ if(v==null) return ""; if(typeof v==='string') return v;
+    if(Array.isArray(v)) return v.filter(Boolean).map(x=>_avf(x)).join(" / ");
+    if(typeof v==='object'){ const L=[['short','단기'],['mid','중기'],['long','장기'],
+        ['short_term','단기'],['mid_term','중기'],['long_term','장기'],['단기','단기'],['중기','중기'],['장기','장기']];
+      const seen=new Set(), out=[];
+      L.forEach(([k,lab])=>{ const s=v[k]; if(s&&!seen.has(lab)){ seen.add(lab); out.push(lab+": "+(typeof s==='string'?s:JSON.stringify(s))); } });
+      if(out.length) return out.join("\n");
+      return Object.entries(v).map(([k,s])=>k+": "+(typeof s==='string'?s:JSON.stringify(s))).join("\n"); }
+    return String(v); };
+  const am=[["미국 주식",av.us_equity],["한국 주식",av.kr_equity],["중국 주식",av.china_equity||av.cn_equity],["일본 주식",av.japan_equity||av.jp_equity],["신흥시장 주식",av.em_equity],["유럽 주식",av.europe_equity||av.eu_equity],["한국 채권",av.kr_treasury||av.kr_bond],["美 국채",av.us_treasury||av.us_bond],["금 (Gold)",av.gold],["원유 (Oil)",av.oil],["비트코인 (BTC)",av.btc]].map(([k,v])=>[k,_avf(v)]);
   children.push(makeTable([2400,6960],[["자산군","단·중·장기 견해"],...am].map((r,i)=>new TableRow({children:r.map((cc,j)=>cell(cc||"-",{width:[2400,6960][j],header:i===0,alt:i>0&&i%2===0,bold:j===0&&i>0}))}))));
 }
 if (data.analysis && data.analysis.portfolios) {

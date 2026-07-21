@@ -281,7 +281,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 - `macro_view`: 매크로 톤 1문단
 - `key_themes`: 3~6개 {theme, direction, comment}. **direction 은 반드시 `▲`(강세·상승) / `▼`(부정·하락) / `■`(양면·혼재) 중 하나**로 표기 (빌더가 기호별 색으로 렌더 — ▲ 초록·▼ 빨강·■ 앰버)
 - `key_risks`: 3~5개 리스크 문장
-- `asset_view`: 자산군별 단·중·장기 견해 1줄씩. **키명은 정확히 다음을 사용**:
+- `asset_view`: 자산군별 단·중·장기 견해. **값은 문자열 1줄 또는 `{short,mid,long}` 객체 둘 다 허용**(v3.74 빌더가 '단기: … / 중기: … / 장기: …' 로 평탄화 — 그 전에는 객체를 넣으면 표에 `[object Object]` 가 찍혔다. 게이트 req36 이 검출). **키명은 정확히 다음을 사용**:
   `us_equity, kr_equity, china_equity, japan_equity, em_equity, europe_equity, kr_treasury, us_treasury, gold, oil, btc`
   (빌더 v1.2.2 부터는 `cn_equity/jp_equity/eu_equity/kr_bond/us_bond` 축약 별칭도 수용하지만 위 정식 키를 우선 사용할 것)
 - `portfolios`: aggressive/balanced/conservative — label, expected_return, max_drawdown, rebalance, **basis**, allocation[{asset, weight_pct, vehicle}] (비중 합계 100%)

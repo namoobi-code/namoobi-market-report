@@ -1,5 +1,11 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.74.0 (plugin 1.28.0, 2026-07-21) — 렌더 사고 2건 긴급 수정 (10장 [object Object]·3.1.11 단계 바 강조 실패)
+
+**① 10장 자산별 견해 전 행이 `[object Object]`** — AnalysisAgent 가 `asset_view` 를 `{short,mid,long}` 객체로 산출했는데 빌더가 문자열로 가정해 셀에 그대로 넣어 `String(obj)` 가 찍혔다(발송본 실측). → 빌더에 `_avf()` 평탄화 추가: 문자열·배열·객체 모두 수용하고 객체는 **"단기: … / 중기: … / 장기: …"** 로 라벨링해 한 셀에 렌더(short/mid/long·short_term/…·한글키 모두 인식).
+**② 3.1.11 사이클 단계 바에서 현재 단계가 강조되지 않음** — `stages.current` 가 `"상승(후반부) — 고점 통과 논쟁 …"` 처럼 부연을 달고 오면 `s===stg.current` 정확일치가 실패해 5칸 모두 회색으로 렌더됐다. → **부분일치(정확→startsWith→includes)로 완화**하고, 매칭된 단계명과 원문이 다르면 **"현재 단계: <원문>" 캡션을 아래에 추가**해 부연 정보를 보존.
+**③ 게이트 보강 req36·req37** — req36: report_data 전체를 재귀 스캔해 `"[object Object]"` 문자열이 하나라도 있으면 **발송 차단**(경로 표시) + 10장 asset_view 렌더 불가 항목 검출. req37: `stages.current` 가 `list` 와 매칭 불가하면 차단. 이 두 사고는 종전 게이트 req1~35 가 전혀 보지 못하던 '렌더 결과' 영역이었다.
+
 ## v3.73.0 (plugin 1.27.0, 2026-07-21) — 오후 회차 실측 재발방지 4종 (WORK 초기화 불가·에이전트 스톨·증권사 수집원·key_message 공백)
 
 **① WORK 폴더 초기화 불가** — `rm -rf "$WORK"` 가 마운트 unlink 차단으로 전량 실패(직전 회차 파일 잔존). → Phase 0 을 **타임스탬프 폴더 생성 + `nmr_work_current.txt` 경로 파일**로 변경(콜 간 셸 변수·/dev/shm 휘발 대응), 핵심 규칙에 명문화.
