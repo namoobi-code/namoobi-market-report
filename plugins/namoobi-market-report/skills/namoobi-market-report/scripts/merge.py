@@ -1490,13 +1490,35 @@ try:
     def _num(s):
         m = _re.search(r'[-+]?\d+(?:\.\d+)?', str(s or '').replace(',', ''))
         return float(m.group(0)) if m else None
+    # (v3.80) 리비전 정의를 홈피 종목 스크리너와 통일 — FY1(당해)+FY2(익년) 컨센 EPS 의 90일 변화율 평균.
+    #   종전엔 FY1·60일만 봐서 같은 종목이 스크리너 +16.4% / 보고서 +0.03% 로 갈렸다(2026-07-21 GOOGL 실측).
+    #   1순위 = 서버 m7_estimates(eps vs eps_90d), 없으면 60일 폴백(표기), 그것도 없으면 에이전트 값.
+    _m7db = {}
+    try:
+        _dbp = os.path.join(W, 'server_m7_estimates.json')
+        if os.path.exists(_dbp):
+            for _r in (json.load(open(_dbp, encoding='utf-8')).get('rows') or []):
+                _m7db[str(_r.get('sym') or '').upper()] = {x.get('period'): x for x in (_r.get('trend') or [])}
+    except Exception: pass
     def _revpct(o):
+        tk = str(o.get('ticker') or '').upper()
+        tr = _m7db.get(tk) or {}
+        for _key, _tag in (('eps_90d', ''), ('eps_60d', ' · 90일값 미확보로 60일 기준')):
+            _vals = []
+            for _p in ('0y', '+1y'):                      # FY1 + FY2
+                _x = tr.get(_p) or {}
+                _cur, _ago = _x.get('eps'), _x.get(_key)
+                if _cur is not None and _ago:
+                    _vals.append((_cur / _ago - 1.0) * 100.0)
+            if _vals:
+                o['_rev_note'] = _tag
+                return sum(_vals) / len(_vals)
         v = o.get('rev_pct')
         if isinstance(v, (int, float)): return float(v)
         n = _num(v)
         if n is not None: return n
         d = str(o.get('revision_detail') or '')
-        m = _re.search(r'([-+]\s*\d+(?:\.\d+)?)\s*%', d)   # 첫 번째 % = 대표 리비전
+        m = _re.search(r'([-+]\s*\d+(?:\.\d+)?)\s*%', d)
         if m: return float(m.group(1).replace(' ', ''))
         t = str(o.get('revision') or '')
         return 1.0 if '상향' in t else (-1.0 if '하향' in t else 0.0)
@@ -1504,7 +1526,8 @@ try:
     def _m7sig(o):
         rp = _revpct(o); up = _num(o.get('upside')); cs = str(o.get('consensus') or '')
         if up is None: up = 0.0
-        R = '상향' if rp >= 0.2 else ('하향' if rp <= -0.2 else '보합')
+        # (v3.80) FY1+FY2·90일 기준으로 스케일이 커져 임계값을 ±1.0% 로 재조정(종전 FY1·60일 ±0.2%).
+        R = '상향' if rp >= 1.0 else ('하향' if rp <= -1.0 else '보합')
         U = '큼' if up >= 15 else ('보통' if up >= 5 else '작음')
         TBL = {('상향','큼'):'긍정', ('상향','보통'):'긍정', ('상향','작음'):'중립',
                ('보합','큼'):'중립', ('보합','보통'):'중립', ('보합','작음'):'경계',
@@ -1514,7 +1537,7 @@ try:
         if ('보유' in cs) or ('중립' in cs) or ('매도' in cs) or ('비중축소' in cs):
             i = _ORD.index(sig)
             if i > 0: sig = _ORD[i-1]; adj = ' · 의견 %s로 1단계 하향' % (cs.strip()[:6])
-        basis = '리비전 %s(%+.2f%%) × 여력 %s(%+.1f%%)%s' % (R, rp, U, up, adj)
+        basis = '리비전 %s(%+.2f%%, FY1+FY2·90일) × 여력 %s(%+.1f%%)%s%s' % (R, rp, U, up, o.get('_rev_note') or '', adj)
         return sig, basis
     _m7 = (m.get('m7_outlook') or {}) if isinstance(m.get('m7_outlook'), dict) else {}
     _rw = _m7.get('rows') if isinstance(_m7.get('rows'), list) else []
@@ -1525,10 +1548,20 @@ try:
         _o['signal_agent'] = _o.get('signal')      # 에이전트 원판정 보존(감사용)
         if _o.get('signal') != _s: _chg += 1
         _o['signal'] = _s; _o['signal_basis'] = _b
+        try:   # (v3.80) 표의 '리비전' 라벨·상세도 통일 기준으로 재작성 — 라벨(상향)과 판정(보합)이 어긋나 보이던 문제
+            _rp2 = _revpct(_o)
+            _o['rev_pct'] = round(_rp2, 2)
+            _o['revision'] = '상향' if _rp2 >= 1.0 else ('하향' if _rp2 <= -1.0 else '보합')
+            _o['revision_detail'] = ('FY1+FY2 컨센서스 EPS 90일 변화율 평균 %+.2f%%%s (스크리너와 동일 기준)'
+                                     % (_rp2, _o.get('_rev_note') or ''))
+        except Exception: pass
+        _o.pop('_rev_note', None)
     if _rw:
-        _m7['signal_rule'] = ('신호 = 리비전(연간 EPS 컨센 변화: 상향≥+0.2% / 보합 ±0.2% / 하향≤-0.2%) × '
-                              '여력(평균목표주가 대비: 큼≥15% / 보통 5~15% / 작음<5%) 결정표, '
-                              '투자의견이 보유·매도면 1단계 하향. 코드 자동 산출(주관 판정 배제).')
+        _m7['signal_rule'] = ('신호 = 리비전 × 여력 결정표 + 의견 보정(코드 자동 산출). '
+                              '리비전 = 당해연도(FY1)·익년(FY2) 컨센서스 EPS 의 90일 변화율 평균 — '
+                              '홈페이지 종목 스크리너의 리비전과 동일 정의(상향≥+1% / 보합 ±1% / 하향≤-1%). '
+                              '여력 = 평균목표주가 대비 상승여력(큼≥15% / 보통 5~15% / 작음<5%). '
+                              '투자의견이 보유·매도면 1단계 하향.')
         print('  [v3.76] M7 신호 규칙 재산출: %d/%d 종목 정정' % (_chg, len(_rw)))
 except Exception as _me:
     print('  m7 signal skip(비차단):', repr(_me)[:70])
