@@ -1421,6 +1421,44 @@ try:
 except Exception as _sne:
     print('  server_notes skip(비차단):', repr(_sne)[:60])
 
+# (v3.71 재발방지) 증권사·IB key_reports 신선도 필터 — verify req8 과 동일 규칙을 merge 가 선적용해
+#   서버DB 보강분·에이전트 수집분의 stale 링크가 게이트 차단을 내지 않게 한다.
+#   KR=weekly(3일)·IB=weekly7(7일), 기준일 요일 보정(월+2/토+1/일+2), 부분 날짜(YYYY-MM 등)는 제거.
+try:
+    import datetime as _fdt, re as _fre
+    _fref = _fdt.date(int(RD[:4]), int(RD[4:6]), int(RD[6:8]))
+    def _fmax(base):
+        _m = base; _w = _fref.weekday()  # Mon=0..Sun=6
+        if _w == 0: _m += 2
+        elif _w == 5: _m += 1
+        elif _w == 6: _m += 2
+        return _m
+    def _ffilt(sec, base):
+        if not isinstance(sec, dict): return 0
+        _n = 0
+        for _fk, _fv in sec.items():
+            if not isinstance(_fv, dict): continue
+            _krs = _fv.get('key_reports')
+            if not isinstance(_krs, list): continue
+            _keep = []
+            for _r in _krs:
+                _dt = (_r or {}).get('date', '') if isinstance(_r, dict) else ''
+                if _dt:
+                    if not _fre.fullmatch(r'\d{4}-\d{2}-\d{2}', str(_dt)):
+                        _n += 1; continue
+                    try:
+                        _d0 = _fdt.date(*map(int, str(_dt).split('-')))
+                        if (_fref - _d0).days > _fmax(base): _n += 1; continue
+                    except Exception: _n += 1; continue
+                _keep.append(_r)
+            _fv['key_reports'] = _keep
+        return _n
+    _fn1 = _ffilt(data.get('securities'), 3)
+    _fn2 = _ffilt(data.get('global_securities'), 7)
+    if _fn1 or _fn2: print('  [v3.71] stale key_reports 필터: KR %d · IB %d 제거(verify req8 선적용)' % (_fn1, _fn2))
+except Exception as _fe:
+    print('  stale filter skip(비차단):', repr(_fe)[:60])
+
 outp = os.path.join(W, '_market_report_data', f'report_data_{RD}.json')
 json.dump(data, open(outp, 'w'), ensure_ascii=False, indent=1)
 print('MERGED →', outp)

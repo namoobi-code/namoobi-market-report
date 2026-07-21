@@ -1,5 +1,11 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.71.0 (plugin 1.25.0, 2026-07-21) — 7/21 예약실행 재발방지 4종 (백그라운드 전멸 실측·게이트 1차 21결함 구조 수정)
+
+**사고(7/21 예약실행 실측)** — ① 샌드박스 bash = `bwrap --unshare-pid --die-with-parent` 확인: Phase 1 nohup 백그라운드 fetch 13종 중 10종이 콜 종료와 함께 즉사(빈 로그·산출물 없음) → 전부 포그라운드 재실행으로 수집 40분. `pgrep -f` 자기매칭으로 sync "실행 중" 오판까지 겹쳐 발송 지연. ② 게이트 1차 21결함: mplfinance 부재로 캔들→주봉 폴백(마커 rm 은 마운트 EPERM 으로 조용히 실패해 재생성 후에도 잔존), merge 서버DB 보강이 stale(7/16) 증권사 링크 주입, IB 에이전트가 옛 날짜 리포트를 key_reports 에 유지.
+
+**수정** — ① SKILL 핵심 규칙 "샌드박스 실행 계약" 신설: 백그라운드 금지·전부 포그라운드 45초 그룹 병렬·fetch 완주 후 에이전트 배치 발행(vkospi 주입·SecuritiesCompose 입력 레이스 제거)·pgrep 판단 금지·미완주 재실행(멱등)·/dev/shm 휘발 주의. ② Phase 0 mplfinance 사전설치 + gen_kr_candle: pip --prefer-binary·1회 재시도, weekly 마커 rm 실패 시 rename 폴백(게이트 req1 오탐 제거). ③ merge.py: verify req8 동일 신선도 필터를 저장 직전 선적용(KR 3일·IB 7일·요일 보정·부분날짜 제거) — 서버DB 보강분·에이전트 수집분의 stale 링크가 게이트에 도달하지 않음. ④ gen_rest_charts: semi_s_/semi_e_ 를 report_data 부재 시 nmr_semi.json 폴백 생성 + Phase 4 에 merge 후 재실행 명문화. ⑤ agents.md GlobalSecurities: 게이트 날짜 규격(완전 YYYY-MM-DD·7일)·IB 별 발행 요일 공략표(BlackRock·JPM=월요일 위클리, MS TOTM=매일, UBS CIO Daily=매일) 추가.
+
 ## v3.66.0 (plugin 1.24.0, 2026-07-13) — 3.1.13 파생 T+0 보강 — 당일 급변(코스피 -8.9%) 미반영 사고 근본 수정 (네이버 T+0 브리지·VKOSPI override·stale-guard)
 
 

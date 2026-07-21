@@ -18,7 +18,9 @@ def _ensure_mpf():  # v3.14: 캔들엔 mplfinance 필수 — 빌드환경(휘발
     except Exception:
         import subprocess
         try:
-            subprocess.run([sys.executable,"-m","pip","install","mplfinance","--break-system-packages","-q"],timeout=180)
+            _rr=subprocess.run([sys.executable,"-m","pip","install","mplfinance","--prefer-binary","--break-system-packages","-q"],timeout=180)
+            if getattr(_rr,"returncode",1)!=0:  # (v3.71) 1회 재시도 — 일시 네트워크/인덱스 오류 대비
+                subprocess.run([sys.executable,"-m","pip","install","mplfinance","--prefer-binary","--break-system-packages","-q"],timeout=180)
             import importlib; importlib.invalidate_caches(); import mplfinance  # noqa
             return True
         except Exception as e:
@@ -101,6 +103,9 @@ for name,key,fkey,tc,tw in specs:
     try:
         if os.path.exists(mark): os.remove(mark)  # 캔들 성공 시 직전 폴백 마커 제거
     except Exception: pass
+    if os.path.exists(mark):  # (v3.71) 마운트가 unlink 차단(EPERM)해도 rename 은 허용 — 잔존 마커가 게이트 req1 을 오탐시키는 사례 수정
+        try: os.rename(mark, f"charts/_dead_{name}_{os.getpid()}.weeklyold")
+        except Exception as _me: print(name, "폴백마커 제거 실패(수동 mv 필요):", repr(_me))
     if _HAS_MPF and kr and kr.get(key):
         try:
             df=clean_ohlcv(kr[key])

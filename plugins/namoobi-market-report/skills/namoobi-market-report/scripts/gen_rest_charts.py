@@ -124,6 +124,11 @@ try:
     krs=json.load(open(O+"/nmr_kr_series.json"))
     rdc=sorted(_g.glob(O+"/_market_report_data/report_data_*.json"))
     M=(json.load(open(rdc[-1])).get("markets") if rdc else {}) or {}
+    if not (M.get("semi_ai_stocks") or M.get("semi_ai_etfs")):  # (v3.71) merge 전(Phase 1.5)에도 semi_s_/semi_e_ 생성 — nmr_semi.json 직접 폴백
+        try:
+            _sm=json.load(open(O+"/nmr_semi.json"))
+            M={**M,"semi_ai_stocks":(_sm.get("semi_ai_stocks") or [])[:20],"semi_ai_etfs":(_sm.get("semi_ai_etfs") or [])[:20]}
+        except Exception as _se: print("semi fallback skip:",repr(_se)[:50])
     THEME_ORDER=["반도체/AI","전력기기","조선","방산","원자력","증권","로봇","우주"]
     th=krs.get("themes") or {}; nt=0
     for t in THEME_ORDER:

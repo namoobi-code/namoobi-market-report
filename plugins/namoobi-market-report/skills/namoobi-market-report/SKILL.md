@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.24.0 · SKILL v3.66.0)
+# Namoobi Market Report (plugin v1.25.0 · SKILL v3.71.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -21,6 +21,7 @@ description: |
 
 > **원칙: "조용히 미표시(-)·carry-forward·stale 로 넘기지 말 것. 결함이 있으면 발송하지 말고 사용자에게 물어라."** 정상 예제(`D:\claudeCowork\GOODREPORT`) 수준을 못 맞추면 Phase 4.5 게이트에서 멈춘다. 아래는 그동안 반복적으로 깨지던 지점의 확정 규칙이다(상세·스키마는 `references/agents.md`).
 
+> **[v3.71 · 2026-07-21 실측 확정] 샌드박스 실행 계약 — 백그라운드 전멸·전부 포그라운드**: bash tool-call 은 `bwrap --unshare-pid --die-with-parent` 격리라 **콜이 끝나면 nohup/setsid/& 백그라운드 프로세스도 함께 죽는다**(간헐 생존은 다음 콜 활성 시간에 얹힌 우연 — 신뢰 금지). 또 `pgrep -f <스크립트명>` 은 **자기 bash 명령줄 텍스트를 자기매칭**해 "실행 중" 오판을 낸다(7/21 sync 지연 사고 원인). 따라서 ① **모든 fetch/gen/sync/발송 스크립트는 포그라운드**로, 한 콜(45초) 안에서 `&`+`wait` 로 병렬 묶어 실행한다(그룹 예: A=fetch_us·semi·oecd·aetf·appc·leading·customs ~15초 / B=fetch_kr·memory·krliq·krxbrief ~25초 / C=fetch_brokers_tele 단독 timeout 43 / D=deriv run_for_report 단독 — 서버 스냅샷 회수 ~20초). 미완주(45초 벽)면 **같은 명령을 다음 콜에서 재실행**(수집기는 출력파일·서버 dedup 으로 멱등). ② **Phase 1 순서 = fetch 콜 A~D 완주 → 그 다음 에이전트 배치 1회 발행**: MacroAgent 의 vkospi 주입(nmr_markets.json)과 SecuritiesCompose 입력(nmr_brokers_tele.json)이 이미 존재한 상태가 되어 폴링·재실행이 사라진다. ③ 완료 감시는 pgrep 이 아니라 **출력 파일 존재/로그 꼬리**로만 판단한다. ④ sync_server·send_mail_server 도 포그라운드 `timeout 43`(발송은 서버 dedup 가드로 재실행 안전). ⑤ /dev/shm·/tmp 도 콜 간 휘발 — 콜을 넘겨 쓸 파일은 outputs/연결폴더에만 둔다.
 > **[Big-Arch] 비매일 지표 DB화 (최우선 원칙 · 상세 `references/db-architecture.md`)**: 발표주기가 매일이 아닌 **모든 3.1 매크로 지표**(FOMC 기준금리·6개국 정책금리·FOMC 회의일정·점도표·물가 CPI/CoreCPI/PCE/CorePCE/PPI·고용 7종(초기 실업수당 청구건수 포함)·빅테크 CAPEX·메모리/HBM·경기선행지수(한국)·OECD CLI)는 ① 별도 DB(파일)에 저장하고 ② 매 실행 **변동 여부만** 저렴히 조사해 ③ 변동 시에만 재조사·갱신하며 ④ 변동 없으면 DB값을 그대로 쓴다. 보고서엔 표준 캡션 **"업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"** 를 명시한다(물가는 `, BEI는 실시간` 부기). **매일 실측(DB화 제외)**: 美 국채금리(10Y·2Y)·장단기차(10Y-2Y)·HY 스프레드·기대인플레(BEI)·심리(VIX·KSVKOSPI·DXY·원/달러·WTI·美10Y). CAPEX·HBM 은 **누적형 DB**(신규 관측치 upsert 로 시계열 계속 업그레이드).
 > **Top News 최신성(req1)**: 1.글로벌 Top News 10 은 발행일이 **전일~당일(D-0~D-1)** 인 기사만 사용(2일 이상 지난 뉴스 금지).
 > **[Big-Arch 구현] 범용 DB**: `scripts/nmr_db.py`(check/get/set/upsert) + `merge.py` 가 매 실행 **물가·고용·정책금리·FOMC회의·점도표·경기선행·OECD CLI** 7섹션을 `namoobi-market-report-server/db/<item>.json` 에 자동 저장하고, 비면 DB값을 재사용한다(변동 시에만 갱신). 에이전트는 섹션 마커(최신 발표/결정일)를 `nmr_db.py check` 로 1회 관측해 reuse 면 수집 스킵 가능. **차트 시계열도 `nmr_db.dbseries` 로 db/series_*.json 에 누적**(부실 수집 보강). 점도표·13F·리밸런싱 포함 모든 비매일 지표를 통합 DB로 일원화 — **구 마커체크(nmr_cache.py)는 폐지**.
@@ -211,6 +212,8 @@ NCACHE="$(dirname "$WORK")/nmr_node_cache"
 if [ -d "$NCACHE/node_modules/docx" ]; then cp -r "$NCACHE/node_modules" "$WORK/node_modules" && echo "docx 캐시 재사용"
 else npm install docx --no-fund --no-audit && mkdir -p "$NCACHE" && cp -r "$WORK/node_modules" "$NCACHE/node_modules"; fi
 node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
+# (v3.71) 3.2.1 일봉 캔들 필수 의존성 사전설치 — 미설치면 gen_kr_candle 이 주봉 폴백 마커를 남겨 게이트(req1)가 발송을 차단한다
+pip install -q mplfinance --prefer-binary --break-system-packages >/dev/null 2>&1; python3 -c "import mplfinance" 2>/dev/null && echo "mplfinance OK" || echo "⚠️ mplfinance 설치 실패 — gen_kr_candle 자동설치가 재시도"
 # 무결성 검사 (v3.2.6) — 샌드박스 마운트가 큰 파일을 잘라 읽는 사례가 있음 (호스트 원본은 정상)
 if ! tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report"; then
   echo "⚠️ 잘림 감지 → git 원본에서 재복사"
@@ -291,6 +294,8 @@ python3 "$SRC/gen_capex_chart.py" <outputs>/_market_report_data/report_data_YYYY
 # (req2 2026-07-19) 정책금리 등 merge 가 DB·이력(nmr_policyrates_monthly upsert 등)을 갱신한 뒤에만 최신이 되는
 #   매크로 차트를 재생성 — Phase 1.5 시점 차트는 upsert 전 이력이라 표(예: 한국 7/16 인상)와 어긋난다.
 NMR_OUT="$WORK" python3 "$SRC/gen_macro_charts.py"
+# (v3.71) 3.2.3 반도체 종목/ETF 추세(semi_s_*/semi_e_*)는 report_data 를 참조 — merge 후 재실행해야 전부 생성된다(Phase 1.5 시점 미생성분 보강)
+python3 "$SRC/gen_rest_charts.py" "$WORK"
 node build_report.js \
   <outputs>/_market_report_data/report_data_YYYYMMDD.json \
   <outputs>/global_market_report_YYYYMMDD_HHMM.docx
@@ -414,6 +419,9 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 | 선물 티커 실패(PL=F 등) | current:null → 빌더가 "-" 렌더 |
 | CoinInfo gainers/losers 간헐 오류 (429 등) | null/빈배열로 두고 진행 |
 | 한글 폰트 깨짐 | 빌더가 docx 에 NanumBarunGothic 임베드 — 별도 설치 불필요(임베드 무시하는 뷰어면 시스템 한글폰트 확인) |
+| 백그라운드(nohup/setsid &) 프로세스 소실 | 샌드박스 bwrap --die-with-parent — 콜 종료 시 전멸. 모든 실행은 포그라운드 timeout 43 + 콜 내 병렬(&+wait), 미완주는 다음 콜에서 같은 명령 재실행(멱등) |
+| pgrep -f 로 "실행 중" 오판 | 자기 bash 명령줄을 자기매칭 — 완료 판단은 출력파일 존재·로그 꼬리로만 |
+| charts/*_tech.weekly 마커 rm EPERM | 마운트가 unlink 차단 — mv(rename) 개명은 허용, gen_kr_candle(v3.71)이 자동 처리 |
 
 ## 플러그인 유지보수·배포 (git push)
 
