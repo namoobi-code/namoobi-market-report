@@ -45,7 +45,21 @@ def plot(months, ser, col, outpath):
             if v is not None:
                 ax.text(x+offs, v+maxv*0.012, f"{int(v):,}", ha="center", va="bottom",
                         fontsize=6.4, rotation=90, color="#333333", zorder=4)
-    ax.set_xticks(list(xs)); ax.set_xticklabels([f"{m[:4]}년 {m[5:7]}월" for m in months],fontsize=9)
+    # (v3.75) 진행 중인 달(말일 미집계)을 완결월과 나란히 두면 "수출 급감"으로 오독된다(2026-07-21 실측 문의).
+    #   → ① X축 라벨에 집계 구간 명시 ② 배경 음영 ③ 캡션 경고. 데이터·색 매핑은 종전과 동일(정상).
+    _inprog = [i for i,_m in enumerate(months) if ser.get("pm") and ser["pm"][i] is None]
+    _lab=[]
+    for i,m in enumerate(months):
+        if i in _inprog:
+            _upto = "1~20일" if (ser.get("p20") and ser["p20"][i] is not None) else "1~10일"
+            _lab.append(f"{m[:4]}년 {m[5:7]}월\n(진행중·{_upto})")
+        else:
+            _lab.append(f"{m[:4]}년 {m[5:7]}월")
+    for i in _inprog:
+        ax.axvspan(i-0.5, i+0.5, color="#FEF3C7", alpha=0.75, zorder=0)
+    ax.set_xticks(list(xs)); ax.set_xticklabels(_lab,fontsize=9)
+    for i in _inprog:
+        ax.get_xticklabels()[i].set_color("#B45309"); ax.get_xticklabels()[i].set_fontweight("bold")
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v,p:f"{int(v):,}"))
     ax.set_ylim(0,maxv*1.18); ax.grid(axis="y",color="#E5E7EB",linewidth=0.8,zorder=0)
     for s in ("top","right","left"): ax.spines[s].set_visible(False)
@@ -54,6 +68,9 @@ def plot(months, ser, col, outpath):
     ax.text(0,1.028,f"[{TITLES.get(col,col)}]  {n}개월(2년)  ·  [단위] 천 달러",transform=ax.transAxes,
             fontsize=10.5,color="#4B72E8",fontweight="bold")
     ax.legend(loc="upper center",bbox_to_anchor=(0.5,-0.09),ncol=3,frameon=False,fontsize=11,handlelength=1.1)
+    if _inprog:  # (v3.75) 오독 방지 캡션 — 완결월과의 절대 비교 금지, 동월 동기간(YoY) 비교를 안내
+        ax.text(0.5,-0.155,"※ 음영 표시 월은 아직 진행 중(월 전체 미집계)이라 막대가 낮게 보인다 — 완결월과 직접 비교하지 말고 전년 동월 같은 구간(1~10/1~20)끼리 비교할 것.",
+                transform=ax.transAxes,ha="center",fontsize=10,color="#B45309")
     fig.tight_layout(); fig.savefig(outpath,bbox_inches="tight",facecolor="white"); plt.close(fig)
 
 def main():
