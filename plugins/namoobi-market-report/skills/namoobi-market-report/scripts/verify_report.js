@@ -245,6 +245,17 @@ try{
     const nn=cnt(dx);
     let gold=null; try{ const gd=fs.readdirSync('/sessions').map(x=>'/sessions/'+x+'/mnt/claudeCowork/GOODREPORT').find(p=>fs.existsSync(p));
       if(gd){ const fl=fs.readdirSync(gd).filter(f=>f.endsWith('.docx')).map(f=>({f:path.join(gd,f),t:fs.statSync(path.join(gd,f)).mtimeMs})).sort((a,b)=>b.t-a.t); if(fl.length) gold=fl[0].f; } }catch(e){}
+    // (v3.74.1) ★핵심: "[object Object]"·"undefined" 등 렌더 시점 사고는 report_data 스캔으로 못 잡는다
+    //   (2026-07-21 실측: 10장 asset_view 가 데이터는 정상인데 빌더가 객체를 문자열화해 표 전체가 깨짐).
+    //   → 완성 docx 의 document.xml 본문을 직접 검사해야 한다. 이 검사가 이번 사고의 유일한 안전망이다.
+    try{ const xml=cp.execSync('unzip -p "'+dx+'" word/document.xml 2>/dev/null',{maxBuffer:64e6}).toString();
+      const txt=xml.replace(/<[^>]+>/g,'');
+      [['[object Object]',/\[object Object\]/g],['undefined',/(^|[\s>])undefined([\s<]|$)/g],['NaN',/(^|[\s>])NaN([\s<%]|$)/g],
+       ['[object Array]',/\[object Array\]/g]].forEach(([lab,re_])=>{
+        const n=(txt.match(re_)||[]).length;
+        if(n) problems.push('[req36b] docx 본문에 "'+lab+'" '+n+'건 — 렌더 직렬화 사고(발송 차단)');
+      });
+    }catch(e){ warnings.push('[req36b] docx 본문 검사 실패(unzip): '+String(e).slice(0,50)); }
     if(nn<0) warnings.push('[req35] docx 미디어 검사 불가(unzip)');
     else if(gold){ const gn=cnt(gold); if(gn>0&&nn<Math.floor(gn*0.9)) problems.push('[req35] docx 미디어 '+nn+' < 골든('+path.basename(gold)+') '+gn+'의 90% — 차트 대량 누락 의심'); }
     else if(nn<200) warnings.push('[req35] docx 미디어 '+nn+'<200 (GOODREPORT 골든 부재 — 절대 하한만 검사)');
