@@ -526,7 +526,8 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
         new TextRun({text:on?(s+" (현재)"):s,bold:on,size:on?19:15,color:on?"15803D":"94A3B8"})]})],w,on?"DCFCE7":"F8FAFC");})});
     children.push(makeTable(sw2,[row]));
     if(_cur && _cur!==_hit) children.push(p("현재 단계: "+_cur,{size:15,bold:true,color:"15803D"}));  // (v3.74) 부연설명 보존
-    if(stg.note)children.push(p(stg.note,{size:15,italics:true,color:"64748B"})); }
+    // (v3.79 간소화) stages.note(장문 근거)는 '핵심 한 줄'과 내용이 겹쳐 섹션을 비대하게 만들었다 → 미표시(DB엔 보존).
+  }
   const tl=Array.isArray(sc.tiles)?sc.tiles:[];
   if(tl.length){
     const w=Math.floor(10160/tl.length); const tw2=tl.map(()=>w);
@@ -535,7 +536,17 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
       new Paragraph({spacing:{before:30,after:20},children:[new TextRun({text:String(t.num||"-"),bold:true,size:30,color:"0F172A"})]}),
       new Paragraph({children:[new TextRun({text:String(t.sub||""),size:13,color:"94A3B8"})]})],w,"F8FAFC"))});
     children.push(makeTable(tw2,[row])); children.push(p("",{size:6})); }
-  const pn=Array.isArray(sc.panels)?sc.panels:[];
+  // (v3.79 간소화·균형안) 점검 카드는 '핵심 3장 × 상위 5행'만 — 매일 동일한 안내인 '확인 방법' 카드는 출처 각주로 갈음.
+  let pn=Array.isArray(sc.panels)?sc.panels:[];
+  const _PMAX=5;
+  if(pn.length){
+    pn=pn.filter(c=>!/확인\s*방법|확인방법|how\s*to/i.test(String((c&&c.title)||"")))
+         .map(c=>{ const rw=Array.isArray(c.rows)?c.rows:[]; const hdr=(rw[0]&&Array.isArray(rw[0])&&/항목/.test(String(rw[0][0]||"")))?1:0;
+           const body=rw.slice(hdr); const cut=body.slice(0,_PMAX);
+           const more=body.length-cut.length;
+           const rows2=(hdr?[rw[0]]:[]).concat(cut).concat(more>0?[["","… 외 "+more+"개 항목(대시보드 참조)"]]:[]);
+           return Object.assign({},c,{rows:rows2}); });
+  }
   if(pn.length){
     const CW2=5080; const mkCard=cd=>{ if(!cd) return _mcell([new Paragraph({children:[]})],CW2);
       const paras=[new Paragraph({spacing:{after:60},children:[new TextRun({text:String(cd.title||""),bold:true,size:18,color:"1E40AF"})]})];
@@ -551,11 +562,15 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
     for(let i=0;i<pn.length;i+=2){
       children.push(makeTable([CW2,CW2],[new TableRow({children:[mkCard(pn[i]),mkCard(pn[i+1])]})]));
       children.push(p("",{size:6})); } }
+  // (v3.79) 핵심 한 줄은 앞 3문장까지만(1,000자 문단 → 요지). 전문은 대시보드/DB에 남는다.
   if(sc.headline){ children.push(p("■ 핵심 한 줄",{bold:true,size:20,color:"1E40AF",before:100}));
-    children.push(p(sc.headline,{size:18})); }
+    const _hs=String(sc.headline).split(/(?<=[.。])\s+/).filter(Boolean);
+    let _txt=_hs.slice(0,3).join(" "); if(_hs.length>3) _txt+=" …";
+    children.push(p(_txt,{size:18})); }
+  // (v3.79) '읽는 방법'이 상단·하단 두 곳에 있어 중복이었다 → 상단 블록은 최대 2줄로 축약(하단 read_monitor 는 제거).
   const rp=Array.isArray(sc.read_panel)?sc.read_panel:(sc.read_panel?[sc.read_panel]:[]);
   if(rp.length){ children.push(p("■ 읽는 방법",{bold:true,size:20,color:"1E40AF",before:100}));
-    rp.forEach(x=>children.push(p("• "+x,{size:17,color:"334155"}))); }
+    rp.slice(0,2).forEach(x=>children.push(p("• "+String(x).slice(0,140),{size:17,color:"334155"}))); }
   if(sc.kospi_weight) children.push(p("※ 코스피 쏠림: "+sc.kospi_weight,{size:15,italics:true,color:"475569"}));
   const wn=Array.isArray(sc.warning_now)?sc.warning_now:[];
   if(wn.length){ children.push(p("■ 지금 봐야 할 조기 경보 신호",{bold:true,size:20,color:"B91C1C",before:100}));
@@ -567,10 +582,10 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
     const rows=[hdrRow(["지표","현재값","판정","경보 임계선","비고"],sw)];
     sg.forEach((o,i)=>{ const a=i%2===1; rows.push(new TableRow({children:[
       cell(o.name||"-",{width:sw[0],alt:a,bold:true,size:15}),
-      cell(o.value||"-",{width:sw[1],alt:a,size:15,align:AlignmentType.CENTER}),
+      cell(String(o.value||"-").slice(0,70),{width:sw[1],alt:a,size:15,align:AlignmentType.CENTER}),
       cell(o.status||"-",{width:sw[2],alt:a,size:15,align:AlignmentType.CENTER,color:st(o.status)}),
-      cell(o.threshold||"-",{width:sw[3],alt:a,size:14}),
-      cell(o.note||"-",{width:sw[4],alt:a,size:14})]})); });
+      cell(String(o.threshold||"-").slice(0,110),{width:sw[3],alt:a,size:14}),
+      cell(String(o.note||"-").slice(0,110),{width:sw[4],alt:a,size:14})]})); });
     children.push(makeTable(sw,rows)); }
   // (req6) 3대 조기경보 미니차트(재고주수·계약가 QoQ·CAPEX YoY) + 캡션
   { const scChart=imagePara(sc.chart||"charts/semi_cycle_signals.png",680,175);
@@ -579,12 +594,13 @@ function renderSemiCycle(){ const m=data.markets||{}; const sc=m.semi_cycle;
       [["① 재고주수",(S3.inventory||{}).cap],["② 계약가 QoQ",(S3.price_qoq||{}).cap],["③ CAPEX YoY",(S3.capex_yoy||{}).cap]].forEach(([t,c])=>{
         if(c)children.push(p(t+" — "+c,{size:14,color:"64748B"})); }); } }
   if(sc.signal_summary) children.push(p("→ "+sc.signal_summary,{size:17,bold:true,color:"1E40AF",before:60}));
-  if(sc.read_monitor){ children.push(p("■ 읽는 방법 (조기경보 점검)",{bold:true,size:20,color:"1E40AF",before:100}));
-    children.push(p(sc.read_monitor,{size:17,color:"334155"})); }
-  const src=Array.isArray(sc.sources)?sc.sources:[];
+  // (v3.79) 하단 '읽는 방법(조기경보 점검)'은 상단 블록과 중복 → 제거. 출처는 상위 6건 + 잔여 건수 표기(49건 전량 나열 금지).
+  const _srcAll=Array.isArray(sc.sources)?sc.sources:[];
+  const src=_srcAll.slice(0,6); const _srcMore=_srcAll.length-src.length;
   if(src.length){ const runs=[new TextRun({text:"자료: ",size:14,color:"94A3B8"})];
     src.forEach((s,i)=>{ if(i)runs.push(new TextRun({text:" · ",size:14,color:"94A3B8"}));
       runs.push((HAS_LINK&&s&&s.url)?new ExternalHyperlink({link:String(s.url),children:[new TextRun({text:String(s.label||s.url),size:14,color:"1D4ED8",underline:{}})]}):new TextRun({text:String((s&&(s.label||s.url))||""),size:14,color:"64748B"})); });
+    if(_srcMore>0) runs.push(new TextRun({text:" · 외 "+_srcMore+"건(대시보드)",size:14,color:"94A3B8"}));
     children.push(new Paragraph({spacing:{before:80,after:80},children:runs})); }
   children.push(p("기준: "+(sc.asof||"최신")+" · 비실시간 추정 — 자료: TrendForce/DRAMeXchange·각사 IR·시장조사(Counterpoint 등)·AI Research. 확인처: 계약가·현물가·DXI·재고주수=TrendForce, 실적·CAPEX=삼성·SK하이닉스 IR(마이크론 분기 선행).",{size:13,italics:true,color:"94A3B8"}));
   children.push(p("")); }
