@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.25.0 · SKILL v3.71.0)
+# Namoobi Market Report (plugin v1.26.0 · SKILL v3.72.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -312,8 +312,8 @@ node build_report.js \
 
 1. **코드 게이트 실행**:
 ```bash
-cd "$WORK" && node verify_report.js <outputs>/_market_report_data/report_data_YYYYMMDD.json "$WORK"
-echo "verify exit=$?"   # 0=통과, 1=결함
+cd "$WORK" && node verify_report.js <outputs>/_market_report_data/report_data_YYYYMMDD.json "$WORK" <생성한 docx 경로>
+echo "verify exit=$?"   # 0=통과, 1=결함  (v3.72: 3번째 인자 docx — req35 가 크기·미디어수를 GOODREPORT 골든과 자동 비교)
 ```
    `{ok,problems[],warnings[]}` 가 출력된다. `problems` 가 있으면 그 목록이 곧 "정상 예제 수준 미달 항목"이다(예: `3.1.1 코스피 차트가 캔들이 아님(flows 폴백)`, `반도체 ETF 17<20`, `증권사 신한 리포트 stale: 2026-05-11`).
 

@@ -184,6 +184,71 @@ try{
     const nourl=arr.filter(e=>e&&e.source&&!e.source_url).length;
     if(none) problems.push('[req28] '+lb+' '+k+' 출처 전무 항목 '+none+'건 — 전 이벤트 source(·source_url) 필수');
     if(nourl) warnings.push('[req28] '+lb+' '+k+' source_url 없는 항목 '+nourl+'건'); }); }
+// ---- v3.72 게이트 보강 (2026-07-21 검토: 게이트 밖으로 샐 수 있던 결함의 코드화) ----
+// req29: 1장 Top News 최신성 — SKILL req1(D-0~D-1)의 게이트화. D-2 는 미국 저녁기사 시차 허용(warning), D-3+ 는 차단.
+{ const tn=(d.news&&d.news.top_news)||[]; const ref=new Date(String((d.metadata&&d.metadata.report_date)||'').slice(0,10));
+  if(tn.length&&!isNaN(ref)){ const old=[],near=[],nod=[];
+    tn.forEach(x=>{ const pd=String((x&&x.published_date)||'').slice(0,10);
+      if(!pd){ nod.push(x&&x.rank); return; }
+      const p=new Date(pd); if(isNaN(p))return; const df=Math.floor((ref-p)/86400000);
+      if(df>2) old.push((x&&x.rank)+':'+pd); else if(df===2) near.push((x&&x.rank)+':'+pd); });
+    if(old.length) problems.push('[req29] 1장 Top News 신선도 위반(D-2 초과): '+old.join(', ')+' — 전일~당일 기사만 허용');
+    if(near.length) warnings.push('[req29] top_news D-2 기사(시차 경계): '+near.join(', '));
+    if(nod.length) warnings.push('[req29] top_news published_date 누락: rank '+nod.join(',')); } }
+// req30: 수집 신선도 — 침묵 실패(carry-forward) 감지. 파일 mtime=오늘 이 아니면 fetch 미실행.
+{ try{ const kp=path.join(WORK,'nmr_kr_ohlcv.json'); const st=fs.statSync(kp);
+    const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10);
+    const mt=new Date(st.mtimeMs).toISOString().slice(0,10);
+    if(today&&mt<today) problems.push('[req30] fetch_kr 미실행 의심: nmr_kr_ohlcv.json mtime '+mt+' != 실행일 '+today);
+    const ko=J(kp); const last=String(((ko.kospi_ohlcv||[]).slice(-1)[0]||[])[0]||'');
+    const ref=new Date(today), l=new Date(last);
+    if(last&&!isNaN(l)&&!isNaN(ref)&&Math.floor((ref-l)/86400000)>7) warnings.push('[req30] kospi_ohlcv 마지막 '+last+' — 7일 초과(장기 휴장 아니면 소스 점검)');
+  }catch(e){ warnings.push('[req30] nmr_kr_ohlcv.json 없음/손상 — 시세 신선도 미확인'); }
+  { const ca=String((d.crypto&&(d.crypto.as_of||d.crypto.marker))||'').slice(0,10); const ref=new Date(String((d.metadata&&d.metadata.report_date)||'').slice(0,10)); const a=new Date(ca);
+    if(ca&&!isNaN(a)&&!isNaN(ref)&&Math.floor((ref-a)/86400000)>1) warnings.push('[req30] 6장 crypto as_of 스테일('+ca+') — 서버 크론 확인'); } }
+// req31: 6장 암호화폐 필수 요소(품질기준 8) — 공포탐욕·김프 4종(SOL 포함)·시장개요·코인/공포탐욕 차트.
+{ const c=d.crypto||{};
+  if(!(c.fear_greed&&c.fear_greed.current!=null)) problems.push('[req31] 6장 공포·탐욕 current 없음');
+  const coins=((c.kimchi_premium||{}).coins)||[]; const syms=coins.map(x=>String((x&&x.symbol)||'').toUpperCase());
+  if(coins.length<4||['BTC','ETH','XRP','SOL'].some(s=>syms.indexOf(s)<0)) problems.push('[req31] 6.3 김치프리미엄 4종(BTC/ETH/XRP/SOL) 미충족: '+syms.join(','));
+  const mo=c.market_overview||{};
+  if(mo.total_mcap_usd==null&&mo.total_market_cap==null) problems.push('[req31] 6.1 시장개요 시가총액 없음');
+  if(!((c.top_gainers||[]).length&&(c.top_losers||[]).length)) warnings.push('[req31] 6.4 등락 상위(G/L) 비어있음 — CoinInfo 재시도 여부 확인');
+  const ch=c.charts||{}; ['btc','eth','xrp','sol','fng'].forEach(k=>{ if(!cExists(ch[k]||('charts/coin_'+k+'.png'))) problems.push('[req31] 6장 차트 누락: '+(ch[k]||('coin_'+k+'.png'))); });
+  if(!cExists('charts/kimp_30d.png')) warnings.push('[req31] 6.3 김프 차트(kimp_30d.png) 없음 — gen_kimp_chart.py'); }
+// req32: 9~12장 분석 완결성 — 배분 합계 100·액션아이템·자산뷰 커버리지.
+{ const a=d.analysis||{}; const pf=a.portfolios||{};
+  ['aggressive','balanced','conservative'].forEach(k=>{ const p=pf[k];
+    if(!p){ problems.push('[req32] 포트폴리오 '+k+' 없음'); return; }
+    const s=(p.allocation||[]).reduce((t,x)=>t+(+((x||{}).weight_pct)||0),0);
+    if(Math.abs(s-100)>0.5) problems.push('[req32] 포트폴리오 '+k+' 배분 합계 '+s+'% != 100%'); });
+  const ai=a.action_items; let na=0;
+  if(Array.isArray(ai)) na=ai.length; else if(ai&&typeof ai==='object') na=['short_term','mid_term','long_term'].reduce((t,k)=>t+(((ai||{})[k]||[]).length),0);
+  if(!na) problems.push('[req32] 12장 action_items 비어있음');
+  const av=a.asset_view||{}; if(Object.keys(av).length<11) warnings.push('[req32] asset_view '+Object.keys(av).length+'<11 자산'); }
+// req33: v3.71 stale 필터 부작용 감시 — 핵심 증권사·IB 가 빈 key_reports 인데 '미확인' 정직 표기 없으면 침묵 마스킹 의심.
+{ const chk=(obj,keys,label)=>{ keys.forEach(k=>{ const v=(obj||{})[k]; if(!v||typeof v!=='object')return;
+    if(Array.isArray(v.key_reports)&&!v.key_reports.length&&String(v.key_message||'').indexOf('미확인')<0) warnings.push('[req33] '+label+'.'+k+' key_reports 비었는데 key_message 에 "미확인" 표기 없음(stale 필터 마스킹 의심 — key_message 갱신 필요)'); }); };
+  chk(d.securities,['kb','nh','samsung','miraeasset','korea_inv','meritz'],'KR핵심');
+  chk(d.global_securities,['ubs','goldman','jpmorgan','morgan_stanley','blackrock'],'IB'); }
+// req34: 부록 A/B + 5장 환율 골격 — 버크셔 보유·AI 트렌드 10건·환율 5쌍.
+{ const bk=d.berkshire||{}; if(!((bk.top_holdings||[]).length)) warnings.push('[req34] 부록A 버크셔 top_holdings 비어있음');
+  const it=((d.ai_trends||{}).items)||[]; if(it.length<10) warnings.push('[req34] 부록B ai_trends '+it.length+'<10');
+  const nu=it.filter(x=>!(x&&x.url)).length; if(nu) warnings.push('[req34] 부록B ai_trends url 없는 항목 '+nu+'건');
+  const fx=(m.fx_markets)||{}; const missk=['usd_krw','eur_krw','jpy_krw','cny_krw','hkd_krw'].filter(k=>!fx[k]);
+  if(missk.length) warnings.push('[req34] 5장 fx_markets 누락 쌍: '+missk.join(',')); }
+// req35: docx 산출물 자동 검사(선택 3번째 인자 = docx 경로) — 크기·미디어 수를 GOODREPORT 골든과 비교(수동 비교의 코드화).
+{ const dx=process.argv[4]; if(dx){ try{
+    const st=fs.statSync(dx); if(st.size<3*1024*1024) problems.push('[req35] docx 크기 '+(st.size/1048576).toFixed(1)+'MB<3MB — 빌드 불완전 의심');
+    const cp=require('child_process');
+    const cnt=p=>{ try{ return cp.execSync('unzip -l "'+p+'" 2>/dev/null',{maxBuffer:16e6}).toString().split('word/media/').length-1; }catch(e){ return -1; } };
+    const nn=cnt(dx);
+    let gold=null; try{ const gd=fs.readdirSync('/sessions').map(x=>'/sessions/'+x+'/mnt/claudeCowork/GOODREPORT').find(p=>fs.existsSync(p));
+      if(gd){ const fl=fs.readdirSync(gd).filter(f=>f.endsWith('.docx')).map(f=>({f:path.join(gd,f),t:fs.statSync(path.join(gd,f)).mtimeMs})).sort((a,b)=>b.t-a.t); if(fl.length) gold=fl[0].f; } }catch(e){}
+    if(nn<0) warnings.push('[req35] docx 미디어 검사 불가(unzip)');
+    else if(gold){ const gn=cnt(gold); if(gn>0&&nn<Math.floor(gn*0.9)) problems.push('[req35] docx 미디어 '+nn+' < 골든('+path.basename(gold)+') '+gn+'의 90% — 차트 대량 누락 의심'); }
+    else if(nn<200) warnings.push('[req35] docx 미디어 '+nn+'<200 (GOODREPORT 골든 부재 — 절대 하한만 검사)');
+  }catch(e){ warnings.push('[req35] docx 검사 실패: '+String(e).slice(0,60)); } } }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

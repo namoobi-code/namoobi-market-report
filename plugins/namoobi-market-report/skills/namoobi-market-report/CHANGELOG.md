@@ -1,5 +1,9 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.72.0 (plugin 1.26.0, 2026-07-21) — 게이트 보강 req29~35 (검토: "새어나갈 수 있는 결함"의 코드화)
+
+req1~28 전수 매핑 결과 미커버 7영역 추가. **problem(차단)**: req29 Top News 신선도(D-2 초과 — SKILL req1 의 게이트화, D-2 는 미국 저녁기사 시차로 warning) · req30 fetch_kr 미실행(nmr_kr_ohlcv mtime != 실행일 — 침묵 carry-forward 감지) · req31 6장 크립토 필수요소(공포탐욕 current·김프 4종 SOL 포함·시장개요 시총·코인/공포탐욕 차트 5종 — 품질기준 8이 게이트에 없던 공백) · req32 분석 완결성(포트폴리오 3종 배분합 100±0.5·action_items 비움 금지) · req35 docx 산출물(3MB 하한 + GOODREPORT 골든 미디어수 90% 자동 비교 — 수동 비교의 코드화, verify 3번째 인자로 docx 경로 전달). **warning(표면화)**: req30 crypto as_of 스테일(서버 크론 사망 감지)·kospi 시계열 7일 초과 · req33 v3.71 stale 필터 부작용 감시(핵심 6사·IB 5사 빈 key_reports 인데 '미확인' 미표기 = 침묵 마스킹 의심) · req34 부록A 버크셔 보유/부록B ai_trends 10건·url/5장 환율 5쌍. SKILL Phase 4.5 verify 호출에 docx 경로 인자 추가.
+
 ## v3.71.0 (plugin 1.25.0, 2026-07-21) — 7/21 예약실행 재발방지 4종 (백그라운드 전멸 실측·게이트 1차 21결함 구조 수정)
 
 **사고(7/21 예약실행 실측)** — ① 샌드박스 bash = `bwrap --unshare-pid --die-with-parent` 확인: Phase 1 nohup 백그라운드 fetch 13종 중 10종이 콜 종료와 함께 즉사(빈 로그·산출물 없음) → 전부 포그라운드 재실행으로 수집 40분. `pgrep -f` 자기매칭으로 sync "실행 중" 오판까지 겹쳐 발송 지연. ② 게이트 1차 21결함: mplfinance 부재로 캔들→주봉 폴백(마커 rm 은 마운트 EPERM 으로 조용히 실패해 재생성 후에도 잔존), merge 서버DB 보강이 stale(7/16) 증권사 링크 주입, IB 에이전트가 옛 날짜 리포트를 key_reports 에 유지.
