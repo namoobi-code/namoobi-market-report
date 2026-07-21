@@ -362,27 +362,35 @@ else:
         def _yri(y): 
             import re as _re8
             m=_re8.search(r"\d{4}",str(y)); return int(m.group(0)) if m else 0
-        _cats=sorted({str(y) for y in yrs} | {str(k) for _v in vint for k in (_v.get("forecast") or {})}, key=_yri)
-        _pos={c:i for i,c in enumerate(_cats)}
+        # (v3.77) 카테고리 키를 '연도 숫자'로 정규화해 통합 — 종전엔 문자열 집합이라 막대의 "2026E" 와
+        #   전망선의 "2026" 이 서로 다른 칸으로 갈라져 같은 해가 X축에 두 번 나왔다(2026-07-21 사용자 지적).
+        #   전망 연도(E 표기)는 칸을 나누지 말고 같은 칸에 두되 라벨에 (E)를 붙이고 막대를 빗금으로 구분한다.
+        _isE=lambda y: ("E" in str(y).upper())
+        _yset=sorted({_yri(y) for y in yrs} | {_yri(k) for _v in vint for k in (_v.get("forecast") or {})})
+        _pos={y:i for i,y in enumerate(_yset)}
+        _elab={}                                  # 연도 → 전망 여부(막대 기준)
+        for _y in yrs: _elab[_yri(_y)]=_elab.get(_yri(_y),False) or _isE(_y)
+        _cats=[("%d(E)"%y if _elab.get(y) else "%d"%y) for y in _yset]
         # 막대를 통합 카테고리 위치로 다시 그린다(정렬 어긋남 방지)
         ax8a.clear()
-        ax8a.bar([_pos[str(y)] for y in yrs],mv,width=0.5,color=C_MKT)
         for _bi,(_y,_v0) in enumerate(zip(yrs,mv)):
-            ax8a.text(_pos[str(_y)],_v0*1.02,"$%dB"%_v0,ha="center",fontsize=11,fontweight="bold")
+            ax8a.bar([_pos[_yri(_y)]],[_v0],width=0.5,color=C_MKT,
+                     hatch=("//" if _isE(_y) else None),edgecolor="white",linewidth=0)
+            ax8a.text(_pos[_yri(_y)],_v0*1.02,"$%dB"%_v0,ha="center",fontsize=11,fontweight="bold")
             if _bi>0 and mv[_bi-1]:
-                ax8a.text(_pos[str(_y)],_v0*0.5,"+%.0f%% YoY"%((_v0/mv[_bi-1]-1)*100),ha="center",fontsize=9,color="white",fontweight="bold")
+                ax8a.text(_pos[_yri(_y)],_v0*0.5,"+%.0f%% YoY"%((_v0/mv[_bi-1]-1)*100),ha="center",fontsize=9,color="white",fontweight="bold")
         for _vi,_v in enumerate(vint):
             fc=_v.get("forecast") or {}
             ky=sorted(fc.keys(),key=_yri)
             if not ky: continue
-            ax8a.plot([_pos[str(k)] for k in ky],[fc[k] for k in ky],marker="s",ms=5,lw=1.4,ls="--",color=_vc[_vi%len(_vc)],
+            ax8a.plot([_pos[_yri(k)] for k in ky],[fc[k] for k in ky],marker="s",ms=5,lw=1.4,ls="--",color=_vc[_vi%len(_vc)],
                       label="%s %s 전망"%(_v.get("by",""),_v.get("published","")))
         ax8a.set_xticks(range(len(_cats))); ax8a.set_xticklabels(_cats)
         if vint: ax8a.legend(fontsize=7,frameon=False,loc="upper left")
         ax8a.set_ylim(top=max(mv)*1.22)
         ax8a.set_title("⑧ HBM 시장규모 · 수요 증가율 (연간 · 전망 빈티지 비교)",fontsize=13,fontweight="bold")
         ax8a.set_ylabel("십억 달러",fontsize=9); _style(ax8a)
-        _cap(ax8a,"[추정] 막대=최신 전망(Yole·TrendForce) · 점선=과거 발표 시점별 전망(빈티지) — 상향 반복=수요 서프라이즈 지속. %s"%CAD.get("market",""))
+        _cap(ax8a,"[추정] 막대=최신 전망(Yole·TrendForce, 빗금=전망연도 (E)) · 점선=과거 발표 시점별 전망(빈티지) — 상향 반복=수요 서프라이즈 지속. %s"%CAD.get("market",""))
     else: ax8a.set_visible(False)
 
     # ⑨ HBM:DDR5 GB당 단가 격차 (req12 2026-07-12 — 환산 추정, 매일 계산)
