@@ -398,7 +398,19 @@ else:
     gser=_series("hbm_ddr5_gap")
     if len(gser)>=2:
         xs=[datetime.strptime(r[0],"%Y-%m-%d") for r in gser]
-        ysS=[r[1].get("배율(현물)") for r in gser]
+        # (v3.78) 키 스키마가 회차마다 달라 생긴 결측을 그리기 직전에 자기치유한다
+        #   (2026-07-21 실측: 7/12~16 은 '배율(현물)' 키 자체가 없어 매일 지표인데 5일이 통째로 비었다).
+        #   DDR5 현물 $/GB = DRAM 현물표 'DDR5 16Gb(2Gx8)' ÷ 2(16Gb=2GB) → 배율 = HBM $/GB ÷ 그 값.
+        _sp={r[0]:r[1] for r in (_series("dram_spot") or [])}
+        _K5="DDR5 16Gb (2Gx8) 4800/5600"
+        ysS=[]
+        for _r in gser:
+            _v=_r[1].get("배율(현물)")
+            if _v is None:
+                _px=(_sp.get(_r[0]) or {}).get(_K5); _hb=_r[1].get("HBM $/GB")
+                if _px and _hb:
+                    _v=round(_hb/(_px/2.0),2)
+            ysS.append(_v)
         ysC=[(r[1].get("배율(계약)") if r[1].get("배율(계약)") is not None else r[1].get("배율")) for r in gser]
         if any(v is not None for v in ysS):
             _lS=[v for v in ysS if v is not None]
