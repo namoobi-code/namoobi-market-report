@@ -1432,10 +1432,17 @@ function renderM7Outlook(){ const m=data.markets||{};
     cell("",{width:w[3],alt:a,align:AlignmentType.CENTER,runs:[cellRun(o.target!=null?String(o.target):"-",{bold:true,size:19}),new TextRun({text:(o.upside||"")+" 여력",size:15,color:markSign(o.upside),break:1})]}),
     cell("",{width:w[4],alt:a,align:AlignmentType.LEFT,runs:[cellRun(o.revision||"-",{bold:true,size:16,color:revC(o.revision)}),new TextRun({text:o.revision_detail||"",size:13,color:"64748B",break:1})]}),
     cell(o.guidance||"-",{width:w[5],alt:a,size:16}),
-    cell(o.signal||"-",{width:w[6],alt:a,align:AlignmentType.CENTER,bold:true,color:sigC(o.signal)})]})); });
+    cell("",{width:w[6],alt:a,align:AlignmentType.CENTER,runs:[cellRun(o.signal||"-",{bold:true,size:17,color:sigC(o.signal)}),
+      ...(o.signal_basis?[new TextRun({text:String(o.signal_basis),size:12,color:"94A3B8",break:1})]:[])]})]})); });
   children.push(makeTable(w,rows));
-  children.push(p("신호 판정: 추정치·목표주가 상향=긍정 / 실적 호조에도 목표주가 하향·디레이팅=경계 / 이익 모멘텀·의견 악화=위험 / 안정=중립.",{size:15,color:"94A3B8"}));
-  children.push(p("핵심: 2026년 M7 이익 추정치는 상향(S&P500 EPS 성장 기대 14%→18%, IT 섹터 Q2 EPS +8.7%)이나, 조정은 추정치가 아니라 AI capex 수익화 의문에 따른 밸류에이션·목표주가 디레이팅에서 발생. 구글·아마존·엔비디아=긍정, MS·메타=경계, 테슬라=위험, 애플=중립.",{size:16,color:"475569"}));
+  // (v3.76) 판정 규칙을 명시하고, 데이터와 무관하게 고정돼 있던 종목별 결론 문장은 제거(실제로 표와 어긋났다).
+  children.push(p(src.signal_rule||"신호 = 리비전(연간 EPS 컨센 변화: 상향≥+0.2% / 보합 ±0.2% / 하향≤-0.2%) × 여력(평균목표주가 대비: 큼≥15% / 보통 5~15% / 작음<5%) 결정표, 투자의견이 보유·매도면 1단계 하향. 코드 자동 산출.",{size:15,color:"94A3B8"}));
+  { const _g=rows0.filter(o=>String(o.signal||"").includes("긍정")).map(o=>o.name);
+    const _n=rows0.filter(o=>String(o.signal||"").includes("중립")).map(o=>o.name);
+    const _c=rows0.filter(o=>String(o.signal||"").includes("경계")).map(o=>o.name);
+    const _r=rows0.filter(o=>String(o.signal||"").includes("위험")).map(o=>o.name);
+    const _seg=[["긍정",_g],["중립",_n],["경계",_c],["위험",_r]].filter(x=>x[1].length).map(x=>x[0]+" "+x[1].join("·"));
+    if(_seg.length) children.push(p("이번 회차 판정 분포: "+_seg.join(" / ")+".",{size:16,color:"475569"})); }
   children.push(p("출처: 회사 실적발표·Refinitiv/LSEG I/B/E/S·Bloomberg·FactSet·증권사 리포트 · 데이터 기준 "+(src.as_of||"직전 미국 종가")+" · 정보 제공 목적(투자 자문 아님).",{size:15,color:"94A3B8"}));
   children.push(p(""));
 }

@@ -279,6 +279,19 @@ try{
     const c=String(st.current);
     if(!st.list.some(s=>c===s||c.startsWith(s)||c.includes(s)))
       problems.push('[req37] 3.1.11 stages.current("'+c.slice(0,30)+'…") 가 list 와 불일치 — 단계 바 강조 불능'); } }
+// req38 (v3.76): 3.1.7 M7 신호 정합성 — 리비전·여력과 신호가 상반되면 차단(주관 판정 재발 방지).
+{ const rw=((m.m7_outlook||{}).rows)||[]; const bad=[];
+  const num=s=>{ const x=String(s==null?'':s).replace(/,/g,'').match(/[-+]?\d+(?:\.\d+)?/); return x?parseFloat(x[0]):null; };
+  rw.forEach(o=>{ const sg=String(o.signal||''); const up=num(o.upside); const rv=String(o.revision||'');
+    if(!sg) { bad.push((o.ticker||'?')+':신호없음'); return; }
+    // 리비전 상향 + 여력 15% 이상인데 경계/위험 → 모순
+    if(rv.includes('상향') && up!=null && up>=15 && (sg.includes('경계')||sg.includes('위험')))
+      bad.push((o.ticker||'?')+': 리비전 상향·여력 '+up+'% 인데 '+sg);
+    // 리비전 하향 + 여력 5% 미만인데 긍정 → 모순
+    if(rv.includes('하향') && up!=null && up<5 && sg.includes('긍정'))
+      bad.push((o.ticker||'?')+': 리비전 하향·여력 '+up+'% 인데 '+sg);
+  });
+  if(bad.length) problems.push('[req38] 3.1.7 M7 신호가 데이터와 상반: '+bad.join(' / ')); }
 const ok=problems.length===0;
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);

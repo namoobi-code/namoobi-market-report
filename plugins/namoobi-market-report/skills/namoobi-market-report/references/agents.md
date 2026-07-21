@@ -388,7 +388,8 @@ Phase 1 배치에 합류(general-purpose). ToolSearch 로 FMP `economics` 도구
 **목적**: 3.1.7 표(가이던스·애널리스트 추정치 변화 시장 신호)를 매일 갱신. 대상 7종목 = AAPL·MSFT·NVDA·GOOGL·AMZN·META·TSLA.
 **수집(매 실행·매일)**: 종목별 ① 현재가·52주 변화 ② 컨센서스 투자의견 분포·평균 목표주가(FMP `analyst` grades-summary·price-target-consensus/summary — 무료플랜 미국 대형주 가용) ③ 최근 1개월/1분기/1년 평균 목표주가 흐름 = 목표주가 리비전 추세(price-target-summary) ④ 최근 등급 변경(upgrades/downgrades). 가이던스·연간 추정치 변화와 최신 증권사 리포트는 WebSearch(회사 실적발표·FactSet·언론). **추정 금지·확인값만**, 뉴스 단독 수치 패딩 금지.
 **신호 판정**: 추정치·목표주가 상향=긍정 / 실적 호조에도 목표주가 하향·디레이팅=경계 / 이익 모멘텀·의견 악화=위험 / 안정=중립.
-**출력** `$WORK/nmr_m7.json` = `{as_of, rows:[{name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance,signal}]}` → merge 가 `markets.m7_outlook` 로 주입(빌더 `renderM7Outlook`, 3.1.10 뒤). **미수집이어도 비차단** — 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더. **호출**: Phase 1 병렬 배치 포함, `model:"sonnet"`.
+**(v3.76 중요) `signal` 은 에이전트가 판정하지 말 것** — merge.py 가 결정론 규칙(리비전 × 여력 결정표 + 의견 보정)으로 자동 산출하고 `signal_basis` 를 붙인다(종전 주관 판정은 2026-07-21 실측에서 MSFT 리비전 상향·여력 +35.5% 인데 '경계', TSLA +18.3% 급상향인데 '위험' 처럼 표 안에서 데이터와 상반됐다. 게이트 req38 이 모순을 차단). 에이전트는 **관측치를 정확히** 채우는 데 집중한다: **`rev_pct`(연간 EPS 컨센서스 변화율 숫자, 예 0.36)** 를 새로 채우고(없으면 merge 가 revision_detail 첫 %를 파싱), `upside`(여력 %)·`consensus`(매수/보유/매도)·`revision`(상향/보합/하향)·`revision_detail` 을 실측으로 제공.
+**출력** `$WORK/nmr_m7.json` = `{as_of, rows:[{name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,rev_pct,revision_detail,guidance}]}` → merge 가 `markets.m7_outlook` 로 주입(빌더 `renderM7Outlook`, 3.1.10 뒤). **미수집이어도 비차단** — 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 렌더. **호출**: Phase 1 병렬 배치 포함, `model:"sonnet"`.
 
 
 ## DerivPositioningAgent — 3.1.13 파생시장 포지셔닝 (v3.47, Phase 1, model:sonnet)

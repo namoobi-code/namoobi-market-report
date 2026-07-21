@@ -1481,6 +1481,58 @@ try:
 except Exception as _ke:
     print('  key_message fix skip(비차단):', repr(_ke)[:60])
 
+# (v3.76) 3.1.7 M7 신호 결정론화 — 에이전트 주관 판정이 데이터와 상반되던 문제(2026-07-21 실측:
+#   MSFT 리비전 상향·여력 +35.5% 인데 '경계', TSLA 리비전 +18.3% 급상향인데 '위험')를 없앤다.
+#   규칙(2축 + 의견 보정): 리비전 R(연간 EPS 컨센 변화) × 밸류 U(평균목표주가 여력) 결정표에
+#   투자의견이 '보유/매도'면 한 단계 하향. 산출 근거를 signal_basis 로 표에 노출해 검증 가능하게 한다.
+try:
+    import re as _re
+    def _num(s):
+        m = _re.search(r'[-+]?\d+(?:\.\d+)?', str(s or '').replace(',', ''))
+        return float(m.group(0)) if m else None
+    def _revpct(o):
+        v = o.get('rev_pct')
+        if isinstance(v, (int, float)): return float(v)
+        n = _num(v)
+        if n is not None: return n
+        d = str(o.get('revision_detail') or '')
+        m = _re.search(r'([-+]\s*\d+(?:\.\d+)?)\s*%', d)   # 첫 번째 % = 대표 리비전
+        if m: return float(m.group(1).replace(' ', ''))
+        t = str(o.get('revision') or '')
+        return 1.0 if '상향' in t else (-1.0 if '하향' in t else 0.0)
+    _ORD = ['위험', '경계', '중립', '긍정']
+    def _m7sig(o):
+        rp = _revpct(o); up = _num(o.get('upside')); cs = str(o.get('consensus') or '')
+        if up is None: up = 0.0
+        R = '상향' if rp >= 0.2 else ('하향' if rp <= -0.2 else '보합')
+        U = '큼' if up >= 15 else ('보통' if up >= 5 else '작음')
+        TBL = {('상향','큼'):'긍정', ('상향','보통'):'긍정', ('상향','작음'):'중립',
+               ('보합','큼'):'중립', ('보합','보통'):'중립', ('보합','작음'):'경계',
+               ('하향','큼'):'경계', ('하향','보통'):'경계', ('하향','작음'):'위험'}
+        sig = TBL[(R, U)]
+        adj = ''
+        if ('보유' in cs) or ('중립' in cs) or ('매도' in cs) or ('비중축소' in cs):
+            i = _ORD.index(sig)
+            if i > 0: sig = _ORD[i-1]; adj = ' · 의견 %s로 1단계 하향' % (cs.strip()[:6])
+        basis = '리비전 %s(%+.2f%%) × 여력 %s(%+.1f%%)%s' % (R, rp, U, up, adj)
+        return sig, basis
+    _m7 = (m.get('m7_outlook') or {}) if isinstance(m.get('m7_outlook'), dict) else {}
+    _rw = _m7.get('rows') if isinstance(_m7.get('rows'), list) else []
+    _chg = 0
+    for _o in _rw:
+        if not isinstance(_o, dict): continue
+        _s, _b = _m7sig(_o)
+        _o['signal_agent'] = _o.get('signal')      # 에이전트 원판정 보존(감사용)
+        if _o.get('signal') != _s: _chg += 1
+        _o['signal'] = _s; _o['signal_basis'] = _b
+    if _rw:
+        _m7['signal_rule'] = ('신호 = 리비전(연간 EPS 컨센 변화: 상향≥+0.2% / 보합 ±0.2% / 하향≤-0.2%) × '
+                              '여력(평균목표주가 대비: 큼≥15% / 보통 5~15% / 작음<5%) 결정표, '
+                              '투자의견이 보유·매도면 1단계 하향. 코드 자동 산출(주관 판정 배제).')
+        print('  [v3.76] M7 신호 규칙 재산출: %d/%d 종목 정정' % (_chg, len(_rw)))
+except Exception as _me:
+    print('  m7 signal skip(비차단):', repr(_me)[:70])
+
 outp = os.path.join(W, '_market_report_data', f'report_data_{RD}.json')
 json.dump(data, open(outp, 'w'), ensure_ascii=False, indent=1)
 print('MERGED →', outp)
