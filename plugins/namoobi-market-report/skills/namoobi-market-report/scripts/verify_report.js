@@ -198,7 +198,7 @@ try{
 // req30: 수집 신선도 — 침묵 실패(carry-forward) 감지. 파일 mtime=오늘 이 아니면 fetch 미실행.
 { try{ const kp=path.join(WORK,'nmr_kr_ohlcv.json'); const st=fs.statSync(kp);
     const today=String((d.metadata&&d.metadata.report_date)||'').slice(0,10);
-    const mt=new Date(st.mtimeMs).toISOString().slice(0,10);
+    const mt=new Date(st.mtimeMs+9*3600*1000).toISOString().slice(0,10);  // (v3.72.1) KST 환산 — UTC 그대로면 06시 실행분이 전일로 오탐
     if(today&&mt<today) problems.push('[req30] fetch_kr 미실행 의심: nmr_kr_ohlcv.json mtime '+mt+' != 실행일 '+today);
     const ko=J(kp); const last=String(((ko.kospi_ohlcv||[]).slice(-1)[0]||[])[0]||'');
     const ref=new Date(today), l=new Date(last);
