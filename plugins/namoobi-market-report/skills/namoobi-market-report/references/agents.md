@@ -1,3 +1,9 @@
+> **[v3.81 · 2026-07-22 재발방지] (반드시 준수 — 이 파일은 $RUN(runsrc)에서 읽을 것: 설치본 구판이 이번 사고의 원인)**
+> - **(3.2.3 스키마)** KoreaSemiThemeAgent 산출 = `semi_ai_stocks`(종목)·`semi_ai_etfs`(ETF 20) **분리 리스트**(각 {name,aum,note}, 이름=nmr_kr_series.json 과 정확히 일치) + `semi_ai_stocks_comment`/`semi_ai_etfs_comment`. 구 `semi_ai_breakdown` 단일 리스트는 merge 가 읽지 않아 3.2.3 이 통째로 비었다(2026-07-22 실측 — merge 에 자동분리 shim 추가됐지만 정본은 분리 스키마).
+> - **(3.1.3 ISM svc 오염 가드)** `server_ism_pmi.json` 의 svc 는 제조업 헤드라인이 복제될 수 있다(쿼리 무필터) — svc.headline 에 'Services'/'서비스' 가 없으면 오염으로 간주하고 WebSearch 로 ISM Services 실측 확인·대체(2026-07-22 실측: svc 에 mfg 53.3 복제).
+> - **(3.2.5 리밸런싱)** change_marker 불변으로 IndexRebalanceAgent 미발행 회차는 merge 가 직전 report_data 의 index_rebalance 를 **자동 carry-forward**(v3.81) — 수동 nmr_rebalance.json 주입 불필요.
+> - **(6장 크립토)** CryptoAgent 발행 금지 유지 — `python3 scripts/compose_crypto.py "$WORK"` 가 서버 DB+nmr_kimchi 로 nmr_crypto.json 기계 조립. 업다운 카운트·평균등락만 메인세션 CoinInfo `get_market_overview` 1콜 → `nmr_coininfo_extra.json` 저장으로 보조(없으면 null 비차단).
+
 > **[req 2026-07-12 사용자 피드백 11건 재발방지] (반드시 준수)**
 > - **(2장 출처 필수)** NewsAgent 는 2.1 events_calendar·2.2 events_calendar_longterm·2.3 bigtech_events **전 항목에 source·source_url** 을 채운다(공식/1차 보도 확인분만). bigtech_events 스키마 = [{date,event,importance,expected_impact,source,source_url}]. 빌더가 2.1/2.2/2.3 표에 '출처' 컬럼을 렌더하고 **verify req28 이 출처 전무 항목=발송 차단** 으로 강제한다.
 > - **(M7 평면 스키마 강제)** M7OutlookAgent rows 는 반드시 평면 키 {name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance(문자열),signal} — quote{}/analyst_consensus{}/price_target{} **중첩 객체 금지**(대시보드 d_m7·빌더 모두 평면 키만 읽음 → 중첩이면 대시보드 전열 공란). chg52=1년(52주) 변화율 %.
@@ -356,7 +362,7 @@ Chrome 브라우저 도구는 사용하지 말 것 (메인 세션/SecuritiesAgen
 
 ## (v3.6.7) 3.2.3 반도체/AI 상세표·테마 확장
 
-- `markets.semi_ai_breakdown`: [{name, aum(시총 억원, 문자열 가능), note(간단 설명), chart("charts/semi_<i>.png" 또는 "")}] — 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. chart 가 "" 면 추세 셀은 "-". 미존재 ETF 는 넣지 말 것. `markets.semi_ai_comment` 는 표 아래 현황·코멘트.
+- `markets.semi_ai_stocks`·`markets.semi_ai_etfs` **(v3.81 — 구 semi_ai_breakdown 단일 리스트 폐지)**: 각 [{name, aum(시총 억원, 문자열 가능), note(간단 설명)}] — 종목/ETF 분리 리스트(이름은 nmr_kr_series.json 의 stocks/etfs 키와 일치, chart 는 merge 가 semi_s_<i>/semi_e_<i> 로 자동 부여). 빌더가 [종목·ETF|시총|간단설명|추세(1Y)] 표로 렌더. 미존재 ETF 는 넣지 말 것. `markets.semi_ai_stocks_comment`/`semi_ai_etfs_comment` 는 표 아래 현황·코멘트.
   - 차트: 각 종목/ETF 1년 주봉 series 로 미니차트(`charts/semi_<i>.png`) 생성(인덱스 = breakdown 행 순서, 시총순). series 가 없거나 매칭 ETF 가 모호하면 chart="".
 - `markets.korea_themes` 의 반도체·AI 는 "반도체/AI" 한 행으로 통합하고 `korea_theme_etfs["반도체/AI"]` 는 대표 ETF 하나만. 테마는 자유 확장(신재생에너지·K화장품·K-푸드 등) — 각 테마 1년 series 를 `nmr_themeseries1y.json[테마명]` 에 넣고 `korea_theme_charts[테마]="charts/theme_<테마>.png"`.
 - 3.2.2 `kospi_buy/sell`·`kosdaq_buy/sell` detail 은 풍부한 형식(금액·순위·주가±%·외국인지분율). 마감 공개 출처에 확정된 종목만 수록(추정·비교불가 데이터 패딩 금지), 한계는 `note`.

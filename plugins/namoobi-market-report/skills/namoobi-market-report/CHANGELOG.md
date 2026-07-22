@@ -1,5 +1,11 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.81.0 (plugin 1.35.0, 2026-07-22) — 문서-코드 스키마 불일치 3건 재발방지 (예약 실행 실측)
+
+**증상(2026-07-22 06시 예약 실행)** — ① 3.2.3 반도체/AI 표가 통째로 비었다(semi_stocks/etfs 0): agents.md 가 구 `semi_ai_breakdown` 단일 리스트를 문서화한 채 merge 는 `semi_ai_stocks/semi_ai_etfs` 분리 키만 읽어 에이전트 산출이 전량 무시됨(메인세션 수동 분리로 복구). ② 3.2.5 지수 리밸런싱이 빈 dict: change_marker=none 으로 에이전트 미발행 시 재사용 경로가 merge 에 없었음(수동 주입으로 복구). ③ 6장 크립토를 매 회차 메인세션이 손으로 조립(절차 미스크립트화). ④ 서버 ism_pmi 의 svc 에 제조업 헤드라인·수치 복제(구글뉴스 쿼리 무필터). ⑤ SKILL Phase 1.5 목록에 gen_curve_1y.py 누락(REQ6 macro_curve_1y.png 는 merge 가 3.1.1 차트로 지정).
+
+**수정** — ① merge 자동분리 shim + agents.md 스키마 정정(분리 리스트가 정본). ② merge 가 nmr_rebalance.json 부재 시 직전 report_data 의 index_rebalance 자동 carry-forward(reuse_note 표기). ③ scripts/compose_crypto.py 신설(서버 DB+nmr_kimchi 기계 조립, CoinInfo 1콜 보조 nmr_coininfo_extra.json). ④ agents.md 에 svc 오염 가드 명문화(서버 파서 필터는 namoobi-market-report-server 측 수정·배포 별도). ⑤ SKILL 차트 목록 11종·크립토 조립 절차 명문화 + 에이전트 명세는 $RUN(runsrc)/references 에서 읽도록 규칙화(설치본 구판 스키마 사고 방지).
+
 ## v3.80.0 (plugin 1.34.0, 2026-07-21) — 3.1.7 리비전 정의를 홈페이지 종목 스크리너와 통일
 
 **증상(사용자 지적)** — 같은 "리비전"이라는 이름으로 두 화면이 전혀 다른 값을 보였다: GOOGL 이 스크리너에선 **+16.4%(강한 상향)** 인데 3.1.7 표에선 **+0.03%(보합)** 로 나와 신호가 '중립'으로 갈렸다.
