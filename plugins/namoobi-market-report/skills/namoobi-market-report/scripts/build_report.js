@@ -15,6 +15,7 @@ catch (e) { console.error(`JSON parse fail: ${inputPath}\n${e.message}`); proces
 //   없거나 실패하면 빈 맵 → 기존처럼 영문명만 렌더(비차단).
 let USKR = {};
 try { USKR = (JSON.parse(fs.readFileSync('db/us_krname.json', 'utf-8')).map) || {}; } catch (e) { USKR = {}; }
+let PRG={}; try { PRG = JSON.parse(fs.readFileSync('nmr_program.json','utf-8')); } catch (e) { PRG = {}; }  // (2026-08-02) 3.2.1 프로그램·등락종목
 const krNm = t => USKR[String(t || '').trim().toUpperCase()] || '';
 
 // ── v3.6.24 스키마 정규화: 에이전트 출력 드리프트를 흡수해 '조용한 누락' 방지 ──
@@ -100,6 +101,7 @@ function validate(d) {
   if(M.customs&&M.customs.series){ needChart(true,"charts/수출_전체_24개월.png","3.1.10 수출 전체 차트"); needChart(true,"charts/수출_반도체_24개월.png","3.1.10 수출 반도체 차트"); }
   needChart(M.hy_spread, "charts/hy_oas.png","3.1.1 HY 스프레드 차트");
   if(M.kr_liquidity) for(let i=1;i<=4;i++) needChart(true,"charts/krliq_"+i+".png","3.1.14 유동성·레버리지 차트 "+i);
+  if(M.veps&&M.veps.margin){ needChart(true,"charts/veps_2.png","3.1.15 신용잔고 YoY 차트"); needChart(!!M.veps.hy,"charts/veps_3.png","3.1.15 HY 가산금리 차트"); }  // (v3.72) ①④는 데이터 누적 초기 생략 허용
   { const KB=M.krx_brief||{};  // (v3.54) 3.2.4/3.2.5 KRX 브리프 — 데이터 있으면 캡쳐 필수
     if(KB.krx&&KB.krx.pages) for(let i=1;i<=KB.krx.pages;i++) needChart(true,"charts/krx_brief_p"+i+".png","3.2.4 KRX 증시 Brief 캡쳐 p"+i);
     if(KB.short&&KB.short.pages) for(let i=1;i<=KB.short.pages;i++) needChart(true,"charts/short_brief_p"+i+".png","3.2.5 공매도 데일리 브리프 캡쳐 p"+i); }
@@ -225,9 +227,9 @@ function markSign(x){ const t=String(x||""); if(/^[\s]*[+]/.test(t)) return posi
 function renderKoreaExtras(){ const m=data.markets||{};
   if(m.korea_investors){ const ki=m.korea_investors; children.push(h("3.2.1 외국인 순매수 동향 (일봉·투자자별 수급)",3));
     children.push(p("외국인 순매수 동향: 시장 조정 국면에서 외국인이 매수세를 늘리면 하방 지지선이 구축된다는 강력한 신호입니다.",{italics:true,color:"64748B"}));
-    const blk=(label,d,chart)=>{ if(!d)return; children.push(p(label+"   "+(d.level||""),{bold:true,color:"1E40AF",before:80}));
+    const blk=(label,d,chart,pk)=>{ if(!d)return; children.push(p(label+"   "+(d.level||""),{bold:true,color:"1E40AF",before:80}));
       const img=imagePara(chart, 648, 486); if(img)children.push(img); else children.push(p("(차트 생성 실패 — OHLCV/수급 데이터 확인 필요)",{italics:true,color:"B45309",size:16}));
-      children.push(p("일봉 캔들(시·고·저·종)+이동평균(5·20·60·120) / 거래량 / 투자자별 누적순매수(빨강=외국인·파랑=기관·초록=개인, 조원)",{size:15,color:"94A3B8"}));
+      children.push(p("일봉 캔들(시·고·저·종)+이동평균(5·20·60·120) / 거래량 / RSI / 투자자별 누적순매수(빨강=외국인·파랑=기관·초록=개인, 조원) / 프로그램 순매수(주황=차익·파랑=비차익, 억원/일)",{size:15,color:"94A3B8"}));
       children.push(p("투자자별 순매수 (기준: 최근 장 마감일 "+(ki.asof||"-")+" · 1일 기준)",{size:17,bold:true,color:"475569"}));
       const iw=[3300,3300,3300];
       const ih=new TableRow({children:["외국인 순매수","기관 순매수","개인 순매수"].map((x,i)=>cell(x,{width:iw[i],header:true,align:AlignmentType.CENTER}))});
@@ -236,9 +238,24 @@ function renderKoreaExtras(){ const m=data.markets||{};
         cell(d.institution||"-",{width:iw[1],align:AlignmentType.CENTER,bold:true,color:markSign(d.institution)}),
         cell(d.individual||"-",{width:iw[2],align:AlignmentType.CENTER,bold:true,color:markSign(d.individual)})]});
       children.push(makeTable(iw,[ih,ir]));
+      // (2026-08-02) 프로그램(차익·비차익·전체) + 등락종목 — 서버 program_trading 수집(네이버 일별·KIS)
+      const eok=v=>v==null?"-":((v>0?"+":"")+Math.round(v).toLocaleString()+"억");
+      const pg=PRG[pk], ud=(PRG.updown||{})[pk];
+      if(pg&&pg.t&&pg.t.length){
+        const i2=pg.t.length-1, pdt=pg.t[i2].slice(4,6)+"/"+pg.t[i2].slice(6);
+        const pw=[2475,2475,2475,2475];
+        const ph=new TableRow({children:["프로그램 차익","프로그램 비차익","프로그램 전체","등락종목(상승·보합·하락)"].map((x,ii)=>cell(x,{width:pw[ii],header:true,align:AlignmentType.CENTER}))});
+        const prr=new TableRow({children:[
+          cell(eok(pg.arb[i2]),{width:pw[0],align:AlignmentType.CENTER,bold:true,color:markSign(eok(pg.arb[i2]))}),
+          cell(eok(pg.nonarb[i2]),{width:pw[1],align:AlignmentType.CENTER,bold:true,color:markSign(eok(pg.nonarb[i2]))}),
+          cell(eok(pg.whole[i2]),{width:pw[2],align:AlignmentType.CENTER,bold:true,color:markSign(eok(pg.whole[i2]))}),
+          cell(ud?(ud.up+" · "+ud.flat+" · "+ud.down+(ud.uplm?" (상한 "+ud.uplm+")":"")):"-",{width:pw[3],align:AlignmentType.CENTER,bold:true})]});
+        children.push(makeTable(pw,[ph,prr]));
+        children.push(p("프로그램 "+pdt+" 종가(네이버·억원) — 차익=선물-현물 괴리 연계 기계적 수급(베이시스·외국인 선물과 함께 해석), 비차익=기관 방향성 현물(바스켓·ETF 설정 등). 차익/비차익 1년 추세는 위 캔들차트 하단 패널 참조"+(ud?" · 등락종목 "+(PRG.updown_asof||"")+" 기준(KIS)":""),{size:15,color:"94A3B8"}));
+      }
       if(d.comment)children.push(p(d.comment,{size:18,color:"64748B"})); };
-    blk("코스피",ki.kospi,ki.kospi_chart);
-    blk("코스닥",ki.kosdaq,ki.kosdaq_chart);
+    blk("코스피",ki.kospi,ki.kospi_chart,"kospi");
+    blk("코스닥",ki.kosdaq,ki.kosdaq_chart,"kosdaq");
     children.push(p("기준일: "+(ki.asof||"-")+(ki.source?("   출처: "+ki.source):""),{size:16,color:"94A3B8"}));
     children.push(p("")); }
   { const ks=m.korea_investor_stocks||{}; children.push(h("3.2.2 투자자별 순매수·순매도 상위 종목 (최근 장 마감)",3));
@@ -1253,6 +1270,7 @@ function renderMacroIndicators(){
   children.push(p(""));
   renderDerivPositioning();   // 3.1.13 파생시장 포지셔닝→현물 선행신호 (스냅샷·z매트릭스·활성신호·해석)
   renderKrLiquidity();        // 3.1.14 국내 유동성·레버리지 점검판 (판정+차트4종, 서버 1일 3회 수집)
+  renderVeps();               // (v3.72) 3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수 (gen_veps_charts.py)
 }
 
 // (v3.44) 3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계 — DB: db/customs.json, 변경 시에만 재수집·차트 재생성
@@ -1420,6 +1438,40 @@ function renderKrLiquidity(){ const kl=(data.markets||{}).kr_liquidity;
     p(`설계 근거: 마진콜 반대매매는 신용잔고율이 높은 코스닥 중소형주에서 먼저 터지므로, 코스닥 신용잔고의 상대적 급감이 조기 신호. 상단 = 코스닥 신용잔고 vs 코스닥 지수 vs 전체 중 코스닥 비중, 하단 = 잔고 일간 증감(감소=적색) — 자발적 상환+강제청산 합산의 근사치.`,{size:15,color:"334155"}),
     p(`현재(${fmtD(kl.as_of)} T+2): 코스닥 신용 ${nn(kl.crd_kosdaq_t)}조(전체의 ${nn(kl.kosdaq_share)}%) · 5일 누적 ${sgn(kl.kosdaq_chg5_e)}억. 지수 하락률 대비 잔고 감소율이 비정상적으로 크면 강제청산(마진콜) 우세로 해석 — 단, 상환과 강제청산은 구분 불가(마진콜 직접 통계 부재).`,{size:15,color:"334155"})]);
   children.push(p("반대매매 급증은 선행지표가 아닌 후행 확인 지표이며 역사적으로 항복(단기 바닥) 국면과 동행하는 경우가 많음. 데이터: 금융위 공공데이터(금투협 원천, T+2) · 다음금융(T+0) · 한국은행 ECOS — 서버 1일 3회(06:35/14:10/16:10 KST) 자동 수집. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
+  children.push(p("")); }
+
+// (v3.72) 3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수 — 기사식 이중축 오버레이 4종.
+// 입력: markets.veps (gen_veps_charts.py → nmr_veps.json) + charts/veps_1..4.png. 없으면 비차단 생략.
+// x축 = 전기간·연도 눈금(사용자 요구 2026-08-01). 대시보드 DB data 탭 3.1.15와 동일 데이터.
+function renderVeps(){ const V=(data.markets||{}).veps;
+  if(!V||!V.margin){ console.error("  (경고) markets.veps 없음 → 3.1.15 생략"); return; }
+  children.push(h("3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수 (선행지표 오버레이)",3));
+  children.push(p("의미: 주가지수와 선행성 있는 펀더멘털·수급·신용 지표를 겹쳐 조정의 성격(밸류 부담 해소 vs 실적 우려 실체)과 과열·경계 신호를 판독한다. 대시보드 DB data 탭 3.1.15와 동일 데이터·자동갱신.",{size:15,color:"334155"}));
+  let shown=0;
+  const sect=(ttl,fp,after)=>{ const img=imagePara(fp,660,234);
+    if(!img){ console.error("  (경고) "+fp+" 없음 → 3.1.15 차트 생략"); return; }
+    children.push(p(ttl,{bold:true,size:18,color:"1E40AF",before:140}));
+    children.push(img); (after||[]).forEach(x=>children.push(x)); shown++; };
+  // ① 선행이익
+  if(V.eps){ const E=V.eps;
+    sect("① 12개월 선행이익(자체 프록시) vs KOSPI — 조정의 성격 판독","charts/veps_1.png",[
+      p(`산출: KOSPI 시총상위 200종 중 선행PER 보유분(현재 ${E.n}종)으로 Σ(시총÷선행PER)=시장 선행이익을 매일 16:20 집계(네이버 컨센서스 — QuantiWise 유료 차트의 무료 재현). 주가 조정 + 선행이익 상향 유지 = 밸류에이션 부담 해소 성격(기회 신호), 선행이익도 꺾이면 실적 우려가 실체. 무료 집계라 수준보다 방향이 중요.`,{size:15,color:"334155"}),
+      p(`현재(${E.date}): 선행이익 ${(+E.e).toLocaleString()}조원(${E.dir}) · 선행PER ${E.fper} · KOSPI ${E.kospi!=null?(+E.kospi).toLocaleString():"—"} · 누적 ${E.days}일째(개시 2026-08-01, 과거 백필 불가 — 추세선은 수 주 축적 후 유의미).`,{size:15,color:"334155"})]); }
+  // ② 신용잔고 YoY
+  { const M2=V.margin, verdict=M2.turn?"고점 대비 꺾임 — 기사 로직상 과열 후 경계 구간(2000·2007·2021 패턴: 고점 후 0~9개월 내 대세 하락 선행)":"고점 경신·유지 중 — 과열 누적 관찰";
+    sect("② 미국 신용잔고 증가율(YoY) vs S&P500(로그) — 과열 경보 (1997~)","charts/veps_2.png",[
+      p("의미: 신용잔고(FINRA Margin Debt) YoY 증가율은 레버리지 과열 지표 — 과거 고점(2000년 +72%·2007년 +58%·2021년 +63%, 차트 점선) 도달 후 꺾이면 0~9개월 내 대세 하락에 선행했다.",{size:15,color:"334155"}),
+      p(`현재(${M2.month}): 잔고 $${M2.debit_t}조 · YoY ${M2.yoy>0?"+":""}${M2.yoy}% (최근 2년 고점 +${M2.peak2y}%) → ${verdict}. FINRA 월간(익월 하순 공표) · 1997~ 풀 히스토리.`,{size:15,color:M2.turn?"B45309":"334155",bold:!!M2.turn})]); }
+  // ③ HY 가산금리
+  if(V.hy){ const HH=V.hy, lvl=HH.oas<3.5?"낮은 수준에서 안정 — 완화적 금융환경":(HH.oas<5?"보통 수준 — 중립":"급등 — 긴축적 금융환경, 신용 경계");
+    sect("③ 하이일드 가산금리 vs S&P500(로그) — 신용시장 조기경보 (1997~)","charts/veps_3.png",[
+      p("의미: 저신용(하이일드) 회사채가 국채 대비 지불하는 금리 프리미엄(ICE BofA US HY OAS). 낮고 안정적이면 완화적 금융환경(주가 우호), 급등하면 긴축적 — 과거 주가 고점(2000.3·2007.10·2020.2·2021.12, 차트 점선) 전후 급등이 동행·선행했다. 3.1.1의 HY 스프레드와 동일 시리즈를 장기(1997~)·지수 오버레이로 재구성.",{size:15,color:"334155"}),
+      p(`현재(${HH.date}): 가산금리 ${HH.oas}%p (최근 1년 고점 ${HH.y_hi}%p) → ${lvl}. FRED BAMLH0A0HYM2 일별 · 1997~ 풀 히스토리(아카이브 백필).`,{size:15,color:"334155"})]); }
+  // ④ DDR5
+  if(V.ddr){ const DD=V.ddr;
+    sect("④ DDR5 현물가 vs KOSPI — 반도체 실적의 최전선","charts/veps_4.png",[
+      p(`의미: DDR5 16Gb 현물가는 메모리 업황·반도체 실적의 최선행 가격 신호 — KOSPI(반도체 비중 大)와의 괴리는 수렴하는 경향. 현재 $${DD.px} (수집 시작가 $${DD.start} 대비 ${DD.chg_pct>0?"+":""}${DD.chg_pct}%) — KOSPI 조정에도 가격 강세 유지 여부가 기사 포인트. 매일 수집 현물가 · KOSPI=ECOS.`,{size:15,color:"334155"})]); }
+  if(shown) children.push(p(`기준일: 선행이익 ${(V.eps||{}).date||"—"} · 신용잔고 ${V.margin.month}(월간) · HY ${(V.hy||{}).date||"—"} · DDR5 ${(V.ddr||{}).date||"—"} — 생성 ${V.as_of} KST. 리서치용·투자권유 아님.`,{size:13,italics:true,color:"94A3B8"}));
   children.push(p("")); }
 
 const M7_OUTLOOK_DEFAULT = { as_of: "2026-07-03 종가", rows: [

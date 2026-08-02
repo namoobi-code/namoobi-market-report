@@ -44,7 +44,24 @@ def clean_ohlcv(rows):
         df=df[(r.isna())|(r<0.40)]
     df["Volume"]=df["Volume"].fillna(0).clip(lower=0)
     return df.set_index("Date").sort_index()
-def candle(df, flows, out, title):
+def load_program():
+    # (2026-08-02) 서버 수집 프로그램매매(차익·비차익, program_trading.py) — 3.2.1 캔들차트 5번째 패널
+    for p in (glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/db/program_trading.json")
+              + ["D:/claudeCowork/namoobi-market-report-server/data/db/program_trading.json"]):
+        try: return json.load(open(p))
+        except Exception: pass
+    try:
+        import ssl, urllib.request
+        ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE
+        return json.loads(urllib.request.urlopen("https://141.147.160.13/api/db/program_trading",timeout=20,context=ctx).read())
+    except Exception as e:
+        print("프로그램매매 데이터 없음(패널 생략):",repr(e)); return None
+PRG=load_program()
+if PRG:
+    try:  # build_report.js(3.2.1 표)용으로 워크디어에 전달
+        json.dump(PRG, open(os.path.join(O,"nmr_program.json"),"w",encoding="utf-8"), ensure_ascii=False)
+    except Exception as _pe: print("nmr_program.json 저장 실패:",repr(_pe))
+def candle(df, flows, out, title, prg=None):
     import mplfinance as mpf
     mid=df["Close"].rolling(20).mean(); std=df["Close"].rolling(20).std()
     bbu=mid+2*std; bbd=mid-2*std; r=rsi(df["Close"])
@@ -65,11 +82,27 @@ def candle(df, flows, out, title):
         mpf.make_addplot(cF,panel=3,color="#dc2626",width=1.1,ylabel="누적순매수(조)"),
         mpf.make_addplot(cI,panel=3,color="#2563eb",width=1.1),
         mpf.make_addplot(cP,panel=3,color="#059669",width=1.1)]
+    # (2026-08-02) 5번째 패널 — 프로그램 차익/비차익 순매수(억원/일, 같은 X축·거래일 정렬)
+    pr=(6,1.2,1.4,2.0); hasprg=False
+    if prg and prg.get("t"):
+        try:
+            pt=pd.to_datetime(pd.Series(prg["t"]),format="%Y%m%d",errors="coerce")
+            pa=pd.Series(pd.to_numeric(pd.Series(prg["arb"]),errors="coerce").values,index=pt)
+            pn=pd.Series(pd.to_numeric(pd.Series(prg["nonarb"]),errors="coerce").values,index=pt)
+            pa=pa[~pa.index.duplicated()].reindex(df.index); pn=pn[~pn.index.duplicated()].reindex(df.index)
+            if pa.notna().sum()>=10:
+                ap+=[mpf.make_addplot(pa,panel=4,color="#e08e3c",width=0.9,ylabel="프로그램(억)"),
+                     mpf.make_addplot(pn,panel=4,color="#1f6feb",width=0.9),
+                     mpf.make_addplot(pd.Series(0.0,index=df.index),panel=4,color="#cbd5e1",width=0.5)]
+                pr=(6,1.2,1.4,2.0,1.8); hasprg=True
+        except Exception as e: print("프로그램 패널 생략:",repr(e))
     fig,axes=mpf.plot(df,type="candle",style=style,mav=(5,20,60,120),volume=True,addplot=ap,
-        panel_ratios=(6,1.2,1.4,2.0),figratio=(15,10),figscale=1.15,returnfig=True,
+        panel_ratios=pr,figratio=(15,11 if hasprg else 10),figscale=1.15,returnfig=True,
         datetime_format="%y/%m",xrotation=0,tight_layout=True,title=dict(title=title,fontsize=11))
     if have:
         axes[6].legend(handles=[Line2D([0],[0],color="#dc2626",lw=1.4,label="외국인"),Line2D([0],[0],color="#2563eb",lw=1.4,label="기관"),Line2D([0],[0],color="#059669",lw=1.4,label="개인")],loc="upper left",fontsize=6.5,frameon=False,ncol=3)
+    if hasprg:
+        axes[8].legend(handles=[Line2D([0],[0],color="#e08e3c",lw=1.4,label="차익 순매수"),Line2D([0],[0],color="#1f6feb",lw=1.4,label="비차익 순매수")],loc="upper left",fontsize=6.5,frameon=False,ncol=2)
     fig.savefig(out,dpi=150,bbox_inches="tight"); plt.close(fig)
 def weekly_fallback(series, out, title):
     series=[p for p in series if p and p[1] is not None]
@@ -95,9 +128,9 @@ def load(p):
     except Exception: return None
 kr=load(O+"/nmr_kr_ohlcv.json"); idx=load(O+"/nmr_indexseries.json")
 specs=[("kospi","kospi_ohlcv","kospi_flows_daily",
-        "KOSPI 1년 일봉 — 캔들+이동평균(5/20/60/120)+볼린저 / 거래량 / RSI / 누적순매수","KOSPI 1년 주봉 — 종가 + 이동평균"),
+        "KOSPI 1년 일봉 — 캔들+이동평균(5/20/60/120)+볼린저 / 거래량 / RSI / 누적순매수 / 프로그램","KOSPI 1년 주봉 — 종가 + 이동평균"),
        ("kosdaq","kosdaq_ohlcv","kosdaq_flows_daily",
-        "KOSDAQ 1년 일봉 — 캔들+이동평균(5/20/60/120)+볼린저 / 거래량 / RSI / 누적순매수","KOSDAQ 1년 주봉 — 종가 + 이동평균")]
+        "KOSDAQ 1년 일봉 — 캔들+이동평균(5/20/60/120)+볼린저 / 거래량 / RSI / 누적순매수 / 프로그램","KOSDAQ 1년 주봉 — 종가 + 이동평균")]
 for name,key,fkey,tc,tw in specs:
     done=False; mark=f"charts/{name}_tech.weekly"
     try:
@@ -110,7 +143,7 @@ for name,key,fkey,tc,tw in specs:
         try:
             df=clean_ohlcv(kr[key])
             if len(df)>=30:
-                candle(df, kr.get(fkey), f"charts/{name}_tech.png", tc); done=True; print(name,"캔들 OK(",len(df),"행)")
+                candle(df, kr.get(fkey), f"charts/{name}_tech.png", tc, (PRG or {}).get(name)); done=True; print(name,"캔들 OK(",len(df),"행)")
             else: print(name,"일봉 유효행 부족(",len(df),") → 폴백")
         except Exception as e: print(name,"캔들 실패:",repr(e),"→ 폴백")
     if not done and idx and idx.get(name):

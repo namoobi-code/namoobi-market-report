@@ -68,7 +68,10 @@ def main():
         "SELECT date,deposit,ucol,opp_amt,opp_ratio,crd_whl,crd_kospi,crd_kosdaq,"
         "kospi,kospi_trdval,kosdaq,kosdaq_trdval FROM kr_liq_daily "
         "ORDER BY date DESC LIMIT 420").fetchall()[::-1]
-    monthly = c.execute("SELECT month,m2,kospi,kosdaq FROM kr_liq_monthly ORDER BY month").fetchall()
+    try:
+        monthly = c.execute("SELECT month,m2,kospi,kosdaq,tdep FROM kr_liq_monthly ORDER BY month").fetchall()
+    except Exception:                     # 구버전 DB(정기예금 컬럼 없음) 호환
+        monthly = c.execute("SELECT month,m2,kospi,kosdaq FROM kr_liq_monthly ORDER BY month").fetchall()
     vr = c.execute("SELECT date,deposit,kospi_trdval FROM kr_liq_daily "
                    "WHERE deposit IS NOT NULL AND kospi_trdval IS NOT NULL "
                    "ORDER BY date DESC LIMIT 40").fetchall()[::-1]
