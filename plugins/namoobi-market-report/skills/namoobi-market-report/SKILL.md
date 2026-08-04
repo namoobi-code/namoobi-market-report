@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.35.0 · SKILL v3.81.0)
+# Namoobi Market Report (plugin v1.36.0 · SKILL v3.82.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -25,6 +25,7 @@ description: |
 > **[v3.73 · 2026-07-21 실측] WORK 폴더는 매 실행 새 이름(타임스탬프)** — `rm -rf "$WORK"` 는 마운트가 unlink 를 차단해 **항상 실패**한다(직전 회차 파일·node_modules 가 남아 잔존물 오염·차트 혼입 위험). 따라서 초기화하지 말고 **`WORK="$OUT/nmr_build_$(TZ=Asia/Seoul date '+%H%M')"` 로 새로 만들고**, 현재 경로를 `$OUT/nmr_work_current.txt` 에 적어 이후 콜에서 `WORK="$(cat /sessions/*/mnt/outputs/nmr_work_current.txt)"` 로 재유도한다(콜마다 셸 변수 휘발). node_modules 는 `$OUT/nmr_node_cache` 에서 복사해 재사용한다. **`/dev/shm`·`/tmp` 도 콜 간 휘발**되므로 여러 콜에 걸쳐 쓸 스크립트·중간파일은 반드시 outputs/연결폴더에 둔다.
 > **[v3.73 · 에이전트 스톨 내성]** 병렬 배치 중 일부 에이전트가 **API 스톨(Response stalled mid-stream)로 중단**되면 그 에이전트의 산출 파일이 아예 생기지 않는다(2026-07-21 실측: News·GlobalSecurities 2건 중단 → 재실행에 30분 추가·수집 56분의 주원인). 규약: ① 배치 직후 **`ls nmr_*.json` 로 산출물 존재를 먼저 확인**하고 **없는 것만** 재발행한다(있는 것 재실행 금지). ② 재발행 프롬프트에는 **"속도 우선 — 웹 재검색 최소화, 서버 풀 주력, 검색 N회 이내"** 와 **직전 배치에서 확인된 사실(오늘 시장 맥락·타 에이전트 실측치)** 을 주입해 탐색을 줄인다. ③ 장시간 검색이 예상되는 News·GlobalSecurities 는 **처음부터** 검색 상한(News ≤5회·IB 각사 2~4회)을 프롬프트에 명시한다.
 > **[v3.81 · 2026-07-22 재발방지] 스키마 불일치·재사용 경로·조립 절차 확정**: ① 3.2.3 반도체/AI 산출 스키마 = **`semi_ai_stocks`·`semi_ai_etfs` 분리 리스트**(+각 comment) — 구 `semi_ai_breakdown` 단일 리스트는 merge 미인식으로 표가 통째로 비었다(2026-07-22 실측, merge 에 자동분리 shim 추가·정본은 분리 스키마). ② **IndexRebalance 마커 skip 회차는 merge 가 직전 report_data 자동 carry-forward**(수동 주입 불필요). ③ **6장 크립토 = `python3 scripts/compose_crypto.py "$WORK"`** 기계 조립(CryptoAgent·MCP 재조사 금지 유지, 업다운 카운트·평균등락만 CoinInfo `get_market_overview` 1콜 → `nmr_coininfo_extra.json` 저장 보조). ④ 서버 `ism_pmi` 의 svc 는 제조업 헤드라인 복제 오염 가능 — MacroAgent 가 'Services/서비스' 미포함 헤드라인이면 WebSearch 실측으로 대체. ⑤ **에이전트 명세(references/agents.md)는 설치본이 아니라 $RUN(runsrc)에서 읽는다** — 설치본 구판 스키마가 ①의 원인(runsrc 는 git HEAD 라 항상 최신).
+> **[v3.82 · 2026-08-04 재발방지] 중복 실행·중복 발송 가드**: PC가 꺼져 예약(06시)을 놓치면 **Cowork 스케줄러가 PC/앱 재시작 시 catch-up 으로 지연 실행**한다(8/4 실측: 06시 누락분이 13:31 자동 실행). 이를 모르고 수동 재실행하면 병렬 2세션이 같은 날짜 보고서를 _HHMM 만 다른 파일명으로 각각 발송한다(8/4 중복 수신 사고). 대책 2중화 — ① **Phase 0-1 기발송·병렬 가드(필수)**: 실행 초입에 서버 `data/mail_sent.log` 에서 오늘 일자 키(`global_market_report_YYYYMMDD`)를 grep, 기발송이면 예약 모드=즉시 종료·일반 모드=사용자 질문. ② **서버 send_report_mail.py v3.71 일자 키 dedup**: 첨부파일명 완전일치 → 일자 키 비교로 확장해 회차(_HHMM)가 달라도 같은 날짜면 재발송 차단(의도적 재발송은 서버측 `--force` 로만).
 > **[Big-Arch] 비매일 지표 DB화 (최우선 원칙 · 상세 `references/db-architecture.md`)**: 발표주기가 매일이 아닌 **모든 3.1 매크로 지표**(FOMC 기준금리·6개국 정책금리·FOMC 회의일정·점도표·물가 CPI/CoreCPI/PCE/CorePCE/PPI·고용 7종(초기 실업수당 청구건수 포함)·빅테크 CAPEX·메모리/HBM·경기선행지수(한국)·OECD CLI)는 ① 별도 DB(파일)에 저장하고 ② 매 실행 **변동 여부만** 저렴히 조사해 ③ 변동 시에만 재조사·갱신하며 ④ 변동 없으면 DB값을 그대로 쓴다. 보고서엔 표준 캡션 **"업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"** 를 명시한다(물가는 `, BEI는 실시간` 부기). **매일 실측(DB화 제외)**: 美 국채금리(10Y·2Y)·장단기차(10Y-2Y)·HY 스프레드·기대인플레(BEI)·심리(VIX·KSVKOSPI·DXY·원/달러·WTI·美10Y). CAPEX·HBM 은 **누적형 DB**(신규 관측치 upsert 로 시계열 계속 업그레이드).
 > **Top News 최신성(req1)**: 1.글로벌 Top News 10 은 발행일이 **전일~당일(D-0~D-1)** 인 기사만 사용(2일 이상 지난 뉴스 금지).
 > **[Big-Arch 구현] 범용 DB**: `scripts/nmr_db.py`(check/get/set/upsert) + `merge.py` 가 매 실행 **물가·고용·정책금리·FOMC회의·점도표·경기선행·OECD CLI** 7섹션을 `namoobi-market-report-server/db/<item>.json` 에 자동 저장하고, 비면 DB값을 재사용한다(변동 시에만 갱신). 에이전트는 섹션 마커(최신 발표/결정일)를 `nmr_db.py check` 로 1회 관측해 reuse 면 수집 스킵 가능. **차트 시계열도 `nmr_db.dbseries` 로 db/series_*.json 에 누적**(부실 수집 보강). 점도표·13F·리밸런싱 포함 모든 비매일 지표를 통합 DB로 일원화 — **구 마커체크(nmr_cache.py)는 폐지**.
@@ -184,6 +185,15 @@ Phase 1 시작 시 아래도 함께 curl 로 `$WORK/server_<name>.json` 캐시�
    - **일반 모드**: 그 외 모두 (사용자가 채팅에서 직접 `/namoobi-market-report` 실행, 인자 `direct` 등).
    - 판정 결과를 메모해 두고(예: `$WORK/nmr_mode.txt` 에 `scheduled` 또는 `normal` 기록) Phase 5 에서 수신자 파일을 고른다:
      예약 → `SECURITY\예약메일수신자.txt`, 일반 → `SECURITY\메일수신자.txt`. (애매하면 **일반 모드**로 처리하고 Phase 6 에 모드를 명시한다.)
+0-1. **(v3.82 필수) 기발송·병렬 실행 가드**: 모드 판정 직후, 서버 mail_sent.log 에서 **오늘 일자 보고서가 이미 발송됐는지** 확인한다:
+   ```bash
+   KEY="$(ls /sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key | head -1)"; cp "$KEY" /dev/shm/nk; chmod 600 /dev/shm/nk
+   ssh -i /dev/shm/nk -o StrictHostKeyChecking=no -o ConnectTimeout=12 ubuntu@141.147.160.13 \
+     "grep global_market_report_$(TZ=Asia/Seoul date +%Y%m%d) namoobi/data/mail_sent.log | tail -1"
+   ```
+   - 출력이 있으면(=오늘자 기발송): **예약 모드 → 즉시 종료**(Phase 6 결과 보고에 "오늘자 기발송 확인 — 중복 실행 방지로 종료"만 남김), **일반 모드 → 사용자에게 재실행/재발송 여부 질문**(서버 dedup 이 같은 날짜 재발송을 차단하므로 재발송은 서버측 `--force` 필요함을 함께 안내).
+   - 배경(2026-08-04 실측): PC 꺼짐으로 06시 예약이 누락되면 Cowork 스케줄러가 PC/앱 재시작 시 **catch-up 으로 지연 실행**한다(06시 누락분이 13:31 자동 실행). 이를 모르고 수동 재실행하면 병렬 2세션이 같은 날짜 보고서를 각각 발송·중복 수신된다. 서버 v3.71 일자 키 dedup 이 2번째 발송은 차단하지만, **40여 분의 수집·빌드 낭비와 초박빙 레이스는 이 가드로만 막는다**.
+   - (보조) `list_sessions` 도구가 있으면 다른 "1 namoobi market report" 세션이 **running** 인지도 확인 — running 이면 기발송과 동일하게 처리(예약=종료, 일반=사용자 질문).
 1. **날짜·시작시각**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` 로 오늘(KST)과 **워크플로우 시작시각**을 확정. `YYYYMMDD` 압축형도 함께 만든다. 시작시각(사람이 읽는 형식 + epoch)은 Phase 6 소요시간 계산에 쓰므로 아래 3번에서 `$WORK/nmr_start_epoch.txt` 로 기록한다.
 2. **연결 폴더 확인**: D:\claudeCowork 가 세션에 연결돼 있는지 확인. **`request_cowork_directory` 는 절대 호출하지 않는다**(매 실행 권한창의 원인). 미연결이면 outputs 에서 진행하고, Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성·메일 첨부 불가"를 명시한다.
 3. **Chrome (v3.53 — 미연결 시 직접 실행 루틴)**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.) **결과가 빈 배열(`[]`)이면 사용자에게 떠넘기지 말고 computer-use 로 크롬을 직접 실행한다**:
@@ -345,7 +355,7 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 - **(v3.69) 1순위 = 서버 SMTP 발송** — Phase 5.5 sync 를 **먼저** 수행해 docx 를 서버에 올린 뒤, `python3 "$SRC/send_mail_server.py" <docx VM경로> "<제목>" <body파일> <모드>` 1회로 발송(내부: 모드별 BCC 파일 읽기(// 제외)→ssh stdin JSON→서버 `send_report_mail.py` 가 Gmail SMTP(앱 비밀번호, keys/gmail_app_password.txt)로 발송, ~10초·Chrome 불필요·주소 argv 미노출). exit 0+"SENT"=성공. **exit 3(서버 인증파일 없음)·기타 실패 시에만** 아래 Chrome 경로로 폴백. 준비물: 사용자가 Google 계정 '앱 비밀번호'를 `SECURITY/gmail_app_password.txt` 에 1회 저장(2단계 인증 필요) — 배포는 sync_server 가 자동.
 - **(폴백 · v3.68) Chrome 초안 경유 발송**: 전면 작성창(view=cm)의 '보내기'는 조용히 무시되는 재발성 결함(3회 실측) — prefill 로 초안만 만들고 `#drafts` 에서 열어 미니 작성창에서 첨부(업로드 progressbar 소멸 폴링)·발송한다. 발송 판정은 "메시지 전송됨" 토스트 또는 보낸편지함 실측. 렌더러 프리즈 시 탭 폐기→새 탭 재개. 상세=email-sending.md.
 - (v3.69 순서 변경) **Phase 5.5(sync)를 Phase 5(발송)보다 먼저** 실행한다 — 게이트 통과본만 sync 하므로 깨진 데이터 노출 없음은 유지되고, 서버 발송이 sync 된 docx 를 그대로 첨부해 '대시보드=메일 동일 회차'도 유지된다. Chrome 폴백 시에도 순서 무관. **이 순서는 중복 발송 방지에도 필수** — docx 가 서버에 미리 있어야 발송 ssh 가 ~10초에 끝나 45초 샌드박스 벽에 잘리지 않는다.
-- **(v3.70 멱등 가드 — 2026-07-18 중복 발송 재발방지)**: 서버 `send_report_mail.py` 가 발송 성공을 `data/mail_sent.log` 에 기록하고, **같은 첨부파일명이 최근 20시간 내 기발송이면 SMTP 를 건너뛰고 `SENT <기존 메시지ID> (dedup …)` 로 응답**한다(실측 원인: 7/18 발송 ssh 가 45초 벽에 SENT 확인 직전 잘림 → 세션이 실패로 오판·재시도 → 2중 발송 06:40/06:42). 따라서 **wrapper 가 timeout(rc=124)·SENT 미확인으로 끝나도 그냥 같은 명령을 재실행하면 안전**하다(재발송 아닌 dedup 확인이 됨) — 재시도 전 별도 수신함 확인 불필요. 새 회차(_HHMM 다른 파일명)는 정상 발송되고, 의도적 재발송은 서버측 `--force` 로만.
+- **(v3.70 멱등 가드 — 2026-07-18 중복 발송 재발방지 · v3.71/2026-08-04 일자 키로 확장)**: 서버 `send_report_mail.py` 가 발송 성공을 `data/mail_sent.log` 에 기록하고, **같은 일자 키(`global_market_report_YYYYMMDD` — 회차 _HHMM 무관)가 최근 20시간 내 기발송이면 SMTP 를 건너뛰고 `SENT <기존 메시지ID> (dedup …)` 로 응답**한다(구 완전일치 dedup 은 병렬 세션의 _HHMM 다른 회차를 못 잡아 8/4 중복 수신 발생 → 일자 키로 확장. 같은 날 의도적 재발송은 서버측 `--force` 로만)(실측 원인: 7/18 발송 ssh 가 45초 벽에 SENT 확인 직전 잘림 → 세션이 실패로 오판·재시도 → 2중 발송 06:40/06:42). 따라서 **wrapper 가 timeout(rc=124)·SENT 미확인으로 끝나도 그냥 같은 명령을 재실행하면 안전**하다(재발송 아닌 dedup 확인이 됨) — 재시도 전 별도 수신함 확인 불필요. 새 회차(_HHMM 다른 파일명)는 정상 발송되고, 의도적 재발송은 서버측 `--force` 로만.
 - **(v3.53) Chrome 확장 미연결이면 먼저 직접 실행**: `list_connected_browsers` 가 `[]` 면 Phase 0-3 루틴대로 computer-use `request_access(["Google Chrome"])`(경고 시 같은 턴 재요청)→`open_application("Google Chrome")`→`wait(3)`→재확인. 프로필 피커가 뜨면 사용자에게 namoobi 프로필 1회 클릭 요청. 확장이 붙은 뒤 아래 절차 진행.
 - **Gmail 이 안 켜져 있으면** Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 navigate (로그인 상시 유지 — 비밀번호 단계 불필요).
 - **첨부는 docx** — 연결 폴더(`D:\claudeCowork\...docx`) Windows 경로로 첨부 (outputs·VM 경로는 거부됨). (`references/email-sending.md` 의 PDF 언급은 docx 로 간주 — 차기 정리 대상.)
@@ -419,6 +429,8 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 | 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
 | 첨부 시 "only files the user has shared" | file_upload 는 `D:\claudeCowork\...docx` Windows 경로만 허용 — outputs·`/sessions/...` VM 경로는 거부. docx 를 연결 폴더에 두고 그 경로로 첨부 |
 | 예약/일반 수신자 혼동 | Phase 0 모드 판정 결과로 결정 — 예약=예약메일수신자.txt, 일반=메일수신자.txt. 예약 작업 프롬프트에 `scheduled` 인자 전달 확인 |
+| 예약이 제시간에 실행 안 됨(PC 꺼짐) | Cowork 스케줄러가 PC/앱 재시작 시 **catch-up 자동 실행**함(8/4 실측: 06시분이 13:31 실행) — 수동 재실행 전 반드시 Phase 0-1 기발송·병렬 가드로 확인 |
+| 같은 날짜 보고서 중복 발송 | 서버 v3.71 일자 키 dedup 이 2번째를 자동 차단(`SENT (dedup …)`) — mail_sent.log 확인, 의도적 재발송은 서버측 `--force` 로만 |
 | 서브에이전트 API 오류로 결과 누락 | nmr_*.json 존재 여부 확인 후 해당 에이전트만 재실행 |
 | Chrome 차단 도메인(naver.com 등) | NaverSearch MCP / web_fetch 로 대체 |
 | VNINDEX 데이터 부재 | VNM ETF (VanEck Vietnam) 로 대체 |
@@ -473,4 +485,14 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 | 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
 |------|-----------|----------------|-----------|
 | UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
-| Goldman Sachs | 매크로·원자재·경제전망 | goldmans
+| Goldman Sachs | 매크로·원자재·경제전망 (Top of Mind·Briefings) | goldmansachs.com/insights | 주 1~2회 |
+| J.P. Morgan | 자산배분·Guide to the Markets·글로벌 마켓 인사이트 | am.jpmorgan.com (Market Insights) | 주간/분기 |
+| Morgan Stanley | 미국 주식 전략(Mike Wilson)·Thoughts on the Market | morganstanley.com/ideas | 매일~주간 |
+| BlackRock | BII 주간 코멘터리·iShares ETF 플로우 | blackrock.com (BlackRock Investment Institute) | 주간 |
+
+복수 활용 전략: 일일 톤(UBS CIO Daily) + 매크로 심층(GS) + 자산배분 프레임(JPM GTM) + 미국 주식 전략(MS) + ETF 플로우(BlackRock BII) 조합. 신선도 규칙(Daily≤D-1·Weekly≤D-3)을 항상 적용한다.
+
+> (v3.82 복원 주석) 부록 B 표가 과거 마운트 잘림 blob 커밋(약 140커밋 전) 이후 'goldmans'에서 절단된 채 유지돼 온 것을 2026-08-04 재구성했다. 큰 파일 커밋 시 SKILL.md 유지보수 절차(4번 mount-safe 커밋)의 무결성 검증(끝부분 마커·바이트수)을 반드시 지킬 것.
+이 워크플로우를 통해 매일 아침 종합적인 글로벌 시황 보고서가 자동으로 생성·발송된다.
+
+<!-- EOF — namoobi-market-report SKILL.md -->
