@@ -1,5 +1,12 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.84.0 (plugin 1.38.0, 2026-08-06) — 신규 스킬 namoobi-run-search 추가
+
+- 월 1회 취미(운동) 대회 캘린더 정밀조사: 서버 주간 감지분(sports_watch.py) 심사·편입 +
+  기존 추정치 확정 + 접수 임박 갱신 + 차기 연도 롤오버 + 메이저 변동 체크
+- 산출 sports_events.json → 홈피 취미(운동) 탭(리스트+월 달력) 렌더
+- 서버: sports_watch.py 신설(로드런 풀코스+KTF 무토큰 감시, 매주 일 09:00)
+
 ## v3.83.0 (plugin 1.37.0, 2026-08-06) — 신규 스킬 namoobi-search-trends 추가
 
 - 주 1회(월 08:00 예약) 트렌드 주간 LLM 리포트: 인스타 KR/글로벌 큐레이션 + 구글·유튜브
