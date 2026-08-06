@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""send_mail_server.py — Phase 5 서버 SMTP 발송 래퍼 (v3.69 1순위 경로).
+"""send_mail_server.py — Phase 5 서버 SMTP 발송 래퍼 (v3.83 — pre-dedup 선확인).
 
 동작: ① 모드별 BCC 파일 읽기(// 주석 제외) ② docx 를 서버로 scp(대개 sync 로 이미 있음 — 크기 대조 후 재사용)
      ③ ssh 로 send_report_mail.py 에 stdin JSON 전달(주소 argv 미노출) ④ "SENT" 확인.
@@ -48,6 +48,26 @@ def main():
         if r.returncode == 3 or "없음" in (r.stdout + r.stderr):
             print("AUTH_MISSING — 서버 keys/gmail_app_password.txt 미배포 → Chrome 폴백 요망"); sys.exit(3)
         base = os.path.basename(DOCX)
+        # [v3.83 pre-dedup — 2026-08-06 재발방지] 발송 전 서버 mail_sent.log 일자 키 선확인:
+        # 직전 시도가 timeout 으로 SENT 출력만 유실한 채 서버측 발송이 완료된 경우,
+        # 재시도가 무거운 경로(scp·SMTP)에 들어가기 전에 여기서 차단한다(서버 flock v3.72 와 2중 방어).
+        import re as _re
+        from datetime import datetime, timedelta
+        _m = _re.match(r"^(global_market_report_\d{8})", base)
+        _key = _m.group(1) if _m else base
+        r = run(f'{SSH} "grep -F {shlex.quote(_key)} namoobi/data/mail_sent.log 2>/dev/null | tail -1"')
+        _prior = (r.stdout or "").strip()
+        if _prior:
+            _parts = _prior.split("\t")
+            try:
+                _recent = datetime.fromisoformat(_parts[0]) >= datetime.now() - timedelta(hours=20)
+            except Exception:
+                _recent = True
+            if _recent:
+                _msgid = _parts[2] if len(_parts) > 2 else ""
+                print(f"SENT {_msgid} (pre-dedup — {_parts[0]} 기발송 확인, 재발송 차단) attach={_parts[1] if len(_parts)>1 else base}")
+                print("발송 OK(기발송 재확인) — 재발송 없음 (의도적 재발송은 서버측 --force)")
+                sys.exit(0)
         remote = f"{REMOTE_DIR}/{base}"
         lsz = os.path.getsize(DOCX)
         r = run(f'{SSH} "stat -c %s {shlex.quote(remote)} 2>/dev/null"')
