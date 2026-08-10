@@ -13,3 +13,6 @@ soffice.py
 unpack.py
 validate.py
 __pycache__/
+
+# 작업 중 생성된 스크린샷/캡처 (산출물 아님)
+*.png
