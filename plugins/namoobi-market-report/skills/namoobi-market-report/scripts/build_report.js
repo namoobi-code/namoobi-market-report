@@ -897,7 +897,7 @@ if (data.analysis && data.analysis.summary) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("목   차",1));
-["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)"].forEach(t=>children.push(p(t,{size:22,after:40})));
+["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)","[부록E] 피지컬 AI 밸류체인 (글로벌 개별종목)","[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)"].forEach(t=>children.push(p(t,{size:22,after:40})));
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("1. 글로벌 Top News 10",1));
@@ -1799,10 +1799,70 @@ function renderAppendixD(){ try{
     if(img){ if(k>0)children.push(new Paragraph({children:[new PageBreak()]})); children.push(img); } });
   children.push(p("핵심: ASML(EUV 유일) → TSMC(선단공정) → NVIDIA(CUDA 락인) → SK하이닉스(HBM) 로 이어지는 병목 사슬이 밸류체인 해자의 축이며, 전력 인프라 단은 '칩보다 전기가 부족하다'는 새 병목에 대한 노출이다.",{bold:true,color:"0F766E"}));
 }catch(e){} }
+// (v3.72) [부록E] 피지컬 AI(휴머노이드) 밸류체인 — 글로벌 개별종목 54종(6계층 그룹별 추세표). 데이터(markets.appendix_e) 없으면 자동 생략.
+function renderAppendixE(){ const e=data.markets&&data.markets.appendix_e; if(!e||!e.rows||typeof e.rows!=="object")return;
+  const groups=Array.isArray(e.groups)?e.groups:Object.keys(e.rows);
+  const GL="①②③④⑤⑥⑦⑧⑨⑩";
+  const CCY={USD:"$",JPY:"¥",KRW:"₩",TWD:"NT$",CNY:"CN¥",HKD:"HK$",AUD:"A$"};
+  if(!groups.some(function(g){return Array.isArray(e.rows[g])&&e.rows[g].length;}))return;
+  children.push(new Paragraph({children:[new PageBreak()]}));
+  children.push(h("[부록E] 피지컬 AI 밸류체인 (글로벌 개별종목)",1));
+  children.push(p("생성형 AI가 화면 밖으로 걸어 나오는 '피지컬 AI'(휴머노이드)의 부품 생태계를 6개 단(段)으로 나눠 정리한다. 흐름은 완성체(휴머노이드 메이커)의 양산 계획 → 두뇌(파운데이션 모델·온디바이스 칩) → 신경·감각(센서) → 근육·관절(액추에이터) → 골격·에너지(경량소재·배터리) → 가상훈련장(시뮬레이터·데이터). 접두 $=미국·¥=일본·₩=한국·NT$=대만·CN¥=중국·HK$=홍콩·A$=호주 종가 기준, 수익률은 일봉 종가 기준 가격수익률(배당 제외). 비상장(피겨AI·애지봇·유니트리·1X·샤르파·보스턴다이내믹스 등)은 [부록F] 관계도에만 표기한다.",{italics:true,color:"64748B"}));
+  children.push(p("■ 시장 규모·구조 핵심 수치",{bold:true,color:"1E40AF",before:160,size:21}));
+  simpleTable([1750,3450,5960],["항목","수치","내용 · 출처"],[
+    ["시장 규모","5조 달러 (2050년)","휴머노이드 유닛 10억 개 이상 보급 전망 — 모건스탠리"],
+    ["글로벌 수요","209만대(2024) → 1329만대(2029) → 6억4800만대(2050)","딜로이트 및 각 기관 전망치"],
+    ["2025년 생산량","중국 87.7%(1만2868대) · 미국 3.1% · 한국 1.2% · 기타 8.0%","국가별 생산 비중 — 골드만삭스"],
+    ["출하 점유 1위","애지봇 5168대 · 점유 39%(2025년)","중국계 합산 세계 출하 비중 약 87% — 옴디아"],
+    ["원가 구조","액추에이터 30~60%(평균 40%) · 배터리 5~10%","1대당 액추에이터 25~30개 이상, 카메라 6대 이상 탑재"],
+    ["전고체 배터리","16억 달러(2025) → 156.5억 달러(2033)","2026년부터 연평균 31.8% 성장 — 그랜드뷰리서치"],
+    ["로봇 시뮬레이터","8.2억 달러(2025) → 30.9억 달러(2035)","연평균 14.2% — 프리시던스리서치"]],{left:[0,2]});
+  children.push(p("※ 시장 전망치는 기관 추정으로 실현을 보장하지 않으며, 생산·점유 통계는 집계 기관별 기준이 달라 단순 비교가 어렵다.",{size:16,italics:true,color:"94A3B8"}));
+  let tot=0; const ys=[];
+  groups.forEach(function(g,gi){ const arr=e.rows[g]; if(!Array.isArray(arr)||!arr.length)return;
+    tot+=arr.length; arr.forEach(function(x){ if(x&&x["1y_pct"]!=null)ys.push(Number(x["1y_pct"])); });
+    children.push(p((GL[gi]||"■")+" "+g+" ("+arr.length+"종)",{bold:true,color:"1E40AF",before:160,size:21}));
+    const items=arr.map(function(x){ const sym=String(x.code||x.symbol||"-");
+      return {desc:[new TextRun({text:(x.name||sym)+"  ["+sym+"]",bold:true,size:18,color:"1D4ED8"}),new TextRun({text:(x.desc?("  — "+x.desc):""),size:15,color:"64748B"})],
+        m:x,current:x.current,curPrefix:(CCY[x.ccy]||"$"),trend:String(x.trend||"-"),chart:"charts/spark_e_"+sym.replace(/\./g,"_")+".png"}; });
+    children.push(makeTable(TR2,trend2Rows(items))); });
+  if(ys.length){ const a=ys.reduce(function(x,y){return x+y;},0)/ys.length;
+    children.push(p("추세 평가: 피지컬 AI 밸류체인 "+tot+"종(1년 수익률 산출 "+ys.length+"종) 1년 평균 "+(a>=0?"+":"")+a.toFixed(1)+"%. 통화가 서로 달라 수익률은 현지통화 기준이며 환율 효과는 반영되지 않는다.",{bold:true,color:"0F766E",before:160})); }
+  if(e.asof)children.push(p("기준: "+e.asof+" · 구성 근거: 한경비즈니스 2026.08.05-11 커버스토리 '피지컬 AI 핵심 밸류체인' + 모건스탠리 2025 선정 핵심기업",{size:16,color:"94A3B8"}));
+  children.push(p("")); }
+// (v3.72) [부록F] 피지컬 AI 밸류체인 관계도(해자 지도) — 정적 이미지 3장. 원본=repo assets/appf_physical_ai_{1..3}.png
+function renderAppendixF(){ try{
+  const cp=require('child_process');
+  function pngOk(b){ return b&&b.length>1000&&b[0]===0x89&&b.slice(-8).toString('latin1').indexOf('IEND')>=0; }
+  function loadOne(i){
+    const rel='charts/appf_physical_ai_'+i+'.png';
+    try{ if(fs.existsSync(rel)){ const b0=fs.readFileSync(rel); if(pngOk(b0))return {rel:rel,buf:b0}; } }catch(e){}
+    let src=''; try{ src=cp.execSync("find /sessions -maxdepth 7 -path '*namoobi-market-report/assets/appf_physical_ai_"+i+".png' 2>/dev/null | head -1").toString().trim(); }catch(e){}
+    if(!src)return null;
+    let b=null; try{ b=fs.readFileSync(src); }catch(e){}
+    if(!pngOk(b)){ try{ const repo=src.replace(/\/assets\/appf_physical_ai_[0-9]\.png$/,''); b=cp.execSync('git -C "'+repo+'" show HEAD:assets/appf_physical_ai_'+i+'.png',{maxBuffer:16*1024*1024}); }catch(e){} }
+    if(!pngOk(b))return null;
+    try{ if(!fs.existsSync('charts'))fs.mkdirSync('charts'); fs.writeFileSync(rel,b); }catch(e){ return null; }
+    return {rel:rel,buf:b};
+  }
+  const imgs=[1,2,3].map(loadOne);
+  if(!imgs.some(Boolean))return;
+  children.push(new Paragraph({children:[new PageBreak()]}));
+  children.push(h("[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)",1));
+  children.push(p("[부록E] 개별종목이 '왜 중요한지'를 한 장의 흐름으로 정리한 관계도. 돈은 위(완성체의 양산 계획)에서 아래로 흐르고, 부품은 아래에서 위로 올라간다. 파란 배지=독점·준독점(대체재 사실상 없음), 황색 배지=과점·양강·선두, 회색 배지=비상장(직접 투자 불가·구조 이해용), ★=상위 단과 중복 표기. 시세와 무관한 구조 설명용 정적 이미지(구성 변경 시 assets/gen_appf_physical_ai.py 로 재생성).",{italics:true,color:"64748B"}));
+  imgs.forEach(function(o,k){ if(!o)return;
+    const W=o.buf.readUInt32BE(16), H=o.buf.readUInt32BE(20);
+    const img=imagePara(o.rel,700,Math.round(700*H/Math.max(W,1)));
+    if(img){ if(k>0)children.push(new Paragraph({children:[new PageBreak()]})); children.push(img); } });
+  children.push(p("핵심: 하모닉드라이브·나브테스코(감속기) → 소니·헤사이(센서) → 엔비디아(두뇌 풀스택) → 완성체로 이어지는 사슬에서 병목은 '두뇌'가 아니라 '관절과 손'에 있다. 원가의 40%를 차지하는 액추에이터와 촉각 센서가 승패를 가르며, 한국은 메모리(SK하이닉스)·배터리(LG엔솔·삼성SDI)·센서모듈(LG이노텍)·액추에이터(현대모비스·LG전자)에 걸쳐 있으나 반도체 두뇌와 정밀 감속기·센서에서는 후발이다.",{bold:true,color:"0F766E"}));
+  children.push(p("리스크: ① 중국 편중(2025년 생산 87.7%)과 미국의 중국산 로봇 수입 차단 등 정책 변수 ② 완성체 양산 일정 지연 ③ 부품 단가 하락 압력. 본 부록은 산업 구조 이해용 참고자료이며 특정 종목의 매수·매도 권유가 아니다.",{size:18,color:"64748B"}));
+}catch(e){} }
 renderBerkshire();
 renderAITrends();
 renderAppendixC();  // (v3.51) [부록C] AI 반도체 밸류체인
 renderAppendixD();  // (v3.52) [부록D] AI 반도체 밸류체인 관계도(해자 지도)
+renderAppendixE();  // (v3.72) [부록E] 피지컬 AI 밸류체인
+renderAppendixF();  // (v3.72) [부록F] 피지컬 AI 밸류체인 관계도(해자 지도)
 if(__cut31>=0)children.length=__cut31;
 const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData}]}:{}),
   styles:{ default:{document:{run:{font:FONT,size:22}}},
