@@ -5,8 +5,9 @@
 - 대상: △SMR △핵융합 △재생에너지 △양자 △우주·항공 △첨단바이오 △핵심광물·소부장 공급망 (7개 분야)
 - 매일 실행되는 파이프라인이 아니라, 구성이 바뀔 때만 1회 실행하는 자산 생성기.
 - 산출물: assets/appg_strategy7.html (전체 미리보기)
-          assets/appg_strategy7_1.png (SMR+핵융합) / _2.png (재생에너지+핵심광물·소부장)
-          _3.png (양자+우주·항공) / _4.png (첨단바이오)
+          assets/appg_strategy7_{1..9}.png — docx 1페이지(세로비 ≤1.3)에 맞춘 9분할
+          (1 SMR 전반 / 2 SMR 후반 / 3 핵융합 / 4 재생에너지 / 5 핵심광물·소부장
+           6 양자 / 7 우주·항공 / 8 첨단바이오 전반 / 9 첨단바이오 후반)
 - 요구사항: pip install weasyprint pillow --break-system-packages / Noto Sans CJK KR + pdftocairo
 - 근거: 2026.08 웹 리서치 (NRC·DOE·FIA 2026·IEA Energy and AI·맥킨지 QTM 2026·Space Foundation·
         그랜드뷰리서치·각사 IR/실적 발표 — 상세 출처는 리서치 로그 참조)
