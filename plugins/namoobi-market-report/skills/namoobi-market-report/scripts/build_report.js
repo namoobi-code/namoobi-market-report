@@ -897,7 +897,7 @@ if (data.analysis && data.analysis.summary) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("목   차",1));
-["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)","[부록E] 피지컬 AI 밸류체인 (글로벌 개별종목)","[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)"].forEach(t=>children.push(p(t,{size:22,after:40})));
+["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)","[부록E] 피지컬 AI 밸류체인 (글로벌 개별종목)","[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)","[부록G] 7대 국가전략분야 밸류체인 관계도 (해자 지도)"].forEach(t=>children.push(p(t,{size:22,after:40})));
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("1. 글로벌 Top News 10",1));
@@ -1857,12 +1857,41 @@ function renderAppendixF(){ try{
   children.push(p("핵심: 하모닉드라이브·나브테스코(감속기) → 소니·헤사이(센서) → 엔비디아(두뇌 풀스택) → 완성체로 이어지는 사슬에서 병목은 '두뇌'가 아니라 '관절과 손'에 있다. 원가의 40%를 차지하는 액추에이터와 촉각 센서가 승패를 가르며, 한국은 메모리(SK하이닉스)·배터리(LG엔솔·삼성SDI)·센서모듈(LG이노텍)·액추에이터(현대모비스·LG전자)에 걸쳐 있으나 반도체 두뇌와 정밀 감속기·센서에서는 후발이다.",{bold:true,color:"0F766E"}));
   children.push(p("리스크: ① 중국 편중(2025년 생산 87.7%)과 미국의 중국산 로봇 수입 차단 등 정책 변수 ② 완성체 양산 일정 지연 ③ 부품 단가 하락 압력. 본 부록은 산업 구조 이해용 참고자료이며 특정 종목의 매수·매도 권유가 아니다.",{size:18,color:"64748B"}));
 }catch(e){} }
+// (v3.85) [부록G] 7대 국가전략분야 밸류체인 관계도(해자 지도) — 정적 이미지 11장(분야별 1~2장). 원본=repo assets/appg_strategy7_{1..11}.png
+// (assets/gen_appg_strategy7.py 로 구성 변경 시에만 재생성). charts/ 미존재 시 repo에서 무결성(IEND) 검증·git show 폴백 후 복사. 없으면 자동 생략(비차단).
+function renderAppendixG(){ try{
+  const cp=require('child_process');
+  function pngOk(b){ return b&&b.length>1000&&b[0]===0x89&&b.slice(-8).toString('latin1').indexOf('IEND')>=0; }
+  function loadOne(i){
+    const rel='charts/appg_strategy7_'+i+'.png';
+    try{ if(fs.existsSync(rel)){ const b0=fs.readFileSync(rel); if(pngOk(b0))return {rel:rel,buf:b0}; } }catch(e){}
+    let src=''; try{ src=cp.execSync("find /sessions -maxdepth 7 -path '*namoobi-market-report/assets/appg_strategy7_"+i+".png' 2>/dev/null | head -1").toString().trim(); }catch(e){}
+    if(!src)return null;
+    let b=null; try{ b=fs.readFileSync(src); }catch(e){}
+    if(!pngOk(b)){ try{ const repo=src.replace(/\/assets\/appg_strategy7_[0-9]+\.png$/,''); b=cp.execSync('git -C "'+repo+'" show HEAD:assets/appg_strategy7_'+i+'.png',{maxBuffer:16*1024*1024}); }catch(e){} }
+    if(!pngOk(b))return null;
+    try{ if(!fs.existsSync('charts'))fs.mkdirSync('charts'); fs.writeFileSync(rel,b); }catch(e){ return null; }
+    return {rel:rel,buf:b};
+  }
+  const imgs=[1,2,3,4,5,6,7,8,9,10,11].map(loadOne);
+  if(!imgs.some(Boolean))return;
+  children.push(new Paragraph({children:[new PageBreak()]}));
+  children.push(h("[부록G] 7대 국가전략분야 밸류체인 관계도 (해자 지도)",1));
+  children.push(p("정부 국가전략·성장펀드 7대 분야(△SMR △핵융합 △재생에너지 △양자 △우주·항공 △첨단바이오 △핵심광물·소재·부품·장비 공급망)의 밸류체인을 분야별 3~4단(段) 흐름으로 잇고 종목별 해자 한 줄을 단 관계도(분야별 1~2장, 총 11장). 파란 배지=독점·준독점(대체재 사실상 없음), 황색 배지=과점·양강·선두, 회색 배지=비상장(직접 투자 불가·구조 이해용). 시세와 무관한 구조 설명용 정적 이미지(구성 변경 시 assets/gen_appg_strategy7.py 로 재생성, 2026.08 웹 리서치 기준).",{italics:true,color:"64748B"}));
+  imgs.forEach(function(o,k){ if(!o)return;
+    const W=o.buf.readUInt32BE(16), H=o.buf.readUInt32BE(20);
+    const img=imagePara(o.rel,700,Math.round(700*H/Math.max(W,1)));
+    if(img){ if(k>0)children.push(new Paragraph({children:[new PageBreak()]})); children.push(img); } });
+  children.push(p("핵심: 7개 분야 공통의 축은 ① 미국이 설계·IP, 한국이 제조를 맡는 분업(SMR 두산에너빌리티 파운드리·CDMO 삼성바이오로직스·변압기 3사) ② 중국 편중 공급망(희토류 정제 90%+·ESS 셀·폴리실리콘)의 탈중국 프리미엄 ③ AI 데이터센터 전력난이 원전·재생·전력망 수요를 동시에 견인하는 구조다.",{bold:true,color:"0F766E"}));
+  children.push(p("리스크: ① 미국 개발사 일정 지연(SMR·핵융합)과 정책 변수(IRA·생물보안법·희토류 수출통제 유예 종료 2026.11) ② 비만약·양자 등 승자 미확정 경쟁 구도 ③ 핵융합 개발사·블루포스 등 핵심 기업 다수가 비상장이라 직접 투자 불가. 본 부록은 산업 구조 이해용 참고자료이며 특정 종목의 매수·매도 권유가 아니다.",{size:18,color:"64748B"}));
+}catch(e){} }
 renderBerkshire();
 renderAITrends();
 renderAppendixC();  // (v3.51) [부록C] AI 반도체 밸류체인
 renderAppendixD();  // (v3.52) [부록D] AI 반도체 밸류체인 관계도(해자 지도)
 renderAppendixE();  // (v3.72) [부록E] 피지컬 AI 밸류체인
 renderAppendixF();  // (v3.72) [부록F] 피지컬 AI 밸류체인 관계도(해자 지도)
+renderAppendixG();  // (v3.85) [부록G] 7대 국가전략분야 밸류체인 관계도(해자 지도)
 if(__cut31>=0)children.length=__cut31;
 const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData}]}:{}),
   styles:{ default:{document:{run:{font:FONT,size:22}}},

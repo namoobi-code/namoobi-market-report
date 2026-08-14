@@ -5,9 +5,9 @@
 - 대상: △SMR △핵융합 △재생에너지 △양자 △우주·항공 △첨단바이오 △핵심광물·소부장 공급망 (7개 분야)
 - 매일 실행되는 파이프라인이 아니라, 구성이 바뀔 때만 1회 실행하는 자산 생성기.
 - 산출물: assets/appg_strategy7.html (전체 미리보기)
-          assets/appg_strategy7_{1..9}.png — docx 1페이지(세로비 ≤1.3)에 맞춘 9분할
-          (1 SMR 전반 / 2 SMR 후반 / 3 핵융합 / 4 재생에너지 / 5 핵심광물·소부장
-           6 양자 / 7 우주·항공 / 8 첨단바이오 전반 / 9 첨단바이오 후반)
+          assets/appg_strategy7_{1..11}.png — docx 1페이지(세로비 ≤1.3)에 맞춘 11분할
+          (1·2 SMR / 3 핵융합 / 4·5 재생에너지 / 6 핵심광물·소부장
+           7 양자 / 8·9 우주·항공 / 10·11 첨단바이오)
 - 요구사항: pip install weasyprint pillow --break-system-packages / Noto Sans CJK KR + pdftocairo
 - 근거: 2026.08 웹 리서치 (NRC·DOE·FIA 2026·IEA Energy and AI·맥킨지 QTM 2026·Space Foundation·
         그랜드뷰리서치·각사 IR/실적 발표 — 상세 출처는 리서치 로그 참조)
@@ -329,7 +329,24 @@ LEGEND = ('<div class="leg"><span class="b1">독점·준독점</span> 대체재�
           '&nbsp;&nbsp;&nbsp;<span class="b2">과점·양강·선두</span> 소수가 시장 분할'
           '&nbsp;&nbsp;&nbsp;<span class="b3">비상장</span> 직접 투자 불가 — 구조 이해용</div>')
 
-PARTS = ["".join([LEGEND] + [block_html(b) for b in page]) for page in PAGES]
+# docx 1페이지(가로 700pt 삽입 시 세로비 ≤1.3 ≈ 2,150px)에 맞춘 9분할.
+# (page 인덱스, 블록 slice) — 긴 분야(SMR 4단·첨단바이오 4단)는 2장으로 쪼갠다.
+def _slice(pi, a, b):
+    return "".join(block_html(x) for x in PAGES[pi][a:b])
+
+PARTS = [
+    LEGEND + _slice(0, 0, 5),   # 1: SMR 전반 (설계·개발 → 기자재·EPC)
+    _slice(0, 5, 8),            # 2: SMR 후반 (핵연료 → 수요처)
+    _slice(0, 8, 15),           # 3: 핵융합 전체 + 한국 포지션
+    _slice(1, 0, 5),            # 4: 재생에너지 전반 (발전설비 → ESS·인버터)
+    _slice(1, 5, 6),            # 5: 재생에너지 후반 (전력망·변압기·케이블)
+    _slice(1, 6, 13),           # 6: 핵심광물·소부장 전체 + 한국 포지션
+    _slice(2, 0, 6),            # 7: 양자 전체
+    _slice(2, 6, 11),           # 8: 우주·항공 전반 (발사체 → 위성 제조)
+    _slice(2, 11, 15),          # 9: 우주·항공 후반 (통신 → 활용·방산) + 한국 포지션
+    _slice(3, 0, 5),            # 10: 첨단바이오 전반 (빅파마 → CDMO·시밀러)
+    _slice(3, 5, 9),            # 11: 첨단바이오 후반 (모달리티 → AI·장비) + 한국 포지션
+]
 FULL = LEGEND + "".join(block_html(b) for page in PAGES for b in page)
 
 def html_doc(body):
