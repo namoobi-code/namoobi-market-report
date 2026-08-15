@@ -196,17 +196,25 @@ def _naver_detail(code6):
         except Exception: pass
     return out
 
+# (v3.86 · 2026-08-15 실측) 순차 56콜×~2.6s ≈ 145s+ 로 샌드박스 시간벽(~178s) 초과
+# → nmr_kr_series.json 미생성(3회 재실행 실패). 스레드 병렬(10 workers)로 ~15s 완주.
 _nv = {}
-for _nm, _tk in (list(stocks.items()) + etfs_ordered):
+import concurrent.futures as _cf
+def _nv_one(item):
+    _nm, _tk = item
     try:
         _d = _naver_detail(_tk.split(".")[0])
         if _d:
             c = (_caps.get(_nm) or {}).get("price")
             if c and (_d.get("consensus") or {}).get("target"):
                 _d["consensus"]["upside_pct"] = round((_d["consensus"]["target"] / c - 1) * 100, 1)
-            _nv[_nm] = _d
+            return _nm, _d
     except Exception:
         pass
+    return _nm, None
+with _cf.ThreadPoolExecutor(max_workers=10) as _ex:
+    for _nm, _d in _ex.map(_nv_one, list(stocks.items()) + etfs_ordered):
+        if _d: _nv[_nm] = _d
 kr_series["naver"] = _nv
 _fl = sum(1 for v in _nv.values() if v.get("flows"))
 _cs = sum(1 for v in _nv.values() if v.get("consensus"))
