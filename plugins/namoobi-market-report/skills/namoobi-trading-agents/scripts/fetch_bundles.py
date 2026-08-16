@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date
 
 WORK=sys.argv[1]
-BASE=sys.argv[2] if len(sys.argv)>2 else "http://141.147.160.13"
+BASE=sys.argv[2] if len(sys.argv)>2 else "http://161.33.190.254"
 os.makedirs(WORK, exist_ok=True)
 
 def jget(name):

@@ -50,7 +50,7 @@ python3 "$SKILL_DIR/scripts/fetch_bundles.py" "$WORK"
 실제 가격일(`price_date`, 예 2026-07-13)이 다르다. **성과추적·기준가는 반드시 `price_date` 를 쓴다.**
 번들이 오늘 재생성됐는지는 `trade_date` 가 아니라 `as_of`·`price_date` 로 판단하라.
 
-fetch_bundles.py는 서버(`http://141.147.160.13/api/db/`)에서 ta_stage3(번들)·ta_stage2(랭킹 컨텍스트)를
+fetch_bundles.py는 서버(`http://161.33.190.254/api/db/`)에서 ta_stage3(번들)·ta_stage2(랭킹 컨텍스트)를
 내려받아 `$WORK/grp_KR1.json`·`grp_KR2.json`·`grp_US1.json`·`grp_US2.json`(그룹당 5종목)으로 분할하고
 기준 거래일을 stdout에 출력한다.
 
@@ -140,12 +140,12 @@ save_verdict.py가 verdict_*.json + risk_review.json을 병합해
    ```
    present_files 에는 위 `$CW` 경로의 파일을 넘긴다(연결 폴더 안이므로 선택 창이 뜨지 않는다).
    만약 `claudeCowork` 마운트가 없으면 그때만 사용자에게 알리고 중단한다 — 임의 폴더를 요청하지 않는다.
-2. **서버 업로드** — 연결폴더 `SECURITY/ssh-key-2026-07-11.key` 존재 시(없으면 스킵하고 Phase 4에 명시):
+2. **서버 업로드** — 연결폴더 `SECURITY/nmr_deploy_key` 존재 시(없으면 스킵하고 Phase 4에 명시):
 
 ```bash
-cp /sessions/*/mnt/claudeCowork/SECURITY/ssh-key-2026-07-11.key /tmp/nta.key && chmod 600 /tmp/nta.key
-scp -i /tmp/nta.key -o StrictHostKeyChecking=no "$WORK/ta_verdict.json" ubuntu@141.147.160.13:/home/ubuntu/namoobi/data/db/ta_verdict.json
-ssh -i /tmp/nta.key ubuntu@141.147.160.13 "cd /home/ubuntu/namoobi && python3 - <<'PY'
+cp /sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key /tmp/nta.key && chmod 600 /tmp/nta.key
+scp -i /tmp/nta.key -o StrictHostKeyChecking=no "$WORK/ta_verdict.json" ubuntu@161.33.190.254:/home/ubuntu/namoobi/data/db/ta_verdict.json
+ssh -i /tmp/nta.key ubuntu@161.33.190.254 "cd /home/ubuntu/namoobi && python3 - <<'PY'
 import json,os
 p='data/db/ta_calls.json'
 hist=json.load(open(p)) if os.path.exists(p) else {'calls':[]}
@@ -169,4 +169,4 @@ PY"
 
 - `references/debate-prompt.md` — Phase 1 토론 프롬프트 템플릿 (수정 없이 치환만)
 - 서버 파이프라인(1~3단계 수집): `/home/ubuntu/namoobi/scripts/ta_screen.py`, cron 06:00 KST
-- 대시보드: http://141.147.160.13/ → TradingAgents 탭 (0~5 Step 버튼)
+- 대시보드: http://161.33.190.254/ → TradingAgents 탭 (0~5 Step 버튼)
