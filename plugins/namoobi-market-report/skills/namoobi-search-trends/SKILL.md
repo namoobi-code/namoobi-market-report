@@ -56,7 +56,7 @@ description: |
 서버가 이미 수집한 실데이터를 먼저 읽는다:
 
 ```bash
-curl -sk https://141.147.160.13/api/db/trends
+curl -sk https://161.33.190.254/api/db/trends
 ```
 
 - `weekly.g_kr / g_us` — 최근 7일 구글 급상승 등장일수 랭킹 (구글 주간 해설의 뼈대)
@@ -92,8 +92,8 @@ curl -sk https://141.147.160.13/api/db/trends
 ```bash
 # 키 준비 (없으면): cp <연결폴더>/SECURITY/nmr_deploy_key /tmp/ && chmod 600 /tmp/nmr_deploy_key
 scp -i /tmp/nmr_deploy_key -o StrictHostKeyChecking=no trends_weekly_llm.json \
-    ubuntu@141.147.160.13:namoobi/data/db/
-curl -sk https://141.147.160.13/api/db/trends_weekly_llm | head -c 200   # 서빙 확인
+    ubuntu@161.33.190.254:namoobi/data/db/
+curl -sk https://161.33.190.254/api/db/trends_weekly_llm | head -c 200   # 서빙 확인
 ```
 
 로컬 저장소(namoobi-market-report-server/data/db/)에도 같은 파일을 저장해 이력을 남긴다.

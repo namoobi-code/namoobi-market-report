@@ -408,7 +408,7 @@ def ingest_server_close(con):
         tk = _os.path.join(_tf.gettempdir(), "nmr_dk_pull")
         _sh.copy(key, tk); _os.chmod(tk, 0o600)
         r = _sp.run(["ssh", "-i", tk, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
-                     "ubuntu@141.147.160.13",
+                     "ubuntu@161.33.190.254",
                      "cat ~/namoobi/data/kis_close.json 2>/dev/null; echo __NMRSEP__; cat ~/namoobi/data/us_options_close.json 2>/dev/null"],
                     capture_output=True, text=True, timeout=30)
         try:

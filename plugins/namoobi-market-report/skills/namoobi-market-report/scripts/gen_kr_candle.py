@@ -53,7 +53,7 @@ def load_program():
     try:
         import ssl, urllib.request
         ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE
-        return json.loads(urllib.request.urlopen("https://141.147.160.13/api/db/program_trading",timeout=20,context=ctx).read())
+        return json.loads(urllib.request.urlopen("https://161.33.190.254/api/db/program_trading",timeout=20,context=ctx).read())
     except Exception as e:
         print("프로그램매매 데이터 없음(패널 생략):",repr(e)); return None
 PRG=load_program()

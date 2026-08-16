@@ -34,7 +34,7 @@ description: |
 ### Phase 0 — 현황 로드
 
 ```bash
-curl -sk https://141.147.160.13/api/db/sports_events   # 정본 (60건+)
+curl -sk https://161.33.190.254/api/db/sports_events   # 정본 (60건+)
 ```
 
 ### Phase 1 — 정밀조사 (WebSearch · 서브에이전트 병렬 권장)
@@ -87,8 +87,8 @@ curl -sk https://141.147.160.13/api/db/sports_events   # 정본 (60건+)
 ```bash
 # 키는 ~/.nmr/ 로 복사한다 (/tmp 는 서브에이전트가 남긴 nobody 소유 파일과 충돌 — 2026-08-10 실측)
 mkdir -p ~/.nmr && cp <연결폴더>/SECURITY/nmr_deploy_key ~/.nmr/key && chmod 600 ~/.nmr/key
-scp -i ~/.nmr/key -o StrictHostKeyChecking=no sports_events.json ubuntu@141.147.160.13:namoobi/data/db/sports_events.json
-curl -sk https://141.147.160.13/api/db/sports_events | head -c 200   # 서빙 확인
+scp -i ~/.nmr/key -o StrictHostKeyChecking=no sports_events.json ubuntu@161.33.190.254:namoobi/data/db/sports_events.json
+curl -sk https://161.33.190.254/api/db/sports_events | head -c 200   # 서빙 확인
 ```
 
 로컬 저장소(namoobi-market-report-server/data/db/)에도 동일 저장.

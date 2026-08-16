@@ -3,7 +3,7 @@
 """
 gen_veps_charts.py "$WORK" — (v3.72) 3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수
 서버 DB API 4종을 회수해 기사식 이중축 차트 4장 + 요약 JSON 생성 (Phase 1.5 · 완전 비차단).
-  입력: http://141.147.160.13/api/db/{fwd_eps, margin_debt, series_hy_oas, series_mem_dram_spot}
+  입력: http://161.33.190.254/api/db/{fwd_eps, margin_debt, series_hy_oas, series_mem_dram_spot}
   출력: $WORK/charts/veps_1..4.png + $WORK/nmr_veps.json (빌더 renderVeps 입력, merge.py가 m['veps']로)
   ① 선행이익(자체 프록시) vs KOSPI  ② 신용잔고 YoY vs S&P500(로그, 1997~)
   ③ HY 가산금리 vs S&P500(로그, 1997~)  ④ DDR5 현물가 vs KOSPI
@@ -14,7 +14,7 @@ from datetime import datetime
 
 WORK = sys.argv[1] if len(sys.argv) > 1 else "."
 CH = os.path.join(WORK, "charts"); os.makedirs(CH, exist_ok=True)
-API = "http://141.147.160.13/api/db/"
+API = "http://161.33.190.254/api/db/"
 
 def jget(name):
     for _ in range(3):

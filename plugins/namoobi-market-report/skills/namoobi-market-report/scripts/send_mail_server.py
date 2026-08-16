@@ -16,7 +16,7 @@ DOCX = sys.argv[1]
 SUBJECT = sys.argv[2]
 BODY = open(sys.argv[3], encoding="utf-8").read() if len(sys.argv) > 3 and os.path.isfile(sys.argv[3]) else "첨부 문서를 참고해 주세요."
 MODE = (sys.argv[4] if len(sys.argv) > 4 else "normal").strip().lower()
-SERVER = "ubuntu@141.147.160.13"
+SERVER = "ubuntu@161.33.190.254"
 REMOTE_DIR = "namoobi/data/reports"
 
 CW = (glob.glob("/sessions/*/mnt/claudeCowork") or ["D:/claudeCowork"])[0]

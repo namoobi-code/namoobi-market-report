@@ -48,7 +48,7 @@ def _server_first():
             continue
     if not tk:
         return False
-    SRV = "ubuntu@141.147.160.13"
+    SRV = "ubuntu@161.33.190.254"
     SSH = ["ssh", "-i", tk, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
     SCP = ["scp", "-q", "-i", tk, "-o", "StrictHostKeyChecking=no"]
     try:

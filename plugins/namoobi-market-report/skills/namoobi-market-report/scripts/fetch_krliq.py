@@ -28,7 +28,7 @@ def try_scp(dst):
         shutil.copy(key, tmpk); os.chmod(tmpk, 0o600)
         r = subprocess.run(["scp", "-q", "-i", tmpk, "-o", "StrictHostKeyChecking=no",
                             "-o", "ConnectTimeout=12",
-                            "ubuntu@141.147.160.13:namoobi/data/kr_liquidity.db", dst],
+                            "ubuntu@161.33.190.254:namoobi/data/kr_liquidity.db", dst],
                            timeout=35, capture_output=True)
         return r.returncode == 0 and os.path.getsize(dst) > 10000
     except Exception:

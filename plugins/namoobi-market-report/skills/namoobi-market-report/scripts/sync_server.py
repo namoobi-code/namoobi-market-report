@@ -10,7 +10,7 @@
 import glob, json, os, subprocess, sys, shlex
 from pathlib import Path
 
-SERVER    = "ubuntu@141.147.160.13"
+SERVER    = "ubuntu@161.33.190.254"
 REMOTE    = "~/namoobi/data"
 KEEP_DAYS = 7
 

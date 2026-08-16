@@ -35,7 +35,7 @@ description: |
 
 **공통 소스·폴백**
 - 증시·지수·환율·원자재·美ETF·크립토시계열: **`scripts/fetch_us.py`**(sandbox·stdlib·스레드 병렬, Yahoo+alternative.me, ~4초). 美10년=^TNX, 전체 국채커브·CAPEX·점도표는 USMacroExtras(FMP). 한국 지수/수급/시계열은 fetch_kr.py·fetch_semi.py.
-- 암호화폐 **(req9~11·19 2026-07-18 서버 DB 우선)**: 서버가 미리 수집해둔 것을 그대로 쓴다 — `http://141.147.160.13/api/db/crypto_overview`(시장개요·매시) · `crypto_movers`(Top G/L 각 10종목·매시) · `crypto_fng`(공포탐욕 1년 이력) · `kimp_series`(김프 10분·1년 백필). curl 1회씩이면 끝 — MCP 재조사 금지(시간 낭비·결측 원인). **(v3.81) 조립은 `python3 scripts/compose_crypto.py "$WORK"` 가 기계 수행**(서버 DB+nmr_kimchi → nmr_crypto.json. 업다운 카운트·평균등락만 메인세션 CoinInfo `get_market_overview` 1콜 결과를 `nmr_coininfo_extra.json` 으로 저장해 보조 — 없으면 해당 칸 null 비차단). 6.3 뒤 김프 1Y 차트(2차 req31): `python3 scripts/gen_kimp_chart.py` → charts/kimp_30d.png (빌더가 자동 삽입). 6.4 는 10종목(빌더 slice 10). 폴백만 CoinInfo MCP. `get_kimchi_premium` 이 null/부족이면 **CoinDesk MCP `fetch_spot_tick`**(upbit `<SYM>-KRW` + binance `<SYM>-USDT`)로 직접 계산. 공포·탐욕 = `api.alternative.me/fng`. 한국 거래소(업비트·빗썸) API 는 Chrome 차단 → CoinDesk MCP 로만.
+- 암호화폐 **(req9~11·19 2026-07-18 서버 DB 우선)**: 서버가 미리 수집해둔 것을 그대로 쓴다 — `http://161.33.190.254/api/db/crypto_overview`(시장개요·매시) · `crypto_movers`(Top G/L 각 10종목·매시) · `crypto_fng`(공포탐욕 1년 이력) · `kimp_series`(김프 10분·1년 백필). curl 1회씩이면 끝 — MCP 재조사 금지(시간 낭비·결측 원인). **(v3.81) 조립은 `python3 scripts/compose_crypto.py "$WORK"` 가 기계 수행**(서버 DB+nmr_kimchi → nmr_crypto.json. 업다운 카운트·평균등락만 메인세션 CoinInfo `get_market_overview` 1콜 결과를 `nmr_coininfo_extra.json` 으로 저장해 보조 — 없으면 해당 칸 null 비차단). 6.3 뒤 김프 1Y 차트(2차 req31): `python3 scripts/gen_kimp_chart.py` → charts/kimp_30d.png (빌더가 자동 삽입). 6.4 는 10종목(빌더 slice 10). 폴백만 CoinInfo MCP. `get_kimchi_premium` 이 null/부족이면 **CoinDesk MCP `fetch_spot_tick`**(upbit `<SYM>-KRW` + binance `<SYM>-USDT`)로 직접 계산. 공포·탐욕 = `api.alternative.me/fng`. 한국 거래소(업비트·빗썸) API 는 Chrome 차단 → CoinDesk MCP 로만.
 - 모든 trend/추세 텍스트는 **한글**. **추정 금지** — 도구·검색으로 확인된 값만, 없으면 null(기억으로 채우지 말 것).
 - **(v3.51 국내 데이터 우선순위)** 국내 시장데이터는 **KRX OPEN API 공식값 > 기존 MCP/스크래핑 > 웹서치** 순으로 쓴다. `nmr_krx_market.json`(Phase 1 자동 생성)에 값이 있으면 **웹서치로 다시 찾지 말 것**: 코스피·코스닥·코스피200 종가/등락률, **VKOSPI**, 코스피200 섹터 등락, 국고채 종가수익률, KRX 금현물, ETF 거래대금 상위·괴리율. 반대로 **S&P500·나스닥·WTI·달러인덱스·미국채 등 글로벌 지표는 KRX에 없다** → 기존 소스(FMP·yfinance·Chrome) 유지. KRX `gen/gold`·`gen/oil` 은 **국내가격**이라 글로벌 금·WTI의 대체가 아니라 보조지표다. 외국인·기관 **투자자별 매매동향은 KRX OPEN API에 없어** 기존 소스(네이버/다음)를 계속 쓴다.
 - **(FMP 무료 = 미국만 활용)** 美 국채금리/커브는 `economics treasury-rates`, 미국 대형주 월가 컨센서스·목표주가는 `analyst price-target-consensus`/`grades`, 빅테크 capex 는 `statements cashflow` 로 보강. 13F·indexes·news·**한국 데이터**는 FMP 상위플랜 필요(미보유 시 기존 Yahoo/Chrome 유지). **Bigdata MCP 는 구독 만료로 사용 불가.**
@@ -93,7 +93,7 @@ description: |
 **작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
 
 ### (2026-07-18 req1~20) 서버 사전 DB — 실행 때 조사하지 말고 바로 쓸 것
-서버가 주기 수집해 두는 항목은 **curl로 읽기만** 한다 (`http://141.147.160.13/api/db/<name>`):
+서버가 주기 수집해 두는 항목은 **curl로 읽기만** 한다 (`http://161.33.190.254/api/db/<name>`):
 - `broker_reports` **(req12)**: 증권사 17사 대표리포트(제목·네이버링크·PDF·공식페이지, 매일 2회 07:10/16:10). 7장 `key_reports` 는 여기서 채우고 **url 필수**(빌더가 하이퍼링크 렌더). 공식 리서치 페이지 링크도 함께 표기.
 - `ipo_news` **(req8)**: 대형 IPO·지수편입 헤드라인(구글뉴스 RSS, 매일 07:20). 3.3.2 패스트엔트리 후보는 이 목록에서 판정만.
 - `crypto_overview`·`crypto_movers`·`crypto_fng`·`kimp_series` **(req9~11·19)**: 위 암호화폐 규칙 참조.
@@ -191,7 +191,7 @@ Phase 1 시작 시 아래도 함께 curl 로 `$WORK/server_<name>.json` 캐시�
 0-1. **(v3.82 필수) 기발송·병렬 실행 가드**: 모드 판정 직후, 서버 mail_sent.log 에서 **오늘 일자 보고서가 이미 발송됐는지** 확인한다:
    ```bash
    KEY="$(ls /sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key | head -1)"; cp "$KEY" /dev/shm/nk; chmod 600 /dev/shm/nk
-   ssh -i /dev/shm/nk -o StrictHostKeyChecking=no -o ConnectTimeout=12 ubuntu@141.147.160.13 \
+   ssh -i /dev/shm/nk -o StrictHostKeyChecking=no -o ConnectTimeout=12 ubuntu@161.33.190.254 \
      "grep global_market_report_$(TZ=Asia/Seoul date +%Y%m%d) namoobi/data/mail_sent.log | tail -1"
    ```
    - 출력이 있으면(=오늘자 기발송): **예약 모드 → 즉시 종료**(Phase 6 결과 보고에 "오늘자 기발송 확인 — 중복 실행 방지로 종료"만 남김), **일반 모드 → 사용자에게 재실행/재발송 여부 질문**(서버 dedup 이 같은 날짜 재발송을 차단하므로 재발송은 서버측 `--force` 필요함을 함께 안내).

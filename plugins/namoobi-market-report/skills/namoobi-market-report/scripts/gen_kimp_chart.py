@@ -14,7 +14,7 @@ _f=[p for p in _cands if os.path.exists(p)] or glob.glob("/sessions/*/mnt/**/nam
 if _f: fm.fontManager.addfont(_f[0]); matplotlib.rcParams["font.family"]="NanumBarunGothic"
 matplotlib.rcParams["axes.unicode_minus"]=False
 
-SRV="http://141.147.160.13/api/db/kimp_series"
+SRV="http://161.33.190.254/api/db/kimp_series"
 SYMS=["BTC","ETH","XRP","SOL"]
 
 def main():
