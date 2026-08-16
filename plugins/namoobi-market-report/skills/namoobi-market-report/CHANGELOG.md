@@ -1,5 +1,8 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.87.0 (plugin 1.40.0) — 2026-08-16
+- 신규 A1 운영서버 이전: 전 스킬 스크립트·SKILL.md의 서버 주소를 신규 서버로 일괄 교체(구서버는 종료 예정). 플러그인 버전 범프로 설치본 업데이트 감지 강제 — 설치 캐시가 1.39.1(구서버 주소)인 상태로 예약 실행되면 구서버를 계속 바라보는 문제 차단. 신규서버 실측: namoobi active·ta_flag 정상·fetch_bundles 완주(기준일 20260814·후보 20종목).
+
 ## v3.86.0 (plugin 1.39.1) — 2026-08-15
 - fetch_semi.py 네이버 보강 루프 스레드 병렬화(10 workers): 순차 56콜×~2.6s가 샌드박스 시간벽(~178s)을 초과해 nmr_kr_series.json 미생성(2026-08-15 예약 실행 실측 3회 timeout) → 병렬 ~15s 완주. 산출 동일(stocks 16·etfs 20·naver 36종).
 
