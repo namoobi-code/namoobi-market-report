@@ -214,6 +214,16 @@ def day_stats(tk, scale=1.0):
 def add_day(r, tk, scale=1.0):
     if isinstance(r, dict):
         c, p, pc, ppct = day_stats(tk, scale)
+        # (2026-08-22 fix) 일봉이 현재가(주봉 최신 종가)보다 한 세션 뒤처질 때 이틀치 등락 오표기 방지.
+        #   실측: 8/22(토) 야후 ^KS11 일봉이 8/20 에서 끊겨 s[-2]=8/19(6,471.17)가 전일종가로 잡혀
+        #   코스피 1일 등락이 +6.83%(실제 +0.88%)로 찍혔다. 현재가와 일봉 최신 종가가 다르면
+        #   s[-1] 이 곧 전일종가이므로 한 칸 당겨 쓴다(정상 회차는 s[-1]==현재가라 종전 동작 유지).
+        _s = closes(DRES.get(tk)); _cur0 = r.get('current')
+        if len(_s) >= 2 and _cur0:
+            _last = _s[-1][1] * scale
+            if _last and abs(_cur0 - _last) / abs(_last) > 0.0005:
+                pc = round(_last, 4 if abs(_last) < 10 else (3 if abs(_last) < 100 else 2))
+                if _s[-2][1]: ppct = round((_s[-1][1] / _s[-2][1] - 1) * 100, 2)
         if ppct is not None: r['prev_pct'] = ppct  # (req5) 1일 칸 = 직전장 등락률
         if pc is not None:
             # (req10 fix) 현재가는 ret()의 최신 종가(r['current']) 기준으로 두고, 1일 변동/전일종가를
