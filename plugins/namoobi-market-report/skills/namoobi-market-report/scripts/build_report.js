@@ -1886,7 +1886,7 @@ function renderAppendixG(){ try{
   if(!imgs.some(Boolean))return;
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록G] 7대 국가전략분야 밸류체인 관계도 (해자 지도)",1));
-  children.push(p("정부 국가전략·성장펀드 7대 분야(△SMR △핵융합 △재생에너지 △양자 △우주·항공 △첨단바이오 △핵심광물·소재·부품·장비 공급망)의 밸류체인을 분야별 3~4단(段) 흐름으로 잇고 종목별 해자 한 줄을 단 관계도(분야별 1~2장, 총 11장). 파란 배지=독점·준독점(대체재 사실상 없음), 황색 배지=과점·양강·선두, 회색 배지=비상장(직접 투자 불가·구조 이해용). 시세와 무관한 구조 설명용 정적 이미지(구성 변경 시 assets/gen_appg_strategy7.py 로 재생성, 2026.08 웹 리서치 기준).",{italics:true,color:"64748B"}));
+  children.push(p("정부 미래성장동력 '7대 SEED'(2026.8.12 발표) 분야(△SMR △핵융합 △재생에너지 △양자 △우주·항공 △첨단바이오 △핵심광물·소재·부품·장비 공급망)의 밸류체인을 분야별 3~4단(段) 흐름으로 잇고 종목별 해자 한 줄을 단 관계도(분야별 1~2장, 총 11장). 파란 배지=독점·준독점(대체재 사실상 없음), 황색 배지=과점·양강·선두, 회색 배지=비상장(직접 투자 불가·구조 이해용). 시세와 무관한 구조 설명용 정적 이미지(구성 변경 시 assets/gen_appg_strategy7.py 로 재생성, 2026.08 웹 리서치 기준).",{italics:true,color:"64748B"}));
   imgs.forEach(function(o,k){ if(!o)return;
     const W=o.buf.readUInt32BE(16), H=o.buf.readUInt32BE(20);
     const img=imagePara(o.rel,700,Math.round(700*H/Math.max(W,1)));
