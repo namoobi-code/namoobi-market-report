@@ -50,7 +50,10 @@ if len(sys.argv)>1 and os.path.isfile(sys.argv[1]):
     except Exception: rd=None
 ov=_from_report(rd) if rd else None
 
-years=[str(y) for y in (db.get("years") or (ov or {}).get("years") or [])]
+# (v3.84c 재발방지 · 2026-08-29 실측) 문자열 카테고리 x축은 회사별 결측 연도의 '첫 등장 순서'대로
+# 축이 등록돼, 첫 회사에 2022 결측이면 "2022"가 축 맨 뒤에 붙는다(실측: 2023~2027 다음 2022).
+# → 정수 연도 연속축으로 전환하고 xticks 를 고정한다.
+years=sorted(int(str(y)) for y in (db.get("years") or (ov or {}).get("years") or []) if str(y).strip().isdigit())
 comps=db.get("companies") or list(COLORS)
 SERIES={"capex":("CAPEX 추이 (십억 달러)","capex_capex.png"),
         "revenue":("매출 추이 (십억 달러)","capex_rev.png"),
@@ -72,6 +75,7 @@ for key,(title,fname) in SERIES.items():
         ax.plot(xs,ys,marker="o",ms=4.5,lw=2.0,color=COLORS.get(c,"#9CA3AF"),label=c)
         plotted+=1
     if not plotted: plt.close(fig); continue
+    ax.set_xticks(years); ax.set_xticklabels([str(y) for y in years])  # (v3.84c) 연도 눈금 고정(오름차순)
     ax.set_title(title,fontsize=13,fontweight="bold")
     ax.grid(alpha=0.2); ax.legend(fontsize=8,frameon=False,ncol=5,loc="upper left")
     for sp in ("top","right"): ax.spines[sp].set_visible(False)

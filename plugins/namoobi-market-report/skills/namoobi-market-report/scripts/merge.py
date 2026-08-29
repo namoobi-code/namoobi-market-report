@@ -835,6 +835,34 @@ try:
     def _has(v): return v not in (None,'','-') and str(v).strip() not in ('미공개','미확인','미상','N/A','n/a','-','TBD','tbd')
     _ALIAS={'MSFT':'Microsoft','MICROSOFT':'Microsoft','GOOGL':'Alphabet','GOOG':'Alphabet','ALPHABET':'Alphabet','GOOGLE':'Alphabet','AMZN':'Amazon','AMAZON':'Amazon','META':'Meta','FB':'Meta','ORCL':'Oracle','ORACLE':'Oracle'}
     _DISP={'Microsoft':'Microsoft (MSFT)','Alphabet':'Alphabet (GOOGL)','Amazon':'Amazon (AMZN)','Oracle':'Oracle (ORCL)','Meta':'Meta (META)'}
+    # (v3.84c 재발방지 · 2026-08-29 실측) 표 "-" 근절 — 아래 하드코딩 컨센서스 보강은 2024~2027만 채워
+    #   2022·2023 실적 결측(MSFT·ORCL y2022 등)과 ratio2022/2023 이 표에 "-" 로 새어나갔다.
+    #   db/capex.json(실측 풀매트릭스, 매일 셀 대조 갱신·과거 회차 누적)으로 **전 연도(2022~2027)를 셀 단위
+    #   선(先)보강**한다. 우선순위: 에이전트 신규 수집값 > DB 실측 > 하드코딩 컨센서스(최후 폴백).
+    try:
+        _SY0=[2022,2023,2024,2025,2026,2027]
+        _dbp=os.path.join(_CWROOT,'..','db','capex.json')
+        _cdb0=(json.load(open(_dbp,encoding='utf-8')) or {})
+        _cdb0=_cdb0.get('data') or _cdb0
+        _dyrs=list(_cdb0.get('years') or [])
+        def _dbv(_fld,_co,_y):
+            try:
+                _arr=(_cdb0.get(_fld) or {}).get(_co)
+                return _arr[_dyrs.index(_y)] if _arr is not None else None
+            except Exception: return None
+        for _r in _rows:
+            _co0=str(_r.get('company','')).split(' (')[0].strip()
+            _co0=_ALIAS.get(_co0.upper(), _co0)
+            if _co0 not in _CCAP: continue
+            for _y in _SY0:
+                for _pfx0,_fld0 in (('y','capex'),('rev','revenue'),('fcf','fcf')):
+                    if not _has(_r.get('%s%d'%(_pfx0,_y))):
+                        _v0=_dbv(_fld0,_co0,_y)
+                        if _v0 is not None: _r['%s%d'%(_pfx0,_y)]=_v0
+                if not _has(_r.get('ratio%d'%_y)):
+                    try: _r['ratio%d'%_y]=round(100*float(_r['y%d'%_y])/float(_r['rev%d'%_y]))
+                    except Exception: pass
+    except Exception as _ce2: print('  [capex] DB 풀매트릭스 선보강 skip(비차단):', repr(_ce2)[:60])
     for _r in _rows:
         _co=str(_r.get('company','')).split(' (')[0].strip()
         _co=_ALIAS.get(_co.upper(), _co)   # (req8-fix) 티커명(MSFT/GOOGL/AMZN/ORCL)도 정규화 → 컨센서스 매트릭스 매칭·2027~2029 carry-forward
