@@ -124,6 +124,34 @@ def main():
                 print(f"[sync]    ⚠️ {name} 병합 실패: {e}")
         print(f"[sync]    → {merged_n}종 시계열 병합 (서버 누적분 반영)")
 
+    # ── 0b) ⭐ (v3.84f 재발방지 · 2026-08-29 실측) 서버 정본 일일 누적 테이블 pull-merge —
+    #    fwd_eps(서버 cron 16:20 누적)·margin_debt(서버 월간 수집)는 서버가 정본인데 PULL 대상이
+    #    아니어서, 아래 PUSH 가 로컬 stale 사본(8/13자)으로 서버 누적분을 매일 아침 덮어썼다
+    #    (실측: fwd_eps 8/14~8/27 누적 소실 — '누적 N일째'가 자라지 않던 근본 원인).
+    #    스키마: {"t":[날짜..], 병렬배열 e/fper/kospi/n·debit/yoy/spx..} — t 키 union·서버값 우선.
+    for _tn in ("fwd_eps.json", "margin_debt.json"):
+        if not run(f'{SCP} {SERVER}:{REMOTE}/db/{_tn} {tmpd}/ 2>/dev/null', f"서버 정본 pull: {_tn}"):
+            continue
+        try:
+            sp = os.path.join(tmpd, _tn); lp = dbroot / "db" / _tn
+            srv = json.load(open(sp, encoding="utf-8"))
+            loc = json.load(open(lp, encoding="utf-8")) if lp.exists() else {}
+            _cols = [k for k in set(list(srv.keys()) + list(loc.keys()))
+                     if isinstance(srv.get(k) or loc.get(k), list) and k != "t"]
+            _rows = {}
+            for _d0 in (loc, srv):   # 서버가 나중 → 같은 날짜는 서버값 우선
+                _ts = _d0.get("t") or []
+                for _i2, _t2 in enumerate(_ts):
+                    _rows[str(_t2)] = {c: (_d0.get(c)[_i2] if isinstance(_d0.get(c), list) and _i2 < len(_d0.get(c)) else None) for c in _cols}
+            _keys = sorted(_rows)
+            _out = dict(srv)
+            _out["t"] = _keys
+            for c in _cols: _out[c] = [_rows[k].get(c) for k in _keys]
+            json.dump(_out, open(lp, "w", encoding="utf-8"), ensure_ascii=False)
+            print(f"[sync]    → {_tn} pull-merge (t {len(_keys)}행 · 서버값 우선)")
+        except Exception as e:
+            print(f"[sync]    ⚠️ {_tn} pull-merge 실패(비차단): {e}")
+
     # ── 1) 통합 DB (변경분만)
     if (dbroot / "db").is_dir():
         n = len(list((dbroot / "db").glob("*.json")))

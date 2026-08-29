@@ -46,8 +46,8 @@ def main():
         fig, ax = plt.subplots(figsize=(9.6, 3.4), dpi=130); ax2 = ax.twinx()
         for a in (ax, ax2): a.tick_params(labelsize=8)
         ax.grid(alpha=.25, lw=.5); return fig, ax, ax2
-    def finish(fig, ax, ax2, fn, yearly=True, marks=None):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y" if yearly else "%y.%m"))
+    def finish(fig, ax, ax2, fn, yearly=True, marks=None, fmt=None):
+        ax.xaxis.set_major_formatter(mdates.DateFormatter(fmt or ("%Y" if yearly else "%y.%m")))
         for m, lb in (marks or []):
             ax.axvline(dt(m), color="#9aa2ad", ls=":", lw=.9)
             ax.annotate(lb, (dt(m), 1), xycoords=("data", "axes fraction"), ha="left", va="top",
@@ -56,11 +56,27 @@ def main():
         ax.legend(h1 + h2, l1 + l2, loc="upper left", fontsize=8, frameon=False)
         fig.tight_layout(); fig.savefig(os.path.join(CH, fn)); plt.close(fig)
 
-    # ① 선행이익 vs KOSPI — (v3.84e · 2026-08-29 사용자 지시) 보고서에서 제거.
-    #   누적 11일차(개시 2026-08-01·과거 백필 불가)라 2년 KOSPI 축 우측 끝에 수직 지그재그로만 보여
-    #   판독 불가였다. 서버 fwd_eps.py 일일 누적(16:20 크론)과 홈피 대시보드 패널은 유지 —
-    #   수 개월 축적 후 재수록하려면 이 블록과 out["eps"] 를 복원하면 된다(빌더는 V.eps 없으면 자동 생략).
-    #   ※ F(fwd_eps) 회수는 ④ DDR5 vs KOSPI 의 kospi_hist 입력으로 계속 필요하니 유지한다.
+    # ① 선행이익 vs KOSPI — (v3.84f · 2026-08-29 사용자 지시로 복원·재설계) '누적 구간 윈도우' 방식.
+    #   구버전은 KOSPI 2년 축에 누적 11일짜리 시계열을 얹어 우측 끝 수직 지그재그로만 보였다(제거 대신
+    #   정상 표시 요구). x축을 [데이터 축적 구간 + 여백]으로 잡아 초기에도 판독 가능하게 하고,
+    #   축적이 늘면 자동 확장(최소 30일 → 최대 2년 롤링). 단기 구간은 일 단위(%m-%d) 눈금.
+    if F and F.get("t"):
+        from datetime import timedelta as _td9
+        fig, ax, ax2 = base()
+        ts = [dt(t) for t in F["t"]]
+        span = (ts[-1] - ts[0]).days
+        x0 = ts[-1] - _td9(days=min(max(span + 7, 30), 730))
+        kh = F.get("kospi_hist") or {"t": [], "v": []}
+        kw = [(dt(t), v) for t, v in zip(kh["t"], kh["v"]) if dt(t) >= x0]
+        if kw: ax2.plot([p[0] for p in kw], [p[1] for p in kw], color=GRAY, lw=1.1, label="KOSPI")
+        ax.plot(ts, F["e"], color=RED, marker="o", ms=4, lw=1.8, label="선행이익(조원)")
+        ax.set_xlim(x0, ts[-1] + _td9(days=3))
+        ax.set_ylabel("선행이익(조원)", fontsize=8, color=RED); ax2.set_ylabel("KOSPI(pt)", fontsize=8, color=GRAY)
+        finish(fig, ax, ax2, "veps_1.png", yearly=False, fmt=("%m-%d" if span < 120 else None))
+        i = len(F["t"]) - 1
+        out["eps"] = {"date": F["t"][i], "e": F["e"][i], "fper": F["fper"][i], "kospi": F["kospi"][i],
+                      "n": F["n"][i], "days": len(F["t"]),
+                      "dir": ("상향" if F["e"][i] > F["e"][i-1] else "하향" if F["e"][i] < F["e"][i-1] else "유지") if i >= 1 else "—"}
     # ② 신용잔고 YoY vs S&P500(로그)
     spx_t = [dt(t) for t in (M.get("spx") or {}).get("t") or []]
     spx_v = [math.log(v) for v in (M.get("spx") or {}).get("v") or []]

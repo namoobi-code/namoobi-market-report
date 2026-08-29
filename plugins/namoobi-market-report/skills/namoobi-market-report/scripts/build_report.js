@@ -1463,7 +1463,7 @@ function renderVeps(){ const V=(data.markets||{}).veps;
   if(V.eps){ const E=V.eps;
     sect("① 12개월 선행이익(자체 프록시) vs KOSPI — 조정의 성격 판독","charts/veps_1.png",[
       p(`산출: KOSPI 시총상위 200종 중 선행PER 보유분(현재 ${E.n}종)으로 Σ(시총÷선행PER)=시장 선행이익을 매일 16:20 집계(네이버 컨센서스 — QuantiWise 유료 차트의 무료 재현). 주가 조정 + 선행이익 상향 유지 = 밸류에이션 부담 해소 성격(기회 신호), 선행이익도 꺾이면 실적 우려가 실체. 무료 집계라 수준보다 방향이 중요.`,{size:15,color:"334155"}),
-      p(`현재(${E.date}): 선행이익 ${(+E.e).toLocaleString()}조원(${E.dir}) · 선행PER ${E.fper} · KOSPI ${E.kospi!=null?(+E.kospi).toLocaleString():"—"} · 누적 ${E.days}일째(개시 2026-08-01, 과거 백필 불가 — 추세선은 수 주 축적 후 유의미).`,{size:15,color:"334155"})]); }
+      p(`현재(${E.date}): 선행이익 ${(+E.e).toLocaleString()}조원(${E.dir}) · 선행PER ${E.fper} · KOSPI ${E.kospi!=null?(+E.kospi).toLocaleString():"—"} · 누적 ${E.days}일째(개시 2026-08-01, 과거 백필 불가 — 추세선은 수 주 축적 후 유의미). 차트 x축은 누적 구간만 표시하며 데이터가 쌓일수록 자동 확장된다(최대 2년 롤링).`,{size:15,color:"334155"})]); }
   // ② 신용잔고 YoY
   { const M2=V.margin, verdict=M2.turn?"고점 대비 꺾임 — 기사 로직상 과열 후 경계 구간(2000·2007·2021 패턴: 고점 후 0~9개월 내 대세 하락 선행)":"고점 경신·유지 중 — 과열 누적 관찰";
     sect("② 미국 신용잔고 증가율(YoY) vs S&P500(로그) — 과열 경보 (1997~)","charts/veps_2.png",[

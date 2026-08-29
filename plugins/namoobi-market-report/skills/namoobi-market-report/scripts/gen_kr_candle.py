@@ -46,16 +46,26 @@ def clean_ohlcv(rows):
     return df.set_index("Date").sort_index()
 def load_program():
     # (2026-08-02) 서버 수집 프로그램매매(차익·비차익, program_trading.py) — 3.2.1 캔들차트 5번째 패널
-    for p in (glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/db/program_trading.json")
-              + ["D:/claudeCowork/namoobi-market-report-server/data/db/program_trading.json"]):
+    # (v3.84f 재발방지 · 2026-08-29 실측) 로컬 사본 1순위 → 서버 폴백이던 순서가 사고 원인:
+    #   서버는 매 영업일 16:15/18:40 누적(8/28·419일)하는데 로컬 사본은 8/2 도입 시점(7/31·400일)에
+    #   멈춰 있어 차트가 한 달 stale 로 그려졌다('자동 최신화 안 됨'). → **서버 API 1순위**로 뒤집고,
+    #   성공 시 로컬 사본을 write-through 갱신(리포트 실행일마다 최신화) · 로컬은 서버 불통 폴백 전용.
+    _lp=(glob.glob("/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/db/program_trading.json")
+         + ["D:/claudeCowork/namoobi-market-report-server/data/db/program_trading.json"])
+    try:
+        import urllib.request
+        d=json.loads(urllib.request.urlopen("http://161.33.190.254/api/db/program_trading",timeout=20).read())
+        if d and (d.get("kospi") or {}).get("t"):
+            for p in _lp:
+                try: json.dump(d, open(p,"w",encoding="utf-8"), ensure_ascii=False); break
+                except Exception: pass
+            return d
+    except Exception as e:
+        print("프로그램매매 서버 조회 실패 → 로컬 사본 폴백:",repr(e))
+    for p in _lp:
         try: return json.load(open(p))
         except Exception: pass
-    try:
-        import ssl, urllib.request
-        ctx=ssl.create_default_context(); ctx.check_hostname=False; ctx.verify_mode=ssl.CERT_NONE
-        return json.loads(urllib.request.urlopen("https://161.33.190.254/api/db/program_trading",timeout=20,context=ctx).read())
-    except Exception as e:
-        print("프로그램매매 데이터 없음(패널 생략):",repr(e)); return None
+    print("프로그램매매 데이터 없음(패널 생략)"); return None
 PRG=load_program()
 if PRG:
     try:  # build_report.js(3.2.1 표)용으로 워크디어에 전달
