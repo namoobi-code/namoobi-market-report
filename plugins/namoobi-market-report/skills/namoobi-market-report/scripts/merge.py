@@ -1413,6 +1413,53 @@ try:
                     _o['prev_close'] = round(_sp2[-2][1],3); _o['chg'] = round(_o['current'] - _sp2[-2][1], 3)
             except Exception: pass
             _src = None
+        # (v3.89 재발방지 · 2026-08-29 실측) treasury_consistent.json 은 **생성 주체가 없는 영구 잔존 캐시**이고
+        #   asof/updated 필드도 없어 LCF 가 매 실행 재저장하며 영원히 살아남는다. 이 캐시의 FMP 저품질 값
+        #   (us10y 4.38)이 당일 실측(FRED 4.67·^TNX 4.72)을 덮어써 3.1.1 금리표·장단기차가 통째로 어긋났다.
+        #   → 캐시 적용 직전 실측 시계열 최신값과 대조해 0.15%p 초과 괴리면 캐시를 폐기한다(실측 우선).
+        _ref = None
+        try:
+            if _bser:
+                _ref = float(sorted([(str(a)[:10], float(b)) for a, b in _bser if b is not None])[-1][1])
+        except Exception:
+            _ref = None
+        if _ref is None:   # (v3.89) 실측 후보 확장 — macro.series 가 비어도 원본 파일·fetch_us 시세로 대조
+            try:   # ① nmr_macro.json 원본의 <bk>_daily 를 _bser 로 승격(변동률 계산에도 재사용)
+                _mj = L('nmr_macro.json') or {}
+                _ms = ((_mj.get('macro') or _mj).get('series') or {}).get(_bk + '_daily')
+                if _ms:
+                    _bser = _ms
+                    _ref = float(sorted([(str(a)[:10], float(b)) for a, b in _ms if b is not None])[-1][1])
+            except Exception:
+                pass
+            if _ref is None:   # ② fetch_us 시세(^TNX 등)
+                try:
+                    _v = float(((m.get('us_markets') or {}).get(_bk) or {}).get('current'))
+                    if _v > 0: _ref = _v
+                except Exception:
+                    pass
+        if _src and _ref is not None:
+            # 이 캐시는 asof/updated 가 없어 신선도 검증 자체가 불가능하다 → 실측이 하나라도 있으면 실측 우선.
+            # (실측 4.72/4.20 vs 캐시 4.38/4.07 — 임계값 방식은 2년물 괴리 0.13 을 놓쳐 반쪽 수정이 됐다)
+            try:
+                _gap = abs(float(_src.get('current')) - _ref)
+                print('  [v3.89] %s 캐시 폐기(신선도 검증 불가): 캐시 %.3f → 실측 %.3f (괴리 %.2f%%p)' % (_bk, float(_src['current']), _ref, _gap))
+            except Exception:
+                pass
+            _src = None
+        if _o.get('current') is None and _ref is not None:
+            _o['current'] = _ref   # 캐시 없이도 실측으로 채움
+        if _bser and _o.get('current') is not None and _o.get('1d_pct') is None:
+            # (v3.89) 캐시 폐기 후 변동률·전일종가가 비지 않도록 실측 시계열로 보강
+            try:
+                _fr2 = ret(_bser)
+                for _hk in ('1w_pct', '1mo_pct', '3mo_pct', '6mo_pct', '1y_pct', '1d_pct', 'prev_pct'):
+                    if _fr2.get(_hk) is not None: _o[_hk] = _fr2[_hk]
+                _sp3 = sorted([(dt.date.fromisoformat(str(a)[:10]), float(b)) for a, b in _bser if b is not None])
+                if len(_sp3) >= 2:
+                    _o['prev_close'] = round(_sp3[-2][1], 3); _o['chg'] = round(_o['current'] - _sp3[-2][1], 3)
+            except Exception:
+                pass
         if _src:
             _o['current'] = _src['current']; _o['prev_close'] = _src['prev_close']
             _o['chg'] = round(_src['current'] - _src['prev_close'], 3)
