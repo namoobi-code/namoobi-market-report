@@ -1759,7 +1759,7 @@ function renderAITrends(){ const a=data.ai_trends; if(!a)return;
   });
   children.push(p("※ 본 부록은 news.hada.io · news.hada.io/weekly · 특이점 갤러리 등 공개 소스와 웹 검색으로 큐레이션한 참고용 요약입니다.",{size:16,italics:true,color:"94A3B8"}));
 }
-// (v3.51) [부록C] AI 반도체 밸류체인 — 글로벌 개별종목 43종(분류 그룹별 추세표). 데이터(markets.appendix_c) 없으면 자동 생략.
+// (v3.51) [부록C] AI 반도체 밸류체인 — 글로벌 개별종목 48종(분류 그룹별 추세표, v3.90 이비덴·삼성전기 추가). 데이터(markets.appendix_c) 없으면 자동 생략.
 function renderAppendixC(){ const e=data.markets&&data.markets.appendix_c; if(!e||!e.rows||typeof e.rows!=="object")return;
   const groups=Array.isArray(e.groups)?e.groups:Object.keys(e.rows);
   const GL="①②③④⑤⑥⑦⑧⑨⑩";

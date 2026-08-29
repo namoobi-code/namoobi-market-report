@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# fetch_appc.py — [부록C] AI 반도체 밸류체인 46종 (미국 31·일본 4·한국 11) — v3.51 신설, v3.52.1 ORCL·이수페타시스·AMKR 추가
+# fetch_appc.py — [부록C] AI 반도체 밸류체인 48종 (미국 31·일본 5·한국 12) — v3.51 신설, v3.52.1 ORCL·이수페타시스·AMKR 추가,
+#   v3.90 이비덴·삼성전기 추가(패키지기판 FC-BGA 축 — 매경LUXMEN 2026.09 'AI 반도체 승부처 칩에서 기판으로' 반영)
 # sandbox·stdlib·스레드 병렬(Phase 1 bash tool-call). 야후 일봉 2y → nmr_appc.json(그룹별 rows)+nmr_appc_series.json(1Y 스파크).
 # 멤버십 변경 시 ROWS 갱신. 추정 금지 — 이력 없으면 '-'(비차단).
 import urllib.request, urllib.parse, json, datetime as dt, concurrent.futures as cf, os, sys
@@ -39,6 +40,8 @@ ROWS=[
  ("후공정/패키징","042700.KS","한미반도체","HBM 본딩 장비 대표주"),
  ("후공정/패키징","095340.KQ","ISC","테스트 소켓 핵심 기업"),
  ("후공정/패키징","058470.KQ","리노공업","고마진 테스트 소켓 강자"),
+ ("후공정/패키징","4062.T","이비덴 (Ibiden)","AI 서버용 FC-BGA 70~80% 과점 — 엔비디아 등 공급망 선점, 2028년까지 5000억엔 증설"),
+ ("후공정/패키징","009150.KS","삼성전기","FC-BGA+MLCC+실리콘커패시터 종합 부품으로 이비덴 추격 — 스미토모화학과 유리기판 개발"),
  ("후공정/패키징","353200.KS","대덕전자","서버·패키징 기판 강자"),
  ("후공정/패키징","007660.KS","이수페타시스","AI 서버 고다층 MLB의 직접 수혜주"),
  ("후공정/패키징","AMKR","Amkor Technology","글로벌 OSAT 대표주"),
@@ -112,4 +115,4 @@ for g in GROUPS:
     print(f"◆ {g}")
     for r in out["rows"][g]:
         print(f"  {r['code']:10s} {r['name'][:20]:20s} {(r.get('current') or 0):>11,.2f} {pc(r.get('prev_pct'))} {pc(r.get('1w_pct'))} {pc(r.get('1mo_pct'))} {pc(r.get('3mo_pct'))} {pc(r.get('6mo_pct'))} {pc(r.get('1y_pct'))}")
-print(f"총 {n}/39 · series {len(series)} · errs {errs}")
+print(f"총 {n}/{len(ROWS)} · series {len(series)} · errs {errs}")  # (v3.90) 39 하드코딩 → len(ROWS) — 종목 추가 때마다 어긋나던 분모 수정
