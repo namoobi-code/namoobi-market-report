@@ -120,7 +120,13 @@ else:
         for sp in ("top","right"): ax.spines[sp].set_visible(False)
         ax.grid(**GRID)
     def _cap(ax, t, y=-0.27):
-        ax.text(0,y,t,transform=ax.transAxes,fontsize=9,color="#666",va="top")
+        # (v3.84d 재발방지 · 2026-08-29 실측) 긴 캡션 한 줄이 자기 칸 폭을 넘어 옆 패널 캡션 위에
+        # 겹쳐 찍혀 판독 불가(⑦·⑧ 하단 실측) → 칸 폭(~72자)으로 자동 줄바꿈.
+        import textwrap as _tw
+        _ls=[]
+        for _l in str(t).split("\n"):
+            _ls += _tw.wrap(_l, width=72, subsequent_indent="     ") or [""]
+        ax.text(0,y,"\n".join(_ls),transform=ax.transAxes,fontsize=9,color="#666",va="top")
 
     def _trend(ax, key, title, ylab, mode="daily"):
         """(req7 v3.67) mode: daily=USD 라인 / index=지수화(첫날=100, 일직선 방지·최신 USD는 범례에)
@@ -144,15 +150,30 @@ else:
                     ax.annotate("$%.2f"%yy,(xx,yy),textcoords="offset points",xytext=(4,4),fontsize=7)
                 drew=True
             # ② 자체 누적(월/주 버킷 마지막 관측)
+            # (v3.84d 재발방지 · 2026-08-29 실측) ⓐ 색 팔레트가 백필 라인과 0부터 겹쳐 무관한 규격이
+            # 같은 색으로 보였고 ⓑ 누적 시작(2026-07)이 짧아 우측 끝 '토막 선'으로만 보여 값 판독이
+            # 불가했다 → 누적 라인 색을 백필 개수만큼 오프셋 + 각 규격 끝점에 최신 USD 라벨 부착.
+            _nbf=len([1 for _b in bfmap.values() if _b])
             for i,it in enumerate(items):
                 pts=[(d,row.get(it)) for d,row in rs if row.get(it) is not None]
                 if not pts: continue
                 xs=[datetime.strptime(p[0],"%Y-%m-%d") for p in pts]
-                ax.plot(xs,[p[1] for p in pts],marker="o",ms=5,lw=1.8,color=PAL[i%len(PAL)],
+                _c=PAL[(i+_nbf)%len(PAL)]
+                ax.plot(xs,[p[1] for p in pts],marker="o",ms=5,lw=1.8,color=_c,
                         label=it if len(items)<=8 else None)
+                ax.annotate("$%.2f"%pts[-1][1],(xs[-1],pts[-1][1]),textcoords="offset points",
+                            xytext=(5,0),fontsize=6.4,color=_c,va="center",fontweight="bold")
                 drew=True
             if drew:
-                ax.xaxis.set_major_formatter(mdates.DateFormatter("%y-%m" if mode=="monthly" else "%m-%d")); ax.margins(x=0.05)
+                # (v3.84d) 규격별 가격대(수~수백 달러)가 한 절대축에 공존해 저가 규격이 바닥에 눌림
+                # → 스프레드 8배 초과면 로그축 전환(눈금은 일반 숫자 유지).
+                _ally=[v for _,_r0 in rs for v in _r0.values() if v]+[v for _b in bfmap.values() for _,v in (_b or []) if v]
+                if _ally and min(_ally)>0 and (max(_ally)/min(_ally))>8:
+                    import matplotlib.ticker as _mt
+                    ax.set_yscale("log")
+                    ax.yaxis.set_major_formatter(_mt.ScalarFormatter())
+                    ax.yaxis.set_minor_formatter(_mt.NullFormatter())
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%y-%m" if mode=="monthly" else "%m-%d")); ax.margins(x=0.08)
                 ax.legend(fontsize=6.2,frameon=False,ncol=2)
                 ax.set_title("%s  (%s 축%s)"%(title, "월별" if mode=="monthly" else "주별",
                              " · 점선=보도치 백필" if (mode=="monthly" and bfmap) else ""),fontsize=13,fontweight="bold")
@@ -269,16 +290,26 @@ else:
     if bfq:
         # (req7-⑥) 분기 추이 — 보도치 분기 시계열 + 최신 실측 포인트
         qs=[q for q,_ in bfq]
+        _last6={}  # (v3.84d) 업체별 마지막 분기 포인트 — 최신 실측 다이아까지 점선 연결용
         for vd,cc in _V6.items():
             ys=[(row.get(vd) if isinstance(row,dict) else None) for _,row in bfq]
             if not any(y is not None for y in ys): continue
             ax6.plot(range(len(qs)),ys,marker="o",ms=5,lw=1.8,color=cc,label=vd)
+            for _qi in range(len(qs)-1,-1,-1):
+                if ys[_qi] is not None: _last6[vd.lower()]=(_qi,ys[_qi]); break
         # 최신 실측(오늘) 포인트 추가
+        # (v3.84d 재발방지 · 2026-08-29 실측) 라벨이 축 우측 경계에 잘리고(52%→2%) 분기 라인과
+        # 다이아가 끊겨 보임 → xlim 우측 여백 확보 + 라벨 offset·clip 해제 + 마지막 분기→다이아 점선 연결.
         for r in sh:
             vd=str(r.get("vendor") or ""); cc=_V6.get(vd)
             if cc and r.get("share_pct") is not None:
-                ax6.scatter([len(qs)-0.7+1],[r["share_pct"]],color=cc,marker="D",s=42,zorder=5)
-                ax6.annotate("%.0f%%"%r["share_pct"],(len(qs)+0.3,r["share_pct"]),fontsize=8,fontweight="bold",color=cc)
+                ax6.scatter([len(qs)+0.3],[r["share_pct"]],color=cc,marker="D",s=42,zorder=5)
+                ax6.annotate("%.0f%%"%r["share_pct"],(len(qs)+0.3,r["share_pct"]),textcoords="offset points",
+                             xytext=(8,0),va="center",fontsize=8,fontweight="bold",color=cc,
+                             annotation_clip=False)
+                _lp=_last6.get(vd.lower()) or _last6.get({"sk hynix":"sk hynix"}.get(vd.lower(),vd.lower()))
+                if _lp: ax6.plot([_lp[0],len(qs)+0.3],[_lp[1],r["share_pct"]],ls=":",lw=1.1,color=cc,alpha=0.65,zorder=3)
+        ax6.set_xlim(-0.5,len(qs)+1.35)
         ax6.set_xticks(list(range(len(qs)))+[len(qs)+0.3]); ax6.set_xticklabels(qs+["최신\n실측"],fontsize=7.5)
         ax6.legend(fontsize=7.5,frameon=False)
         ax6.set_title("⑥ HBM 업체별 점유율 — 분기 추이 (보도치+최신 실측)",fontsize=13,fontweight="bold")
@@ -322,20 +353,30 @@ else:
                       mfc="white",color=_bfc[i%len(_bfc)],label="%s (계약 ASP·보도치)"%it)
             for q,v in pts:
                 ax7a.annotate("$%s"%format(int(v),","),(_pos[q],v),textcoords="offset points",xytext=(0,-13),fontsize=7,color=_bfc[i%len(_bfc)])
+        # (v3.84d 재발방지 · 2026-08-29 실측) 스팟가 지표($1,200)가 계약 ASP($200~630)와 같은 축에
+        # 그려져 y축이 1,200까지 늘어나며 계약 구간이 압착됐다(기준 자체가 4~9배 다른 두 지표) →
+        # 스팟은 우측 보조축(자체 스케일)으로 분리하고 범례는 좌우 축을 합쳐 표시한다.
         items=sorted({k for q in qs for k in _qb[q]})
+        ax7s=ax7a.twinx() if items else None
         for i,it in enumerate(items):
             pts=[(q,_qb[q][it]) for q in qs if _qb[q].get(it)]
             if not pts: continue
-            ax7a.plot([_pos[p[0]] for p in pts],[p[1] for p in pts],marker="o",ms=7,lw=1.8,color=PAL[i%len(PAL)],label="%s (스팟 지표)"%it)
+            ax7s.plot([_pos[p[0]] for p in pts],[p[1] for p in pts],marker="o",ms=7,lw=1.8,color=PAL[i%len(PAL)],label="%s (스팟 지표·우축)"%it)
             for q,v in pts:
-                ax7a.annotate("$%s"%format(int(v),","),(_pos[q],v),textcoords="offset points",xytext=(6,5),fontsize=8,fontweight="bold")
+                ax7s.annotate("$%s"%format(int(v),","),(_pos[q],v),textcoords="offset points",xytext=(6,5),fontsize=8,fontweight="bold")
+        if ax7s is not None:
+            ax7s.set_ylabel("USD (스팟 지표·우축)",fontsize=8,color="#475569")
+            ax7s.margins(y=0.25); ax7s.spines["top"].set_visible(False); ax7s.grid(False)
         if bqs and qs:
             _dv=(_pos[qs[0]]+_pos[bqs[-1]])/2.0
             ax7a.axvline(_dv,color="#CBD5E1",lw=1.2,ls=":")
-            ax7a.text(_dv-0.06,0.98,"계약 ASP 보도치(참고) ◀",transform=ax7a.get_xaxis_transform(),ha="right",va="top",fontsize=7.5,color="#94A3B8")
-            ax7a.text(_dv+0.06,0.98,"▶ 스팟가 지표(2026-06 시작 · 기준 다름)",transform=ax7a.get_xaxis_transform(),ha="left",va="top",fontsize=7.5,color="#94A3B8")
+            ax7a.text(_dv-0.06,0.98,"계약 ASP 보도치(좌축) ◀",transform=ax7a.get_xaxis_transform(),ha="right",va="top",fontsize=7.5,color="#94A3B8")
+            ax7a.text(_dv+0.06,0.98,"▶ 스팟가 지표(우축 · 2026-06 시작 · 기준 다름)",transform=ax7a.get_xaxis_transform(),ha="left",va="top",fontsize=7.5,color="#94A3B8")
         ax7a.set_xticks(range(len(cats))); ax7a.set_xticklabels(cats,fontsize=8)
-        ax7a.margins(x=0.08,y=0.18); ax7a.legend(fontsize=6.8,frameon=False,loc="center left")
+        ax7a.margins(x=0.08,y=0.18)
+        _h1,_l1=ax7a.get_legend_handles_labels()
+        _h2,_l2=(ax7s.get_legend_handles_labels() if ax7s is not None else ([],[]))
+        ax7a.legend(_h1+_h2,_l1+_l2,fontsize=6.8,frameon=False,loc="center left")
         ax7a.set_title("⑦ HBM ASP 추이 (USD/스택 · 분기 축) — 변동주기: 분기 1회 내외",fontsize=13,fontweight="bold")
     elif aser:
         it=aser[-1][1]; nm=list(it.keys()); vv=[it[k] for k in nm]
@@ -387,7 +428,7 @@ else:
                       label="%s %s 전망"%(_v.get("by",""),_v.get("published","")))
         ax8a.set_xticks(range(len(_cats))); ax8a.set_xticklabels(_cats)
         if vint: ax8a.legend(fontsize=7,frameon=False,loc="upper left")
-        ax8a.set_ylim(top=max(mv)*1.22)
+        ax8a.set_ylim(top=max(mv)*1.32)  # (v3.84d) 막대 라벨·범례 겹침 방지 헤드룸 확대
         ax8a.set_title("⑧ HBM 시장규모 · 수요 증가율 (연간 · 전망 빈티지 비교)",fontsize=13,fontweight="bold")
         ax8a.set_ylabel("십억 달러",fontsize=9); _style(ax8a)
         _cap(ax8a,"[추정] 막대=최신 전망(Yole·TrendForce, 빗금=전망연도 (E)) · 점선=과거 발표 시점별 전망(빈티지) — 상향 반복=수요 서프라이즈 지속. %s"%CAD.get("market",""))
