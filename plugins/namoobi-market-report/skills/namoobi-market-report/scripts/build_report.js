@@ -632,6 +632,8 @@ function renderKoreaLeading(){ const m=data.markets||{};
     children.push(p("• 구성항목: 재고순환지표(제조업), 기계류내수출하지수, 건설수주액(실질), 소비자기대지수, 구인구직비율, 장단기금리차, 코스피지수, 수출입물가비율, 순상품교역조건 등",{size:16,color:"475569"}));
     children.push(p("• 주식 선행 관점: OECD CLI(3.1.4)는 더 앞단의 \u201c방향 신호\u201d, 통계청 선행종합지수 순환변동치는 그 신호를 국내 경기 데이터로 한 번 더 다듬은 \u201c확인 신호\u201d로 함께 본다.",{size:16,color:"475569"}));
     children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
+    // (v3.84 재발방지 2026-08-29) 최신월이 실행월-2 로 보여 '미갱신'으로 오인 — 발표 주기를 명시(M월분은 M+1월 말 발표).
+    children.push(p("발표 주기: 통계청 「산업활동동향」 — 매월 말에 전월분 발표(예: 7월분은 8월 말 공표). 표의 최신 기준월이 실행월보다 1~2개월 앞서 멈춰 있는 것은 미갱신이 아니라 공표 일정에 따른 정상 상태다.",{size:15,italics:true,color:"7C3AED"}));
     simpleTable([2200,2200,1800,3180],["시점","순환변동치","전월차","비고"],m.korea_leading.map(x=>[x.period??"-",(x.value!=null?String(x.value):"-"),x.mom??"-",x.note??"-"]),{left:[3]});
     { const lc=imagePara(m.korea_leading_chart||"charts/leading_cycle.png",648,243); if(lc){ children.push(lc); children.push(p("선행종합지수 순환변동치 장기 추이 (월별, 기준선 100 · 100 상회=확장 국면) · 출처: 국가데이터처 / INDEXerGO",{size:15,color:"94A3B8"})); } }
     if(m.korea_leading_comment)children.push(p(m.korea_leading_comment)); children.push(p("")); } }
@@ -644,6 +646,8 @@ function renderOecdCli(){ const m=data.markets||{}; const oc=m.oecd_cli;
   const img=imagePara(oc.chart||"charts/oecd_cli.png",700,394);
   if(img){ children.push(img);
     children.push(p("전 국가 통합 그래프 — X축: 월별 총기간("+oc.months[0]+" ~ "+oc.months[oc.months.length-1]+"), Y축: 지수(진폭조정) · "+nC+"개국 · 기준선 100 · 대한민국 굵은 선 · 출처: "+(oc.source||"OECD · KOSIS(DT_2STES045)")+((oc.data_updated||oc.data_downloaded)?(" · 자료갱신일 "+(oc.data_updated||oc.data_downloaded)):""),{size:15,color:"94A3B8"})); }
+  // (v3.84 재발방지 2026-08-29) 최신월이 실행월-2 로 보여 '미갱신'으로 오인 — OECD 공표 일정을 명시.
+  children.push(p("발표 주기: OECD CLI는 매월 초(7일경) 전전월분까지 공표하며, 8월은 휴재하고 9월 초에 7·8월분을 통합 발표한다(OECD 발표 캘린더). 차트의 최신월이 실행월보다 1~2개월 앞서 멈춰 있는 것은 미갱신이 아니라 공표 일정에 따른 정상 상태다.",{size:15,italics:true,color:"7C3AED"}));
   children.push(p("OECD 경기선행지수(CLI)는 경제의 방향성을 미리 예측하는 지표로, 경제활동의 전환점을 감지하는 데 사용됩니다. 이 지수는 OECD(경제협력개발기구)가 개발한 것으로, 경제 성장이나 둔화의 신호를 미리 파악하는 데 도움을 줍니다.",{italics:true,color:"64748B"}));
   children.push(p("1. OECD 경기선행지수란?",{bold:true,color:"1E40AF",before:100,size:20}));
   children.push(p("미래의 경기 변동을 예측하기 위해 여러 개별 경제 지표들을 종합하여 만든 지수로, 일반적으로 6~9개월 후의 경기 변화를 예측하는 데 활용됩니다.",{size:18}));

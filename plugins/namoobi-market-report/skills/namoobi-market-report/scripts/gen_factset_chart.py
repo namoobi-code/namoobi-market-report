@@ -42,14 +42,26 @@ for ax, (key, title, ylab, fmt, cfn, ref) in zip(axes.flat, SPECS):
         ax.axis("off"); ax.set_title(title, fontsize=10.5, color="#94A3B8"); continue
     labels = [str(x[0]) for x in ser]; vals = [float(x[1]) for x in ser]
     cols = [cfn(i, vals[i], vals) for i in range(len(vals))]
-    bb = ax.bar(labels, vals, width=0.6, color=cols)
+    bb = ax.bar(range(len(vals)), vals, width=0.6, color=cols)
     for b, v in zip(bb, vals):
         ax.annotate(fmt % v, (b.get_x()+b.get_width()/2, v), textcoords="offset points", xytext=(0, 3),
-                    ha="center", fontsize=9, fontweight="bold", color="#0F172A")
+                    ha="center", fontsize=8.2, fontweight="bold", color="#0F172A")
     ax.set_title(title, fontsize=10.5, fontweight="bold", color="#0F172A")
     ax.set_ylabel(ylab, fontsize=7.5, color="#475569")
     ax.set_ylim(0, max(vals)*1.25); ax.grid(axis="y", alpha=0.2)
-    ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False); ax.tick_params(labelsize=8.5)
+    ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
+    # (v3.84 재발방지 · 2026-08-29 실측) 긴 한글 카테고리 라벨이 한 줄로 겹쳐 판독 불가였다
+    # → 공백 기준 다줄 래핑(+과長 토큰 강제 분할) + x축 폰트 축소. y축은 기존 크기 유지.
+    def _wrap(s, w=6):
+        out = []
+        for t in str(s).replace("(", " (").split():  # 괄호는 다음 줄로 분리(중간 절단 방지)
+            if out and len(out[-1]) + 1 + len(t) <= w: out[-1] += " " + t
+            else:
+                while len(t) > w + 2: out.append(t[:w+2]); t = t[w+2:]
+                out.append(t)
+        return "\n".join(out) or str(s)
+    ax.set_xticks(range(len(labels))); ax.set_xticklabels([_wrap(l) for l in labels], fontsize=6.4, color="#334155")
+    ax.tick_params(axis="y", labelsize=8.5)
     if ref is not None: ax.axhline(ref, color="#94A3B8", lw=0.7, ls="--", alpha=0.7)
 fig.text(0.5, 0.005, "데이터 출처: FactSet Earnings Insight (%s) — 공시 수치 기반 · 자체 작성 그래프(FactSet 차트 비복제)"%_rdate,
          ha="center", fontsize=8, color="#64748B")
