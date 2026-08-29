@@ -56,17 +56,11 @@ def main():
         ax.legend(h1 + h2, l1 + l2, loc="upper left", fontsize=8, frameon=False)
         fig.tight_layout(); fig.savefig(os.path.join(CH, fn)); plt.close(fig)
 
-    # ① 선행이익 vs KOSPI
-    if F and F.get("t"):
-        fig, ax, ax2 = base(); kh = F.get("kospi_hist") or {"t": [], "v": []}
-        ax2.plot([dt(t) for t in kh["t"]], kh["v"], color=GRAY, lw=1.1, label="KOSPI")
-        ax.plot([dt(t) for t in F["t"]], F["e"], color=RED, marker="o", ms=4, lw=1.8, label="선행이익(조원)")
-        ax.set_ylabel("선행이익(조원)", fontsize=8, color=RED); ax2.set_ylabel("KOSPI(pt)", fontsize=8, color=GRAY)
-        finish(fig, ax, ax2, "veps_1.png", yearly=False)
-        i = len(F["t"]) - 1
-        out["eps"] = {"date": F["t"][i], "e": F["e"][i], "fper": F["fper"][i], "kospi": F["kospi"][i],
-                      "n": F["n"][i], "days": len(F["t"]),
-                      "dir": ("상향" if F["e"][i] > F["e"][i-1] else "하향" if F["e"][i] < F["e"][i-1] else "유지") if i >= 1 else "—"}
+    # ① 선행이익 vs KOSPI — (v3.84e · 2026-08-29 사용자 지시) 보고서에서 제거.
+    #   누적 11일차(개시 2026-08-01·과거 백필 불가)라 2년 KOSPI 축 우측 끝에 수직 지그재그로만 보여
+    #   판독 불가였다. 서버 fwd_eps.py 일일 누적(16:20 크론)과 홈피 대시보드 패널은 유지 —
+    #   수 개월 축적 후 재수록하려면 이 블록과 out["eps"] 를 복원하면 된다(빌더는 V.eps 없으면 자동 생략).
+    #   ※ F(fwd_eps) 회수는 ④ DDR5 vs KOSPI 의 kospi_hist 입력으로 계속 필요하니 유지한다.
     # ② 신용잔고 YoY vs S&P500(로그)
     spx_t = [dt(t) for t in (M.get("spx") or {}).get("t") or []]
     spx_v = [math.log(v) for v in (M.get("spx") or {}).get("v") or []]
