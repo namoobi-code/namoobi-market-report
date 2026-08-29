@@ -670,7 +670,10 @@ function renderFomcDotplot(){ const f=data.markets&&data.markets.fomc_dotplot; i
   children.push(p("점도표(dot plot): FOMC 위원들이 향후 적정 정책금리 수준을 점으로 표시한 전망. 중간값이 상향되면 매파적(긴축)·하향되면 비둘기파(완화) 신호다.",{italics:true,color:"64748B"}));
   children.push(p("업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지",{size:15,italics:true,color:"94A3B8"}));
   if(f.summary)children.push(p(f.summary,{bold:true}));
-  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목","6월 전망 (최신)","3월 전망 (이전)","변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:(r.period!=null?r.period:"-"))),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(function(){ if(r.change!=null&&r.change!=="")return r.change; const j=parseFloat(String(r.jun||"").replace(/[^0-9.\-]/g,"")),m2=parseFloat(String(r.mar||"").replace(/[^0-9.\-]/g,"")); if(isFinite(j)&&isFinite(m2)){ const dd=+(j-m2).toFixed(2); return dd>0?("+"+dd+"%p 상향"):(dd<0?(dd+"%p 하향"):"변동 없음"); } return "-"; })()]),{left:[0]});
+  // (v3.84 재발방지 2026-08-29) 헤더 "6월/3월" 하드코딩 → merge 가 comment 의 SEP 발표일로 만든
+  // latest_label/prev_label 우선 사용(9월 SEP 이후에도 자동으로 올바른 달 표기). comment(근거·출처)도 표 아래 렌더.
+  if(Array.isArray(f.rows)&&f.rows.length) simpleTable([3300,2300,2300,2300],["항목",(f.latest_label||"6월 전망 (최신)"),(f.prev_label||"3월 전망 (이전)"),"변화"],f.rows.map(r=>[(r.item!=null?r.item:(r.year!=null?r.year:(r.period!=null?r.period:"-"))),(r.jun!=null&&r.jun!==""?r.jun:"- 미공개"),(r.mar!=null&&r.mar!==""?r.mar:"- 미공개"),(function(){ if(r.change!=null&&r.change!=="")return r.change; const j=parseFloat(String(r.jun||"").replace(/[^0-9.\-]/g,"")),m2=parseFloat(String(r.mar||"").replace(/[^0-9.\-]/g,"")); if(isFinite(j)&&isFinite(m2)){ const dd=+(j-m2).toFixed(2); return dd>0?("+"+dd+"%p 상향"):(dd<0?(dd+"%p 하향"):"변동 없음"); } return "-"; })()]),{left:[0]});
+  if(f.comment)children.push(p(f.comment,{size:16,color:"64748B"}));
   if(Array.isArray(f.distribution)&&f.distribution.length){ children.push(p("연내 금리 전망 분포 (점 분포)",{bold:true,color:"1E40AF",before:100,size:20}));
     f.distribution.forEach(x=>children.push(p("• "+(x.label||"")+": "+(x.count||""),{size:19}))); }
   if(f.policy_rate)children.push(p("현 정책금리: "+f.policy_rate,{bold:true,before:60}));

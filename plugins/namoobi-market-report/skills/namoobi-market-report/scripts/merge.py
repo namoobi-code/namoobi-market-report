@@ -1160,6 +1160,24 @@ try:
                                      ((_mx(_fm_u, ['date']) or _run_m) + '|' + str(len(_fm_u))) if _fm_u else _run_m, _dd)
     _dp = m.get('fomc_dotplot') or {}
     m['fomc_dotplot'] = _ndb.sync('dot_plot', _dp, _today, (_dp.get('fomc_sep_date') or _run_m), _dd)
+    # (v3.84 재발방지 · 2026-08-29) 점도표 '최신성 오인' 방지 — SEP 는 3·6·9·12월 회의에서만 발표되므로
+    #   중간 달에는 직전 분기 SEP 가 실제 최신이다. 그러나 빌더 헤더가 "6월/3월" 하드코딩 + 차기 SEP 일정
+    #   미표기로 독자가 '업데이트 누락'으로 오인했다(8/29 실측). → comment 의 SEP 발표일(YYYY-MM-DD 2개)을
+    #   파싱해 latest_label/prev_label 을 만들고, fomc_meetings 예정 회의 중 3·6·9·12월 첫 회의를
+    #   next_meeting 으로 자동 주입한다(빌더가 헤더·'다음 점도표 발표'에 사용).
+    try:
+        _dpm = m.get('fomc_dotplot') or {}
+        if isinstance(_dpm, dict) and _dpm.get('rows'):
+            import re as _reD
+            _ds = sorted(set(_reD.findall(r'(\d{4}-\d{2})-\d{2}', str(_dpm.get('comment') or '') + ' ' + str(_dpm.get('fomc_sep_date') or ''))))
+            if _ds: _dpm['latest_label'] = '%s 전망 (최신 SEP)' % _ds[-1]
+            if len(_ds) >= 2: _dpm['prev_label'] = '%s 전망 (직전 SEP)' % _ds[-2]
+            _nm = next((str(x.get('date')) for x in (_rt.get('fomc_meetings') or [])
+                        if str(x.get('date')) > _today and str(x.get('date'))[5:7] in ('03', '06', '09', '12')), None)
+            if _nm: _dpm['next_meeting'] = '%s FOMC (SEP·점도표 갱신 예정)' % _nm
+            m['fomc_dotplot'] = _dpm
+    except Exception as _de:
+        print('  [v3.84] dotplot 라벨 주입 skip(비차단):', repr(_de)[:60])
     m['korea_leading'] = _ndb.sync('leading', m.get('korea_leading'), _today, _mx(m.get('korea_leading'), ['period']) or _run_m, _dd)
     # (v3.56) 3.1.5 경기선행 장기 시계열 누적 → db/series_leading.json
     #   fetch_leading.py 가 만드는 nmr_leading_series.json([["YYYY-MM",val]..]) 을 DB에 union 누적한다.

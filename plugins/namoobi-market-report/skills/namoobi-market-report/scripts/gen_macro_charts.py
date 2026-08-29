@@ -176,11 +176,16 @@ def _ch_policy():
     fig,ax=plt.subplots(figsize=(8.8,3.2),dpi=150)
     CC={"미국":BLUE,"유로존":GREEN,"영국":RED,"한국":AMBER,"중국":PURPLE,"일본":"#0E7490"}
     x0=_dt.date(2022,1,1); plotted=False
+    # (v3.84 재발방지 · 2026-08-29 실측) 시계열은 '금리 변경 결정일'만 기록하므로, 마지막 결정이 오래된
+    # 국가는 선이 과거에서 끊겨 '미갱신'으로 오인된다(한국만 8/27 인상으로 최신, 나머지 5개국 6월 절단).
+    # → 각국 스텝 라인을 오늘(KST)까지 연장하고 x축 우측을 오늘로 고정해 전 국가가 우측 끝에 정렬되게 한다.
+    _td=(_dt.datetime.utcnow()+_dt.timedelta(hours=9)).date()
     for cn,pts in ser.items():
         try: P=sorted((_dt.date.fromisoformat(str(d)[:10]),float(r)) for d,r in pts)
         except Exception: continue
         pre=[r for d,r in P if d<=x0]; win=[(d,r) for d,r in P if d>=x0]
         if pre: win=[(x0,pre[-1])]+win
+        if win and win[-1][0]<_td: win=win+[(_td,win[-1][1])]  # (v3.84) 현재값 유지 구간을 오늘까지 연장
         if len(win)<2: continue
         xs=[mdates.date2num(d) for d,r in win]; ys=[r for d,r in win]
         ax.plot(xs,ys,linewidth=2.0 if cn=="미국" else 1.4,color=CC.get(cn,"#94A3B8"),label=cn,drawstyle="steps-post")
@@ -192,7 +197,7 @@ def _ch_policy():
         # 범례를 플롯 밖(축 위)으로 빼 라인과 겹침 방지 + 제목은 그 위
         ax.legend(fontsize=7,ncol=6,loc="lower center",bbox_to_anchor=(0.5,1.005),frameon=False,columnspacing=1.6,handlelength=1.7,borderaxespad=0.1)
         ax.set_title("주요국 정책금리 결정이력 (실측 · 중앙은행 발표)",fontsize=9.4,color=SLATE,pad=20)
-        ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.set_xlim(left=mdates.date2num(x0))
+        ax.grid(True,alpha=0.25); ax.set_ylabel("%",fontsize=8,color="#64748B"); ax.set_xlim(left=mdates.date2num(x0),right=mdates.date2num(_td)+6)
         _lo,_hi=ax.get_ylim(); ax.set_ylim(_lo,_hi+(_hi-_lo)*0.05)  # 상단 약간 여유
         for _s in ["top","right"]: ax.spines[_s].set_visible(False)
     else:
@@ -222,16 +227,27 @@ _safe("macro_curve", _ch_curve)
 def _ch_infl():
     infl=S.get("inflation") or {"CPI":[2.6,2.7,2.8,2.9,3.1,3.3,3.4,3.6,3.8,3.9,4.0,4.17],"Core CPI":[2.9,2.9,3.0,3.0,3.0,3.1,3.1,3.2,3.1,3.1,3.0,3.1],"PCE":[2.3,2.4,2.4,2.5,2.5,2.6,2.6,2.6,2.6,2.7,2.6,2.6],"Core PCE":[2.6,2.6,2.7,2.7,2.7,2.8,2.8,2.8,2.8,2.8,2.8,2.8],"PPI":[1.8,2.0,2.2,2.3,2.4,2.6,2.7,2.8,2.9,3.0,2.9,2.9]}
     fig,ax=plt.subplots(figsize=(7.4,2.9),dpi=150)
+    # (v3.84 재발방지 · 2026-08-29 실측) 데이터는 최신월(예: 2026-07)까지 있어도 ① 마지막 x눈금이 그 앞
+    # 달에서 끝나고 ② 끝점 강조·최신월 표기가 없어 '차트가 한 달 뒤처짐'으로 오인됐다. → 각 라인 끝점
+    # 마커 + 제목에 최신 기준월 명시 + x축 우측 여백 고정. ('최근 12개월' 고정 문구도 실데이터와 불일치라 제거)
+    _lastx=None
     for k,v in infl.items():
         if isinstance(v,list):  # (fix-r3) null 페어·레벨 혼입(|v|>30) 개별 제거 — 라인 탈락/스파이크 방지
             v=[q for q in v if ((isinstance(q,(list,tuple)) and len(q)==2 and isinstance(q[1],(int,float)) and abs(q[1])<=30) or (not isinstance(q,(list,tuple)) and isinstance(q,(int,float)) and abs(q)<=30))]
         xs,ys=_xy(v)
         if ys is None: continue
-        if xs is not None: ax.plot(xs,ys,linewidth=1.6,marker="o",ms=3,label=k)
+        if xs is not None:
+            _ln,=ax.plot(xs,ys,linewidth=1.6,marker="o",ms=3,label=k)
+            ax.scatter([xs[-1]],[ys[-1]],color=_ln.get_color(),s=24,zorder=5)
+            if _lastx is None or xs[-1]>_lastx: _lastx=xs[-1]
         else:
             _mx=months(2025,6,len(ys)) if len(ys)!=12 else mon
             ax.plot(_mx,ys,linewidth=1.6,marker="o",ms=3,label=k)
-    ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title("미국 물가 YoY 최근 12개월 통합 (점선=연준 2% 목표 · CPI 최신 실측)",fontsize=9.5,color=SLATE)
+    _ttl="미국 물가 YoY 통합 (점선=연준 2% 목표"
+    if _lastx is not None:
+        ax.set_xlim(right=_lastx+25)
+        _ttl+=" · 최신 %s"%mdates.num2date(_lastx).strftime("%Y-%m")
+    ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title(_ttl+")",fontsize=9.5,color=SLATE)
     ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
     for s in ["top","right"]: ax.spines[s].set_visible(False)
     plt.tight_layout(); plt.savefig("charts/macro_inflation.png",bbox_inches="tight"); plt.close()
@@ -276,39 +292,62 @@ def _ch_emp():
     _ep=[]
     # (req2/3/6) 레벨 시계열을 변화값으로 정규화 — NFP=전월차(월 신규고용), 소매=전월비%, GDP=연율%만(레벨 혼입 제거)
     def _empdisp(key):
-        lvl=[v for v in _flat(emp.get(key)) if isinstance(v,(int,float))]
-        # (req1/2 2026-07-05) 레벨·증감 "혼합" 시계열 내성 변환 — 연속 레벨 구간만 차분/전월비로 바꾸고
-        # 레벨→증감 경계에서는 변환하지 않는다(구버전은 max>임계면 전체 차분 → 경계에서 -15만 절벽 스파이크).
-        def _mixfix(vals,thr,conv):
+        # (v3.84 재발방지 · 2026-08-29 실측) 구버전 결함 2가지 — ① nfp·retail 은 자기 분기(return)에서
+        # 윈도우([-24:])를 빼먹어 DB 전 이력(2016~, 코로나 2020-04 NFP -2,070만 차분 스파이크 포함)이
+        # 통째로 그려졌고 ② _flat 으로 값만 뽑아 인덱스 plot → x축 월 표기가 원천 불가였다.
+        # → 날짜쌍을 보존해 (dates, values) 로 반환하고 전 패널 윈도우를 강제한다(주간 52·월간 24·분기 8).
+        raw=emp.get(key) or []
+        pairs=[]; flat=[]
+        for p in raw:
+            if isinstance(p,(list,tuple)) and len(p)>=2 and isinstance(p[1],(int,float)): pairs.append((str(p[0]),float(p[1])))
+            elif isinstance(p,(int,float)): flat.append(float(p))
+        def _pd(s):
+            s=str(s)
+            try:
+                if "Q" in s.upper():
+                    y,q=s.upper().replace("Q","").split("-"); return dt.date(int(y),int(q)*3,1)
+                return dt.date.fromisoformat((s[:7]+"-01") if len(s)==7 else s[:10])
+            except Exception: return None
+        # (req1/2 2026-07-05 유지) 레벨·증감 "혼합" 시계열 내성 변환 — 연속 레벨 구간만 차분/전월비,
+        # 레벨→증감 경계는 변환하지 않음(경계 절벽 스파이크 방지). 날짜 보존판.
+        def _mixfix(seq,thr,conv):
             out=[];prev=None
-            for v in vals:
+            for d,v in seq:
                 if abs(v)>thr:
-                    if prev is not None: out.append(conv(prev,v))
+                    if prev is not None: out.append((d,conv(prev,v)))
                     prev=v
                 else:
-                    out.append(v);prev=None
+                    out.append((d,v));prev=None
             return out
+        if pairs:
+            seq=sorted([(x,v) for x,v in (((_pd(d),v) for d,v in pairs)) if x is not None])
+        else:
+            seq=[(None,v) for v in flat]
         if key=="nfp":
-            if lvl: lvl=_mixfix(lvl,5000,lambda a,b:round(b-a,1))  # PAYEMS 레벨→전월차(천명)
-            return lvl or [v for v in _flat(emp.get("nfp_mom")) if isinstance(v,(int,float)) and abs(v)<=5000]
-        if key=="retail":
-            if lvl: lvl=_mixfix(lvl,50,lambda a,b:round((b/a-1)*100,2))  # 소매 레벨→전월비 %
-            return lvl or [v for v in _flat(emp.get("retail_mom")) if isinstance(v,(int,float)) and abs(v)<=50]
-        if key=="gdp":  # 연율(%) 값만 유지(레벨/이상치 제거) + (fix-r4) 최근 8분기만
-            g=[v for v in lvl if abs(v)<50]
-            ga=[v for v in _flat(emp.get("gdp_ann")) if isinstance(v,(int,float)) and abs(v)<50]
-            _gv=(g if len(g)>=2 else (ga or g))
+            seq=_mixfix(seq,5000,lambda a,b:round(b-a,1))  # PAYEMS 레벨→전월차(천명)
+            if not seq: seq=[(None,v) for v in _flat(emp.get("nfp_mom")) or [] if isinstance(v,(int,float)) and abs(v)<=5000]
+            seq=seq[-24:]
+        elif key=="retail":
+            seq=_mixfix(seq,50,lambda a,b:round((b/a-1)*100,2))  # 소매 레벨→전월비 %
+            if not seq: seq=[(None,v) for v in _flat(emp.get("retail_mom")) or [] if isinstance(v,(int,float)) and abs(v)<=50]
+            seq=seq[-24:]
+        elif key=="gdp":  # 연율(%)만 + 중복 분기값 제거 + 최근 8분기
+            seq=[(d,v) for d,v in seq if abs(v)<50]
+            if len(seq)<2:
+                seq=sorted([(x,float(p[1])) for p in (emp.get("gdp_ann") or []) if isinstance(p,(list,tuple)) and len(p)>=2 for x in [_pd(p[0])] if x is not None and abs(float(p[1]))<50])
             _gd=[]
-            for _v in _gv:
-                if not _gd or _v!=_gd[-1]: _gd.append(_v)  # (fix-r4) 월별 중복 분기값 제거
-            return _gd[-8:]
-        if key=="jobless":  # (fix-r4) 단위 혼입 정규화: 건(>10000)→만건 + 최근 52주
-            lvl=[(round(v/10000.0,1) if abs(v)>10000 else v) for v in lvl]
-            return lvl[-52:]
-        return lvl[-24:]  # (fix-r4) 월간 패널 최근 24개월 윈도우
+            for d,v in seq:
+                if not _gd or v!=_gd[-1][1]: _gd.append((d,v))
+            seq=_gd[-8:]
+        elif key=="jobless":  # 단위 혼입 정규화: 건(>10000)→만건 + 최근 52주
+            seq=[(d,(round(v/10000.0,1) if abs(v)>10000 else v)) for d,v in seq][-52:]
+        else:
+            seq=seq[-24:]
+        _ds=[d for d,v in seq]
+        return (_ds if (_ds and all(d is not None for d in _ds)) else None),[v for d,v in seq]
     for key,title,col,hl in [("jobless","① 초기 실업수당 청구건수(만 건)",AMBER,None),("nfp","② NFP 월 신규고용(천명)",BLUE,0),("unemp","③ 실업률(%)",RED,None),("retail","④ 소매판매 MoM(%)",PURPLE,None),("ism_mfg","⑤ ISM 제조 PMI",BLUE,50),("ism_svc","⑥ ISM 서비스 PMI",GREEN,50),("gdp","⑦ 실질GDP 연율(%)",GREEN,None)]:
-        ys=_empdisp(key)
-        _ep.append((title,ys,col,hl))
+        xs,ys=_empdisp(key)
+        _ep.append((title,xs,ys,col,hl))
     # 7패널 3/2/2 배치(맨앞=초기 실업수당 청구건수): 1행 ①②③, 2행 ④⑤, 3행 ⑥⑦ (6열 그리드에 colspan 2/3/3)
     _n=7
     fig=plt.figure(figsize=(9.0,7.6),dpi=150)
@@ -316,18 +355,24 @@ def _ch_emp():
     axs=[fig.add_subplot(_gs[0,0:2]),fig.add_subplot(_gs[0,2:4]),fig.add_subplot(_gs[0,4:6]),
          fig.add_subplot(_gs[1,0:3]),fig.add_subplot(_gs[1,3:6]),
          fig.add_subplot(_gs[2,0:3]),fig.add_subplot(_gs[2,3:6])]
-    def panel(ax,t,ys,c,hl=None):
+    def panel(ax,t,xs,ys,c,hl=None):
         if not ys:
             ax.text(0.5,0.5,"데이터 미확보",ha="center",va="center",fontsize=8,color="#94A3B8")
             ax.set_title(t,fontsize=8,color=SLATE); ax.set_xticks([]); ax.set_yticks([])
             for s in ["top","right"]: ax.spines[s].set_visible(False); return
-        ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
+        if xs:  # (v3.84) 날짜쌍 보존분은 날짜 x축(%y/%m) — '월 표기 없음' 재발 방지
+            ax.plot(xs,ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([xs[-1]],[ys[-1]],color=RED,s=13,zorder=5)
+            ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3,maxticks=5))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m")); ax.tick_params(axis="x",labelsize=6)
+        else:
+            ax.plot(range(len(ys)),ys,color=c,linewidth=1.5,marker="o",ms=2.4); ax.scatter([len(ys)-1],[ys[-1]],color=RED,s=13,zorder=5)
+            ax.set_xticks([])
         if hl is not None: ax.axhline(hl,color=RED,linewidth=0.8,linestyle="--",alpha=0.7)
-        ax.set_title(t,fontsize=8,color=SLATE); ax.grid(True,alpha=0.2); ax.set_xticks([])
+        ax.set_title(t,fontsize=8,color=SLATE); ax.grid(True,alpha=0.2)
         for s in ["top","right"]: ax.spines[s].set_visible(False)
-    for _i,(t,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,ys,c,hl)
+    for _i,(t,xs,ys,c,hl) in enumerate(_ep): panel(axs[_i],t,xs,ys,c,hl)
     for _j in range(_n,len(axs)): axs[_j].axis("off")
-    fig.suptitle("미국 고용·경기 지표 최근 1년 (초기 실업수당 청구=주간·나머지 월간)",fontsize=9.5,color=SLATE)
+    fig.suptitle("미국 고용·경기 지표 (청구건수=주간 52주 · 월간 24개월 · GDP 8분기)",fontsize=9.5,color=SLATE)
     fig.subplots_adjust(top=0.90,bottom=0.06,left=0.07,right=0.97,hspace=0.62,wspace=0.6)
     plt.savefig("charts/macro_employment.png",bbox_inches="tight"); plt.close()
 _safe("macro_employment", _ch_emp)
