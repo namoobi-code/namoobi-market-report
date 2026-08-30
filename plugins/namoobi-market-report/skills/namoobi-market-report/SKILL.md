@@ -315,6 +315,19 @@ outputs 하위 `namoobi-market-report-server/data/report_data_YYYYMMDD.json` 으
    → Phase 5.5 `sync_server` 가 db/*.json 과 함께 자동 업로드, 홈피 해자워치 카드에 '🧠 AI 점검'으로 표시된다.
 4. 실패·시간 부족 시 건너뛴다(비차단). 파일이 안 올라가면 홈피는 직전 점검 날짜를 그대로 표시하므로 무해.
 
+## Phase 3.7: 점유율 추이 갱신 (v4.00 신설 — 비차단·조건부)
+
+홈피 📊 점유율 추이 탭(서버 `fetch_share.py` 매일 06:35)의 분기·반기 대결(B급 등)은 공개 API가 없어 보고서 실행이 갱신을 담당한다 — 릴리 vs 노보 같은 '점유 역전'을 진행 중에 잡기 위한 단계.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/share` → `stale: true` 인 배틀만 추출(**최대 5개**, `auto` 배틀 제외).
+2. 배틀당 웹서치 1회로 **가장 최근 공표된 점유 수치**(기관 보도·실적 발표)를 확인:
+   - 전 플레이어 값을 같은 시점 기준으로 맞춘다(리더만 갱신하고 2위를 방치하면 격차 계산이 왜곡).
+   - **추정 금지** — 새 공표치를 못 찾으면 그 배틀은 생략(기존 시계열 유지가 정답).
+3. `namoobi-market-report-server/data/db/share_llm.json` 저장:
+   `{"as_of":"YYYY-MM-DD HH:MM","updates":[{"id":"<battle id>","d":"YYYY-MM","v":{"플레이어":값,...},"note":"근거 요약","src":"URL"}]}`
+   → Phase 5.5 sync 가 자동 업로드, 서버 fetch_share 가 다음 실행 때 시계열에 upsert(같은 날짜면 교체)하고 탭에 🧠 표기.
+4. 실패·시간 부족 시 건너뛴다(비차단).
+
 ## Phase 4: 보고서 생성 (docx 전용)
 
 > **최종 산출물 = docx.** soffice→PDF 변환은 이 환경에서 자주 hang/실패하므로 폐지했다. 빌더가 만든 docx 를 그대로 연결 폴더에 저장하고 메일에 첨부한다(한글 폰트는 빌더가 docx 에 임베드하므로 별도 변환 불필요).
