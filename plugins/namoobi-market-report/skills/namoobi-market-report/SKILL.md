@@ -304,7 +304,9 @@ outputs 하위 `namoobi-market-report-server/data/report_data_YYYYMMDD.json` 으
 
 해자워치(홈피 🏰 탭 · 서버 `fetch_moat.py` 매일 06:30)가 가격·선행지표로 거른 **주의 종목만** 메인세션이 뉴스로 최종 점검한다 — 카드의 "수동 확인 대상"을 보고서 실행이 대신 수행하는 단계.
 
-1. `curl -s http://namoobi.duckdns.org/api/db/moat` → `verdict ∈ {buy, buy_m, risk}` 종목 추출(**최대 6종**, buy_m → risk → buy 우선순위. 없으면 이 Phase 전체 생략).
+1. `curl -s http://namoobi.duckdns.org/api/db/moat` → 점검 대상 추출(**합산 최대 8종**, 우선순위 buy_m → risk → buy → lead 미연결):
+   ① `verdict ∈ {buy, buy_m, risk}` 종목 ② **`lead: null`(선행지표 미연결) 종목 전체 — 판정 무관**(v3.98, 자동 방증이 없는 종목은 뉴스가 유일한 해자 점검 수단).
+   ③ **선별 B2(`tier:"B2+"`) 종목은 점유율 변화도 함께 점검** — `share` 필드의 점유 구도가 최근 뉴스와 어긋나면 note 에 갱신 제안을 적는다(예: "무라타 점유 40→35% 보도 — SHARES 갱신 필요").
 2. 종목당 웹서치 1회(최근 2주: 경쟁 진입·규제·소송·핵심계약 상실·기술 대체 등 **해자 훼손 이슈**)로 판정:
    `유지`(훼손 뉴스 없음 — 낙폭은 업황·수급 성격) / `주의`(모니터링 필요 이슈 존재) / `훼손 의심`(구조적 악재 확인). note 한 줄(근거 요약, 40자 내외) + src(대표 출처 URL 1개). **추정 금지 — 확인 못 하면 `주의`가 아니라 생략.**
 3. `namoobi-market-report-server/data/db/moat_llm.json` 저장:
