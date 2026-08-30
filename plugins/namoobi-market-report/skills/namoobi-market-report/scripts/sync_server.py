@@ -7,7 +7,7 @@
 비차단: 실패해도 종료코드 0. 리포트 워크플로우를 되돌리지 않는다.
 사용:  python3 scripts/sync_server.py [새_docx_경로]
 """
-import glob, json, os, subprocess, sys, shlex
+import glob, json, os, re, subprocess, sys, shlex
 from pathlib import Path
 
 SERVER    = "ubuntu@161.33.190.254"
@@ -192,6 +192,14 @@ def main():
         docx = c[-1] if c else None
     if docx and os.path.exists(docx):
         ok &= run(f'{SCP} {shlex.quote(docx)} {SERVER}:{REMOTE}/reports/', f"보고서 ({os.path.basename(docx)})")
+        # (v3.94 · 2026-08-30) 같은 날짜 이전 회차 즉시 제거 — '날짜별 최종본 1건' 규칙을 업로드 시점에 강제.
+        # 종전 회전(6)은 '최신 5건 무조건 보존'이라 같은 날 재빌드분(_1954/_1956 …)이 나란히 남았다(사용자 지적).
+        _bn = os.path.basename(docx); _m = re.match(r"global_market_report_(\d{8})_\d{4}\.docx$", _bn)
+        if _m:
+            ok &= run(
+                f'{SSH} {SERVER} "cd {REMOTE}/reports && ls -1 global_market_report_{_m.group(1)}_*.docx 2>/dev/null | '
+                f'grep -v -x {shlex.quote(_bn)} | xargs -r rm -f"',
+                f"같은 날짜 이전 회차 정리 ({_m.group(1)} → {_bn} 만 유지)")
     else:
         print("[sync] ⚠️ 업로드할 docx 없음")
 

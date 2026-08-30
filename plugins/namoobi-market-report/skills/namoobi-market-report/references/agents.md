@@ -4,6 +4,11 @@
 > - **(3.2.5 리밸런싱)** change_marker 불변으로 IndexRebalanceAgent 미발행 회차는 merge 가 직전 report_data 의 index_rebalance 를 **자동 carry-forward**(v3.81) — 수동 nmr_rebalance.json 주입 불필요.
 > - **(6장 크립토)** CryptoAgent 발행 금지 유지 — `python3 scripts/compose_crypto.py "$WORK"` 가 서버 DB+nmr_kimchi 로 nmr_crypto.json 기계 조립. 업다운 카운트·평균등락만 메인세션 CoinInfo `get_market_overview` 1콜 → `nmr_coininfo_extra.json` 저장으로 보조(없으면 null 비차단).
 
+> **[v3.94 · 2026-08-30 재발방지] USMacroExtras `fomc_dotplot` 은 평면 스키마 — DB 래핑 금지**
+> - 산출은 반드시 `{"rows":[{year,mar,jun,change}...],"comment":"..."}` **평면**으로 저장한다. `{"marker":…,"as_of":…,"data":{"rows":…}}` 같은 **DB 래핑 형식으로 저장하면 merge 가 rows 를 못 찾아 `markets.fomc_dotplot`=null 이 되고 게이트 req7(3.1.1 dot plot data missing)이 발송을 차단**한다(8/30 실측). 래핑은 merge 의 `_ndb.sync('dot_plot', …)` 가 **자동으로** 씌우는 것이므로 에이전트가 미리 씌우면 `db/dot_plot.json` 에 `data.data` 이중 래핑까지 남아 DB가 오염된다.
+> - 같은 규칙이 DB화 대상 전체에 적용된다(`bigtech_capex`·`fomc_meetings`·`semi_cycle`·`customs` 등): **에이전트는 항상 알맹이(rows/평면 리스트)만 저장하고, marker/as_of/data 래핑은 merge 에 맡긴다.**
+> - 이중 래핑이 이미 DB에 들어간 경우 복구: `db/<item>.json` 을 읽어 `while 'data' in d and 'rows' not in d: d = d['data']` 로 벗겨 재저장한 뒤 merge 재실행.
+
 > **[req 2026-07-12 사용자 피드백 11건 재발방지] (반드시 준수)**
 > - **(2장 출처 필수)** NewsAgent 는 2.1 events_calendar·2.2 events_calendar_longterm·2.3 bigtech_events **전 항목에 source·source_url** 을 채운다(공식/1차 보도 확인분만). bigtech_events 스키마 = [{date,event,importance,expected_impact,source,source_url}]. 빌더가 2.1/2.2/2.3 표에 '출처' 컬럼을 렌더하고 **verify req28 이 출처 전무 항목=발송 차단** 으로 강제한다.
 > - **(M7 평면 스키마 강제)** M7OutlookAgent rows 는 반드시 평면 키 {name,ticker,price,chg52,consensus,consensus_detail,target,upside,revision,revision_detail,guidance(문자열),signal} — quote{}/analyst_consensus{}/price_target{} **중첩 객체 금지**(대시보드 d_m7·빌더 모두 평면 키만 읽음 → 중첩이면 대시보드 전열 공란). chg52=1년(52주) 변화율 %.

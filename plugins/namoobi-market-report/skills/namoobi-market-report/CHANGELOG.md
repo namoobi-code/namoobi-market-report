@@ -1,5 +1,16 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.94.0 (plugin 1.48.0, 2026-08-30) — 같은 회차 docx 중복 잔존 + 점도표 스키마 근본수정
+
+- **[사고] 같은 날짜 docx 2개 잔존**(사용자 지적: `_1954`·`_1956` 동일 크기 2건). 원인은 절차 순서 —
+  빌드 직후 연결 폴더에 복사하고 **그 다음** 게이트를 돌려서, 게이트가 결함(점도표 누락)을 잡아 재빌드하면
+  실패본이 연결 폴더에 그대로 남았다. 서버측 회전도 '최신 5건 무조건 보존'(2026-07-12 req)이라 같은 날 재빌드분을 못 걸렀다.
+- **수정 2건**: ① SKILL Phase 4-2 순서 변경 — **게이트 통과 후에만 연결 폴더 복사**, 복사 직전 같은 날짜 이전 회차 삭제(마운트 EPERM 시 allow_cowork_file_delete)
+  ② `sync_server.py` v3.94 — docx 업로드 직후 **서버에서도 같은 날짜의 다른 회차를 자동 삭제**(날짜별 최종본 1건 원칙을 업로드 시점에 강제).
+- **[게이트 차단 원인] `fomc_dotplot` DB 래핑 오류**: USMacroExtras 가 `{marker,as_of,data:{rows}}` 형식으로 저장해
+  merge 가 rows 를 못 읽어 `markets.fomc_dotplot`=null → 게이트 req7 차단, 게다가 `db/dot_plot.json` 에 `data.data` 이중 래핑까지 기록됐다.
+  → agents.md 에 **"에이전트는 알맹이(rows)만, marker/data 래핑은 merge 가 자동"** 규칙 명문화(DB화 대상 전체 적용) + 이중 래핑 복구 절차 기재.
+
 ## v3.93.0 (plugin 1.47.0, 2026-08-30) — 3.2.1 캔들차트 트윈축 자동분리 근본수정
 
 - **[결함] mplfinance `make_addplot` 기본값 `secondary_y="auto"`** 가 같은 패널에서 스케일이 다른 시리즈를

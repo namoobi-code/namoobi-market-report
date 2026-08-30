@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.47.0 · SKILL v3.93.0)
+# Namoobi Market Report (plugin v1.48.0 · SKILL v3.94.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -321,17 +321,27 @@ node build_report.js \
 ```
 빌드 후 파일 크기와 `unzip -l` 무결성, 표 개수(`<w:tbl>`)를 점검한다.
 
-2. **(필수) docx 를 연결 폴더 `D:\claudeCowork` 최상위에 저장한다.** ⚠️ file_upload 는 `D:\claudeCowork\...` Windows 경로만 받으므로(outputs·VM 경로 거부) **메일 첨부를 하려면 docx 가 연결 폴더에 반드시 있어야 한다.**
-   연결 폴더는 기존 파일 덮어쓰기가 차단될 수 있으므로, 동일 파일명이 이미 있으면 실행 시각 접미사(`_HHMM`)를 붙여 **새 파일**로 저장하고, 그 실제 파일명을 Phase 5 첨부에 사용한다.
-   복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). 연결 폴더가 없으면 첨부가 불가하므로 Phase 6 에 "연결 폴더 미연결 — docx 첨부 불가"를 명시한다.
+2. **(v3.94 · 2026-08-30 재발방지) 연결 폴더 복사는 Phase 4.5 게이트를 통과한 뒤에 단 1회만 한다 — 빌드 직후 복사 금지.**
+   종전에는 빌드 직후 연결 폴더에 복사하고 그 다음 게이트를 돌렸는데, 게이트가 결함을 잡아 재빌드하면 새 `_HHMM` 파일이 생기면서
+   **실패본이 연결 폴더에 그대로 남아 같은 회차 docx 가 2개 쌓였다**(8/30 실측: `_1954`(점도표 누락 실패본)·`_1956`(통과본) 동시 잔존 — 사용자 지적).
+   따라서 순서는 **빌드 → 게이트(WORK 경로로 검사) → 통과 시에만 연결 폴더 복사**다. 게이트 재실행이 필요하면 WORK 안에서만 재빌드한다.
+   - 복사 직전 **같은 날짜의 이전 회차를 먼저 지운다**(날짜별 최종본 1건 원칙):
+     `ls /sessions/*/mnt/claudeCowork/global_market_report_<YYYYMMDD>_*.docx | grep -v <이번파일> | xargs -r rm -f`
+     (마운트가 unlink 를 막아 `Operation not permitted` 가 나면 `mcp__cowork__allow_cowork_file_delete` 로 권한을 받은 뒤 재시도.)
+   - ⚠️ file_upload 는 `D:\claudeCowork\...` Windows 경로만 받으므로(outputs·VM 경로 거부) **메일 첨부를 하려면 docx 가 연결 폴더에 반드시 있어야 한다.**
+   - 동일 파일명이 이미 있으면 실행 시각 접미사(`_HHMM`)를 붙여 새 파일로 저장하고, 그 실제 파일명을 Phase 5 첨부에 사용한다.
+   - 복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). 연결 폴더가 없으면 첨부가 불가하므로 Phase 6 에 "연결 폴더 미연결 — docx 첨부 불가"를 명시한다.
+   - 서버측도 동일 원칙: `sync_server.py`(v3.94)가 업로드 직후 같은 날짜의 다른 회차를 자동 삭제한다(구 회전 로직은 '최신 5건 무조건 보존'이라 같은 날 재빌드분을 못 걸렀다).
 
 ## Phase 4.5: 품질 게이트 + GOODREPORT 비교 (v3.6.32 — 필수·차단)
 
 > **이 단계를 통과하지 못하면 Phase 5(발송)로 절대 진행하지 않는다.** 목적: 결함을 조용히 미표시(-)·carry-forward·stale 로 통과시키지 않고, 사용자에게 보고·질문한다.
 
+> **(v3.94) 이 게이트는 WORK 안의 docx 로 돌린다 — 연결 폴더 복사는 통과 뒤(Phase 4-2)다.** 게이트 전에 복사하면 실패본이 연결 폴더에 남아 같은 회차가 2개 쌓인다(8/30 실측).
+
 1. **코드 게이트 실행**:
 ```bash
-cd "$WORK" && node verify_report.js <outputs>/_market_report_data/report_data_YYYYMMDD.json "$WORK" <생성한 docx 경로>
+cd "$WORK" && node verify_report.js <outputs>/_market_report_data/report_data_YYYYMMDD.json "$WORK" "$WORK/global_market_report_YYYYMMDD_HHMM.docx"
 echo "verify exit=$?"   # 0=통과, 1=결함  (v3.72: 3번째 인자 docx — req35 가 크기·미디어수를 GOODREPORT 골든과 자동 비교)
 ```
    `{ok,problems[],warnings[]}` 가 출력된다. `problems` 가 있으면 그 목록이 곧 "정상 예제 수준 미달 항목"이다(예: `3.1.1 코스피 차트가 캔들이 아님(flows 폴백)`, `반도체 ETF 17<20`, `증권사 신한 리포트 stale: 2026-05-11`).
