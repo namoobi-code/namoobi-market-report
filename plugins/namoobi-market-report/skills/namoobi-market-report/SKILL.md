@@ -299,6 +299,18 @@ outputs 하위 `namoobi-market-report-server/data/report_data_YYYYMMDD.json` 으
 
 의심되면 해당 필드를 null/수정 후 재검증. 검증 대부분이 Phase 4.5 코드 게이트로 강제되므로 별도 에이전트 없이 동등 이상이며, 게이트 `problems` 가 있으면 Phase 4.5 에서 발송 차단·사용자 질문은 그대로.
 
+## Phase 3.6: 해자워치 AI 점검 (v3.93 신설 — 비차단·조건부)
+
+해자워치(홈피 🏰 탭 · 서버 `fetch_moat.py` 매일 06:30)가 가격·선행지표로 거른 **주의 종목만** 메인세션이 뉴스로 최종 점검한다 — 카드의 "수동 확인 대상"을 보고서 실행이 대신 수행하는 단계.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/moat` → `verdict ∈ {buy, buy_m, risk}` 종목 추출(**최대 6종**, buy_m → risk → buy 우선순위. 없으면 이 Phase 전체 생략).
+2. 종목당 웹서치 1회(최근 2주: 경쟁 진입·규제·소송·핵심계약 상실·기술 대체 등 **해자 훼손 이슈**)로 판정:
+   `유지`(훼손 뉴스 없음 — 낙폭은 업황·수급 성격) / `주의`(모니터링 필요 이슈 존재) / `훼손 의심`(구조적 악재 확인). note 한 줄(근거 요약, 40자 내외) + src(대표 출처 URL 1개). **추정 금지 — 확인 못 하면 `주의`가 아니라 생략.**
+3. `namoobi-market-report-server/data/db/moat_llm.json` 저장:
+   `{"as_of":"YYYY-MM-DD HH:MM","checks":[{"sym","name","verdict_llm","note","src"}]}`
+   → Phase 5.5 `sync_server` 가 db/*.json 과 함께 자동 업로드, 홈피 해자워치 카드에 '🧠 AI 점검'으로 표시된다.
+4. 실패·시간 부족 시 건너뛴다(비차단). 파일이 안 올라가면 홈피는 직전 점검 날짜를 그대로 표시하므로 무해.
+
 ## Phase 4: 보고서 생성 (docx 전용)
 
 > **최종 산출물 = docx.** soffice→PDF 변환은 이 환경에서 자주 hang/실패하므로 폐지했다. 빌더가 만든 docx 를 그대로 연결 폴더에 저장하고 메일에 첨부한다(한글 폰트는 빌더가 docx 에 임베드하므로 별도 변환 불필요).
