@@ -1,5 +1,14 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.95.0 (plugin 1.49.0, 2026-08-30) — [부록G] 7대 국가전략분야 글로벌 개별종목 신설 · 관계도는 [부록H]로 재명명
+
+- 사용자 요청: "부록G는 H로 변경하고, G에 다른 것(C/E)처럼 글로벌 개별종목 추가".
+- **[부록G] 신설**: 7대 SEED 밸류체인 **상장 106종**(SMR 17·핵융합 6·재생에너지·전력망 21·핵심광물·소부장 16·양자 9·우주·항공 15·첨단바이오 22)
+  7분야 그룹 추세표 — 부록C/E 동형. `fetch_appg.py` 신설(관계도 gen_appg_strategy7.py 에서 상장 종목 자동 추출·야후 106/106 실측 검증,
+  비상장·수요처 빅테크 제외·분야 간 중복 1회) → nmr_appg(.series).json → merge `appendix_g` → `renderAppendixG` → spark_g_* 스파크라인.
+- **[부록H] 재명명**: 구 부록G 관계도(renderAppendixH) — assets/appg_strategy7_*.png 파일명·생성기는 불변, 제목·TOC·도입문만 H 로.
+- SKILL Phase 1 fetch 목록·부록 설명·TOC 갱신. 유럽 통화 접두(€/£/kr/Fr) CCY 맵 추가.
+
 ## v3.94.0 (plugin 1.48.0, 2026-08-30) — 같은 회차 docx 중복 잔존 + 점도표 스키마 근본수정
 
 - **[사고] 같은 날짜 docx 2개 잔존**(사용자 지적: `_1954`·`_1956` 동일 크기 2건). 원인은 절차 순서 —

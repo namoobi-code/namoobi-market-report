@@ -174,3 +174,11 @@ try:
     print("appe sparklines:", nae2, "of", len(ae2))
 except FileNotFoundError:
     print("nmr_appe_series.json 없음 — 부록E 스파크라인 생략")
+# (v3.95) [부록G] 7대 국가전략분야 밸류체인 1Y 스파크 — nmr_appg_series.json {sym:[[date,close]..]} → charts/spark_g_<sym(.→_)>.png
+try:
+    ag2=json.load(open(O+"/nmr_appg_series.json")); nag2=0
+    for sym,series in ag2.items():
+        if series and spark(series, f"charts/spark_g_{sym.replace('.','_')}.png"): nag2+=1
+    print("appg sparklines:", nag2, "of", len(ag2))
+except FileNotFoundError:
+    print("nmr_appg_series.json 없음 — 부록G 스파크라인 생략")

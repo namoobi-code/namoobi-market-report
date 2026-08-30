@@ -799,6 +799,7 @@ m['americas_etfs'] = LCF('nmr_amer_etf.json')  # (v3.50) 3.6 북미&중남미 �
 m['aume_etfs'] = LCF('nmr_aume_etf.json')      # (v3.50) 3.7 호주&중동 국가 ETF — fetch_us.py 산출(없으면 {} → 섹션 자동 생략)
 m['appendix_c'] = LCF('nmr_appc.json')         # (v3.51) [부록C] AI 반도체 밸류체인 43종 — fetch_appc.py 산출(없으면 {} → 부록 자동 생략)
 m['appendix_e'] = LCF('nmr_appe.json')         # (v3.72) [부록E] 피지컬 AI 밸류체인 54종 — fetch_appe.py 산출(없으면 {} → 부록 자동 생략)
+m['appendix_g'] = LCF('nmr_appg.json')         # (v3.95) [부록G] 7대 국가전략분야 밸류체인 106종 — fetch_appg.py 산출(없으면 {} → 부록 자동 생략)
 # (v3.54) 3.2.4/3.2.5 KRX 증시 Brief·공매도 데일리 브리프 — fetch_krx_brief.py 산출(회차 마커 DB화·재사용은 스크립트가 담당).
 #   파일 없으면 DB(db/krx_brief.json) 폴백 — 단 캡쳐 PNG(charts/krx_brief_p*·short_brief_p*)가 없으면 빌더가 이미지 생략, verify req22 가 잡는다.
 m['krx_brief'] = LCF('nmr_krx_brief.json')
