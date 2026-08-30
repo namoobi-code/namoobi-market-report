@@ -246,7 +246,18 @@ def _ch_infl():
     _ttl="미국 물가 YoY 통합 (점선=연준 2% 목표"
     if _lastx is not None:
         ax.set_xlim(right=_lastx+25)
-        _ttl+=" · 최신 %s"%mdates.num2date(_lastx).strftime("%Y-%m")
+        _lastd=mdates.num2date(_lastx)
+        _ttl+=" · 최신 %s"%_lastd.strftime("%Y-%m")
+        # (v3.6.27 · 2026-08-30 실측) 기본 눈금이 26/05에서 끝나 최신월(26/07) 점이 눈금 밖으로 보임
+        # → '차트가 6월까지'로 오인. 최신 월을 기준으로 4개월 간격 역산 눈금을 박아
+        # 마지막 눈금 = 최신 기준월이 되게 한다.
+        _lo,_=ax.get_xlim(); _ticks=[]; _y,_m=_lastd.year,_lastd.month
+        while True:
+            _t=mdates.date2num(dt.date(_y,_m,1))
+            if _t<_lo: break
+            _ticks.append(_t); _m-=4
+            while _m<=0: _m+=12; _y-=1
+        ax.set_xticks(sorted(_ticks))
     ax.axhline(2.0,color=RED,linewidth=0.9,linestyle="--",alpha=0.7); ax.set_title(_ttl+")",fontsize=9.5,color=SLATE)
     ax.legend(fontsize=7,ncol=5); ax.grid(True,alpha=0.25); ax.set_ylabel("YoY %",fontsize=8,color="#64748B"); ax.xaxis.set_major_formatter(mdates.DateFormatter("%y/%m"))
     for s in ["top","right"]: ax.spines[s].set_visible(False)
