@@ -1,5 +1,10 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.98.0 (plugin 1.52.0, 2026-08-31) — Phase 3.6 점검 대상 확장 (해자워치 연동 강화)
+
+- 점검 대상에 ① lead 미연결 종목 전체(판정 무관 — 뉴스가 유일한 해자 점검 수단) ② 선별 B2 점유율 구도 변화(SHARES 갱신 제안) 추가, 합산 최대 8종.
+- 서버측: 소니→SOX·도레이→HXL·서남→GFUZ 선행지표 연결, 선별 B2 12종 점유 추이(📊) 카드 표시, 5종 즉시 점검 moat_llm.json 첫 가동.
+
 ## v3.97.0 (plugin 1.51.0, 2026-08-30) — 해자워치 Phase3: 전환 감지 · [부록I] 보고서 편입 · TradingAgents 연계
 
 - **판정 전환 감지**: fetch_moat 가 verdict 이력을 moat_hist 에 누적 — 전일 대비 전환(vd_prev)·유지일수(vd_days) 산출,
