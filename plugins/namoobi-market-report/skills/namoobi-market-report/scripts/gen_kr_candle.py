@@ -85,13 +85,17 @@ def candle(df, flows, out, title, prg=None):
         cF=cI=cP=pd.Series(0.0,index=df.index); have=False
     mc=mpf.make_marketcolors(up="#e11d48",down="#2563eb",edge="inherit",wick="inherit",volume="#9ca3af")
     style=mpf.make_mpf_style(marketcolors=mc,gridstyle=":",gridcolor="#e5e7eb",facecolor="white",rc={"font.size":8,"font.family":"NanumBarunGothic","axes.unicode_minus":False})
-    ap=[mpf.make_addplot(bbu,color="#3b82f6",width=0.7),mpf.make_addplot(bbd,color="#10b981",width=0.7),
-        mpf.make_addplot(r,panel=2,color="#d97706",width=0.9,ylabel="RSI"),
-        mpf.make_addplot(pd.Series(70,index=df.index),panel=2,color="#cbd5e1",width=0.5),
-        mpf.make_addplot(pd.Series(30,index=df.index),panel=2,color="#cbd5e1",width=0.5),
-        mpf.make_addplot(cF,panel=3,color="#dc2626",width=1.1,ylabel="누적순매수(조)"),
-        mpf.make_addplot(cI,panel=3,color="#2563eb",width=1.1),
-        mpf.make_addplot(cP,panel=3,color="#059669",width=1.1)]
+    # (2026-08-30 근본수정) secondary_y=False 강제 — mplfinance 기본값 secondary_y="auto"가 같은 패널의
+    # 스케일이 다른 시리즈를 임의로 우측 트윈축에 분리해 왔다(실측: RSI 기준선 30이 우축 29~31로,
+    # 누적순매수 개인이 우축 0~100으로, 프로그램 비차익이 우축 ±5조로 분리 → 표·타 시리즈와 비교 불가한 '이상한 그래프').
+    # 전 addplot 을 명시적으로 좌축 단일 스케일에 고정한다.
+    ap=[mpf.make_addplot(bbu,color="#3b82f6",width=0.7,secondary_y=False),mpf.make_addplot(bbd,color="#10b981",width=0.7,secondary_y=False),
+        mpf.make_addplot(r,panel=2,color="#d97706",width=0.9,ylabel="RSI",secondary_y=False),
+        mpf.make_addplot(pd.Series(70,index=df.index),panel=2,color="#cbd5e1",width=0.5,secondary_y=False),
+        mpf.make_addplot(pd.Series(30,index=df.index),panel=2,color="#cbd5e1",width=0.5,secondary_y=False),
+        mpf.make_addplot(cF,panel=3,color="#dc2626",width=1.1,ylabel="누적순매수(조)",secondary_y=False),
+        mpf.make_addplot(cI,panel=3,color="#2563eb",width=1.1,secondary_y=False),
+        mpf.make_addplot(cP,panel=3,color="#059669",width=1.1,secondary_y=False)]
     # (2026-08-02) 5번째 패널 — 프로그램 차익/비차익 순매수(억원/일, 같은 X축·거래일 정렬)
     pr=(6,1.2,1.4,2.0); hasprg=False
     if prg and prg.get("t"):
@@ -101,9 +105,11 @@ def candle(df, flows, out, title, prg=None):
             pn=pd.Series(pd.to_numeric(pd.Series(prg["nonarb"]),errors="coerce").values,index=pt)
             pa=pa[~pa.index.duplicated()].reindex(df.index); pn=pn[~pn.index.duplicated()].reindex(df.index)
             if pa.notna().sum()>=10:
-                ap+=[mpf.make_addplot(pa,panel=4,color="#e08e3c",width=0.9,ylabel="프로그램(억)"),
-                     mpf.make_addplot(pn,panel=4,color="#1f6feb",width=0.9),
-                     mpf.make_addplot(pd.Series(0.0,index=df.index),panel=4,color="#cbd5e1",width=0.5)]
+                # 차익(수백~수천억)과 비차익(수천억~수조)을 같은 좌축에 그린다(secondary_y=False) —
+                # 트윈축 분리 시 두 선이 비슷한 진폭으로 보여 규모 차이를 오독하게 만들던 결함 수정(2026-08-30).
+                ap+=[mpf.make_addplot(pa,panel=4,color="#e08e3c",width=0.9,ylabel="프로그램(억)",secondary_y=False),
+                     mpf.make_addplot(pn,panel=4,color="#1f6feb",width=0.9,secondary_y=False),
+                     mpf.make_addplot(pd.Series(0.0,index=df.index),panel=4,color="#cbd5e1",width=0.5,secondary_y=False)]
                 pr=(6,1.2,1.4,2.0,1.8); hasprg=True
         except Exception as e: print("프로그램 패널 생략:",repr(e))
     fig,axes=mpf.plot(df,type="candle",style=style,mav=(5,20,60,120),volume=True,addplot=ap,
