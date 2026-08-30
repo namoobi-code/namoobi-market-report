@@ -117,6 +117,7 @@ Phase 1 시작 시 아래도 함께 curl 로 `$WORK/server_<name>.json` 캐시�
 - `ib_insights`: IB 5사 관련 최신 보도 풀(**24시간 이내만 보유**) — GlobalSecurities 1차 소스, 풀이 비면(주말 등) 기존 웹서치.
 - `rebalance_news`: 지수변경 헤드라인 모니터 — **change_marker 가 직전 실행과 동일하면 IndexRebalanceAgent 미발행·DB 재사용**, 변동시에만 발행.
 - news_pool `AI 산업` 토픽(**24시간 보존**): NewsBerk ai_trends 는 이 풀에서 선별 우선.
+- **(v3.97) `moat` + `moat_llm`**: 해자워치 신호(서버 fetch_moat.py 매일 06:30) + 직전 AI 점검 — **[부록I] 렌더**(build_report.js 가 `$WORK/server_moat.json`·`server_moat_llm.json` 을 직접 읽음, 없으면 부록I 자동 생략) 및 Phase 3.6 점검 대상 추출에 사용.
 
 ### (2026-07-19) 증권사 대표 리포트 링크 — 출처 URL 필수
 `securities.firm[*].key_reports[]` 의 각 항목은 **반드시 `url` 을 채운다**:

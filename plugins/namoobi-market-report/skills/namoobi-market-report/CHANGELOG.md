@@ -1,5 +1,14 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v3.97.0 (plugin 1.51.0, 2026-08-30) — 해자워치 Phase3: 전환 감지 · [부록I] 보고서 편입 · TradingAgents 연계
+
+- **판정 전환 감지**: fetch_moat 가 verdict 이력을 moat_hist 에 누적 — 전일 대비 전환(vd_prev)·유지일수(vd_days) 산출,
+  홈피에 '⚡ 오늘의 전환' 배너 + 카드 배지 D+n 표시.
+- **[부록I] 해자 워치** 신설(목차 포함): build_report.js 가 $WORK/server_moat(.llm).json 을 직접 읽어
+  신호(🟢·🔴) 종목만 표로 렌더(시장·낙폭·RSI·선행지표·AI 점검) — 캐시 없으면 자동 생략(비차단).
+  SKILL Phase 1 캐시 목록에 moat·moat_llm 추가. sample+실서버 데이터 빌드로 렌더 실측.
+- **TradingAgents 연계**: 리스크 심사(Phase 2)에서 해자워치 판정을 참고 근거로 사용(🟢 가점 / 🔴 감점·반려 인용).
+
 ## v3.96.0 (plugin 1.50.0, 2026-08-30) — Phase 3.6 해자워치 AI 점검 신설
 
 - 홈피 🏰 해자워치의 "선행지표 미연결·수동 확인 대상"을 보고서 실행이 대신 점검한다(사용자 제안).
