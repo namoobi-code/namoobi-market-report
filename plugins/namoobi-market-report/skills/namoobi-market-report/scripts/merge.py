@@ -43,6 +43,7 @@ m7o = L('nmr_m7.json')  # (v3.46) 3.1.7 미국 빅테크(M7) 실적전망 라이
 dpv = L('nmr_deriv_positioning.json')  # (v3.47) 3.1.13 파생 포지셔닝 라이브(있으면 내장 스냅샷 대체)
 krl = L('nmr_krliq_summary.json')  # (v3.64) 3.1.14 국내 유동성·레버리지 (fetch_krliq→gen_krliq_charts, 서버 1일 3회 수집분)
 vps = L('nmr_veps.json')  # (v3.72) 3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 (gen_veps_charts.py — 서버 DB API 4종)
+dbt = L('nmr_debt.json')  # (v3.75) 3.1.8 하위블록 조달구조 (gen_debt_charts.py — 서버 db/bigtech_debt · SEC EDGAR XBRL)
 
 def san(s): return str(s).replace('/', '_').replace(' ', '_')
 
@@ -75,6 +76,7 @@ if isinstance(m7o, dict) and m7o.get('rows'): m['m7_outlook'] = m7o  # 3.1.7 라
 if isinstance(dpv, dict) and (dpv.get('rows') or dpv.get('index')): m['deriv_positioning'] = dpv  # 3.1.13 라이브 오버라이드
 if isinstance(krl, dict) and krl.get('as_of'): m['kr_liquidity'] = krl  # 3.1.14 (없으면 섹션 비차단 생략)
 if isinstance(vps, dict) and vps.get('margin'): m['veps'] = vps  # 3.1.15 (없으면 섹션 비차단 생략)
+if isinstance(dbt, dict) and dbt.get('last'): m['bigtech_debt'] = dbt  # 3.1.8 하위블록 (없으면 블록 비차단 생략)
 # (fix 2026-07-09) deriv 캐리포워드: 라이브가 특정 열(예: KOSPI200)의 z/값 산출에 실패하면 null·'-'·'—' 로 새는데,
 # 직전 정상 report_data 의 같은 지표·같은 열 셀에서 z(및 빈 v)를 가져와 채운다(다른 캐리포워드와 동일 철학).
 def _deriv_carry(cur):

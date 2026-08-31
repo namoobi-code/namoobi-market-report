@@ -730,7 +730,67 @@ function renderCapex(){ const m=data.markets||{};
       let anyC=false;
       caps.forEach(([f,cap])=>{ const im=imagePara(f,660,248); if(im){ children.push(im); children.push(p(cap+" — 자료: 각사 SEC/FMP, AI Research",{size:15,color:"94A3B8"})); anyC=true; } });
       if(!anyC){ const c1=imagePara("charts/capex_stack_ratio.png",660,289); if(c1)children.push(c1); } }
-    children.push(p("")); } }
+    children.push(p("")); }
+  renderCapexFunding(); }   // (v3.75) 3.1.8 하위블록 — 조달 구조
+
+// (v3.75 2026-08-31) 3.1.8 하위블록 「조달 구조 — 회사채·부채 추이」
+// CAPEX 가 '얼마 쓰나'라면 여기는 '그 돈을 어디서 구하나'. 핵심 = 증분부채÷CAPEX.
+// 데이터=서버 db/bigtech_debt(SEC EDGAR XBRL 실측·매일 06:45) → gen_debt_charts.py → m.bigtech_debt.
+// 데이터 없으면 블록 통째로 생략(3.1.8 본문 비차단).
+function renderCapexFunding(){ const f=(data.markets||{}).bigtech_debt;
+  if(!f||!f.last) return;
+  const L=f.last, P=f.prev||{}, n=(v)=>(v==null?"-":Number(v).toLocaleString());
+  children.push(p("■ 조달 구조 — 회사채·부채 추이",{bold:true,color:"1E40AF",before:160,size:22}));
+  children.push(p("의미: 하이퍼스케일러 5사(MS·아마존·알파벳·메타·오라클)는 최근 데이터센터 투자를 자기 현금이 아니라 빚으로 조달하기 시작했다. 한 줄 지표는 '증분부채 ÷ CAPEX' — 1년 새 늘어난 차입금이 같은 기간 설비투자의 몇 %인가(100%면 전액 차입).",{italics:true,color:"64748B"}));
+  children.push(p("시장영향: 이 비율 상승 = 투자등급 회사채 공급 증가 → 가산금리·금리 상방 압력, 등급 하향 시 조달비용 상승이 CAPEX 계획 자체를 압박한다(3.1.15 HY 스프레드·3.1.9 메모리 사이클과 한 줄로 연결).",{italics:true,color:"64748B"}));
+  const hot=(L.dd_capex!=null&&L.dd_capex>=30);
+  children.push(p(`${L.d} 기준 — 5사 합산 총부채 ${n(L.debt)}십억$ · LTM 회사채 발행 ${n(L.issue_ltm)}십억$ · 증분부채÷CAPEX ${L.dd_capex==null?"-":L.dd_capex+"%"} (1년 전 ${P.d||"-"} ${P.dd_capex==null?"-":P.dd_capex+"%"})`,
+    {bold:true,size:20,color:hot?"DC2626":"0F172A"}));
+  // ① 기업별 최신 분기 표
+  { const w=[1900,1100,1100,1200,1200,1250,1300];
+    const rows=[hdrRow(["기업 (십억 $)","총부채","현금성자산","순부채","발행액(LTM)","증분부채÷CAPEX","순부채/EBITDA"],w)];
+    (f.rows||[]).forEach((r,i)=>{ const s=r.last||{}; const a=i%2===1;
+      const lev=s.nd_ebitda;
+      rows.push(new TableRow({children:[
+        cell((r.name||r.sym)+" ("+(s.d||"")+")",{width:w[0],alt:a,bold:true}),
+        cell(n(s.debt),{width:w[1],alt:a,align:AlignmentType.CENTER}),
+        cell(n(s.cash),{width:w[2],alt:a,align:AlignmentType.CENTER,size:16,color:"475569"}),
+        cell(n(s.net)+(s.net<0?" (순현금)":""),{width:w[3],alt:a,align:AlignmentType.CENTER,color:(s.net>0?"DC2626":"166534")}),
+        cell(n(s.issue_ltm),{width:w[4],alt:a,align:AlignmentType.CENTER}),
+        cell(s.dd_capex==null?"-":s.dd_capex+"%",{width:w[5],alt:a,align:AlignmentType.CENTER,bold:true,color:(s.dd_capex>=30?"DC2626":"0F172A")}),
+        cell(lev==null?"-":lev.toFixed(2)+"x",{width:w[6],alt:a,align:AlignmentType.CENTER,bold:(lev!=null&&lev>=2),color:(lev!=null&&lev>=2)?"DC2626":"0F172A"})]}));});
+    children.push(makeTable(w,rows));
+    children.push(p("순부채 음수 = 현금이 차입금보다 많음(순현금). 순부채/EBITDA 는 통상 1.0~1.5x 초과 시 등급 압박 구간. 금융리스는 제외한 차입금 기준이라 리스를 포함하는 외부 집계보다 낮게 나온다.",{size:13,color:"94A3B8"})); }
+  // ② 발행 딜 타임라인
+  { const ds=(f.deals||[]).slice(-8).reverse();
+    if(ds.length){ children.push(p("· 발행 딜 타임라인 (최근 순)",{bold:true,size:18,before:110,color:"334155"}));
+      ds.forEach(d=>children.push(p(`  ${d.d}  ${d.co}  ${d.amt!=null?d.amt+"십억$":"-"}  — ${d.note||""}`,{size:15,color:"475569"})));
+      children.push(p("청약배수(오버서브스크립션)가 낮아지면 같은 금액을 더 비싸게 조달한다는 뜻 — 수요 둔화의 조기 신호.",{size:13,color:"94A3B8"})); } }
+  // ③ 신용 경고등
+  { const rt=f.ratings||[];
+    if(rt.length){ const w=[400,1900,1100,1500,4150];
+      const rows=[hdrRow(["","기업","S&P","무디스","비고"],w)];
+      rt.forEach((r,i)=>{ const a=i%2===1; const warn=(r.flag==="warn");
+        rows.push(new TableRow({children:[
+          cell(warn?"[!]":"OK",{width:w[0],alt:a,align:AlignmentType.CENTER,bold:true,color:warn?"DC2626":"166534"}),
+          cell(r.co||"-",{width:w[1],alt:a,bold:true}),
+          cell(r.sp||"-",{width:w[2],alt:a,align:AlignmentType.CENTER,bold:true,color:warn?"DC2626":"0F172A"}),
+          cell(r.moody||"-",{width:w[3],alt:a,align:AlignmentType.CENTER,size:16}),
+          cell(r.note||"",{width:w[4],alt:a,size:15,color:"475569"})]}));});
+      children.push(p("· 신용 경고등",{bold:true,size:18,before:110,color:"334155"}));
+      children.push(makeTable(w,rows)); } }
+  // ④ 차트 2장
+  (f.charts||["charts/debt_1.png","charts/debt_2.png"]).forEach((c,i)=>{ const im=imagePara(c,660,i===0?250:236);
+    if(im){ children.push(im);
+      children.push(p(i===0?"총부채(막대)와 증분부채÷CAPEX(선) — 선이 위로 꺾이는 지점이 '현금 조달 → 차입 조달' 전환점. 자료: SEC EDGAR XBRL"
+                          :"기업별 최근 12개월 회사채 발행액 — 누가 먼저·얼마나 크게 빚을 내는가. 자료: SEC EDGAR XBRL",
+        {size:15,color:"94A3B8"})); }});
+  const b=f.bench||{};
+  if((b.items||[]).length) children.push(p("참고 집계치(외부·금융리스 포함 기준) — "+b.items.map(x=>x.k+" "+x.v).join(" · ")+(b.src?(" [출처: "+b.src+"]"):""),{size:13,color:"64748B"}));
+  children.push(p("업데이트: 서버가 매일 06:45 SEC EDGAR XBRL(각사 10-K/10-Q 원문 태그)로 총부채·현금·발행액·상환액·CAPEX·영업이익·감가상각을 재수집하고, 발행 딜·신용등급은 보고서 실행 Phase 3.8 이 웹서치로 갱신한다(🧠). 오라클은 5월 결산이라 달력분기 축에서 직전 관측이 이월된다. 기준 "+(f.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
+  children.push(fsLink("SEC EDGAR XBRL Frames/Company Concept API (원문 태그)","https://www.sec.gov/edgar/sec-api-documentation"));
+  if(b.url) children.push(fsLink("참고 — "+(b.src||"외부 집계"),b.url));
+  children.push(p("")); }
 // (v3.12.0) HY 스프레드 — 3.1.1 금리·통화정책에 통합(하위 블록).
 function renderHY(){ const m=data.markets||{};
   if(m.hy_spread){ const c=m.hy_spread; children.push(p("■ 하이일드(HY) 스프레드",{bold:true,color:"1E40AF",before:140,size:22}));
