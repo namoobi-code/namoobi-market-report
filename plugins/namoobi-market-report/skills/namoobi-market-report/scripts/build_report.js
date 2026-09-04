@@ -964,7 +964,7 @@ if (data.analysis && data.analysis.summary) {
 }
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("목   차",1));
-["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)","[부록E] 피지컬 AI 밸류체인 (글로벌 개별종목)","[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)","[부록G] 7대 국가전략분야 밸류체인 (글로벌 개별종목)","[부록H] 7대 국가전략분야 밸류체인 관계도 (해자 지도)","[부록I] 해자 워치 (독점기업 빠짐·저평가 신호)"].forEach(t=>children.push(p(t,{size:22,after:40})));
+["1. 글로벌 Top News 10","2. 글로벌 주요 이벤트 캘린더","3. 글로벌 증시 단·중·장기 추세 (매크로 지표 포함)","4. 원자재 (에너지·금속·희토류·농산물)","5. 주요 환율 (+달러인덱스)","6. 암호화폐","7. 한국 주요 증권사","8. 글로벌 IB (UBS·GS·JPM·MS·BlackRock)","9. 종합 분석","10. 자산별 견해","11. 추천 포트폴리오","12. 액션 아이템","13. 주의 사항 및 출처","[부록A] 워런 버핏 · 버크셔 13F","[부록B] 최신 AI Trends","[부록C] AI 반도체 밸류체인 (글로벌 개별종목)","[부록D] AI 반도체 밸류체인 관계도 (해자 지도)","[부록E] 피지컬 AI 밸류체인 (글로벌 개별종목)","[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)","[부록G] 7대 국가전략분야 밸류체인 (글로벌 개별종목)","[부록H] 7대 국가전략분야 밸류체인 관계도 (해자 지도)","[부록I] 해자 워치 (독점기업 빠짐·저평가 신호)","[부록J] 해자 '유형' 매트릭스 (어떻게 무너지는가·규제 워치)"].forEach(t=>children.push(p(t,{size:22,after:40})));
 
 children.push(new Paragraph({children:[new PageBreak()]}));
 children.push(h("1. 글로벌 Top News 10",1));
@@ -1982,22 +1982,57 @@ function renderMoatWatch(){ try{
   if(!fs.existsSync('server_moat.json'))return;
   const M=JSON.parse(fs.readFileSync('server_moat.json','utf-8'));
   let LLM={}; try{ const L=JSON.parse(fs.readFileSync('server_moat_llm.json','utf-8')); (L.checks||[]).forEach(c=>LLM[c.sym]=c); }catch(e){}
-  const rows=(M.rows||[]).filter(r=>r.verdict==='buy'||r.verdict==='buy_m'||r.verdict==='risk');
+  const rows=(M.rows||[]).filter(r=>r.verdict==='buy'||r.verdict==='buy_z'||r.verdict==='buy_m'||r.verdict==='risk');
   if(!rows.length)return;
-  const VN={buy:"🟢 일시적 빠짐 후보",buy_m:"🟢 빠짐 후보(수동확인)",risk:"🔴 선행지표 동반 악화"};
+  const VN={buy:"🟢 일시적 빠짐 후보",buy_z:"🟢~ 빠짐 후보(선행지표 중립)",buy_m:"🟢 빠짐 후보(수동확인)",risk:"🔴 선행지표 동반 악화"};
+  const MT=M.moat_types||{}; const MTN=r=>(r.mtype||[]).map(k=>(MT[k]||{}).name||k).join("·")||"-";
   const MK=s=>/\.KS$|\.KQ$/.test(s)?"한국":/\.T$/.test(s)?"일본":/\.SS$|\.SZ$/.test(s)?"중국":/\.HK$/.test(s)?"홍콩":/\.L$/.test(s)?"영국":/\.AX$/.test(s)?"호주":/\.DE$/.test(s)?"독일":"미국";
   rows.sort((a,b)=>(a.verdict>b.verdict?1:-1)||((a.dd||0)-(b.dd||0)));
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록I] 해자 워치 — 독점기업 빠짐·저평가 신호",1));
   children.push(p("해자지도([부록D·F·H])의 독점·준독점(파란 배지) 상장 "+(M.rows||[]).length+"종을 매일 3층 신호로 점검해(가격 낙폭·RSI → 해자 선행지표 방향 → 신호등 판정) '일시적 빠짐 후보'와 '이유 있는 하락'을 구분한다. 아래는 오늘 신호가 켜진 종목만("+rows.length+"종). 판정은 검토 후보 알림이지 매수 신호가 아니며, 가치함정은 가격 신호로 걸러지지 않는다 — 실시간 전체 카드·해석 가이드는 홈피 🏰 해자워치 탭.",{italics:true,color:"64748B"}));
-  simpleTable([1500,850,950,800,2600,1650,2810],["종목","시장","52주고점比","RSI","해자 선행지표 (3개월)","판정","🧠 AI 점검"],
+  simpleTable([1400,700,1500,800,750,2350,1550,2110],["종목","시장","해자 유형","52주고점比","RSI","해자 선행지표 (3개월)","판정","🧠 AI 점검"],
     rows.map(r=>{const L=LLM[r.sym];
-      return [r.name,MK(r.sym),(r.dd!=null?r.dd.toFixed(1)+"%":"-"),(r.rsi!=null?String(r.rsi):"-"),
+      return [r.name,MK(r.sym),MTN(r),(r.dd!=null?r.dd.toFixed(1)+"%":"-"),(r.rsi!=null?String(r.rsi):"-"),
         (r.lead?(r.lead.name+" "+(r.lead.m3!=null?(r.lead.m3>0?"+":"")+r.lead.m3.toFixed(1)+"%":"-")):"미연결"),
         VN[r.verdict]||r.verdict,
-        (L?(L.verdict_llm+" — "+(L.note||"")):"-")];}),{left:[0,4,6]});
+        (L?(L.verdict_llm+" — "+(L.note||"")):"-")];}),{left:[0,2,5,7]});
   children.push(p("읽는 법: 🟢 = 낙폭 ≤ -20%·RSI<50 인데 해자 선행지표(우라늄 실물·관세청 수출·업황 대리 등)는 견조 — 해자가 무사하다는 방증 속의 큰 낙폭. 🔴 = 선행지표도 함께 꺾임 — 업황·구조적 이유 의심. 🧠 AI 점검은 보고서 실행 시 해당 종목의 최근 2주 해자 훼손 뉴스를 웹서치로 확인한 판정(유지/주의/훼손 의심).",{size:18,color:"64748B"}));
   if(M.as_of)children.push(p("기준: "+M.as_of+" · 산출: 서버 fetch_moat.py(매일 06:30) · 유니버스: 해자지도 B1 배지 상장 전수",{size:16,color:"94A3B8"}));
+}catch(e){} }
+
+// (v4.02 2026-09-04) [부록J] 해자 '유형' 매트릭스 — 모닝스타 5분류 × 7대 분야
+//   강도(B1/B2)만 보던 해자지도에 '어떻게 무너지는가' 축을 더한다. 유형별 취약 경로가 곧 감시 대상이다.
+//   데이터는 해자워치와 같은 태그(server_moat.json 의 mtype)라 화면·보고서가 항상 일치한다.
+function renderMoatTypes(){ try{
+  if(!fs.existsSync('server_moat.json'))return;
+  const M=JSON.parse(fs.readFileSync('server_moat.json','utf-8'));
+  const rows=M.rows||[], MT=M.moat_types||{};
+  const keys=Object.keys(MT); if(!rows.length||!keys.length)return;
+  children.push(new Paragraph({children:[new PageBreak()]}));
+  children.push(h("[부록J] 해자 '유형' 매트릭스 — 어떻게 무너지는가",1));
+  children.push(p("해자지도의 배지(독점·준독점)가 해자의 '강도'라면, 이 부록은 '유형'을 본다. 모닝스타 5분류(무형자산·전환비용·네트워크효과·원가우위·효율적 규모)로 "+rows.length+"종을 태깅했다. 유형을 알면 무엇을 감시해야 하는지가 정해진다 — 원가우위는 경쟁사 증설로 가장 빨리 깨지고, 전환비용은 거의 안 깨지며, 네트워크효과는 오래 버티다 임계점에서 한 번에 무너진다(노키아형). 무형자산(특허)은 만료일이 정해져 있어 시한이 있다. 노보노디스크를 유니버스에서 제외한 것도 무형자산형 해자가 대체 기술(릴리 효능 우위)에 뚫린 사례였다.",{italics:true,color:"64748B"}));
+  // ① 유형별 정의·취약 경로
+  simpleTable([1900,1100,9060],["유형","종목 수","무너지는 방식 (= 감시 대상)"],
+    keys.map(k=>[MT[k].name,String(rows.filter(r=>(r.mtype||[]).indexOf(k)>=0).length)+"종",MT[k].risk]),{left:[0,2]});
+  children.push(p(""));
+  // ② 유형 × 분야 매트릭스
+  const secs=[]; rows.forEach(r=>{ if(r.sec&&secs.indexOf(r.sec)<0)secs.push(r.sec); });
+  const w=[1500].concat(secs.map(()=>Math.floor(10560/Math.max(1,secs.length))));
+  children.push(p("■ 유형 × 분야 — 어느 칸에 몰려 있나",{bold:true,color:"1E40AF",before:120,size:21}));
+  simpleTable(w,["유형"].concat(secs),
+    keys.map(k=>[MT[k].name].concat(secs.map(sc=>
+      rows.filter(r=>r.sec===sc&&(r.mtype||[]).indexOf(k)>=0).map(r=>r.name).join(", ")||"—"))),{left:Array.from({length:secs.length+1},(_,i)=>i)});
+  children.push(p("주된 유형이 앞에 오도록 복수 태깅했으므로 한 종목이 여러 칸에 나타날 수 있다. 칸이 비어 있다는 건 그 분야에 해당 유형의 해자가 없다는 뜻 — 예컨대 네트워크효과는 소수 분야에만 존재한다.",{size:17,color:"94A3B8"}));
+  // ③ 규제 워치 — 해자가 강해서 생기는 리스크
+  const reg=rows.filter(r=>r.reg);
+  if(reg.length){
+    children.push(p("■ ⚖️ 규제 워치 — 해자가 강해서 생기는 리스크",{bold:true,color:"B91C1C",before:160,size:21}));
+    children.push(p("시장지배력이 강할수록 반독점·수출통제의 표적이 된다. 해자 자체가 소송 사유가 되는 구조라, 강도가 셀수록 이 리스크는 커진다(역상관).",{italics:true,color:"64748B"}));
+    simpleTable([1600,1300,9160],["종목","분야","규제 리스크"],
+      reg.map(r=>[r.name,r.sec||"-",r.reg]),{left:[0,2]});
+  }
+  if(M.as_of)children.push(p("기준: "+M.as_of+" · 태깅 정본: 서버 fetch_moat.py MOAT_TYPES/REGULATORY(홈피 🏰 해자워치 탭과 동일 데이터)",{size:16,color:"94A3B8"}));
 }catch(e){} }
 renderBerkshire();
 renderAITrends();
@@ -2008,6 +2043,7 @@ renderAppendixF();  // (v3.72) [부록F] 피지컬 AI 밸류체인 관계도(해
 renderAppendixG();  // (v3.95) [부록G] 7대 국가전략분야 밸류체인 (글로벌 개별종목)
 renderAppendixH();  // (v3.85→v3.95 재명명) [부록H] 7대 국가전략분야 밸류체인 관계도(해자 지도)
 renderMoatWatch();  // (v3.97) [부록I] 해자 워치 — $WORK/server_moat(.llm).json 캐시 없으면 자동 생략(비차단)
+renderMoatTypes(); // (v4.02) [부록J] 해자 유형 매트릭스 — 캐시 없으면 자동 생략(비차단)
 if(__cut31>=0)children.length=__cut31;
 const doc=new Document({ ...(embedFontData?{fonts:[{name:FONT,data:embedFontData}]}:{}),
   styles:{ default:{document:{run:{font:FONT,size:22}}},
