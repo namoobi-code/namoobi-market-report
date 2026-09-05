@@ -69,7 +69,14 @@ SECTIONS = [
   ("AMKR","Amkor","과점",B2,"글로벌 OSAT 2위 — 첨단 패키징 외주 수혜"),
   ("유리기판 (차세대)","","양산 전",B2,"열 변형·미세회로 한계 돌파 후보 — 삼성전기×스미토모화학·SKC 앱솔릭스 시제품 단계, 승자 미정"),
  ]),
- ("6. 전력 · 인프라 — 데이터센터를 돌리는 힘", "칩보다 전기가 부족한 시대", [
+ ("6. 광통신 · CPO — 서버와 서버를 잇는 길", "GPU 연산 속도를 전송이 못 따라가는 구간", [
+  ("COHR","Coherent","선두",B2,"800G/1.6T 광트랜시버 최대 공급자 — 전송 병목의 실물"),
+  ("LITE","Lumentum",None,None,"광모듈·레이저 — 하이퍼스케일러 직납, 수주 급증"),
+  ("FN","Fabrinet",None,None,"광모듈 위탁생산 1위 — 엔비디아·시스코 물량의 제조처"),
+  ("5803","후지쿠라",None,None,"데이터센터 광케이블·커넥터 — AI 배선 일본 대장"),
+  ("138080","오이솔루션",None,None,"국내 유일 광트랜시버 양산 — 한국 연결고리"),
+ ]),
+ ("7. 전력 · 인프라 — 데이터센터를 돌리는 힘", "칩보다 전기가 부족한 시대", [
   ("VRT","Vertiv","핵심",B1,"전력·액체냉각·UPS 토탈 — 데이터센터 순수 수혜주"),
   ("ETN","Eaton",None,None,"배전·전력관리 글로벌 대표 — 수주잔고 해자"),
   ("GEV","GE Vernova",None,None,"가스터빈 공급부족 — 수년치 주문 선점"),
@@ -90,6 +97,7 @@ ARROWS = [
  "설계도 → 위탁생산 (장비·소재 없이는 공장이 못 돈다)",
  "장비·소재 공급",
  "칩 완성 → 적층·패키징·테스트 (한국 기업 밀집 구간)",
+ "서버 조립 → 서버 간 전송이 병목 (연산이 빨라질수록 배선이 밀린다)",
  "AI 서버 가동 → 전력 수요 폭증 (새로운 병목)",
 ]
 CYCLE = "⟳ 완성된 AI 데이터센터 → 다시 1번 빅테크의 매출 → CAPEX 재투자 사이클"
@@ -134,18 +142,27 @@ def arrow(i):
 LEGEND = ('<div class="leg"><span class="b1">독점·준독점</span> 대체재가 사실상 없음'
           '&nbsp;&nbsp;&nbsp;<span class="b2">과점·복점·양강</span> 2~3개사가 시장 분할</div>')
 
-PARTS = [
-    LEGEND + section(0) + arrow(0) + section(1),
-    section(2) + arrow(2) + section(3),
-    section(4) + arrow(4) + section(5) + f'<div class="cyc">{CYCLE}</div>',
-]
-# 부록 흐름상 파트 사이 화살표(1→2 경계는 arrow(1), 2→3 경계는 arrow(3))를 각 파트 말미에 부착
-PARTS[0] += arrow(1)
-PARTS[1] += arrow(3)
+# (2026-09-05 수정) 섹션 수를 하드코딩하지 않는다 — 종전 PARTS/FULL 은 6섹션·3페이지로 고정돼 있어
+#   광통신·CPO 섹션을 추가하자 마지막 '전력·인프라'가 PNG 에서 통째로 사라졌다(조용한 누락).
+#   이제 섹션 2개씩 묶어 페이지 수를 자동 산출하고, 마지막 페이지에만 CYCLE 을 붙인다.
+_N = len(SECTIONS)                       # 현재 7 (수요→설계→장비·소재→제조→후공정→광통신→전력)
+_PER = 2                                 # 페이지당 섹션 수
+PARTS = []
+for _s in range(0, _N, _PER):
+    _e = min(_s + _PER, _N)
+    _body = (LEGEND if _s == 0 else "")
+    for _i in range(_s, _e):
+        _body += section(_i)
+        if _i < _N - 1:                  # 마지막 섹션 뒤엔 화살표 대신 CYCLE
+            _body += arrow(_i)
+    if _e >= _N:
+        _body += f'<div class="cyc">{CYCLE}</div>'
+    PARTS.append(_body)
 
 FULL = LEGEND + "".join(
-    section(i) + (arrow(i) if i < 5 else f'<div class="cyc">{CYCLE}</div>')
-    for i in range(6))
+    section(i) + (arrow(i) if i < _N - 1 else f'<div class="cyc">{CYCLE}</div>')
+    for i in range(_N))
+assert len(ARROWS) >= _N - 1, f"ARROWS({len(ARROWS)}) < 섹션수-1({_N-1}) — 섹션 추가 시 ARROWS 도 함께 늘려야 한다"
 
 def html_doc(body):
     return f'<html><head><meta charset="utf-8"><style>{CSS}</style></head><body>{body}</body></html>'

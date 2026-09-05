@@ -809,7 +809,7 @@ function renderHY(){ const m=data.markets||{};
 function renderUSExtras(){ renderUSEtfs(); renderIndexRebalance(); }
 // (v3.6.8) 3.2.2 주요 미국 ETF — 지수추종·11개 섹터·테마/특화·방어형. 데이터(markets.us_etfs) 없으면 자동 생략.
 function renderUSEtfs(){ const e=data.markets&&data.markets.us_etfs; if(!e||typeof e!=="object")return;
-  const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["defensive","④ 방어형 ETF (변동성 완화)"]];
+  const groups=[["index","① 미국 대표 지수 추종 ETF (시장 전체 흐름)"],["sector","② 섹터별 ETF (11개 S&P 500 섹터)"],["theme","③ 테마·특화 ETF (AI·반도체·배당·우주)"],["aitheme","④ AI 세부 테마 ETF (병목별 — 클라우드·데이터센터·광통신·전력·소프트웨어·보안·생성AI)"],["defensive","⑤ 방어형 ETF (변동성 완화)"]];
   if(!groups.some(([k])=>Array.isArray(e[k])&&e[k].length))return;
   children.push(h("3.3.1 주요 미국 ETF (지수·섹터·테마·방어형)",3));
   children.push(p("미국 대표 지수 추종·11개 S&P 500 섹터·테마/특화·방어형 ETF 의 현재가와 1주~1년 수익률, 1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률로, 분배금이 큰 ETF(SCHD·JEPI·채권형 등)는 실제 총수익률이 더 높을 수 있다. 섹터 ETF 옆 [%]는 S&P 500 내 비중.",{italics:true,color:"64748B"}));
@@ -1855,7 +1855,9 @@ function renderAppendixD(){ try{
     try{ if(!fs.existsSync('charts'))fs.mkdirSync('charts'); fs.writeFileSync(rel,b); }catch(e){ return null; }
     return {rel:rel,buf:b};
   }
-  const imgs=[1,2,3].map(loadOne);
+  // (v4.04 2026-09-05) 장수를 고정하지 않는다 — 종전 [1,2,3] 고정이라 생성기가 4장을 뽑아도 4번째가 조용히 빠졌다.
+  //   존재하는 것만 순서대로 싣고, 처음 없는 번호에서 멈춘다(최대 8장).
+  const imgs=[]; for(let i=1;i<=8;i++){ const o=loadOne(i); if(!o)break; imgs.push(o); }
   if(!imgs.some(Boolean))return;
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록D] AI 반도체 밸류체인 관계도 (해자 지도)",1));

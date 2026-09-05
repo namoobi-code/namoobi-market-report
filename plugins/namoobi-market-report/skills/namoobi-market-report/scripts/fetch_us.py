@@ -131,6 +131,27 @@ ETF = {
  'NASA':('theme','Tema Space Innovators','우주항공',None),'ICLN':('theme','iShares Global Clean Energy','클린에너지',None),
  'ROBO':('theme','ROBO Global Robotics','로보틱스·자동화',None),'AIQ':('theme','Global X AI & Tech','AI·기술 전반',None),
  'MAGS':('theme','Roundhill Magnificent 7','매그니피센트7 동일가중',None),
+ # ── (v4.04 2026-09-05) AI 세부 테마 — 한경MONEY 2026.08 'ETF 심층해부' AI ETF 맵 반영 ──
+ #   배경: 기존 30종은 index·sector·theme·defensive 구조라 'AI 하드웨어 4대 병목(연산→메모리→광통신→전력)'과
+ #   'AI 소프트웨어 4단계(파운데이션→데이터/RAG→보안→에이전트)' 계층이 통째로 비어 있었다.
+ #   기사 AI ETF 맵 40종 중 우리 보유는 11종뿐(QQQ·XLK·MAGS·SMH·SOXX·DRAM·XLU·NLR·AIQ·ROBO·QTUM)이었다.
+ #   반도체 대표(SOXX·SMH)·시장대표(QQQ·XLK)와 중복되는 티커(XSD·PSI·FTXL·SOXQ·VGT·IYW·FTEC·IXN·IGM·IHAK·CLOU·BAI)는 제외.
+ #   ⚠ 광통신 3종은 2026년 신규 상장이라 시계열이 1~2개월뿐 — 1년·6개월 칸은 '-' 로 나오는 게 정상이다.
+ 'SKYY':('aitheme','First Trust Cloud Computing','클라우드 인프라 대표',None),
+ 'WCLD':('aitheme','WisdomTree Cloud Computing','순수 SaaS·구독형',None),
+ 'DTCR':('aitheme','Global X Data Center & Digital Infra','데이터센터·디지털 인프라',None),
+ 'TRFK':('aitheme','Pacer Data and Digital Revolution','데이터 트래픽·전송',None),
+ 'LUMA':('aitheme','KraneShares Photonic and Optical','광통신·포토닉스 (2026 신규상장)',None),
+ 'LYTE':('aitheme','Roundhill Photonics & Optics','실리콘 포토닉스·CPO (2026 신규상장)',None),
+ 'GRID':('aitheme','First Trust Clean Edge Smart Grid','전력망·스마트그리드 인프라',None),
+ 'AIPO':('aitheme','Defiance AI & Power Infrastructure','AI 전력 인프라',None),
+ 'CHPX':('aitheme','Global X AI Semiconductor & Quantum','AI 반도체·양자 특화',None),
+ 'IGV':('aitheme','iShares Expanded Tech-Software','AI 소프트웨어 대표',None),
+ 'CIBR':('aitheme','First Trust NASDAQ Cybersecurity','사이버보안 대표',None),
+ 'HACK':('aitheme','Amplify Cybersecurity','사이버보안 (보안+네트워크 병행)',None),
+ 'BUG':('aitheme','Global X Cybersecurity','사이버보안 (중소형 편중)',None),
+ 'CHAT':('aitheme','Roundhill Generative AI & Technology','생성 AI',None),
+ 'IGPT':('aitheme','Invesco AI and Next Gen Software','AI·차세대 소프트웨어',None),
  'GLD':('defensive','SPDR Gold','금 현물·헷지',None),'TLT':('defensive','iShares 20Y+ Treasury','미국 장기채',None),
  'IEF':('defensive','iShares 7-10Y Treasury','미국 중기채',None)}
 # (v3.7.x) 3.5.1 유럽 주요 ETF: dispSym -> (yahoo_ticker, name, desc, region). 국내상장(.KS)+미국상장 병행 —
@@ -477,7 +498,7 @@ commod = {
 json.dump(commod, open('nmr_commod.json', 'w'), ensure_ascii=False)
 
 # ===== nmr_usetf.json + nmr_etfseries.json =====
-usetf = {'index': [], 'sector': [], 'theme': [], 'defensive': [], 'comment': '', 'asof': dt.date.today().isoformat()}
+usetf = {'index': [], 'sector': [], 'theme': [], 'aitheme': [], 'defensive': [], 'comment': '', 'asof': dt.date.today().isoformat()}
 etfseries = {}
 for sym, (grp, name, desc, wt) in ETF.items():
     r = R(sym); add_day(r, sym); row = {'symbol': sym, 'name': name, 'desc': desc, **r, 'trend': trend(r)}
