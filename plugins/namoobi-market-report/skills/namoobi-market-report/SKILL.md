@@ -342,6 +342,17 @@ outputs 하위 `namoobi-market-report-server/data/report_data_YYYYMMDD.json` 으
    → Phase 5.5 sync 가 업로드, 서버 `fetch_bigtech_debt` 가 다음 실행 때 시드에 upsert(같은 날짜·회사면 교체)하고 🧠 표기.
 5. **추정 금지** — 발행액·배수는 보도 실측만. 새 딜이 없으면 이 Phase 는 통째로 생략(기존 타임라인 유지가 정답). 실패·시간 부족 시 건너뛴다(비차단).
 
+## Phase 3.9: 코인 정책·이벤트 판정 (v4.03 신설 — 비차단·조건부)
+
+홈피 🪙 코인 선행 탭(`fetch_cryptolead.py` 매일 06:55)은 **수치 지표 30여 종을 서버가 무토큰으로 수집·판정**한다(공포탐욕·김프·거래소 유출입·MVRV·코인베이스 프리미엄·IBIT·CFTC·펀딩비·Fed 순유동성·스테이블 공급 등). LLM 이 담당하는 건 **수치화가 안 되는 정책 칸**뿐이다.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/cryptolead | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['overall']);print(d['policy'].get('as_of'))"` 로 종합 판정·직전 정책 갱신일 확인.
+2. 직전 갱신일 이후의 **코인 정책 이벤트만** 웹서치(최대 2회): SEC(ETF 승인·소송·집행), 스테이블코인·시장구조 법안, FOMC 결정·점도표, 국내(가상자산법 2단계·법인 계좌·현물 ETF), 대형 해킹·거래소 사고, 국가·기업 비축(전략비축·MSTR 등).
+3. `namoobi-market-report-server/data/db/cryptolead_policy.json` 저장(직전 events 유지 + 신규 추가, 최근 20건만):
+   `{"as_of":"YYYY-MM-DD HH:MM","summary":"한 줄 총평(정책 순풍/역풍)","events":[{"date":"YYYY-MM-DD","title":"이벤트","impact":"왜 선행/후행인지 한 줄","status":"bull|neu|bear"}]}`
+   → Phase 5.5 sync 가 업로드, 서버 `fetch_cryptolead` 가 다음 실행 때 `policy` 로 동봉해 탭 하단 '정책·이벤트' 표에 표시.
+4. 보고서 6장(암호화폐)에는 `overall.text` 한 줄과 🔴/🟢 지표 이름만 인용한다(수치 재조사 금지 — 서버 DB 가 정본). 새 이벤트가 없으면 통째로 생략. 실패·시간 부족 시 건너뛴다(비차단).
+
 ## Phase 4: 보고서 생성 (docx 전용)
 
 > **최종 산출물 = docx.** soffice→PDF 변환은 이 환경에서 자주 hang/실패하므로 폐지했다. 빌더가 만든 docx 를 그대로 연결 폴더에 저장하고 메일에 첨부한다(한글 폰트는 빌더가 docx 에 임베드하므로 별도 변환 불필요).
