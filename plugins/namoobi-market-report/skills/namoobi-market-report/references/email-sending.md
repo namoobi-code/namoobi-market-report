@@ -1,5 +1,9 @@
 # 이메일 발송 가이드 (v3.69 — 1순위 서버 SMTP · 폴백 Chrome)
 
+> **★★ v4.05 (2026-09-06) 주말(토·일 KST) 미발송 — 예약·직접 실행 공통.** 주말이면 이 가이드의 어떤 경로(서버 SMTP·Chrome 초안)로도 보내지 않는다.
+> `send_mail_server.py`·서버 `send_report_mail.py` 가 docx 파일명 날짜로 판정해 `SKIP (weekend …)` exit 0 을 반환하며, 이는 **실패가 아니므로 폴백·재시도 금지**.
+> 보고서 생성·Phase 5.5 서버 동기화는 주말에도 정상 수행(대시보드 갱신). 사용자가 명시적으로 주말 발송을 지시한 경우에만 `--force`.
+
 > **★ v3.69 1순위 = 서버 SMTP 발송 (~10초 · Chrome 불필요 · 무인 예약에 최적)**
 > - 서버: `namoobi-market-report-server/scripts/send_report_mail.py` — Gmail SMTP_SSL(smtp.gmail.com:465) + **앱 비밀번호**(`keys/gmail_app_password.txt`, git 미포함) 로 namoobi@gmail.com 발신(보낸편지함에도 남음). 입력은 stdin JSON(to/bcc/subject/body/attach) — BCC 가 argv/ps 에 노출되지 않는다. `--check` 로 인증파일 존재 검사(exit 3=없음).
 > - PC(스킬): `scripts/send_mail_server.py <docx VM경로> "<제목>" <body파일> <scheduled|normal>` — 모드별 BCC 파일(// 주석 제외) 읽기 → sync 로 이미 올라간 docx 재사용(크기 대조, 없으면 scp) → ssh stdin 으로 서버 발송 → 마지막 줄 `SENT …` 확인. **exit 3 = 서버에 인증파일 미배포 → 아래 Chrome 폴백으로 진행.**

@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.59.0 · SKILL v4.04.0)
+# Namoobi Market Report (plugin v1.60.0 · SKILL v4.05.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -192,6 +192,7 @@ Phase 1 시작 시 아래도 함께 curl 로 `$WORK/server_<name>.json` 캐시�
    - **일반 모드**: 그 외 모두 (사용자가 채팅에서 직접 `/namoobi-market-report` 실행, 인자 `direct` 등).
    - 판정 결과를 메모해 두고(예: `$WORK/nmr_mode.txt` 에 `scheduled` 또는 `normal` 기록) Phase 5 에서 수신자 파일을 고른다:
      예약 → `SECURITY\예약메일수신자.txt`, 일반 → `SECURITY\메일수신자.txt`. (애매하면 **일반 모드**로 처리하고 Phase 6 에 모드를 명시한다.)
+0-0. **(v4.05 · 2026-09-06 사용자 지시) 주말 미발송 판정 — 예약/직접 공통**: `TZ=Asia/Seoul date +%u` 가 6(토)·7(일)이면 `$WORK/nmr_weekend.txt` 에 `weekend` 를 기록한다. **주말에는 보고서 생성·게이트·서버 동기화(Phase 1~5.5)는 정상 수행하되 Phase 5 메일 발송만 건너뛴다**(대시보드는 갱신, 메일은 없음). 모드(예약/일반)와 무관하며 사용자가 채팅에서 직접 실행해도 동일 — 주말에 굳이 보내려면 사용자가 명시적으로 "주말이지만 발송"을 지시한 경우에만 `send_mail_server.py … --force` 를 쓴다. 코드 게이트: `send_mail_server.py`(v3.96)·서버 `send_report_mail.py`(v3.96) 둘 다 docx 파일명 날짜(YYYYMMDD)가 토·일이면 `SKIP (weekend …)` exit 0 으로 자동 차단하므로 스킬이 깜빡해도 발송되지 않는다(2중 방어). Phase 0-1 기발송 가드는 주말에도 그대로 수행한다(중복 실행·빌드 낭비 방지).
 0-1. **(v3.82 필수) 기발송·병렬 실행 가드**: 모드 판정 직후, 서버 mail_sent.log 에서 **오늘 일자 보고서가 이미 발송됐는지** 확인한다:
    ```bash
    KEY="$(ls /sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key | head -1)"; cp "$KEY" /dev/shm/nk; chmod 600 /dev/shm/nk
@@ -420,6 +421,7 @@ echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
 ## Phase 5: 이메일 발송
 
 **`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
+- **(v4.05 · 2026-09-06 최우선) 주말(토·일 KST)에는 메일을 보내지 않는다 — 예약·직접 실행 공통.** Phase 0-0 의 `$WORK/nmr_weekend.txt` 가 `weekend` 면 Phase 5.5(sync)만 수행하고 **이 Phase 전체(서버 SMTP·Chrome 폴백 모두)를 건너뛴다**. Chrome 폴백으로 우회 발송 금지. `send_mail_server.py` 를 호출하더라도 wrapper·서버 2중 가드가 `SKIP (weekend …)` exit 0 으로 차단한다 — SKIP 은 실패가 아니므로 재시도·폴백하지 말 것. Phase 6 결과 보고 첫 줄을 "📋 글로벌 시황 보고서 생성 완료 — 주말 미발송(대시보드 갱신)" 으로 쓴다. 사용자가 그 주말에 명시적으로 "주말이지만 발송해" 라고 지시한 경우에만 `--force` 를 붙인다.
 - **(v3.69) 1순위 = 서버 SMTP 발송** — Phase 5.5 sync 를 **먼저** 수행해 docx 를 서버에 올린 뒤, `python3 "$SRC/send_mail_server.py" <docx VM경로> "<제목>" <body파일> <모드>` 1회로 발송(내부: 모드별 BCC 파일 읽기(// 제외)→ssh stdin JSON→서버 `send_report_mail.py` 가 Gmail SMTP(앱 비밀번호, keys/gmail_app_password.txt)로 발송, ~10초·Chrome 불필요·주소 argv 미노출). exit 0+"SENT"=성공. **exit 3(서버 인증파일 없음)·기타 실패 시에만** 아래 Chrome 경로로 폴백. 준비물: 사용자가 Google 계정 '앱 비밀번호'를 `SECURITY/gmail_app_password.txt` 에 1회 저장(2단계 인증 필요) — 배포는 sync_server 가 자동.
 - **(폴백 · v3.68) Chrome 초안 경유 발송**: 전면 작성창(view=cm)의 '보내기'는 조용히 무시되는 재발성 결함(3회 실측) — prefill 로 초안만 만들고 `#drafts` 에서 열어 미니 작성창에서 첨부(업로드 progressbar 소멸 폴링)·발송한다. 발송 판정은 "메시지 전송됨" 토스트 또는 보낸편지함 실측. 렌더러 프리즈 시 탭 폐기→새 탭 재개. 상세=email-sending.md.
 - (v3.69 순서 변경) **Phase 5.5(sync)를 Phase 5(발송)보다 먼저** 실행한다 — 게이트 통과본만 sync 하므로 깨진 데이터 노출 없음은 유지되고, 서버 발송이 sync 된 docx 를 그대로 첨부해 '대시보드=메일 동일 회차'도 유지된다. Chrome 폴백 시에도 순서 무관. **이 순서는 중복 발송 방지에도 필수** — docx 가 서버에 미리 있어야 발송 ssh 가 ~10초에 끝나 45초 샌드박스 벽에 잘리지 않는다.
@@ -461,10 +463,10 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 **Phase별 소요(v3.21)**: 발송 확인 후 `echo "$(date +%s) phase6_report" >> "$WORK/nmr_phase_times.txt"` 마킹 → `python3 "$SRC/nmr_timer.py" report "$WORK/nmr_phase_times.txt"` 출력을 아래 [실행 시간] 블록에 포함한다(병목 Phase 확인용).
 
 ```
-📋 글로벌 시황 보고서 발송 완료
+📋 글로벌 시황 보고서 발송 완료   ← 주말이면 "📋 글로벌 시황 보고서 생성 완료 — 주말 미발송(대시보드 갱신)" (v4.05)
 실행 모드: 예약 / 일반  (수신자 파일: 예약메일수신자.txt / 메일수신자.txt)
 생성: global_market_report_YYYYMMDD_HHMM.docx (NN KB)
-수신: namoobi@gmail.com (To) + 숨은참조 N명 (주소 비공개)
+수신: namoobi@gmail.com (To) + 숨은참조 N명 (주소 비공개)   ← 주말이면 "수신: 없음 — 토·일 미발송 규칙(v4.05), 서버 동기화만 완료"
 수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N+IB N
 검증(Phase 4.5 코드 게이트): problems N건 / warnings N건
 [실행 시간]
@@ -496,6 +498,7 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 | 연결 폴더 미연결 | **`request_cowork_directory` 호출 금지**(권한창 원인) — outputs 진행 + Phase 6 에 "연결 폴더 미연결" 명시 |
 | 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
 | 첨부 시 "only files the user has shared" | file_upload 는 `D:\claudeCowork\...docx` Windows 경로만 허용 — outputs·`/sessions/...` VM 경로는 거부. docx 를 연결 폴더에 두고 그 경로로 첨부 |
+| 주말인데 메일이 안 옴 / `SKIP (weekend …)` 출력 | 정상 — v4.05 주말(토·일 KST) 미발송 규칙(예약·직접 공통). 보고서·대시보드는 갱신됨. 주말 의도적 발송은 사용자 명시 지시 후 `send_mail_server.py … --force` |
 | 예약/일반 수신자 혼동 | Phase 0 모드 판정 결과로 결정 — 예약=예약메일수신자.txt, 일반=메일수신자.txt. 예약 작업 프롬프트에 `scheduled` 인자 전달 확인 |
 | 예약이 제시간에 실행 안 됨(PC 꺼짐) | Cowork 스케줄러가 PC/앱 재시작 시 **catch-up 자동 실행**함(8/4 실측: 06시분이 13:31 실행) — 수동 재실행 전 반드시 Phase 0-1 기발송·병렬 가드로 확인 |
 | 같은 날짜 보고서 중복 발송 | 서버 v3.72 flock 직렬화+락 후 dedup 재확인, wrapper v3.83 pre-dedup 이 재시도·병렬 호출을 차단(`SENT (dedup/pre-dedup …)`) — mail_sent.log 확인, 의도적 재발송은 서버측 `--force` 로만 |
