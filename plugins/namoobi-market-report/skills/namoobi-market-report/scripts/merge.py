@@ -938,12 +938,12 @@ if _hpts:
 _rbu = rb.get('index_rebalance') if (isinstance(rb, dict) and isinstance(rb.get('index_rebalance'), dict)) else rb
 # [v3.81 재발방지 2026-07-22] 마커 skip(nmr_rebalance.json 미생성) 회차 — 직전 report_data 자동 carry-forward.
 #   (2026-07-22 실측: 서버 change_marker=none 으로 에이전트 미발행 시 3.2.5 가 빈 dict 로 새던 문제.)
-if not (isinstance(_rbu, dict) and (_rbu.get('sp500') or _rbu.get('nasdaq100'))):
+if not (isinstance(_rbu, dict) and (_rbu.get('sp500') or _rbu.get('sp100') or _rbu.get('nasdaq100'))):
     try:
         for _irp in sorted(glob.glob(os.path.join(_CWROOT, 'report_data_*.json')), reverse=True):
             if RD in os.path.basename(_irp): continue
             _irv = (json.load(open(_irp, encoding='utf-8')).get('markets') or {}).get('index_rebalance') or {}
-            if _irv.get('sp500') or _irv.get('nasdaq100'):
+            if _irv.get('sp500') or _irv.get('sp100') or _irv.get('nasdaq100'):
                 _irv['reuse_note'] = '지수변경 마커 변동 없음 — 직전 회차(%s) 재사용' % os.path.basename(_irp)[12:20]
                 _rbu = _irv
                 print('  [v3.81] index_rebalance carry-forward <-', os.path.basename(_irp))
@@ -952,7 +952,7 @@ if not (isinstance(_rbu, dict) and (_rbu.get('sp500') or _rbu.get('nasdaq100')))
         print('  index_rebalance carry-forward skip(비차단):', repr(_ire)[:70])
 # (2026-07-12) 리밸런싱 정규화 — 에이전트 산출 {date,type,in,out}/{period,announce_date,effective_date} 를 빌더 스키마로
 def _ir_norm(_ir):
-    for _k in ('sp500', 'nasdaq100'):
+    for _k in ('sp500', 'sp100', 'nasdaq100'):   # (v3.96) S&P 100 추가
         _b = _ir.get(_k) or {}
         _ev = []
         _grp = {}   # (fix 2026-07-14) 종목별 평면행 {date,action,ticker,name,biz,reason} → 날짜별 add/remove 그룹핑
@@ -1016,7 +1016,7 @@ except Exception as _ire: print('  [ir_norm] skip:', _ire)
 #   ③ candidates 가 상태(status)만 있으면 {name,note} 2열형으로 변환(빈 '-' 4열표 방지)
 def _rebal_canon(r):
     _e = lambda x: (x is None) or (str(x).strip() in ('', '-'))
-    for _ix in ('sp500', 'nasdaq100'):
+    for _ix in ('sp500', 'sp100', 'nasdaq100'):
         _b = r.get(_ix)
         if not isinstance(_b, dict):
             continue
