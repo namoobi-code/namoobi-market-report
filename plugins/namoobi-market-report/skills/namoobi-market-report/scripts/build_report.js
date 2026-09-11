@@ -867,9 +867,9 @@ function renderAmericasEtfs(){ renderRegionEtfs("americas_etfs","3.6 북미&중�
 function renderAumeEtfs(){ renderRegionEtfs("aume_etfs","3.7 호주&중동 증시 (미국 상장 국가 ETF)",
   "호주(자원·에너지)와 사우디아라비아·UAE·카타르 등 중동 주요 자본시장 대표 ETF(미국 상장, 달러 기준)의 현재가와 1일~1년 수익률·1년 추세를 정리한다. 수익률은 주봉 종가 기준 가격수익률(분배금 제외)."); }
 function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebalance; if(!r||typeof r!=="object")return;
-  if(!r.sp500&&!r.nasdaq100)return;
-  children.push(h("3.3.2 미국 지수 정기 리밸런싱 (S&P 500·나스닥 100)",3));
-  children.push(p("S&P 500·나스닥 100 정기 리밸런싱의 편입·편출 종목(사업 내용·사유)·적용 시점, 편입 기준, 나스닥 패스트엔트리 룰 변경을 정리한다. 편입=초록, 편출=빨강.",{italics:true,color:"64748B"}));
+  if(!r.sp500&&!r.sp100&&!r.nasdaq100)return;
+  children.push(h("3.3.2 미국 지수 정기 리밸런싱 (S&P 500·S&P 100·나스닥 100)",3));
+  children.push(p("S&P 500·S&P 100·나스닥 100 정기 리밸런싱의 편입·편출 종목(사업 내용·사유)·적용 시점, 편입 기준, 나스닥 패스트엔트리 룰 변경을 정리한다. 편입=초록, 편출=빨강. (v3.96 S&P 100 신설 — 초대형주 100종 지수, S&P 500 과 같은 날 분기 리밸런싱)",{italics:true,color:"64748B"}));
   const cw=[820,780,1820,3300,3480]; // 구분/티커/회사명/사업내용/사유
   const chHdr=()=>new TableRow({children:["구분","티커","회사명","사업 내용","사유"].map((x,i)=>cell(x,{width:cw[i],header:true,align:i<2?AlignmentType.CENTER:AlignmentType.LEFT}))});
   const chRow=(it,i,action)=>{ const isAdd=String(action).indexOf("편입")>=0;
@@ -908,6 +908,19 @@ function renderIndexRebalance(){ const r=data.markets&&data.markets.index_rebala
       if(sp.criteria.every(c=>typeof c==="string")) sp.criteria.forEach(c=>children.push(bullet(String(c))));
       else simpleTable([2400,7800],["항목","요건"],sp.criteria.map(c=>(typeof c==="string"?[c,""]:[c.item??"-",c.detail??"-"])),{left:[1]}); }
     if(sp.criteria_note)children.push(p(String(sp.criteria_note),{size:17,color:"9A3412"})); }
+  // (v3.96 2026-09-11) S&P 100 — 나이키 편출(18년 만) 등 초대형주 교체가 3.3.2 범위 밖이라 누락됐던 문제(사용자 지적) 해결. 스키마는 sp500 과 동형.
+  const s1=r.sp100;
+  if(s1){ children.push(p("■ S&P 100 (OEX) 정기 리밸런싱",{bold:true,color:"0F172A",size:21,before:160}));
+    children.push(p("S&P 500 구성종목 중 초대형·유동성 상위 100종. S&P 500 과 같은 분기 리밸런싱(3·6·9·12월 셋째 금요일 마감 후)에 함께 발표·발효된다.",{size:17,color:"64748B"}));
+    if(Array.isArray(s1.schedule)&&s1.schedule.length){ children.push(p("1. 결정 시점 (분기별)",{bold:true,size:18}));
+      if(s1.schedule.every(s=>typeof s==="string")) s1.schedule.forEach(s=>children.push(bullet(String(s))));
+      else simpleTable([1500,2800,3200,2700],["분기","발표일","적용일(장 마감 후)","비고"],
+        s1.schedule.map(s=>(typeof s==="string"?[s,"","",""]:[s.q??s.cycle??s.quarter??"-",s.announce??"-",s.effective??"-",s.note??"-"])),{left:[3]}); }
+    renderEvents(s1.events);
+    if(Array.isArray(s1.criteria)&&s1.criteria.length){ children.push(p("편입 기준",{bold:true,size:18,before:80}));
+      if(s1.criteria.every(c=>typeof c==="string")) s1.criteria.forEach(c=>children.push(bullet(String(c))));
+      else simpleTable([2400,7800],["항목","요건"],s1.criteria.map(c=>(typeof c==="string"?[c,""]:[c.item??"-",c.detail??"-"])),{left:[1]}); }
+    if(s1.criteria_note)children.push(p(String(s1.criteria_note),{size:17,color:"9A3412"})); }
   // Nasdaq 100
   const nq=r.nasdaq100;
   if(nq){ children.push(p("■ 나스닥 100 (NDX) 정기 리밸런싱",{bold:true,color:"0F172A",size:21,before:160}));

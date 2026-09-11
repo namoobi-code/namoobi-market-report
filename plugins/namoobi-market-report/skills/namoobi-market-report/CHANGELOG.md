@@ -1,5 +1,10 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v4.06.0 (plugin 1.61.0, 2026-09-11) — 3.3.2 리밸런싱에 S&P 100 신설
+- 배경: 2026-09-04 S&P DJI 분기 발표의 S&P 100 변경(나이키 18년 만 편출·허니웰에어로스페이스·사이먼프로퍼티·콜게이트 편출 / 델·팔로알토·아리스타·샌디스크 편입, 9/21 발효)이 보고서에 없었다(사용자 지적). 3.3.2 는 S&P 500·나스닥 100 만 대상이었고 서버 헤드라인 모니터 검색어에도 S&P 100 이 없어 마커가 반응하지 않았다.
+- 수정: `index_rebalance.sp100`(sp500 동형) 신설 — merge(`_ir_norm`/`_rebal_canon`/carry-forward), build_report.js `renderIndexRebalance` ■ S&P 100 (OEX) 블록, verify 불변(비차단). 서버 `market_prefetch2.py rebalance` 에 "S&P 100 index addition deletion"·"S&P100 편입 편출" 검색어 추가, 대시보드 app.js/index.html 3.3.2 에 S&P 100 표시. agents.md IndexRebalanceAgent 범위 확장.
+- 데이터: 9/11 report_data 에 sp100 9/21 변경분(1차 출처 press.spglobal.com 2026-09-04)을 주입 — 이후 회차는 carry-forward.
+
 ## v4.05.0 (plugin 1.60.0, 2026-09-06) — 주말(토·일 KST) 메일 미발송 — 예약·직접 실행 공통
 
 - 계기: 사용자 지시(2026-09-06) — "직접수행이든 예약수행이든 주말에는 메일 발송되지 않도록". 주말은 국내 휴장이라
