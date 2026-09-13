@@ -100,6 +100,7 @@ function validate(d) {
   needChart(M.oecd_cli&&Array.isArray(M.oecd_cli.months)&&M.oecd_cli.months.length, "charts/oecd_cli.png","3.1.4 OECD CLI 통합 차트");
   if(M.customs&&M.customs.series){ needChart(true,"charts/수출_전체_24개월.png","3.1.10 수출 전체 차트"); needChart(true,"charts/수출_반도체_24개월.png","3.1.10 수출 반도체 차트"); }
   needChart(M.hy_spread, "charts/hy_oas.png","3.1.1 HY 스프레드 차트");
+  if(M.gbonds&&Array.isArray(M.gbonds.countries)&&M.gbonds.countries.length){ needChart(true,"charts/gbonds_1.png","3.1.1 주요국 10Y 차트 ①"); needChart(true,"charts/gbonds_2.png","3.1.1 유로존 10Y 차트 ②"); }  // (2026-09-13) 데이터 있으면 차트 필수
   if(M.kr_liquidity) for(let i=1;i<=4;i++) needChart(true,"charts/krliq_"+i+".png","3.1.14 유동성·레버리지 차트 "+i);
   if(M.veps&&M.veps.margin){ needChart(true,"charts/veps_2.png","3.1.15 신용잔고 YoY 차트"); needChart(!!M.veps.hy,"charts/veps_3.png","3.1.15 HY 가산금리 차트"); }  // (v3.72) ①④는 데이터 누적 초기 생략 허용
   { const KB=M.krx_brief||{};  // (v3.54) 3.2.4/3.2.5 KRX 브리프 — 데이터 있으면 캡쳐 필수
@@ -1240,6 +1241,8 @@ function renderMacroIndicators(){
     children.push(p((yc.spread>=0?"+":"")+yc.spread+"%p → "+yc.status+"  ("+(yc.note||"")+")",{bold:true,size:22,color:"1E40AF"}));
     children.push(p("의미: "+(yc.meaning||"")+" · 시장영향: "+(yc.impact||""),{size:16,color:"64748B"}));
     const cc=imagePara(yc.chart,648,176); if(cc)children.push(cc); }
+  // [2b] (2026-09-13) 주요국 10년 국채금리 — 서버 db/gbonds(stooq 일별·FRED 폴백) · 홈피 3.1.1 패널과 동일 데이터
+  renderGBonds();
   // [3] 하이일드(HY) 스프레드 (매일)
   renderHY();
   // [4] FOMC 기준금리 + 6개국 정책금리 (변동 시 갱신·실측)
@@ -1519,6 +1522,31 @@ function renderKrLiquidity(){ const kl=(data.markets||{}).kr_liquidity;
     p(`현재(${fmtD(kl.as_of)} T+2): 코스닥 신용 ${nn(kl.crd_kosdaq_t)}조(전체의 ${nn(kl.kosdaq_share)}%) · 5일 누적 ${sgn(kl.kosdaq_chg5_e)}억. 지수 하락률 대비 잔고 감소율이 비정상적으로 크면 강제청산(마진콜) 우세로 해석 — 단, 상환과 강제청산은 구분 불가(마진콜 직접 통계 부재).`,{size:15,color:"334155"})]);
   children.push(p("반대매매 급증은 선행지표가 아닌 후행 확인 지표이며 역사적으로 항복(단기 바닥) 국면과 동행하는 경우가 많음. 데이터: 금융위 공공데이터(금투협 원천, T+2) · 다음금융(T+0) · 한국은행 ECOS — 서버 1일 3회(06:35/14:10/16:10 KST) 자동 수집. 리서치용·투자권유 아님.",{size:13,italics:true,color:"94A3B8"}));
   children.push(p("")); }
+
+// (2026-09-13) 3.1.1 하위블록 「주요국 10년 국채금리」 — 11개국 표(현재·bp 변화) + 차트 2장.
+// 입력: markets.gbonds (gen_gbonds_chart.py → nmr_gbonds.json ← 서버 /api/db/gbonds, fetch_gbonds.py 05:25/15:25) + charts/gbonds_1..2.png.
+// 없으면 비차단 생략. 변화 단위는 bp(수익률은 등락률% 대신 bp 차이가 관행). 홈피 3.1.1 패널(app.js)과 같은 API → 리포트=홈피 동일.
+function renderGBonds(){ const G=(data.markets||{}).gbonds;
+  if(!G||!Array.isArray(G.countries)||!G.countries.length){ console.error("  (경고) markets.gbonds 없음 → 3.1.1 주요국 10Y 블록 생략"); return; }
+  children.push(p("■ 주요국 10년 국채금리 (11개국 · 변화=bp)",{bold:true,size:22,color:"1E40AF",before:140}));
+  const w=[1500,1000,1200,800,800,900,900,900,900,1180];
+  const rows=[hdrRow(["국가","10Y(%)","기준일","1일","1주","1개월","3개월","6개월","1년","주기·출처"],w)];
+  const bpc=v=>v==null?"-":((v>0?"+":"")+v);
+  const bcol=v=>v==null?"64748B":(v>0?"DC2626":(v<0?"2563EB":"334155"));
+  G.countries.forEach((c,i)=>rows.push(new TableRow({children:[
+    cell(c.name||c.cc,{width:w[0],alt:i%2===0,bold:true}),
+    cell(c.cur!=null?Number(c.cur).toFixed(2):"-",{width:w[1],alt:i%2===0,align:AlignmentType.RIGHT,bold:true}),
+    cell(c.date||"-",{width:w[2],alt:i%2===0,align:AlignmentType.CENTER,size:15}),
+    ...["d1","w1","m1","m3","m6","y1"].map((k,j)=>cell(bpc(c[k]),{width:w[3+j],alt:i%2===0,align:AlignmentType.RIGHT,color:bcol(c[k])})),
+    cell((c.freq==="daily"?"일별":c.freq==="monthly"?"월별(OECD)":(c.freq||""))+(c.src?" · "+String(c.src).split(" ")[0]:""),{width:w[9],alt:i%2===0,size:14})]})));
+  children.push(makeTable(w,rows));
+  const sp=G.spreads||{}; const sps=["IT-DE","FR-DE","ES-DE","US-DE","US-JP","US-KR"].filter(k=>sp[k]!=null).map(k=>`${k} ${sp[k]>0?"+":""}${sp[k]}bp`).join(" · ");
+  if(sps) children.push(p("스프레드(현재): "+sps,{bold:true,size:17,color:"334155"}));
+  children.push(p("의미: 10년물은 각국 장기 자금조달 비용·성장/물가 기대의 종합 지표. 미국 10Y 는 글로벌 할인율의 기준, 독일 분트는 유로존 벤치마크이며 프랑스·이탈리아·스페인의 분트 대비 스프레드 확대는 재정·정치 리스크(신용) 재평가 신호. 일본 10Y 상승은 엔캐리 청산·글로벌 유동성 축소 경로, 한국 10Y 는 국고채 발행·외국인 수급·한은 경로를 반영한다. 시장영향: 금리↑ → 성장주 밸류 부담·채권가격↓·달러/엔 방향에 파급.",{size:16,color:"64748B"}));
+  const i1=imagePara(G.chart1||"charts/gbonds_1.png",648,243); if(i1)children.push(i1); else console.error("  (경고) charts/gbonds_1.png 없음");
+  const i2=imagePara(G.chart2||"charts/gbonds_2.png",648,243); if(i2)children.push(i2); else console.error("  (경고) charts/gbonds_2.png 없음");
+  children.push(p(`업데이트:매일(서버 05:25·15:25 KST 수집 — stooq 일별 벤치마크 10년물, 장애 시 FRED/OECD 월별 폴백·직전값 유지는 '(stale)' 표기) · 기준 ${G.as_of||"-"} · ${G.source||""}. 리서치용·투자권유 아님.`,{size:13,italics:true,color:"94A3B8"}));
+}
 
 // (v3.72) 3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수 — 기사식 이중축 오버레이 4종.
 // 입력: markets.veps (gen_veps_charts.py → nmr_veps.json) + charts/veps_1..4.png. 없으면 비차단 생략.
