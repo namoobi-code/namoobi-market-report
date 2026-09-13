@@ -132,5 +132,23 @@ for r in ((mac.get("sentiment") or {}).get("rows") or []):
         elif all(empty(r.get(k)) for k in ["1w_pct","1mo_pct","3mo_pct","6mo_pct","1y_pct"]):
             r["trend"]="현재값 실시간(CNBC) · 1주~1년 이력 미확보(소스 접근 차단)"
 json.dump(d, open(RD,"w",encoding="utf-8"), ensure_ascii=False)
+# (2026-09-13 리포트=홈피 일치) 위 보정(FRED 실측 발표일·ISM 발표일·GDP 분기표기·BEI 수준지표 라벨)은 그동안
+#   report_data 에만 적용됐고 DB(db/inflation.json·db/employment.json)는 merge.py 가 보정 '전' 행을 저장했다.
+#   홈피 3.1.2/3.1.3 은 그 DB 를 그대로 그리므로 매일 발표날짜(CPI 09-10↔09-11 뒤바뀜)·PCE/NFP/소매/GDP 발표일 공란·
+#   GDP 기준(2026-04 vs 2026 Q2)·BEI MoM(— vs 수준지표) 이 보고서와 달랐다(9/12 실측). 보정 후 행을 DB 에 되써서 단일화한다.
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import nmr_db as _ndb
+    _dd = _ndb.dbdir()
+    _m8 = _re.search(r'(\d{8})', os.path.basename(RD))
+    _iso = ("%s-%s-%s" % (_m8.group(1)[:4], _m8.group(1)[4:6], _m8.group(1)[6:8])) if _m8 else None
+    for _item in ("inflation", "employment"):
+        _rows = (mac.get(_item) or {}).get("rows") or []
+        if not _rows: continue
+        _cur = _ndb._load(_item, _dd)
+        _ndb.set_(_item, _iso or _cur.get("as_of"), _cur.get("marker") or _iso, _dd, _rows)
+        print("[nmr_reasons] DB 되쓰기(홈피 일치): db/%s.json rows=%d" % (_item, len(_rows)))
+except Exception as _dbe:
+    print("[nmr_reasons] DB 되쓰기 skip:", _dbe)
 print("[nmr_reasons] req0 사유/계산값 + KSVKOSPI 실측 주입 완료")
 # EOF — namoobi-market-report nmr_reasons
