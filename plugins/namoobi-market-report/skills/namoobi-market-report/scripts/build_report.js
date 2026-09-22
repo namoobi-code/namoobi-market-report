@@ -1957,7 +1957,8 @@ function renderAppendixF(){ try{
     try{ if(!fs.existsSync('charts'))fs.mkdirSync('charts'); fs.writeFileSync(rel,b); }catch(e){ return null; }
     return {rel:rel,buf:b};
   }
-  const imgs=[1,2,3].map(loadOne);
+  // (v4.06 2026-09-22) 부록D 와 같은 이유로 장수 고정을 없앤다 — [1,2,3] 이면 생성기가 4장을 뽑아도 4번째가 조용히 빠진다.
+  const imgs=[]; for(let i=1;i<=8;i++){ const o=loadOne(i); if(!o)break; imgs.push(o); }
   if(!imgs.some(Boolean))return;
   children.push(new Paragraph({children:[new PageBreak()]}));
   children.push(h("[부록F] 피지컬 AI 밸류체인 관계도 (해자 지도)",1));

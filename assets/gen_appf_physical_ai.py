@@ -102,6 +102,18 @@ SECTIONS = [
   ("U","유니티 (Unity)",None,None,"로봇 학습용 3D 엔진 — 합성 데이터 생성 저변"),
   ("모션 토큰 이코노미(한국)","",None,B3,"장인 동작을 토큰화해 거래·저작권료 — 공장 보유국 한국의 역전 카드(에이로봇 제안·정부 검토)"),
  ]),
+ # (2026-09-22 신설) 1~6단이 '아직 안 팔리는' 휴머노이드 축이라면, 이 단은 **지금 돈을 벌고 있는 피지컬AI** 다.
+ ("7. 산업 현장 — 머신비전 · 산업로봇 · 물류 자동화 (이미 매출이 나는 피지컬AI)",
+  "휴머노이드가 오기 전에도 공장·창고는 이미 로봇으로 돌아간다 · 머신비전 시장은 톱5 합계 20~30%로 파편화", [
+  ("6861.T","키엔스 (Keyence)","단가 2~2.5배",B2,"머신비전·FA센서 1위(14.2%) — 직판·팹리스·세계최초 신제품 70%, OPM 50%대를 3개 하강기 내내 유지"),
+  ("CGNX","코그넥스 (Cognex)",None,None,"머신비전 2위(11.4%) — OPM 30%→12.6% 붕괴 후 반등, 물류 26%·자동차 22% 사이클 의존"),
+  ("6954.T ★","화낙 (Fanuc)","로봇 1위",B2,"산업로봇·CNC 세계 1위 — 해자지도가 산업로봇 업황 대리로 쓰는 기준 종목"),
+  ("6506.T","야스카와 (Yaskawa)",None,None,"산업로봇·AC 서보 양강 — 모션제어의 기준"),
+  ("ABBNY","ABB",None,None,"산업로봇 4강 + 전력·자동화 결합"),
+  ("TER","테라다인 (Teradyne)",None,None,"협동로봇 UR ~15% 1위 + AMR MiR — 단 본업 테스터는 어드밴테스트에 밀림(SoC 23% vs 66%)"),
+  ("6383.T","다이후쿠 (Daifuku)","물류 1위",B2,"물류자동화 세계 1위 — 반도체 클린룸 반송까지 커버"),
+  ("SYM","심보틱 (Symbotic)",None,None,"AI 물류창고 자동화 — ⚠ 매출 85%가 월마트 단일고객, 영업이익 미달성"),
+ ]),
 ]
 
 ARROWS = [
@@ -110,6 +122,7 @@ ARROWS = [
  "센서가 읽은 물리 세계 → 두뇌로 (밀리초 단위 센서 퓨전)",
  "명령을 실제 힘으로 — 원가의 40%가 여기서 나간다",
  "가볍고 오래 가는 몸 — 소재·배터리가 작동 시간을 정한다",
+ "가상에서 익힌 것을 현실 공장으로 — 휴머노이드가 오기 전에 이미 돌아가는 현장",
 ]
 CYCLE = ("⟳ 현장 데이터(모션 토큰) → 가상훈련장에서 수십만 시간 증폭 → 모델 성능 ↑ → 로봇 판매 ↑ → "
          "다시 데이터 ↑  ·  한 대가 배우면 전 대수가 진화하는 선순환")
@@ -157,15 +170,27 @@ LEGEND = ('<div class="leg"><span class="b1">독점·준독점</span> 대체재�
           '&nbsp;&nbsp;&nbsp;<span class="b3">비상장</span> 직접 투자 불가 — 구조 이해용'
           '&nbsp;&nbsp;&nbsp;★ 상위 단(段)과 중복 표기</div>')
 
-PARTS = [
-    LEGEND + section(0) + arrow(0) + section(1) + arrow(1),
-    section(2) + arrow(2) + section(3) + arrow(3),
-    section(4) + arrow(4) + section(5) + f'<div class="cyc">{CYCLE}</div>',
-]
+# (2026-09-22 수정) 섹션 수를 하드코딩하지 않는다 — 종전 PARTS/FULL 은 6섹션·3페이지로 고정돼 있어
+#   7단(산업 현장)을 추가하면 마지막 섹션이 PNG 에서 조용히 사라진다.
+#   부록D(gen_appd_valuechain.py)에서 2026-09-05 에 실제로 터진 것과 같은 버그라 같은 방식으로 고친다.
+_N = len(SECTIONS)
+_PER = 2                                 # 페이지당 섹션 수
+PARTS = []
+for _s in range(0, _N, _PER):
+    _e = min(_s + _PER, _N)
+    _body = (LEGEND if _s == 0 else "")
+    for _i in range(_s, _e):
+        _body += section(_i)
+        if _i < _N - 1:                  # 마지막 섹션 뒤엔 화살표 대신 CYCLE
+            _body += arrow(_i)
+    if _e >= _N:
+        _body += f'<div class="cyc">{CYCLE}</div>'
+    PARTS.append(_body)
 
 FULL = LEGEND + "".join(
-    section(i) + (arrow(i) if i < 5 else f'<div class="cyc">{CYCLE}</div>')
-    for i in range(6))
+    section(i) + (arrow(i) if i < _N - 1 else f'<div class="cyc">{CYCLE}</div>')
+    for i in range(_N))
+assert len(ARROWS) >= _N - 1, f"ARROWS({len(ARROWS)}) < 섹션수-1({_N-1}) — 섹션 추가 시 ARROWS 도 함께 늘려야 한다"
 
 def html_doc(body):
     return f'<html><head><meta charset="utf-8"><style>{CSS}</style></head><body>{body}</body></html>'
