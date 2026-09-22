@@ -1,5 +1,14 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v4.07.0 (plugin 1.65.0, 2026-09-22) — 9/22 회차 특이사항 6건 재발방지
+- **broker_reports 6일 0건(9/16~22)**: 네이버 금융 리서치가 `finance.naver.com/research/*_list.naver` → `stock.naver.com`(Next.js SPA) 으로 이관돼 서버 `research_watch.py` HTML 정규식이 전부 미매치. 로그엔 "0개사 · 0건" 이 12회 찍혔지만 아무도 못 봤다. → **v3: `m.stock.naver.com/api/research/<cat>?page&pageSize` JSON API**(market·invest·company·industry·economy·debenture, 상세 `/api/research/<cat>/<id>` → content·attachUrl) 로 전환, 출력 스키마 불변. **0건 가드**: 합계 0건이면 기존 DB 보존·exit 2(구조 재변경 조기 감지). 실측 복구: 15개사·시황 30건.
+- **ib_insights 월·화 새벽 공백**: 24h 창이 주말에 걸려 5사 전부 0건 → 에이전트 전량 웹서치. → `market_prefetch2.py ib()` 가 24h 가 빈 회사만 `pool_72h` 후보 동봉(정본 24h 유지), agents.md 에 사용 규칙.
+- **KRX OPEN API 스냅샷 6일 "최근 영업일 데이터 없음"**: `krx_openapi.call()` 이 미공표 시각(05:50)·일시 오류의 **빈 응답([])을 영구 캐시**해 이후 호출이 전부 빈 값(9/18·9/21·9/22 캐시 오염 실측, 49개 빈 캐시). → 빈 캐시는 적중 불인정·빈 응답 미저장(플러그인·서버 동일 패치, 서버 빈 캐시 49개 삭제 후 asof 2026-09-21 복구). `run_for_report.py` 는 서버 krx 스냅샷이 error/asof null 이면 PC 에서 `krx_market_snapshot.py` 즉시 재생성.
+- **점도표 열 재배치**: USMacroExtras 가 mar/jun/sep 3열로 재구성 저장 → 메인세션 수동 복원. → agents.md 에 열 규약(jun=최신 SEP·mar=직전 SEP, 열 추가 금지) 명문화 + merge 정규화 가드(sep/dec 키 감지 시 발표순 마지막 2개를 jun/mar 로 재배치).
+- **GlobalSecurities 파일명 불일치**(`nmr_global_securities.json` → merge 는 `nmr_globalsec.json`, 8장 전체 누락 경고): agents.md 에 전 에이전트 산출 파일명 표 고정 + merge 대체 파일명 폴백.
+- **gitsync.sh**: 잠금 파일 EPERM 을 조용히 넘기고 옛 HEAD 를 push(non-fast-forward 거부)하던 문제 → 잠금 잔존 시 경고·중단, 원격 앞섬 감지 시 `pull --rebase --autostash` 후 커밋, 커밋 실패 시 push 중단.
+- 보조 점검(3.6~3.9)은 정상 동작 — 변경 없음.
+
 ## v4.06.0 (plugin 1.61.0, 2026-09-11) — 3.3.2 리밸런싱에 S&P 100 신설
 - 배경: 2026-09-04 S&P DJI 분기 발표의 S&P 100 변경(나이키 18년 만 편출·허니웰에어로스페이스·사이먼프로퍼티·콜게이트 편출 / 델·팔로알토·아리스타·샌디스크 편입, 9/21 발효)이 보고서에 없었다(사용자 지적). 3.3.2 는 S&P 500·나스닥 100 만 대상이었고 서버 헤드라인 모니터 검색어에도 S&P 100 이 없어 마커가 반응하지 않았다.
 - 수정: `index_rebalance.sp100`(sp500 동형) 신설 — merge(`_ir_norm`/`_rebal_canon`/carry-forward), build_report.js `renderIndexRebalance` ■ S&P 100 (OEX) 블록, verify 불변(비차단). 서버 `market_prefetch2.py rebalance` 에 "S&P 100 index addition deletion"·"S&P100 편입 편출" 검색어 추가, 대시보드 app.js/index.html 3.3.2 에 S&P 100 표시. agents.md IndexRebalanceAgent 범위 확장.

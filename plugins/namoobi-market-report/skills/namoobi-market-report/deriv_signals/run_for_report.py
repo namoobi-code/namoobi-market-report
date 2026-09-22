@@ -12,7 +12,7 @@ run_for_report.py — 일일 보고서 실행 시 3.1.21 파생 포지셔닝 '�
 어떤 단계가 실패/타임아웃해도 **exit 0** — merge/build 가 내장 스냅샷(DERIV_POS_DEFAULT)으로 렌더하므로 보고서는 절대 막히지 않는다.
 data.go.kr 키는 config._find_secrets() 가 상위 SECURITY/secrets.env 등에서 자동 탐색(없으면 KOSPI200 선물/옵션만 skip).
 """
-import os, sys, subprocess
+import os, sys, json, subprocess
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
@@ -63,6 +63,17 @@ def _server_first():
         kout = os.path.join(os.path.dirname(os.path.abspath(OUT)), "nmr_krx_market.json")
         subprocess.run(SCP + [f"{SRV}:~/namoobi/data/nmr_krx_market.json", kout],
                        capture_output=True, timeout=30)
+        # (2026-09-22 재발방지) 서버 krx 스냅샷이 빈 값(error/asof null — 05:50 크론이 KRX T+1 공표 전이거나
+        #   빈 캐시 오염)이면 PC 에서 즉시 재생성한다(키는 SECURITY/openapi.krx.co.kr.txt 자동탐색, ~10초).
+        try:
+            with open(kout, encoding="utf-8") as fh:
+                _k = json.load(fh)
+            if not _k.get("asof") or _k.get("error"):
+                print("[deriv] 서버 krx 스냅샷 빈 값(%s) → 로컬 krx_market_snapshot 재생성" % _k.get("error"))
+                subprocess.run([sys.executable, os.path.join(BASE, "krx_market_snapshot.py"), kout],
+                               capture_output=True, timeout=110)
+        except Exception as _e:
+            print("[deriv] krx 로컬 재생성 실패(무시):", repr(_e)[:80])
         db = os.environ.get("DERIV_DB")
         if db:  # 서버 DB가 정본 — 로컬 영구본을 서버 최신으로 동기화(이력 보존)
             subprocess.run(SCP + [f"{SRV}:~/namoobi/data/deriv_signals.db", db],

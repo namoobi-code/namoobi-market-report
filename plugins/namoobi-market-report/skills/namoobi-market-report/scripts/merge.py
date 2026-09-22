@@ -36,6 +36,12 @@ def LCF(name):
 
 mk = L('nmr_markets.json'); com = L('nmr_commod.json'); cr = L('nmr_crypto.json'); ue = L('nmr_usetf.json')
 nw = L('nmr_news.json'); gs = L('nmr_globalsec.json'); um = L('nmr_usmacro.json'); rb = L('nmr_rebalance.json')
+# (2026-09-22 재발방지) GlobalSecuritiesAgent 산출 파일명 변형 폴백 — agents.md 에 파일명 미명시로 에이전트가
+#   nmr_global_securities.json 으로 저장 → 8장 전체 누락(빌드 경고). 정본은 nmr_globalsec.json, 변형도 인식.
+if not gs:
+    for _alt in ('nmr_global_securities.json', 'nmr_globalsecurities.json', 'nmr_ib.json'):
+        gs = L(_alt)
+        if gs: print('globalsec: 대체 파일명 %s 사용' % _alt); break
 n2 = L('nmr_news2.json'); semi = L('nmr_semi.json'); krs = L('nmr_kr_series.json'); ohlcv = L('nmr_kr_ohlcv.json')
 inv = L('nmr_kr_invest.json'); lead = L('nmr_leading.json'); sec = L('nmr_securities.json'); an = L('nmr_analysis.json')
 tr = L('nmr_trendtext.json')
@@ -914,6 +920,23 @@ for _r4 in (((m.get('macro') or {}).get('sentiment') or {}).get('rows') or []):
         _u4=(m.get('us_markets') or {}).get('us10y') or {}
         for _k4 in ('current','1w_pct','1mo_pct','3mo_pct','6mo_pct','1y_pct','trend','1d_pct','chg','prev_close','prev_pct'):
             if _u4.get(_k4) is not None: _r4[_k4]=_u4[_k4]
+# (2026-09-22 재발방지) 점도표 열 규약 정규화 — 빌더·DB 규약은 **jun=최신 SEP 중간값 · mar=직전 SEP 중간값**
+#   (열 이름은 역사적 잔재, 실제 달은 merge 가 latest_label/prev_label 로 표기). 9/22 실측: USMacroExtras 가
+#   '3월/6월/9월' 의미로 mar/jun/sep 3열을 재배치해 저장 → 그대로 머지되면 표가 '6월(구)/3월(구)' 값으로 후퇴.
+#   규칙: 행에 jun/mar 외 월 키(sep/dec/…)가 있으면 발표순(mar<jun<sep<dec)으로 정렬해 마지막 2개를 jun(최신)·mar(직전)에 재배치.
+try:
+    _MO = ['mar', 'jun', 'sep', 'dec']
+    _rows_dp = (m.get('fomc_dotplot') or {}).get('rows') or []
+    if any(set(_r.keys()) & {'sep', 'dec'} for _r in _rows_dp if isinstance(_r, dict)):
+        for _r in _rows_dp:
+            _have = [(k, _r[k]) for k in _MO if str(_r.get(k) or '').strip() and _r.get(k) not in ('미공개', '-')]
+            if len(_have) >= 2:
+                _r['jun'], _r['mar'] = _have[-1][1], _have[-2][1]
+                for k in ('sep', 'dec'): _r.pop(k, None)
+                _r['change'] = ''   # 아래 fix 가 jun-mar 로 재계산
+        print('  [dotplot] 월 키 재배치 감지 → jun=최신·mar=직전 규약으로 정규화')
+except Exception as _e_dp:
+    print('dotplot canon skip', _e_dp)
 # (fix) FOMC 점도표 '변화' 열 = jun - mar (build_report r.change 비어 '-' 표시되던 문제)
 for _r in ((m.get('fomc_dotplot') or {}).get('rows') or []):
     if not str(_r.get('change') or '').strip():
