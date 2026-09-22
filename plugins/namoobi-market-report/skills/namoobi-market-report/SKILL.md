@@ -13,7 +13,7 @@ description: |
 ---
 
 
-# Namoobi Market Report (plugin v1.65.0 · SKILL v4.07.0)
+# Namoobi Market Report (plugin v1.66.0 · SKILL v4.08.0)
 
 > 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
 
@@ -95,6 +95,13 @@ description: |
 **차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` · `gen_macro_charts.py` · `gen_cli_chart.py` · `gen_customs_chart.py` · `gen_krliq_charts.py`(v3.64, 3.1.14) · `gen_veps_charts.py`(v3.72, 3.1.15 — 서버 API 회수) · `gen_debt_charts.py`(v4.01, 3.1.8 하위블록 조달구조 — 서버 API 회수) · `gen_curve_1y.py`(REQ6 — `charts/macro_curve_1y.png` 3.1.1 장단기차 1년, merge 가 이 경로를 차트로 지정하므로 누락 시 공백) **13종** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기). `gen_capex_chart.py` → `charts/capex_stack_ratio.png`·`charts/capex_fcf.png`(3.2.1 빅테크 CAPEX 차트, cwd 상대 출력). `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(3.1.9 메모리·HBM **11패널(v3.62)** — ①DRAM현물 ②DRAM계약 ③NAND현물 ④NAND계약 ⑤스팟-계약갭 ⑥HBM점유율 ⑦**HBM ASP 추이** ⑧**HBM 시장규모·수요증가율(연간·Yole 추정)** ⑨**HBM:DDR5 GB당 단가격차(환산 추정)** ⑩선행지표 1년성과 ⑪메모리/GPU 상대강도). `gen_macro_charts.py` → `charts/macro_*.png`·`charts/spark_*.png`(3.1 주요지표 13종; `nmr_macro.json` 있으면 라이브, 없으면 내장 예시·추정값). **(R1) gen_macro_charts.py 는 반드시 `NMR_OUT="$WORK"` 환경변수로 실행** — us2y_daily 시계열을 `$WORK/nmr_indexseries.json` 에 주입해 美2년물 스파크가 정상 생성된다(미설정 시 상위 outputs 에 기록돼 美2년물 스파크가 10년물과 동일 모양으로 깨짐). **고용은 7패널 항상 표시**(맨앞=초기 실업수당 청구건수, 빈 시계열은 '데이터 미확보' 자리표시). **(req1·req2 2026-07-05) NFP·소매판매는 레벨·증감 "혼합" 시계열 내성 변환(_mixfix: 연속 레벨 구간만 차분/전월비 변환, 레벨→증감 경계 미변환)으로 절벽 스파이크를 방지한다 — db/series_emp_nfp·retail 오염분은 2026-07-05 클린 재작성.** `gen_leading_chart.py` → `charts/leading_cycle.png`(3.2.3 — 입력 `nmr_leading_series.json` = `fetch_leading.py` 실측 ~29개월). `gen_cli_chart.py` → `charts/oecd_cli.png`(3.1.4 OECD CLI 전 국가 통합 — 입력 `nmr_oecd_cli.json`(신규 스크랩) 또는 DB `db/oecd_cli.json` 폴백, 항상 생성 가능). `gen_customs_chart.py` → `charts/수출_전체_24개월.png`·`charts/수출_반도체_24개월.png`(3.1.10 관세청 수출 잠정치 2년치 그룹막대 — 입력 `nmr_customs.json`(변경시) 또는 DB `db/customs.json` 폴백; fresh 없고 두 차트 존재 시 스킵→기존 유지).
 **작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
 
+### (v4.08 · 2026-09-22 신설 · 필수) 서버 사전 DB 빈 값·stale 게이트 — `nmr_server_health.py`
+서버 크론은 **정상 종료하면서 빈 결과**를 낼 수 있다(9/22 실측: 네이버 리서치 SPA 이관 → broker_reports 0건 6일 / KRX 빈 응답 캐시 오염 → krx 스냅샷 asof null 6일). 보고서는 폴백(웹서치·carry-forward)으로 조용히 통과해 아무도 못 봤다. 따라서 **Phase 1 에서 server_*.json 캐시 + fetch D(deriv 회수) 직후** 반드시 실행한다:
+```bash
+python3 "$SRC/nmr_server_health.py" "$WORK"     # → $WORK/nmr_server_health.json + 경고 출력 (비차단·exit 0)
+```
+14항목(broker_reports·ib_insights·news_pool·events_calendar·policy_rates·m7_estimates·factset_insight·brokers3·ism_pmi·crypto_overview·crypto_movers·etf_quotes·krx_market·deriv)을 **비어 있음 / 기대 주기 초과(stale)** 로 판정한다. 경고가 있어도 실행은 계속(에이전트 폴백이 메움)하되 ① 해당 에이전트 프롬프트에 "서버 풀 비어 있음 → 웹서치/공개웹 폴백" 을 명시하고 ② verify_report.js **req40** 이 warnings 로 승격하며 ③ **Phase 6 결과 보고 `[서버 사전 DB 상태]` 블록에 경고를 그대로 옮긴다** — 같은 경고가 2회차 연속이면 "서버 크론 점검 필요" 로 사용자에게 명시. 파일이 없으면 req40 이 "미실행" 경고를 낸다.
+
 ### (2026-07-18 req1~20) 서버 사전 DB — 실행 때 조사하지 말고 바로 쓸 것
 서버가 주기 수집해 두는 항목은 **curl로 읽기만** 한다 (`http://161.33.190.254/api/db/<name>`):
 - `broker_reports` **(req12)**: 증권사 17사 대표리포트(제목·네이버링크·PDF·공식페이지, 매일 2회 07:10/16:10). 7장 `key_reports` 는 여기서 채우고 **url 필수**(빌더가 하이퍼링크 렌더). 공식 리서치 페이지 링크도 함께 표기.
@@ -166,6 +173,7 @@ Phase 1 시작 시 아래도 함께 curl 로 `$WORK/server_<name>.json` 캐시�
   ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (상시 수집 — DB가 변동체크·재사용) USMacroExtras·IndexRebalance·NewsBerk·HBM
   ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_oecd_cli.py + fetch_asia_etf.py + fetch_appc.py + fetch_appe.py + fetch_appg.py(v3.95 부록G 106종) + fetch_brokers_tele.py + fetch_krx_brief.py + fetch_memory.py + fetch_krliq.py "$WORK" (3.1.14 유동성·레버리지 — 서버 kr_liquidity.db scp 회수, 폴백 PC사본→로컬API)  (美/글로벌·한국 시세·시계열·경기선행·부록C·부록E 밸류체인·증권사 텔레그램 7사·KRX 브리프 2종, Chrome 불필요)
   ├─ [bash 비차단] deriv_signals/run_for_report.py "$WORK/nmr_deriv_positioning.json" "<connected>/namoobi-market-report-server/data/deriv_signals.db"  (3.1.13 파생 포지셔닝 라이브 — 런처가 ①의존성 자동설치 ②DB없으면 run_backfill(1회 1년)·있으면 daily_update ③export_snapshot→JSON. **완전 비차단**: 실패해도 빌더 내장 스냅샷(DERIV_POS_DEFAULT)으로 렌더. ⚠️ **의존성 선설치(45초 벽 회피)**: 샌드박스 bash 호출은 45초 제한이라 런처 내부 pip(yfinance→curl_cffi 11MB)가 잘리기 쉽다 — 런처 실행 전 별도 bash 호출 2회로 `pip install -q curl_cffi --prefer-binary --break-system-packages` → `pip install -q yfinance cot_reports --prefer-binary --break-system-packages` 를 선설치한다(이미 설치돼 있으면 수 초). DB는 다른 DB섹션과 동일하게 `namoobi-market-report-server\data\deriv_signals.db` 영구 경로에 두어 매 실행 재백필 방지(2번째 인자 또는 DERIV_DB 환경변수). data.go.kr 키는 상위 `SECURITY/secrets.env` 자동 탐색. **(v3.51)** KRX OPEN API 키(`SECURITY/openapi.krx.co.kr.txt`)로 KOSPI200 현물·베이시스·OI·VKOSPI 를 1차 수집하고, 같은 런처가 **`nmr_krx_market.json`**(krx_market_snapshot.py — 코스피/코스닥/코스피200·VKOSPI·코스피200 섹터 등락 상하위·국고채 수익률·KRX 금현물·ETF 거래대금 상위+괴리율)도 함께 생성해 **국내 시장데이터의 웹서치 의존을 대체**한다(글로벌 지표는 KRX 범위 밖 → 기존 소스 유지). 큰 모듈 truncation 방지 위해 $RUN 추출본에서 실행. **(v3.66) T+0 당일 반영**: KRX OPEN API 는 T+1 공표라 런처의 `ingest_naver_t0()` 가 네이버 m.stock API 로 당일 현물·선물·베이시스를 자동 브리지한다(코드가 항상 실행 — 별도 조치 불필요). 단 **VKOSPI 는 T+0 무료 소스가 없으므로**, 당일 KOSPI 가 ±3% 이상 급변한 날에는 런처 실행 **전에** Claude in Chrome 으로 data.krx.co.kr(또는 네이버 뉴스 검색의 당일 VKOSPI 보도치)에서 당일 VKOSPI 를 확인해 `<connected>/namoobi-market-report-server/data/vkospi_override.json` 에 `{"date":"YYYY-MM-DD","vkospi":값}` 으로 저장하면 파이프라인이 주입한다(파일 없으면 D-1 값에 날짜 병기 + ⚠stale 경고가 자동 렌더되므로 비차단))
+  ├─ [bash · 필수] `nmr_server_health.py "$WORK"` — server_*.json 캐시 + deriv 회수 직후 실행, 서버 사전 DB 빈 값·stale 판정 → nmr_server_health.json (verify req40 · Phase 6 [서버 사전 DB 상태])
   └─ **(v3.70 병렬화 · 2026-07-19 서버화1 개정 — Chrome 폐지)** 증권사 종합은 전부 서버 DB 기반: ① 배치 발행 직전 bash `fetch_brokers_tele.py`(~1분, 텔레그램 7사+KB·NH) ② **종합 작성 에이전트(SecuritiesCompose·sonnet)를 메인 배치에 포함** — 입력 = nmr_brokers_tele + `server_brokers3.json`(한투 '한눈에 투데이' 본문, 서버 크론) + `server_broker_reports.json`(네이버 6게시판 — 삼성·미래에셋·한투 리포트 목록·요약 포함). **메인세션 Chrome 3사 추출은 폐지** — brokers3·broker_reports 둘 다 D-3 초과로 부실할 때만 구 방식(Chrome 3탭) 폴백. 배치 뒤 직렬 작성 금지(17분 낭비 실측)
         ↓
 [Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_macro_charts.py·gen_cli_chart.py·gen_customs_chart.py·gen_krliq_charts.py·gen_veps_charts.py·gen_debt_charts.py·gen_gbonds_chart.py "$WORK"(3.1.1 주요국 10Y — 서버 API 회수)·gen_curve_1y.py → charts/*.png
@@ -471,6 +479,8 @@ python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
 수신: namoobi@gmail.com (To) + 숨은참조 N명 (주소 비공개)   ← 주말이면 "수신: 없음 — 토·일 미발송 규칙(v4.05), 서버 동기화만 완료"
 수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N+IB N
 검증(Phase 4.5 코드 게이트): problems N건 / warnings N건
+[서버 사전 DB 상태] (v4.08 · nmr_server_health.json — 정상이면 "14/14 정상" 1줄, 경고는 항목별 1줄씩 그대로)
+- ⚠ [server:<name>] 빈 값/stale … — <점검 힌트>   (2회차 연속이면 "서버 크론 점검 필요" 명시)
 [실행 시간]
 - 시작: YYYY-MM-DD HH:MM:SS (KST)
 - 완료(메일 발송 확인): YYYY-MM-DD HH:MM:SS (KST)

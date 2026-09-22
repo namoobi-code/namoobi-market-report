@@ -1,5 +1,10 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v4.08.0 (plugin 1.66.0, 2026-09-22) — 서버 사전 DB 빈 값·stale 게이트(nmr_server_health.py · verify req40)
+- 배경: v4.07 의 두 사고(broker_reports 0건·KRX 스냅샷 빈 값)는 크론이 정상 종료하며 빈 결과를 내 6일간 미인지. 보고서는 폴백으로 조용히 통과.
+- 신설 `scripts/nmr_server_health.py "$WORK"`: 14항목(broker_reports·ib_insights·news_pool·events_calendar·policy_rates·m7_estimates·factset_insight·brokers3·ism_pmi·crypto_overview·crypto_movers·etf_quotes·krx_market·deriv)을 '비어 있음/기대 주기 초과' 로 판정 → nmr_server_health.json(비차단). 9/22 캐시로 회귀 테스트: 당일 사고 3건 정확히 검출.
+- verify_report.js req40: 위 산출을 warnings 로 승격(파일 없으면 '미실행' 경고). SKILL Phase 1 필수 단계·Phase 6 [서버 사전 DB 상태] 블록 추가(2회차 연속 경고 = 서버 크론 점검 필요 명시).
+
 ## v4.07.0 (plugin 1.65.0, 2026-09-22) — 9/22 회차 특이사항 6건 재발방지
 - **broker_reports 6일 0건(9/16~22)**: 네이버 금융 리서치가 `finance.naver.com/research/*_list.naver` → `stock.naver.com`(Next.js SPA) 으로 이관돼 서버 `research_watch.py` HTML 정규식이 전부 미매치. 로그엔 "0개사 · 0건" 이 12회 찍혔지만 아무도 못 봤다. → **v3: `m.stock.naver.com/api/research/<cat>?page&pageSize` JSON API**(market·invest·company·industry·economy·debenture, 상세 `/api/research/<cat>/<id>` → content·attachUrl) 로 전환, 출력 스키마 불변. **0건 가드**: 합계 0건이면 기존 DB 보존·exit 2(구조 재변경 조기 감지). 실측 복구: 15개사·시황 30건.
 - **ib_insights 월·화 새벽 공백**: 24h 창이 주말에 걸려 5사 전부 0건 → 에이전트 전량 웹서치. → `market_prefetch2.py ib()` 가 24h 가 빈 회사만 `pool_72h` 후보 동봉(정본 24h 유지), agents.md 에 사용 규칙.

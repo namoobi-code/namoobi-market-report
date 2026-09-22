@@ -293,6 +293,10 @@ try{
   });
   if(bad.length) problems.push('[req38] 3.1.7 M7 신호가 데이터와 상반: '+bad.join(' / ')); }
 const ok=problems.length===0;
+// req40 (v4.08 · 2026-09-22): 서버 사전 DB 빈 값·stale 게이트 — nmr_server_health.py 산출을 warnings 로 승격(비차단).
+//   배경: 크론이 정상 종료하며 빈 결과를 내면(broker_reports 0건 6일·KRX 캐시 오염 6일) 폴백으로 조용히 통과해 아무도 못 봤다.
+try{ const hp=path.join(WORK,'nmr_server_health.json'); if(fs.existsSync(hp)){ const h=JSON.parse(fs.readFileSync(hp,'utf8')); (h.warnings||[]).forEach(w=>warnings.push('[req40] '+w)); }
+  else warnings.push('[req40] nmr_server_health.json 없음 — Phase 1 초입에 nmr_server_health.py 미실행'); }catch(e){ warnings.push('[req40] server_health 읽기 실패: '+e.message); }
 console.log(JSON.stringify({ok,problems,warnings},null,1));
 process.exit(ok?0:1);
 // EOF -- namoobi-market-report verify_report.js
