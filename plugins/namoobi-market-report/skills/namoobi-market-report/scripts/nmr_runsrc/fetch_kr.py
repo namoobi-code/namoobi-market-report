@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+# fetch_kr.py (v3.7) — 한국 시장데이터 sandbox 수집 (Chrome 불필요, stdlib only).
+# KoreaTechFlowsAgent 데이터 수집 완전 대체. Phase 1 단일 메시지에서 Agent 발행과 동시 tool-call,
+# 스레드 병렬 → 단독 ~10초(각 bash 호출은 독립 45초 예산). FRED 는 비차단·빠른 실패.
+# 산출: nmr_kr_ohlcv.json, nmr_kr_invest.json, nmr_hy_series.json(비차단)
+# 사용: python3 fetch_kr.py [WORK_DIR]
+import json
+import urllib.request, urllib.request, datetime as dt, time, sys, os
+from concurrent.futures import ThreadPoolExecutor
+_SDIR = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, _SDIR)  # v3.16: chdir 전에 확보(nmr_fred 임포트용)
+if len(sys.argv) > 1 and os.path.isdir(sys.argv[1]):
+    os.chdir(sys.argv[1])
+H = {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.daum.net/'}
+
+def get(url, headers=H, tries=2, timeout=12):
+    last = None
+    for i in range(tries):
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout).read().decode('utf-8', 'replace')
+        except Exception as e:
+            last = e; time.sleep(1)
+    raise last
+
+def yahoo_ohlc(sym):
+    u = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=1y&interval=1d'
+    j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0'})); r = j['chart']['result'][0]
+    ts = r['timestamp']; q = r['indicators']['quote'][0]; out = {}
+    for i, t in enumerate(ts):
+        d = dt.datetime.utcfromtimestamp(t + 32400).strftime('%Y-%m-%d')
+        o, h, l, c = q['open'][i], q['high'][i], q['low'][i], q['close'][i]
+        if None in (o, h, l, c): continue
+        out[d] = [round(o, 2), round(h, 2), round(l, 2), round(c, 2)]
+    return out
+
+def naver_ohlc(idx):
+    """(fix 2026-07-14) 야후 ^KS11/^KQ11 은 특정일 O/H/L 을 종가로 뭉개 도지봉을 만든다
+    (예 2026-07-13 코스피 -8.95% 폭락일이 O=H=L=C=6806.93). 네이버 m.stock(KRX 공식가)로 결손봉을 덮어쓴다."""
+    out = {}
+    def f(v):
+        try: return float(str(v).replace(',', ''))
+        except Exception: return None
+    for page in range(1, 6):          # pageSize 는 60 이 상한(100 이상은 HTTP 400) → 5페이지 = 약 300거래일
+        try:
+            u = f'https://m.stock.naver.com/api/index/{idx}/price?pageSize=60&page={page}'
+            j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://m.stock.naver.com/'}))
+            if not j: break
+            for x in j:
+                d = str(x.get('localTradedAt', ''))[:10]
+                o, h, l, c = f(x.get('openPrice')), f(x.get('highPrice')), f(x.get('lowPrice')), f(x.get('closePrice'))
+                if d and None not in (o, h, l, c):
+                    out[d] = [round(o, 2), round(h, 2), round(l, 2), round(c, 2)]
+        except Exception as e:
+            print(f'  [ohlc] 네이버 폴백 실패({idx} p{page}: {type(e).__name__})')
+            break
+    return out
+
+
+def repair_ohlc(yh, nv, label=''):
+    """야후 결손봉(O==H==L==C) 또는 야후 누락일을 네이버 공식가로 교체."""
+    n = 0
+    for d, v in (nv or {}).items():
+        cur = yh.get(d)
+        if cur is None or (cur[0] == cur[1] == cur[2] == cur[3]):
+            if not (v[0] == v[1] == v[2] == v[3]):
+                yh[d] = v; n += 1
+    if n: print(f'  [ohlc] {label} 결손봉 {n}일 네이버(KRX 공식) 복구')
+    return yh
+
+
+def daum_days(mkt):
+    u = f'https://finance.daum.net/api/market_index/days?page=1&perPage=250&market={mkt}&pagination=true'
+    j = json.loads(get(u)); rows = []
+    for d in j['data']:
+        rows.append([d['date'][:10], d['tradePrice'], int(d['accTradeVolume']),
+                     round(d['foreignStraightPurchasePrice'] / 1e8),
+                     round(d['institutionStraightPurchasePrice'] / 1e8),
+                     round(d['individualStraightPurchasePrice'] / 1e8)])
+    rows.reverse()
+    return rows
+
+def build_ohlcv(yh, daum):
+    ohlcv = []; flows = []
+    for date, close, vol, F, I, P in daum:
+        flows.append([date, F, I, P])
+        if date in yh:
+            o, h, l, c = yh[date]; ohlcv.append([date, o, h, l, c, vol])
+        else:
+            ohlcv.append([date, close, close, close, close, vol])
+    return ohlcv, flows
+
+def _inv_naver(mkt, itype):
+    """네이버 폴백 — 투자자별 매매 상위 (finance.naver.com sise_deal_rank iframe).
+
+    ⚠️ Daum 이 1차인 이유: 네이버는 이 표만 **하루 늦다**.
+       2026-07-13 실측 — Daum=당일(LG이노텍 -10.9%·SK스퀘어 -17.6%, 오늘 급락주)
+                        네이버=07/10(전 영업일)
+       그래서 네이버로 '전면 교체'하면 오히려 후퇴한다. 폴백으로만 쓴다.
+       (단위: 네이버는 백만원 → 억원 환산)
+    """
+    import re as _re
+    sosok = '01' if mkt == 'KOSPI' else '02'
+    gub = '9000' if itype == 'FOREIGN' else '1000'
+    out = {}
+    for typ in ('buy', 'sell'):
+        u = ('https://finance.naver.com/sise/sise_deal_rank_iframe.naver'
+             f'?sosok={sosok}&investor_gubun={gub}&type={typ}')
+        try:
+            raw = urllib.request.urlopen(urllib.request.Request(u, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36',
+                'Referer': 'https://finance.naver.com/sise/sise_deal_rank.naver'}), timeout=12).read()
+            h = raw.decode('euc-kr', 'ignore')
+        except Exception:
+            out[typ] = []; continue
+        asof = (_re.search(r'(\d{2}\.\d{2}\.\d{2})', _re.sub(r'<[^>]+>', ' ', h)) or [None, ''])[0]
+        rows = []
+        for tr in _re.findall(r'<tr[^>]*>(.*?)</tr>', h, _re.S):
+            # HTML: <a href="/item/main.naver?code=005930" class="tltle" ...>삼성전자</a>
+            #   → code 뒤에 바로 '">' 가 오지 않는다. [^>]* 로 속성들을 건너뛴다.
+            nm = _re.search(r'code=\d{6}"[^>]*>([^<]+)</a>', tr)
+            if not nm: continue
+            tds = [_re.sub(r'<[^>]+>', '', t).replace('&nbsp;', '').strip()
+                   for t in _re.findall(r'<td[^>]*>(.*?)</td>', tr, _re.S)]
+            if len(tds) < 3: continue
+            try: eok = round(float(tds[2].replace(',', '')) / 100)   # 백만원 → 억원
+            except Exception: continue
+            word = '순매수' if typ == 'buy' else '순매도'
+            rows.append({'name': nm.group(1),
+                         'detail': f"{word} {abs(eok):,}억원 (네이버 폴백 · 기준 {asof})"})
+            if len(rows) >= 10: break
+        out[typ] = rows
+    return out.get('buy', []), out.get('sell', [])
+
+
+def inv(mkt, itype):
+    """투자자별 순매수/순매도 상위 10종.
+
+    1차 = Daum(당일) · 2차 = 네이버(전 영업일).
+    Daum 단일 의존이라 차단되면 3.2.2 가 통째로 비었다 → 폴백 추가.
+    """
+    try:
+        u = f'https://finance.daum.net/api/trend/investor_purchase?page=1&perPage=10&market={mkt}&investorType={itype}&pagination=true'
+        j = json.loads(get(u, {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.daum.net/domestic/influential_investors'}))
+        d = j.get('data', {})
+        # (fix 2026-07-14) Daum investor_purchase 의 금액은 '직전 거래일 마감 확정치'인데
+        # changeRate 는 '조회 시점 현재가' 등락률이라, 한 셀에 서로 다른 시점이 섞여
+        # "SK하이닉스 순매도 1.4조 (주가 +0.5%)" 같은 모순 문장이 나왔다.
+        # → 금액(확정)과 현재가 등락률을 명확히 분리 표기하고, 순매수액 합계를 함께 돌려
+        #    호출부가 기준일(asof)을 일별 확정수급과 대조해 스스로 보정하게 한다.
+        def lst(arr): return [{'name': x['name'], 'detail': f"순매수 {round(x['straightPurchasePrice'] / 1e8):,}억원 · 현재가 {x['changeRate'] * 100:+.1f}%",
+                               'amt': x['straightPurchasePrice'] / 1e8} for x in (arr or [])[:10]]
+        def lstS(arr): return [{'name': x['name'], 'detail': f"순매도 {abs(round(x['straightPurchasePrice'] / 1e8)):,}억원 · 현재가 {x['changeRate'] * 100:+.1f}%",
+                                'amt': x['straightPurchasePrice'] / 1e8} for x in (arr or [])[:10]]
+        b, s = lst(d.get('BUY')), lstS(d.get('SELL'))
+        if b or s:
+            return b, s
+        print(f'  [inv] Daum 빈 응답({mkt}/{itype}) → 네이버 폴백')
+    except Exception as e:
+        print(f'  [inv] Daum 실패({mkt}/{itype}: {type(e).__name__}) → 네이버 폴백')
+    return _inv_naver(mkt, itype)
+
+def _hy_cache():  # v3.14: FRED 차단 시 영구 누적 캐시(연결폴더) 폴백 — HY 표·차트 항상 채움
+    import glob as _g
+    for p in [os.path.join(os.getcwd(), '_market_report_data', 'nmr_hy_history.json')] + _g.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data/nmr_hy_history.json') + _g.glob('/sessions/*/mnt/outputs/_market_report_data/nmr_hy_history.json'):
+        try:
+            s = (json.load(open(p)).get('series')) or []
+            if len(s) >= 5: return {'series': s, 'points': {'current': s[-1]}, 'source': 'persistent cache (FRED 차단 폴백)'}
+        except Exception: pass
+    return None
+
+def _hy_fredapi():  # v3.16: FRED API 키(SECURITY/secrets.env FRED_API_KEY) 직접 호출 — 공식 실측·미러 불필요·~0.4s
+    from nmr_fred import fred_key, fred_series
+    if not fred_key(): raise ValueError('no FRED_API_KEY')
+    daily = fred_series('BAMLH0A0HYM2', start=(dt.date.today() - dt.timedelta(days=1200)).isoformat())
+    if len(daily) < 30: raise ValueError('fred api <30')
+    cut = (dt.date.today() - dt.timedelta(days=430)).isoformat()
+    return {'series': [p for p in daily if p[0] >= cut], 'points': {'current': daily[-1]}, '_full': daily,
+            'source': 'ICE BofA US HY OAS (FRED BAMLH0A0HYM2) — FRED API 일별 실측'}
+
+def _hy_equibles():  # v3.15: FRED CSV 직접호출은 sandbox 차단 → equibles.com(FRED 실측 미러)에서 일별 OAS 파싱
+    import re as _re
+    html = get('https://equibles.com/economicdata/bamlh0a0hym2', {'User-Agent': 'Mozilla/5.0'}, tries=2, timeout=20)
+    pairs = _re.findall(r'<td[^>]*>\s*(\d{4}-\d{2}-\d{2})\s*</td>\s*<td[^>]*>\s*([0-9]+\.[0-9]+)\s*</td>', html)
+    daily = sorted([[d, float(v)] for d, v in pairs])
+    if len(daily) < 30: raise ValueError('equibles parse<30')
+    cut = (dt.date.today() - dt.timedelta(days=430)).isoformat()
+    return {'series': [p for p in daily if p[0] >= cut], 'points': {'current': daily[-1]}, '_full': daily,
+            'source': 'ICE BofA US HY OAS (FRED BAMLH0A0HYM2) — equibles.com 실측 일별'}
+
+def hy_series():  # v3.16: FRED API(키) → equibles 미러 → 영구 캐시 폴백
+    for fn in (_hy_fredapi, _hy_equibles):
+        try: return fn()
+        except Exception: pass
+    c = _hy_cache()
+    if c: return c
+    raise ValueError('HY 수집 실패 — FRED API·equibles·영구캐시 모두 불가')
+
+def safe(fn, *a):
+    try: return fn(*a)
+    except Exception as e: return e
+
+with ThreadPoolExecutor(max_workers=9) as ex:
+    f_ksy = ex.submit(yahoo_ohlc, '%5EKS11'); f_kqy = ex.submit(yahoo_ohlc, '%5EKQ11')
+    f_ksd = ex.submit(daum_days, 'KOSPI'); f_kqd = ex.submit(daum_days, 'KOSDAQ')
+    f_iff = ex.submit(safe, inv, 'KOSPI', 'FOREIGN'); f_ifi = ex.submit(safe, inv, 'KOSPI', 'INSTITUTION')
+    f_iqf = ex.submit(safe, inv, 'KOSDAQ', 'FOREIGN'); f_iqi = ex.submit(safe, inv, 'KOSDAQ', 'INSTITUTION')
+    f_hy = ex.submit(safe, hy_series)
+ks_y, kq_y, ks_d, kq_d = f_ksy.result(), f_kqy.result(), f_ksd.result(), f_kqd.result()
+
+ks_y = repair_ohlc(ks_y, naver_ohlc('KOSPI'), 'KOSPI')
+kq_y = repair_ohlc(kq_y, naver_ohlc('KOSDAQ'), 'KOSDAQ')
+ko, kf = build_ohlcv(ks_y, ks_d); qo, qf = build_ohlcv(kq_y, kq_d)
+json.dump({'kospi_ohlcv': ko, 'kosdaq_ohlcv': qo, 'kospi_flows_daily': kf, 'kosdaq_flows_daily': qf},
+          open('nmr_kr_ohlcv.json', 'w'), ensure_ascii=False)
+print('OHLCV: kospi', len(ko), 'kosdaq', len(qo), '| last kospi', ko[-1], '| flows last', kf[-1])
+
+def ok2(x): return isinstance(x, tuple)
+if ok2(f_iff.result()) and ok2(f_ifi.result()) and ok2(f_iqf.result()) and ok2(f_iqi.result()):
+    (ks_f_b, ks_f_s), (ks_i_b, ks_i_s) = f_iff.result(), f_ifi.result()
+    (kq_f_b, kq_f_s), (kq_i_b, kq_i_s) = f_iqf.result(), f_iqi.result()
+    # (fix 2026-07-14) 기준일 자가보정: Daum 종목별 수급은 T-1 확정치일 수 있다.
+    # 외국인 top10 순매수 합계를 최근 거래일들의 '확정 외국인 순매수'와 대조해 가장 가까운 날을 기준일로 삼는다.
+    def _calib_asof(bl, sl, flows):
+        try:
+            net = sum(x.get('amt', 0) for x in (bl or [])) + sum(x.get('amt', 0) for x in (sl or []))
+            cands = flows[-3:]
+            best = min(cands, key=lambda r: abs(r[1] - net))
+            return best[0], round(net)
+        except Exception:
+            return (flows[-1][0] if flows else ''), None
+    _asof, _net10 = _calib_asof(ks_f_b, ks_f_s, kf)
+    if _asof != ks_d[-1][0]:
+        print(f'  [inv] 기준일 보정: {ks_d[-1][0]} → {_asof} (외국인 top10 합 {_net10}억, 당일 확정 {kf[-1][1]}억)')
+    invest = {'asof': _asof,
+              'note': '금액=' + _asof + ' 마감 확정 순매수/순매도(다음금융 investor_purchase). 등락률은 조회 시점 현재가 기준이라 기준일 등락률과 다를 수 있음.',
+              'kospi_foreign_buy': ks_f_b, 'kospi_foreign_sell': ks_f_s, 'kospi_inst_buy': ks_i_b, 'kospi_inst_sell': ks_i_s,
+              'kosdaq_foreign_buy': kq_f_b, 'kosdaq_foreign_sell': kq_f_s, 'kosdaq_inst_buy': kq_i_b, 'kosdaq_inst_sell': kq_i_s}
+    json.dump(invest, open('nmr_kr_invest.json', 'w'), ensure_ascii=False)
+    print('수급: KOSPI외인매수', len(ks_f_b), '매도', len(ks_f_s), '| 기관매수', len(ks_i_b), '| KOSDAQ외인매수', len(kq_f_b))
+else:
+    json.dump({'asof': '', 'note': '수급 수집 실패'}, open('nmr_kr_invest.json', 'w'), ensure_ascii=False)
+    print('수급 실패(빈값으로 진행):', f_iff.result())
+
+hy = f_hy.result()
+if isinstance(hy, dict):
+    json.dump(hy, open('nmr_hy_series.json', 'w'), ensure_ascii=False)
+    try:  # v3.14: 영구 누적 캐시 갱신(연결폴더) — FRED 차단돼도 다음 실행이 폴백
+        import glob as _g
+        _cp = _g.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server/data')
+        if _cp:
+            _hp = os.path.join(_cp[0], 'nmr_hy_history.json')
+            _hist = {}
+            if os.path.exists(_hp):
+                try: _hist = json.load(open(_hp))
+                except Exception: _hist = {}
+            _mer = {d: v for d, v in (_hist.get('series') or [])}
+            for d, v in (hy.get('_full') or hy['series']): _mer[d] = v
+            _cur = hy.get('points', {}).get('current')
+            if _cur: _mer[_cur[0]] = _cur[1]
+            _hist['series'] = [[d, _mer[d]] for d in sorted(_mer)]
+            _hist['updated'] = dt.date.today().isoformat()
+            json.dump(_hist, open(_hp, 'w'), ensure_ascii=False)
+            # (HY 정리) 대시보드용 db/series_hy_oas.json 동시 갱신 — sync_server 가 db/ 전체를 서버로 올려
+            # namoobi.duckdns.org 3.1.1 HY 표·1년 차트가 이 시계열로 렌더된다.
+            _sv = _g.glob('/sessions/*/mnt/claudeCowork/namoobi-market-report-server')
+            _dbd = os.path.join((_sv or _cp)[0], 'db'); os.makedirs(_dbd, exist_ok=True)
+            json.dump({'as_of': _hist['updated'], 'marker': _hist['series'][-1][0],
+                       'source': 'FRED BAMLH0A0HYM2 (ICE BofA US HY OAS) 일별 누적', 'data': _hist['series']},
+                      open(os.path.join(_dbd, 'series_hy_oas.json'), 'w'), ensure_ascii=False)
+    except Exception: pass
+    print('HY: months', len(hy['series']), 'current', hy['points']['current'])
+else:
+    print('HY 실패(차트 비차단, 캐시/에이전트 폴백):', hy)
+# v3.16 end

@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""send_mail_server.py — Phase 5 서버 SMTP 발송 래퍼 (v3.96 — 주말 미발송 가드 · v3.83 pre-dedup).
+
+동작: ① 모드별 BCC 파일 읽기(// 주석 제외) ② docx 를 서버로 scp(대개 sync 로 이미 있음 — 크기 대조 후 재사용)
+     ③ ssh 로 send_report_mail.py 에 stdin JSON 전달(주소 argv 미노출) ④ "SENT" 확인.
+서버 인증파일(keys/gmail_app_password.txt) 없으면 exit 3 → 스킬은 Chrome 초안 경유(v3.68)로 폴백.
+
+Usage: send_mail_server.py <docx절대경로(VM)> <subject> <body파일 경로> [scheduled|normal] [--force]
+종료코드: 0=발송 성공 또는 주말 SKIP · 3=서버 인증파일 없음(폴백 요망) · 그 외=실패(폴백 요망)
+출력 마지막 줄: SENT ... (성공) / SKIP ... (주말 미발송 — 정상 종료, 폴백 금지) — BCC 는 인원수만.
+
+[v3.96 · 2026-09-06 사용자 지시] 주말(토·일 KST) 미발송 가드 — 예약/직접 실행 모두 적용.
+  기준일 = docx 파일명의 YYYYMMDD(보고서 날짜) 가 있으면 그 날짜, 없으면 오늘(KST).
+  토·일이면 ssh·scp·SMTP 에 들어가지 않고 "SKIP (weekend …)" 출력 후 exit 0 (Chrome 폴백 금지).
+  서버 send_report_mail.py 도 같은 가드를 갖는다(2중 방어). 의도적 주말 발송은 --force 로만.
+"""
+import glob, json, os, re, shlex, shutil, subprocess, sys
+
+DOCX = sys.argv[1]
+SUBJECT = sys.argv[2]
+BODY = open(sys.argv[3], encoding="utf-8").read() if len(sys.argv) > 3 and os.path.isfile(sys.argv[3]) else "첨부 문서를 참고해 주세요."
+MODE = next((a for a in sys.argv[4:] if not a.startswith("--")), "normal").strip().lower()
+FORCE = "--force" in sys.argv
+
+def weekend_key(docx_path):
+    """docx 파일명 날짜(없으면 오늘 KST)가 토·일이면 그 날짜 문자열을, 아니면 None 을 반환."""
+    from datetime import datetime, timezone, timedelta
+    m = re.search(r"(\d{8})", os.path.basename(docx_path))
+    try:
+        d = datetime.strptime(m.group(1), "%Y%m%d") if m else datetime.now(timezone(timedelta(hours=9)))
+    except Exception:
+        d = datetime.now(timezone(timedelta(hours=9)))
+    return d.strftime("%Y-%m-%d(%a)") if d.weekday() >= 5 else None
+SERVER = "ubuntu@161.33.190.254"
+REMOTE_DIR = "namoobi/data/reports"
+
+CW = (glob.glob("/sessions/*/mnt/claudeCowork") or ["D:/claudeCowork"])[0]
+KEY = os.path.join(CW, "SECURITY", "nmr_deploy_key")
+BCC_FILE = os.path.join(CW, "SECURITY", "예약메일수신자.txt" if MODE.startswith("sched") else "메일수신자.txt")
+
+def run(cmd, timeout=35, inp=None):
+    return subprocess.run(cmd, shell=True, timeout=timeout, capture_output=True, text=True, input=inp)
+
+def main():
+    if not os.path.isfile(DOCX):
+        print("ERR docx 없음:", DOCX); sys.exit(2)
+    wk = weekend_key(DOCX)
+    if wk and not FORCE:
+        print(f"SKIP (weekend — {wk} 토·일 KST 는 메일 미발송, 예약/직접 공통 · 주말 발송은 --force) attach={os.path.basename(DOCX)}")
+        print("발송 생략 — 주말 미발송 규칙(v3.96). 보고서·서버 동기화는 정상 완료됨")
+        sys.exit(0)
+    bcc = []
+    try:
+        for ln in open(BCC_FILE, encoding="utf-8"):
+            if re.match(r"^\s*//", ln):
+                continue
+            bcc += re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", ln)
+    except Exception:
+        pass
+    bcc = list(dict.fromkeys(bcc))
+    tmpk = "/dev/shm/nmr_mailk"
+    shutil.copy(KEY, tmpk); os.chmod(tmpk, 0o600)
+    SSH = f"ssh -i {tmpk} -o StrictHostKeyChecking=no -o ConnectTimeout=12 {SERVER}"
+    SCP = f"scp -q -i {tmpk} -o StrictHostKeyChecking=no"
+    try:
+        # 인증파일 선검사 (없으면 즉시 폴백 신호)
+        r = run(f'{SSH} "cd namoobi && python3 scripts/send_report_mail.py --check"')
+        if r.returncode == 3 or "없음" in (r.stdout + r.stderr):
+            print("AUTH_MISSING — 서버 keys/gmail_app_password.txt 미배포 → Chrome 폴백 요망"); sys.exit(3)
+        base = os.path.basename(DOCX)
+        # [v3.83 pre-dedup — 2026-08-06 재발방지] 발송 전 서버 mail_sent.log 일자 키 선확인:
+        # 직전 시도가 timeout 으로 SENT 출력만 유실한 채 서버측 발송이 완료된 경우,
+        # 재시도가 무거운 경로(scp·SMTP)에 들어가기 전에 여기서 차단한다(서버 flock v3.72 와 2중 방어).
+        import re as _re
+        from datetime import datetime, timedelta
+        _m = _re.match(r"^(global_market_report_\d{8})", base)
+        _key = _m.group(1) if _m else base
+        r = run(f'{SSH} "grep -F {shlex.quote(_key)} namoobi/data/mail_sent.log 2>/dev/null | tail -1"')
+        _prior = (r.stdout or "").strip()
+        if _prior:
+            _parts = _prior.split("\t")
+            try:
+                _recent = datetime.fromisoformat(_parts[0]) >= datetime.now() - timedelta(hours=20)
+            except Exception:
+                _recent = True
+            if _recent:
+                _msgid = _parts[2] if len(_parts) > 2 else ""
+                print(f"SENT {_msgid} (pre-dedup — {_parts[0]} 기발송 확인, 재발송 차단) attach={_parts[1] if len(_parts)>1 else base}")
+                print("발송 OK(기발송 재확인) — 재발송 없음 (의도적 재발송은 서버측 --force)")
+                sys.exit(0)
+        remote = f"{REMOTE_DIR}/{base}"
+        lsz = os.path.getsize(DOCX)
+        r = run(f'{SSH} "stat -c %s {shlex.quote(remote)} 2>/dev/null"')
+        if (r.stdout or "").strip() != str(lsz):   # sync 로 이미 올라갔으면 재전송 생략
+            r = run(f"{SCP} {shlex.quote(DOCX)} {SERVER}:{shlex.quote(remote)}", timeout=120)
+            if r.returncode != 0:
+                print("ERR scp:", (r.stderr or "")[:120]); sys.exit(2)
+        cfg = json.dumps({"to": "namoobi@gmail.com", "bcc": bcc, "subject": SUBJECT,
+                          "body": BODY, "attach": f"/home/ubuntu/{remote}"}, ensure_ascii=False)
+        _force = " --force" if FORCE else ""
+        r = run(f'{SSH} "cd namoobi && python3 scripts/send_report_mail.py{_force}"', timeout=90, inp=cfg)
+        out = (r.stdout or "") + (r.stderr or "")
+        if r.returncode == 0 and "SKIP" in out:
+            print(out.strip().splitlines()[-1]); print("발송 생략 — 서버측 주말 가드"); sys.exit(0)
+        if r.returncode == 0 and "SENT" in out:
+            print(out.strip().splitlines()[-1])
+            print(f"발송 OK — To 1명 + BCC {len(bcc)}명 (주소 비공개)")
+            sys.exit(0)
+        print("ERR 서버 발송 실패:", out[:200]); sys.exit(r.returncode or 4)
+    finally:
+        try: os.remove(tmpk)
+        except Exception: pass
+
+if __name__ == "__main__":
+    main()

@@ -99,7 +99,7 @@ def main():
         cfg = json.dumps({"to": "namoobi@gmail.com", "bcc": bcc, "subject": SUBJECT,
                           "body": BODY, "attach": f"/home/ubuntu/{remote}"}, ensure_ascii=False)
         _force = " --force" if FORCE else ""
-        r = run(f'{SSH} "cd namoobi && python3 scripts/send_report_mail.py{_force}"', timeout=90, inp=cfg)
+        r = run(f'{SSH} "cd namoobi && python3 scripts/send_report_mail.py{_force}"', timeout=172, inp=cfg)
         out = (r.stdout or "") + (r.stderr or "")
         if r.returncode == 0 and "SKIP" in out:
             print(out.strip().splitlines()[-1]); print("발송 생략 — 서버측 주말 가드"); sys.exit(0)
