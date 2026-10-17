@@ -1,0 +1,583 @@
+---
+name: namoobi-market-report
+description: |
+  글로벌 금융시장 종합 시황 보고서를 자동 생성·발송하는 워크플로우. 사용자가
+  "글로벌 시황 보고서", "오늘 시장 보고서 보내줘", "global market report",
+  "daily market briefing", "매일 시황 발송", "코스피 미국증시 보고서 만들어줘",
+  "namoobi 시황 보고서" 등으로 요청할 때 트리거된다. 여러 서브에이전트
+  (뉴스/시장데이터/원자재/암호화폐/한국증권사/글로벌IB/시계열·차트/종합분석)를 병렬로 호출해 자료를 수집하고,
+  종합 데이터를 JSON으로 정리한 뒤 docx 보고서를 생성하고, Claude in Chrome 가
+  로그인된 Gmail 작성창에서 직접 메일을 작성·docx 첨부·발송한다
+  (받는사람: namoobi@gmail.com 단독, 숨은참조: 연결폴더 SECURITY 폴더의 수신자 목록 파일에 적힌 주소 —
+  예약 실행이면 예약메일수신자.txt, 일반 실행이면 메일수신자.txt).
+---
+
+
+# Namoobi Market Report (plugin v1.68.0 · SKILL v4.07.0)
+
+> 변경이력(배너)은 `CHANGELOG.md` 로 분리 — 런타임 미로딩. 현행 규칙은 아래 '핵심 수집 규칙'과 각 Phase 본문, `references/` 를 따른다.
+
+## 핵심 수집 규칙 (현행 — 매 실행 준수)
+
+> **원칙: "조용히 미표시(-)·carry-forward·stale 로 넘기지 말 것. 결함이 있으면 발송하지 말고 사용자에게 물어라."** 정상 예제(`D:\claudeCowork\GOODREPORT`) 수준을 못 맞추면 Phase 4.5 게이트에서 멈춘다. 아래는 그동안 반복적으로 깨지던 지점의 확정 규칙이다(상세·스키마는 `references/agents.md`).
+
+> **[v3.71 · 2026-07-21 실측 확정] 샌드박스 실행 계약 — 백그라운드 전멸·전부 포그라운드**: bash tool-call 은 `bwrap --unshare-pid --die-with-parent` 격리라 **콜이 끝나면 nohup/setsid/& 백그라운드 프로세스도 함께 죽는다**(간헐 생존은 다음 콜 활성 시간에 얹힌 우연 — 신뢰 금지). 또 `pgrep -f <스크립트명>` 은 **자기 bash 명령줄 텍스트를 자기매칭**해 "실행 중" 오판을 낸다(7/21 sync 지연 사고 원인). 따라서 ① **모든 fetch/gen/sync/발송 스크립트는 포그라운드**로, 한 콜(45초) 안에서 `&`+`wait` 로 병렬 묶어 실행한다(그룹 예: A=fetch_us·semi·oecd·aetf·appc·leading·customs ~15초 / B=fetch_kr·memory·krliq·krxbrief ~25초 / C=fetch_brokers_tele 단독 timeout 43 / D=deriv run_for_report 단독 — 서버 스냅샷 회수 ~20초). 미완주(45초 벽)면 **같은 명령을 다음 콜에서 재실행**(수집기는 출력파일·서버 dedup 으로 멱등). ② **Phase 1 순서 = fetch 콜 A~D 완주 → 그 다음 에이전트 배치 1회 발행**: MacroAgent 의 vkospi 주입(nmr_markets.json)과 SecuritiesCompose 입력(nmr_brokers_tele.json)이 이미 존재한 상태가 되어 폴링·재실행이 사라진다. ③ 완료 감시는 pgrep 이 아니라 **출력 파일 존재/로그 꼬리**로만 판단한다. ④ sync_server·send_mail_server 도 포그라운드 `timeout 43`(발송은 서버 dedup 가드로 재실행 안전). ⑤ /dev/shm·/tmp 도 콜 간 휘발 — 콜을 넘겨 쓸 파일은 outputs/연결폴더에만 둔다.
+> **[v3.73 · 2026-07-21 실측] WORK 폴더는 매 실행 새 이름(타임스탬프)** — `rm -rf "$WORK"` 는 마운트가 unlink 를 차단해 **항상 실패**한다(직전 회차 파일·node_modules 가 남아 잔존물 오염·차트 혼입 위험). 따라서 초기화하지 말고 **`WORK="$OUT/nmr_build_$(TZ=Asia/Seoul date '+%H%M')"` 로 새로 만들고**, 현재 경로를 `$OUT/nmr_work_current.txt` 에 적어 이후 콜에서 `WORK="$(cat /sessions/*/mnt/outputs/nmr_work_current.txt)"` 로 재유도한다(콜마다 셸 변수 휘발). node_modules 는 `$OUT/nmr_node_cache` 에서 복사해 재사용한다. **`/dev/shm`·`/tmp` 도 콜 간 휘발**되므로 여러 콜에 걸쳐 쓸 스크립트·중간파일은 반드시 outputs/연결폴더에 둔다.
+> **[v3.73 · 에이전트 스톨 내성]** 병렬 배치 중 일부 에이전트가 **API 스톨(Response stalled mid-stream)로 중단**되면 그 에이전트의 산출 파일이 아예 생기지 않는다(2026-07-21 실측: News·GlobalSecurities 2건 중단 → 재실행에 30분 추가·수집 56분의 주원인). 규약: ① 배치 직후 **`ls nmr_*.json` 로 산출물 존재를 먼저 확인**하고 **없는 것만** 재발행한다(있는 것 재실행 금지). ② 재발행 프롬프트에는 **"속도 우선 — 웹 재검색 최소화, 서버 풀 주력, 검색 N회 이내"** 와 **직전 배치에서 확인된 사실(오늘 시장 맥락·타 에이전트 실측치)** 을 주입해 탐색을 줄인다. ③ 장시간 검색이 예상되는 News·GlobalSecurities 는 **처음부터** 검색 상한(News ≤5회·IB 각사 2~4회)을 프롬프트에 명시한다.
+> **[v3.81 · 2026-07-22 재발방지] 스키마 불일치·재사용 경로·조립 절차 확정**: ① 3.2.3 반도체/AI 산출 스키마 = **`semi_ai_stocks`·`semi_ai_etfs` 분리 리스트**(+각 comment) — 구 `semi_ai_breakdown` 단일 리스트는 merge 미인식으로 표가 통째로 비었다(2026-07-22 실측, merge 에 자동분리 shim 추가·정본은 분리 스키마). ② **IndexRebalance 마커 skip 회차는 merge 가 직전 report_data 자동 carry-forward**(수동 주입 불필요). ③ **6장 크립토 = `python3 scripts/compose_crypto.py "$WORK"`** 기계 조립(CryptoAgent·MCP 재조사 금지 유지, 업다운 카운트·평균등락만 CoinInfo `get_market_overview` 1콜 → `nmr_coininfo_extra.json` 저장 보조). ④ 서버 `ism_pmi` 의 svc 는 제조업 헤드라인 복제 오염 가능 — MacroAgent 가 'Services/서비스' 미포함 헤드라인이면 WebSearch 실측으로 대체. ⑤ **에이전트 명세(references/agents.md)는 설치본이 아니라 $RUN(runsrc)에서 읽는다** — 설치본 구판 스키마가 ①의 원인(runsrc 는 git HEAD 라 항상 최신).
+> **[v3.82 · 2026-08-04 재발방지] 중복 실행·중복 발송 가드**: PC가 꺼져 예약(06시)을 놓치면 **Cowork 스케줄러가 PC/앱 재시작 시 catch-up 으로 지연 실행**한다(8/4 실측: 06시 누락분이 13:31 자동 실행). 이를 모르고 수동 재실행하면 병렬 2세션이 같은 날짜 보고서를 _HHMM 만 다른 파일명으로 각각 발송한다(8/4 중복 수신 사고). 대책 2중화 — ① **Phase 0-1 기발송·병렬 가드(필수)**: 실행 초입에 서버 `data/mail_sent.log` 에서 오늘 일자 키(`global_market_report_YYYYMMDD`)를 grep, 기발송이면 예약 모드=즉시 종료·일반 모드=사용자 질문. ② **서버 send_report_mail.py v3.71 일자 키 dedup**: 첨부파일명 완전일치 → 일자 키 비교로 확장해 회차(_HHMM)가 달라도 같은 날짜면 재발송 차단(의도적 재발송은 서버측 `--force` 로만).
+> **[v3.83 · 2026-08-06 재발방지] 발송 TOCTOU 레이스 중복 차단**: 8/6 실측 — 첫 발송 wrapper 가 45초 벽(timeout)에 잘려 출력(SENT)만 유실돼도 **서버측 SMTP 는 계속 진행**되는데, dedup 근거인 mail_sent.log 기록은 SMTP **완료 후**라서 그 사이 수십 초(7MB 첨부 ~30초) 동안 재시도·병렬 호출이 dedup 을 통과해 같은 회차가 2통 발송됐다(06:27:20/06:27:47, 27초 간격 — v3.71 일자 키 dedup 은 순차 재시도만 막고 동시 실행 레이스는 구조적으로 못 막았음). 대책 2중화 — ① **서버 send_report_mail.py v3.72: flock 직렬화** — 발송 전 구간(dedup 확인→SMTP→로그 기록)을 `data/mail_send.lock` 배타 락으로 묶고 **락 획득 후에 dedup 을 확인**한다. 동시 호출의 2번째는 첫 발송의 로그 기록 이후에야 진행돼 반드시 차단된다(락 대기 최대 180초, 실측 검증: 동시 2건·락 선점 시나리오 모두 dedup 차단). ② **wrapper send_mail_server.py v3.83 pre-dedup**: 발송 전 서버 mail_sent.log 의 오늘 일자 키를 grep 선확인 — 기발송이면 scp·SMTP 경로에 들어가지 않고 즉시 `SENT (pre-dedup …)` 로 종료. 재시도 규약: timeout·SENT 미확인으로 끝나도 원격 프로세스가 살아서 발송을 끝냈을 수 있음 — 재실행은 ①②가 차단하므로 안전하나, **재시도 전 mail_sent.log 를 먼저 grep 하는 것이 정석**(pre-dedup 이 자동 수행).
+> **[Big-Arch] 비매일 지표 DB화 (최우선 원칙 · 상세 `references/db-architecture.md`)**: 발표주기가 매일이 아닌 **모든 3.1 매크로 지표**(FOMC 기준금리·6개국 정책금리·FOMC 회의일정·점도표·물가 CPI/CoreCPI/PCE/CorePCE/PPI·고용 7종(초기 실업수당 청구건수 포함)·빅테크 CAPEX·메모리/HBM·경기선행지수(한국)·OECD CLI)는 ① 별도 DB(파일)에 저장하고 ② 매 실행 **변동 여부만** 저렴히 조사해 ③ 변동 시에만 재조사·갱신하며 ④ 변동 없으면 DB값을 그대로 쓴다. 보고서엔 표준 캡션 **"업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"** 를 명시한다(물가는 `, BEI는 실시간` 부기). **매일 실측(DB화 제외)**: 美 국채금리(10Y·2Y)·장단기차(10Y-2Y)·HY 스프레드·기대인플레(BEI)·심리(VIX·KSVKOSPI·DXY·원/달러·WTI·美10Y). CAPEX·HBM 은 **누적형 DB**(신규 관측치 upsert 로 시계열 계속 업그레이드).
+> **Top News 최신성(req1)**: 1.글로벌 Top News 10 은 발행일이 **전일~당일(D-0~D-1)** 인 기사만 사용(2일 이상 지난 뉴스 금지).
+> **[Big-Arch 구현] 범용 DB**: `scripts/nmr_db.py`(check/get/set/upsert) + `merge.py` 가 매 실행 **물가·고용·정책금리·FOMC회의·점도표·경기선행·OECD CLI** 7섹션을 `namoobi-market-report-server/db/<item>.json` 에 자동 저장하고, 비면 DB값을 재사용한다(변동 시에만 갱신). 에이전트는 섹션 마커(최신 발표/결정일)를 `nmr_db.py check` 로 1회 관측해 reuse 면 수집 스킵 가능. **차트 시계열도 `nmr_db.dbseries` 로 db/series_*.json 에 누적**(부실 수집 보강). 점도표·13F·리밸런싱 포함 모든 비매일 지표를 통합 DB로 일원화 — **구 마커체크(nmr_cache.py)는 폐지**.
+
+**(v3.62 req2) FOMC 회의 일정** — merge 가 `nmr_usmacro.json` 의 fomc_meetings 를 1순위로 읽어 DB와 날짜 union(과거 1년 실제 결정 유실 금지), **예정 회의는 향후 3개만** 수록. 게이트 req16b(과거 실제 결정 ≥6·예정 ≤3)가 강제.
+
+**공통 소스·폴백**
+- 증시·지수·환율·원자재·美ETF·크립토시계열: **`scripts/fetch_us.py`**(sandbox·stdlib·스레드 병렬, Yahoo+alternative.me, ~4초). 美10년=^TNX, 전체 국채커브·CAPEX·점도표는 USMacroExtras(FMP). 한국 지수/수급/시계열은 fetch_kr.py·fetch_semi.py.
+- 암호화폐 **(req9~11·19 2026-07-18 서버 DB 우선)**: 서버가 미리 수집해둔 것을 그대로 쓴다 — `http://161.33.190.254/api/db/crypto_overview`(시장개요·매시) · `crypto_movers`(Top G/L 각 10종목·매시) · `crypto_fng`(공포탐욕 1년 이력) · `kimp_series`(김프 10분·1년 백필). curl 1회씩이면 끝 — MCP 재조사 금지(시간 낭비·결측 원인). **(v3.81) 조립은 `python3 scripts/compose_crypto.py "$WORK"` 가 기계 수행**(서버 DB+nmr_kimchi → nmr_crypto.json. 업다운 카운트·평균등락만 메인세션 CoinInfo `get_market_overview` 1콜 결과를 `nmr_coininfo_extra.json` 으로 저장해 보조 — 없으면 해당 칸 null 비차단). 6.3 뒤 김프 1Y 차트(2차 req31): `python3 scripts/gen_kimp_chart.py` → charts/kimp_30d.png (빌더가 자동 삽입). 6.4 는 10종목(빌더 slice 10). 폴백만 CoinInfo MCP. `get_kimchi_premium` 이 null/부족이면 **CoinDesk MCP `fetch_spot_tick`**(upbit `<SYM>-KRW` + binance `<SYM>-USDT`)로 직접 계산. 공포·탐욕 = `api.alternative.me/fng`. 한국 거래소(업비트·빗썸) API 는 Chrome 차단 → CoinDesk MCP 로만.
+- 모든 trend/추세 텍스트는 **한글**. **추정 금지** — 도구·검색으로 확인된 값만, 없으면 null(기억으로 채우지 말 것).
+- **(v3.51 국내 데이터 우선순위)** 국내 시장데이터는 **KRX OPEN API 공식값 > 기존 MCP/스크래핑 > 웹서치** 순으로 쓴다. `nmr_krx_market.json`(Phase 1 자동 생성)에 값이 있으면 **웹서치로 다시 찾지 말 것**: 코스피·코스닥·코스피200 종가/등락률, **VKOSPI**, 코스피200 섹터 등락, 국고채 종가수익률, KRX 금현물, ETF 거래대금 상위·괴리율. 반대로 **S&P500·나스닥·WTI·달러인덱스·미국채 등 글로벌 지표는 KRX에 없다** → 기존 소스(FMP·yfinance·Chrome) 유지. KRX `gen/gold`·`gen/oil` 은 **국내가격**이라 글로벌 금·WTI의 대체가 아니라 보조지표다. 외국인·기관 **투자자별 매매동향은 KRX OPEN API에 없어** 기존 소스(네이버/다음)를 계속 쓴다.
+- **(FMP 무료 = 미국만 활용)** 美 국채금리/커브는 `economics treasury-rates`, 미국 대형주 월가 컨센서스·목표주가는 `analyst price-target-consensus`/`grades`, 빅테크 capex 는 `statements cashflow` 로 보강. 13F·indexes·news·**한국 데이터**는 FMP 상위플랜 필요(미보유 시 기존 Yahoo/Chrome 유지). **Bigdata MCP 는 구독 만료로 사용 불가.**
+
+**3.1 구성 (v3.49 재배열 — ①~④ 그룹 소제목 + 순차 번호 3.1.1~3.1.13, 방법 B)** — 그룹 소제목(①~④)은 **번호 없는 소제목**(빌더 `gh()`: 좌측 파란 바+연한 음영, 개요 번호 체계 밖)이고 지표 번호는 3.1.1~3.1.13 순차. 렌더 순서는 `renderMacroIndicators` 가 강제한다: **① 매크로(정책·경기)** = 3.1.1 금리·통화정책 / 3.1.2 물가·인플레이션 / 3.1.3 고용·경기 / 3.1.4 OECD 경기선행지수(CLI) / 3.1.5 경기선행지수 순환변동치 → **② 기업 실적** = 3.1.6 Earnings Insight(FactSet) / 3.1.7 미국 빅테크(M7) 실적 전망 / 3.1.8 AI 빅테크 자본지출(CAPEX) → **③ 반도체·한국 연결고리** = 3.1.9 메모리+HBM 지표 / 3.1.10 관세청 수출 잠정치 / 3.1.11 반도체 사이클→코스피 점검판 → **④ 수급·심리(선행신호)** = 3.1.12 심리·자금흐름 보조지표 / 3.1.13 파생시장 포지셔닝 현물 선행신호 / 3.1.14 국내 유동성·레버리지 점검판(v3.64) / 3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수(v3.72). (구번호 대응: 舊3.1.4심리→3.1.12, 舊3.1.5FactSet→3.1.6, 舊3.1.6CAPEX→3.1.8, 舊3.1.7A→3.1.9, 舊3.1.7B→3.1.11, 舊3.1.8CLI→3.1.4, 舊3.1.9순환→3.1.5, 舊3.1.20M7→3.1.7, 舊3.1.21파생→3.1.13)
+
+**3.1 주요지표(매크로 대시보드)** — `gen_macro_charts.py` + **MacroAgent**(`nmr_macro.json`). 금리=FMP `economics` `federalFunds`·`treasury-rates`(2Y/10Y); 물가·고용=FMP `economics`(CPI·unemploymentRate·totalNonfarmPayroll·retailSales·realGDP) + **FRED API 직접**(Core CPI=`CPILFESL`·PCE=`PCEPI`·Core PCE=`PCEPILFE`·PPI=`PPIFIS`·10Y기대=`T10YIE` — `fetch_macro.py`+`nmr_fred.py` 가 연결폴더 `SECURITY/secrets.env` 의 `FRED_API_KEY` 로 `api.stlouisfed.org` 호출, 무키/실패 시 `fredgraph.csv` 폴백); ISM 제조/서비스 PMI 는 ISM 공식 보도자료(ismworld.org·PRNewswire) 실측을 WebSearch로 수집('추정' 라벨 금지·release 날짜 정확히·미발표월은 직전 실측월 유지); 한·중 정책금리만 무료 실시간 API 없어 WebSearch 추정('추정' 표기). VIX·DXY·원/달러·WTI·美10년물·**KSVKOSPI(코스피 변동성지수 = CNBC `.KSVKOSPI` 실시간)**은 `fetch_us.py` 시세 **재사용**(merge 주입). `nmr_macro.json` 미수집 시 `merge.py` 내장 예시·추정값(`MACRO_DEFAULT`) — 비차단.
+**3.1.6 Earnings Insight (FactSet)** — 매 실행 최신 블로그 포스트를 확인한다. **(2026-07-19 서버화4 개정) 1순위 = 서버 `factset_insight` DB(RSS 실측 — insight.factset.com/rss.xml 은 HubSpot JS 캐시 문제가 없다, 크론 05:45·16:05 갱신)** 로 '가장 최근 날짜' 블로그를 판별한다 — Chrome 불필요. RSS DB 장애 시에만 구 방식(메인세션 Claude in Chrome 으로 topic 페이지 JS 렌더 읽기) 폴백. (⚠️ topic 페이지 `web_fetch` 단독은 여전히 금지 — 캐시된 옛 목록 반환.) 주간 `Earnings Insight` PDF(`advantage.factset.com/.../EarningsInsight_MMDDYY.pdf`)는 `web_fetch`로 정독 가능(PDF는 캐시 문제 없음). **DB(`namoobi-market-report-server/data/nmr_factset.json`)보다 새 자료면** 블로그=제목·날짜·링크·핵심 사실 요약, 리포트=리포트날짜·링크·다음 발행일·**전체 리포트 섹션별 요약**(Topic of the Week/Overview/Revisions/Guidance/Growth/Revenue/Margin/Forward Estimates/Targets&Ratings) + **Key Metrics 6패널 대시보드**(gen_factset_chart.py 자체작성→charts/factset_keymetrics.png)를 갱신하고, **새 자료가 없으면 DB값 그대로 사용(carry-forward)**. **(req7·req5-2026-07-12 개정) `next_date` 를 신뢰하지 말 것 — 매 실행 '최근 금요일' 날짜의 `EarningsInsight_MMDDYY.pdf`(월/일/연 2자리) URL 을 web_fetch 로 probe 해 신규 회차 존재를 직접 확인**하고, 있으면 본문 정독해 `report.full_summary`(섹션별 points)·`report.metrics`(Key Metrics 6패널: growth/revisions/guidance/valuation/eps_vs_price/rev_margin)·date·url·**title('Earnings Insight report')·chart('charts/factset_keymetrics.png')** 를 교체한다(title/chart 없으면 빌더가 리포트 블록을 렌더하지 않음) — '이전 자료 잔존' 금지. `fs.topic_url`(insight.factset.com/topic/earnings)을 세팅하면 빌더가 3.1.6 하단에 출처 링크를 렌더한다.** **(req4·req5 2026-07-05) 빌더는 3.1.6 상단에 표준캡션 "업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지" 를 렌더하고, 도입문은 "최신 블로그 포스트와 주간 리포트를 요약한다"(첫 장 아님 — 전체 리포트 섹션별 요약). DB 갱신 시 `report.next_date`(다음 주간 발행일)·`last_checked`(체크일)를 반드시 채운다 — verify req20 이 next_date 공란=경고, next_date 경과·미갱신=발송 차단으로 강제.** ⚠️ **저작권: FactSet 그래프·표 이미지는 복제하지 않고, 사실 요약·수치 + 출처 링크만 수록**. `merge.py`가 `nmr_factset.json`을 `markets.factset`으로 로드 → `build_report.js renderFactSet`가 3.1.6 렌더(블로그 블록 제목=포스트 제목, 리포트 블록 제목='Earnings Insight report'). DB 미존재 시 섹션 자동 생략(비차단).
+**3.1.4 OECD 경기선행지수(CLI) (v3.67 — OECD SDMX 직접 수집, KOSIS Chrome 폐지)** — 통합 DB `db/oecd_cli.json`(월별 총기간 × 17개국). **매 실행 `scripts/fetch_oecd_cli.py`(sandbox·stdlib, Phase 1 bash 병렬)** 가 OECD SDMX 공개 API(`sdmx.oecd.org` DSD_STES@DF_CLI, 진폭조정 AA, 무키)에서 17개국 × 2022.01~최신월을 직접 수집해 `$WORK/nmr_oecd_cli.json` 저장(스키마 `{"data_updated":"발행일|최신월","months":["YYYY.MM"..],"series":{"한글국가명":[값..null허용]}}`) → merge.py 가 `_ndb.sync('oecd_cli',…)` 로 DB 갱신(마커=발행일|최신월, 변동 없으면 재사용). OECD WAF 간헐 403 은 스크립트가 3회 백오프 재시도, 실패 시 비차단(DB 폴백·캡션에 기존 기준월 표기). (구 KOSIS 통계표 Chrome 스크래핑은 iframe 접근 불안정으로 2026-07-17 폐지 — 신규 발표를 놓치는 근본 원인이었음. 실측: KOSIS 경유 2026.04 지연 vs OECD 직접 2026.06.) 차트=Phase 1.5 `gen_cli_chart.py` → `charts/oecd_cli.png` **전 국가 통합 1장(X축=월별 총기간, Y축=지수(진폭조정), 기준선 100, 대한민국 굵은 선, 우측 국가명·최신값 라벨)**. 빌더 `renderOecdCli` 가 표준캡션+차트+**고정 설명블록**(정의/구성요소/해석방법/한계 — 빌더 내장, 수집 불필요) 렌더. 게이트=verify req19(데이터 있는데 차트 없으면 차단).
+**3.1.8 AI 빅테크 자본지출 CAPEX (v3.60 — 매일 자동 재수집)** — 실적값(CAPEX·매출·FCF)은 **매 실행 MCP `UsStockInfo.get_financial_statement`** 로 MSFT·AMZN·GOOGL·META·ORCL 의 현금흐름표/손익계산서를 다시 읽어 수집한다(`capitalExpenditures` 절대값·`totalRevenue`·`freeCashFlow`). CAPEXAgent 가 이를 `nmr_capex.json` 의 `capex_series`/`rev_series`/`fcf_series`(연도 배열)로 넘기면 merge 가 **`db/capex.json` 과 셀 단위로 대조해 바뀐 셀만 갱신하고, 미수집·결측 셀은 DB carry-forward** 한다. 실제 값은 **분기 실적발표 때만** 변하므로 '매일 체크 → 변동 시 갱신'이 정확하면서도 저렴하다. ⚠️ **Yahoo `quoteSummary` 는 사용 금지** — 쿠키+크럼 인증은 통과하지만 `cashflowStatementHistory` 가 `netIncome` 만 반환하도록 축소돼 CAPEX·FCF 취득이 불가하다(매출만 가능). 전망값(2026E~)은 각사 컨퍼런스콜 CAPEX 가이던스 + 애널리스트 컨센서스(WebSearch, 수시 변동 가능). merge 가 `capex_to_rev`(CAPEX/매출 %)를 자동 계산해 표·차트가 항상 같은 DB를 본다.
+**(v4.01 2026-08-31 신설) 3.1.8 하위블록 「■ 조달 구조 — 회사채·부채 추이」** — CAPEX 가 '얼마 쓰나'라면 이 블록은 **'그 돈을 어디서 구하나'**. 한 줄 지표 = **증분부채 ÷ CAPEX**(1년 새 늘어난 차입금 ÷ 같은 기간 LTM CAPEX, 100%면 전액 차입). 실측 추이: 2024-06 −6.7% → 2025-03 +8.0% → **2026-06 +44.6%** (외부 참고치 FactSet 2026-07-23 = FY24 9% → LTM 32%, 금융리스 포함 기준이라 우리 수치보다 낮게 잡힌다). 데이터는 **서버 `fetch_bigtech_debt.py`(cron 06:45)가 SEC EDGAR XBRL companyconcept 로 5사 10-K/10-Q 원문 태그를 매일 재수집** — 총부채·현금성자산·회사채 발행액/상환액·CAPEX·영업이익·감가상각(회사마다 태그가 달라 후보 리스트 중 **분기 관측이 가장 많은 태그**를 채택하고, 10-Q 가 YTD 누적으로 신고하는 항목은 **누적 차분으로 분기값을 복원**한다 — 이 처리를 빼면 메타·알파벳 발행액이 통째로 빈다) + FRED IG(`BAMLC0A0CM`)·HY(`BAMLH0A0HYM2`) 가산금리. Phase 1.5: `scripts/gen_debt_charts.py "$WORK"` → `charts/debt_1.png`(총부채 막대+증분부채÷CAPEX 선)·`charts/debt_2.png`(기업별 LTM 발행액) + `nmr_debt.json` → merge `m['bigtech_debt']` → 빌더 `renderCapexFunding`(renderCapex 끝에서 호출, 데이터 없으면 블록만 생략·3.1.8 본문 비차단). 딜 타임라인·신용등급은 XBRL 에 없으므로 **Phase 3.8** 이 웹서치로 갱신(🧠). 금융리스 제외 차입금 기준임을 캡션에 명시한다. 홈피 💵 조달구조 탭과 동일 데이터.
+
+**3.1.9 메모리·HBM 지표 (v3.59 전면 재작성 — 전 항목 자동 수집·DB 누적)** — 종전 `gen_hbm_dashboard.py` 의 하드코딩 연도 시계열(2024~2027)을 폐기하고 **전부 공개 소스에서 자동 수집**한다.
+- **수집**: `scripts/fetch_memory.py` (Phase 1 bash 병렬, stdlib only, 로그인 불필요)
+  · **TrendForce 공개 가격표** → DRAM 현물 7종 / DRAM 계약 7종 / NAND 현물 4종 / NAND 계약 3종 (`/price/dram/dram_spot`, `/price/flash/flash_spot` 직접 파싱)
+  · **Silicon Analysts 공개 API**(`/api/v1/hbm`) → HBM ASP · 업체별 점유율 · 공급사 매출 · 스펙
+  · **Yahoo chart API** → 메모리 3사 주가 (EPS 컨센서스는 HBMAgent 가 MCP UsStockInfo 로 보완, PER 은 **현재가÷EPS 직접 계산** — 벤더 PER 은 기준주가가 제각각이라 미사용)
+  · ⚠️ TrendForce 는 화살표를 HTML 엔티티(`&#9650;`/`&#9660;`)로 보낸다 — unescape 하지 않으면 9650/9660 이 변동률로 오인된다.
+- **DB**: `merge.py` 가 `db/memory.json`(스냅샷) + `db/series_mem_<표>`(날짜 union 누적: dram_spot/dram_contract/nand_spot/nand_contract/hbm_asp/hbm_share/**hbm_ddr5_gap**(v3.62)/leading_px/mem_vs_gpu + 별도 시드 **hbm_market**(연간 Yole 추정)) 에 적재. **(v3.62) 파이프라인에서도 `fetch_memory.py $WORK <db경로>` 로 dbdir 인자를 반드시 넘긴다**(enrich_valuation·시계열 누적). **서버 daily cron(08:30 KST)** 도 동일 수집기를 돌려 리포트 미실행일에도 시계열이 자란다(`sync_server.py` 가 PULL→PUSH 로 양방향 병합).
+- **제외**: 모듈현물·GDDR현물·NAND웨이퍼는 수집 중단(모듈=칩의 조립품이라 칩 가격이 선행, GDDR=변동 미미·기여 미미, 웨이퍼=NAND 현물과 중복). **DXI 지수는 유료 구독 전용으로 수집 불가.** TrendForce 과거 시계열도 유료(회원 전용 `/member/` 경로, HTTP 403) — 과거를 사지 않고 **오늘부터 직접 누적**한다.
+- **핵심 지표**: **스팟−계약 갭**(현물÷계약−1). 현물이 계약가를 크게 상회하면 다음 계약 협상의 인상 압력 → 메모리 3사 실적 선행지표.
+- **(v3.60) 선행지표 6종 + 상대강도** — `fetch_memory.fetch_leading()` 이 Yahoo 무인증 chart API 로 **매일** 수집: SOX(반도체 업황 종합)·NVDA/AMD(HBM 수요처)·TSM(CoWoS 패키징=HBM 출하의 물리적 상한)·KOSPI(삼성+SK 시총 55~60%)·MU(메모리 공급자). 파생 지표 **메모리/GPU 상대강도 = (1+MU 1년수익률) ÷ (1+NVDA 1년수익률)** — **1 초과 = 가치가 수요처(GPU)→공급자(메모리)로 이동 = 공급부족 심화**, 꺾이기 시작하면 **사이클 고점 경계 신호**. DB=`db/series_mem_leading_px`·`db/series_mem_mem_vs_gpu`(매일 누적). 차트=`gen_hbm_dashboard.py` ⑦⑧ 패널.
+- **(v3.60) 지표 사전 (의미·해석방법·변동주기)** — `scripts/nmr_meta.py` 의 `META` 딕셔너리가 **단일 진실원천**. fetch_memory 가 `nmr_memory.json.meta` 로 첨부 → merge → 빌더 `renderHBM` 이 3.1.9 끝에 '지표 사전' 표로 렌더(녹색=매일 갱신, 주황=주/월/분기/연). **(v3.62 req13) 메모리 3사 EPS·PER 단일소스 = `db/hbm_eps.json`** — EPS=데이터벤더 컨센서스(변동 시 갱신), **PER=최신 종가÷EPS 를 fetch_memory(enrich_valuation)+merge 가 매일 재계산**(prices·price_note 저장, 대시보드 ⑩=docx 표 동일값). Micron 별칭은 merge 가 'Micron' 으로 정규화(중복 행 금지, 표기 'Micron (MU)'). **(req14) 지표 사전은 실제 표시 항목만**(hbm_qual 제거, 15종). **`cadence` 는 수집 주기가 아니라 값이 실제로 바뀌는 주기**다: 현물·갭·상대강도=매일 / NAND 현물=주 1회 / **DRAM·NAND 계약가=월 1회(매월 말)** / HBM 점유율·ASP=분기 1회 / HBM 시장규모=연 1~2회 / 관세청 수출=월 3회. 계약가 추세선이 계단 모양인 것은 **정상**이며, 지표를 추가할 때는 `nmr_meta.META` 에 `label/meaning/howto/cadence/source` 5개 필드를 반드시 채운다.
+
+**3.1.10 관세청 수출 주요품목별 10일 단위 잠정치 통계 (v3.44 신설 — DB화)** — data.go.kr 15157908 오픈API(`apis.data.go.kr/1220000/prlstMmUtPrviExpAcrs/getPrlstMmUtPrviExpAcrs`, serviceKey=연결폴더 `SECURITY/data.go.kr.txt`, 파라미터 `strtYymm`·`endYymm`=YYYYMM, 조회 10년 제한→청크). **전 기간(2016-01~) 10일 누계(1~10/1~20/1~말일) 수출액(천 달러, 11개 품목: 전체+반도체·철강·승용차·석유·무선통신·선박·자동차부품·컴퓨터주변기기·정밀기기·가전) DB화**(`db/customs.json`). **매일 저렴한 변경체크**(최근 4개월 해시 마커)로 신규 순보/현행화가 있으면 전체 백필·갱신, **변경없으면 DB·차트 그대로 재사용**(표준캡션 "업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"). 공표: 1~10일분 11일·1~20일분 21일·1~말일분 익월1일(전월까지 현행화·당월 잠정치). `fetch_customs.py`(stdlib, Phase 1 bash 병렬)가 변경 시에만 `nmr_customs.json` 생성 → merge `_ndb.sync('customs')` → `m.customs`. 차트=Phase 1.5 `gen_customs_chart.py` → `charts/수출_전체_24개월.png`·`charts/수출_반도체_24개월.png`(최근 24개월 그룹막대 1~10/1~20/1~말일, 번들 한글폰트). 빌더 `renderCustoms` 가 표준캡션+최근월 요약표(전체·반도체 × 3순보)+차트 2종 렌더. 게이트=verify(데이터 있는데 차트 없으면 차단).
+**3.1.9 / 3.1.11 반도체 사이클→코스피 점검판 (v3.45 신설 — DB화)** — 기존 3.1.7 메모리+HBM 지표를 v3.49 재배열로 **3.1.9** 로 재번호(내용·차트 불변). 별도로 **3.1.11 반도체 사이클 → 코스피 점검판** 신설(3.1.10 관세청 뒤)(본문+신호표, **차트 없음**). 목표=반도체 업황(메모리 가격·재고·주문·CAPEX)/업종 사이클(재고·ASP→업체 실적 선행)/반도체 사이클 하강의 코스피 핵심 대형주(삼성전자·SK하이닉스) 압박/확인법(메모리업체 발표·시장조사 보고서)을 한 화면에 점검. **매 실행(매일) 저렴한 변동체크** — HBMAgent(또는 KoreaSemiTheme)가 겸직해 WebSearch+TrendForce/각사 실적으로 3대 조기경보 신호(① 재고주수 ② DRAM 계약가 상승률 QoQ ③ SK하이닉스 CAPEX 증가율 YoY)와 코스피 쏠림 수치를 관측 → **변동 시에만 `nmr_semi_cycle.json` 생성**(스키마=`references/data-schema.md`), **변동 없으면 DB(`db/semi_cycle.json`) 그대로 사용**(표준캡션 "업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"). merge `_ndb.sync('semi_cycle')`(marker=asof) → `m.semi_cycle` → 빌더 `renderSemiCycle`(③그룹: 3.1.10 관세청 뒤·3.1.12 심리 앞) 가 **(req6 2026-07-05 확장) ① 사이클 단계 바(저점→회복→상승→고점→하강, 현재 단계 강조+예상 고점 캡션) ② 핵심 타일 4(DRAM/NAND 계약가·재고·공급부족) ③ 점검 카드 4(반도체 업황/업종 사이클/코스피 대형주 압박/확인 방법) ④ 핵심 한 줄·읽는 방법·조기 경보 신호·3신호표(현재값·판정·경보 임계선·비고) ⑤ 조기경보 차트(charts/semi_cycle_signals.png — **v3.62 req7 재설계: [① DRAM 계약가 QoQ 수치 + ② 3신호 판정상태(안전/주의/경보) 타임라인] 2패널.** 정량 미공개 신호(재고주수·CAPEX YoY)는 빈 그래프 대신 판정 타임라인으로 — merge 가 매 실행 판정을 `db/series_semi_status.json` 에 누적)·신호별 캡션·출처** 렌더. DB 스키마 확장: stages·tiles·panels·series·chart. 판정 색=안전(초록)/주의·둔화(주황)/경보·하강(빨강). 데이터 없으면 섹션 자동 생략(비차단). 시드=`db/semi_cycle.json`(2026-07-04). 3대 신호 중 **2개 이상 경보면 고점·하강 신호**로 읽는다.
+**3.1.7 미국 빅테크(M7) 실적 전망 (v3.46 신설 — 매일)** — 대상 7종목(AAPL·MSFT·NVDA·GOOGL·AMZN·META·TSLA)의 가이던스·애널리스트 추정치/목표주가 리비전을 섹터·시장의 선행 신호로 읽는 표(②그룹: 3.1.6 FactSet 뒤·3.1.8 CAPEX 앞). **매일 갱신**: 시세·평균목표주가·투자의견 분포·목표주가 리비전(1M/1Q/1Y)·등급변경은 매 실행 실측(FMP `analyst` grades-summary·price-target-summary/consensus — 무료플랜 미국 대형주 가용), 가이던스·연간 추정치는 실적 발표 시 WebSearch. 신호=추정치·목표주가 상향(긍정)/실적 호조에도 목표주가 하향·디레이팅(경계)/이익 모멘텀·의견 악화(위험)/안정(중립). `M7OutlookAgent`(Phase 1 병렬, model:sonnet)→`nmr_m7.json`→merge `markets.m7_outlook`→빌더 `renderM7Outlook`. **(req7 2026-07-05) 빌더 캡션은 "업데이트:매일" 로 표기하고, verify req21 이 `m7_outlook.as_of == 실행일` 을 강제한다(불일치=발송 차단 — 내장 스냅샷·전일 잔존 방지).** 미수집 시 빌더 내장 스냅샷(M7_OUTLOOK_DEFAULT)으로 비차단 렌더. 상세=`references/agents.md`·`references/data-schema.md`.
+**3.1.13 파생시장 포지셔닝 기반 현물 선행신호 분석 (v3.47 신설 — 매일)** — KOSPI200·S&P500·Nasdaq100의 선물 베이시스·순포지션/수급(美 CFTC COT 레버리지·자산운용 / 韓 외국인·기관)·풋콜비율·IV 스큐·딜러 감마(GEX)를 **롤링 z-score(60거래일)** 로 표준화한 현재 스냅샷(④그룹 마지막: 3.1.12 심리 뒤). **매일 갱신**: `deriv_signals/daily_update.py` → DB 갱신 → `deriv_signals/export_snapshot.py` → `nmr_deriv_positioning.json` → merge `markets.deriv_positioning` → 빌더 `renderDerivPositioning`(① 지수 현황 ② 값·z 매트릭스 |z|≥1.5 강조 ③ 활성 신호 ④ 시장해석 ⑤ 종합).
+**(v3.51 KOSPI200 소스 개편 — 3단 전략)** 미국(SPX·NDX)은 yfinance + CFTC COT + 옵션체인(PCR·IV스큐·GEX) 유지. **KOSPI200은 KRX OPEN API(openapi.krx.co.kr, 무로그인·키기반)를 1차 소스로 전환**한다 — `deriv_signals/krx_openapi.py`(AUTH_KEY 헤더, 응답 루트 `OutBlock_1`, 일자별 gzip 캐시; 키는 연결폴더 `SECURITY/openapi.krx.co.kr.txt` 또는 `KRX_API_KEY` 자동탐색) + `ingest_krx_open.py`: ① **현물** = `idx/kospi_dd_trd` 의 '코스피 200' 공식 종가(KODEX ETF 대용·data.go.kr 폐기) ② **베이시스** = `drv/fut_bydd_trd` 최근월물(코스피200/미니코스피 선물 중 만기 최근·OI 최대, `SPOT_PRC` 대비 bp; 미니가 월물이라 캐리 왜곡 최소) ③ **미결제(OI)** = `ACC_OPNINT_QTY` 합계 → 5일 변화 ④ **VKOSPI** = `idx/drvprod_dd_trd` 의 '코스피 200 변동성지수'(신규 지표, `INDICATOR_META.vkospi`, expected=−1 컨트라리안). ⚠️ **KOSPI200 옵션체인은 KRX 공식 데이터에서도 행사가 사다리가 현물을 커버하지 못하는 구간이 있어**(예 2026-07-02 현물 1,219.62 vs 최근월 행사가 상단 997.5 → PCR 100 초과) **PCR·IV스큐·GEX 를 산출하지 않는다** — 변동성·공포 축은 **VKOSPI 로 대체**한다. **2차(선택·정밀도 보강)**: `ingest_krx_web.py` 가 data.krx.co.kr `getJsonData.cmd`(bld `dbms/MDC/STAT/standard/MDCSTAT134xx`)에서 **괴리율(시장베이시스−이론베이시스 → 캐리 제거)·공식 IV·공식 P/C Ratio** 를 가져와 덮어쓴다. 단 **로그인 세션(30분 자동 로그아웃)이 필요**하므로 `SECURITY/krx_cookie.txt` 또는 `KRX_COOKIE` 가 있을 때만 동작하고, 없거나 만료면 **조용히 skip**(1차 값으로 정상 진행). **비밀번호는 취급하지 않는다.** **폴백**: 1차 실패 시 기존 네이버/data.go.kr 경로 유지. 외국인·기관 수급은 KRX OPEN API 미제공 → 네이버 `투자자별 매매동향` 유지. 미수집 시 빌더 내장 스냅샷(DERIV_POS_DEFAULT)으로 **비차단 렌더**. 신호=|z|≥1.5(굵게·파랑 양수/빨강 음수). 선행성 검증(신호일→1/3/5일 현물수익률)은 `deriv_signals/` 파이프라인이 산출. 상세=`references/agents.md`·`references/data-schema.md`. `DerivPositioningAgent`(Phase 1, model:sonnet).
+**3.1.14 국내 유동성·레버리지 점검판 (v3.64 신설 — 매일)** — ④그룹 마지막(3.1.13 뒤). 목적: ① 예탁금+거래대금(대기자금이 실제로 시장에 들어오는지 — **자동 판정**: 예탁금 5일 증감 × 회전배수(거래대금÷예탁금) 5일 방향 2×2 = 유입·가동(강세)/유입·관망(중립)/이탈·소진성 회전(경계)/이탈·위축(약세)) ② M2 YoY vs 코스피·코스닥 YoY(거시 유동성 대비 주가, 월별 10년) ③ 신용융자+VKOSPI+**반대매매**(레버리지 과열 — 반대매매는 금융위 공공데이터 '미수금 대비 반대매매금액·비중'이 유일한 공식 일별 통계, 미수거래분만·T+2) ④ 코스닥 신용잔고·비중·일간증감(**마진콜 조기경보** — 마진콜 반대매매는 공표 통계 없음(증권사 내부 처리·금감원 비정기 취합뿐) → 코스닥 잔고 급감으로 간접 추정, 상환·강제청산 구분 불가). **데이터 원본 = 서버 `data/kr_liquidity.db`** (서버 cron 1일 3회 06:35/14:10/16:10 KST, `namoobi-market-report-server/scripts/fetch_kr_liquidity.py` — 금융위 증시자금·신용공여(금투협 원천, T+2, 13시 갱신)/다음금융 코스피·코스닥 T+0/ECOS 월별 M2(161Y006/BBHA00)·코스피종가(901Y014/1070000)·코스닥종가(901Y014/**2090000** — 2070000은 '거래량 일평균'이니 주의)). Phase 1: `scripts/fetch_krliq.py "$WORK"`(bash 병렬 — ①서버 scp ②PC사본 ③로컬 API 순 폴백)→`nmr_krliq.json`. Phase 1.5: `scripts/gen_krliq_charts.py "$WORK"`→`charts/krliq_1..4.png`+`nmr_krliq_summary.json`. merge `m['kr_liquidity']`→빌더 `renderKrLiquidity`(판정 강조문+차트4+최신수치+유의문, 데이터 없으면 비차단 생략). 게이트=verify **req3b**(kr_liquidity·verdict·차트4 누락 시 차단). 서버 대시보드에도 동일 패널(`/api/krliq` + 3.1.14 섹션, index.html/app.js). T+2가 물리적 하한(금투협 유일 집계) — T+0 보완은 다음금융 지수·거래대금. 반대매매 급증은 선행지표 아님(후행 확인·항복 국면 동행 — 26건 백테스트상 확인 후 5일 코스피 평균 +3.6%).
+
+**3.1.15 선행 EPS·신용잔고·HY스프레드·DDR5 vs 지수 (v3.72 신설 — 매일)** — ④그룹 마지막(3.1.14 뒤). 기사식 이중축 오버레이 4종: ① 12개월 선행이익 자체 프록시 vs KOSPI(서버 fwd_eps.py 매일 16:20 누적 — KOSPI 시총상위 200 중 선행PER 보유분 Σ(시총÷선행PER), 개시 2026-08-01·백필 불가) ② 美 신용잔고 YoY vs S&P500 로그(FINRA 월간 1997~ — 고점(00:+72%·07:+58%·21:+63%) 후 꺾이면 0~9개월 내 대세하락 선행, 서버 margin_debt.py) ③ HY 가산금리 vs S&P500 로그(FRED BAMLH0A0HYM2 — **1997~ 풀 히스토리는 2026-08-01 웹아카이브 스냅샷 백필**, 이후 FRED 일별 누적. FRED는 ICE 라이선스로 최근 3년만 제공하므로 서버 nmr_hy_history.json 이 정본) ④ DDR5 16Gb 현물가 vs KOSPI(서버 매일 수집). **x축은 전기간·연도 눈금**(사용자 요구). Phase 1.5: `scripts/gen_veps_charts.py "$WORK"` — 서버 API `/api/db/{fwd_eps,margin_debt,series_hy_oas,series_mem_dram_spot}` 회수 → `charts/veps_1..4.png` + `nmr_veps.json` → merge `m['veps']` → 빌더 `renderVeps`(3.1.14 뒤, 없으면 비차단 생략). 홈피 DB data 탭 3.1.15 섹션과 동일 데이터·해석.
+
+**3.2.1 한국 지수 일봉 캔들** — 차트는 반드시 `scripts/gen_kr_candle.py`(다른 한국지수 생성기 금지). 입력 `nmr_kr_ohlcv.json` 의 OHLC = 야후 `^KS11`/`^KQ11` `interval=1d` **일봉**. 거래량은 다음금융 `accTradeVolume` 로 교체(야후 ^KQ11 손상)하고 비거래일 유령행 제거(KRX 거래일 기준). 일별 수급(`*_flows_daily`)=다음금융 `market_index/days`(Chrome 동일출처 fetch, 1년 오름차순). ⚠️ 다음 charts API `/charts/A{code}/days` 는 403 → 한국 종목/ETF 시계열은 **야후 `.KS`/`.KQ`**.
+**3.2.2 종목 수급** — 다음금융 `investor_purchase` API(네이버 차단). 코스피·코스닥 외국인·기관 순매수/순매도 상위 종목 → 빌더가 외국인·기관 병합표로 렌더.
+**3.2.3 경기선행지수** — **선행종합지수 순환변동치 월별 실측 = `scripts/fetch_leading.py`(sandbox·stdlib, Chrome 불필요)** 가 e-나라지표 통계표 엔드포인트(`showStblGams3.do?stts_cd=105701&idx_cd=1057&freq=M`, UA+Referer+X-Requested-With 헤더)에서 직접 수집 → `nmr_leading_series.json`(`[["YYYY-MM",value]..]` ~29개월)+`nmr_leading.json`(최신 4개월 desc·mom) → `gen_leading_chart.py`. **Phase 1 bash 병렬 tool-call** 로 실행. 실측만(추정 금지), 실패 시 비차단(캐시/직전값 폴백). (구 INDEXerGO echarts·통계표 Chrome 스크래핑·P2 캐시 경로 폐기 — 항상 sandbox 실측.)
+**3.2.4 / 3.2.5 KRX 증시 Brief·공매도 데일리 브리프 (v3.54 신설 — DB화)** — open.krx.co.kr 시장동향>종합시황(`MKD01010000.jsp`) 게시판에서 최신 **'KRX 증시 Brief'(→3.2.4)**·**'공매도 데일리 브리프'(→3.2.5)** PDF를 내려받아 **페이지별 PNG 캡쳐**로 보고서에 삽입한다(3.2.3 순환매 테마 뒤). 수집=`scripts/fetch_krx_brief.py`(sandbox·stdlib·Chrome/쿠키 불필요, **Phase 1 bash 병렬 tool-call**): 목록·첨부·다운로드 모두 `GenerateOTP.jspx`→`OPN99000001.jspx`(다운로드는 `file.krx.co.kr/download.jspx`) OTP 체인(실측 명세=스크립트 헤더 주석). **DB화: 회차 마커=게시글 att_seq** — 영구 저장 `namoobi-market-report-server/data/krx_brief/<key>_<att_seq>/`(pdf+PNG, 항목별 최근 5회차 유지)+`db/krx_brief.json`. **기존꺼랑 같으면(마커 불변) 다운로드·캡쳐 생략, 저장본 PNG 재사용**; 새 회차면 다운로드→`pdftocairo -r110`(폴백 pdftoppm) 캡쳐→저장. 재사용/신규 공통 charts/ 복사(`krx_brief_p*.png`·`short_brief_p*.png`)+`$WORK/nmr_krx_brief.json` 산출 → merge `m['krx_brief']`(파일 없으면 DB 폴백) → 빌더 렌더(표준캡션 "업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지"+제목·등록일+캡쳐+출처, 항목 데이터 없으면 자동 생략·비차단). 수집 실패 시 직전 회차(DB) 폴백·`stale_note` 표기. 게이트=verify **req22**(데이터 있는데 캡쳐 PNG 없으면 발송 차단, 데이터 없으면 warning).
+**3.2.3 테마·반도체** — 테마 **16종** 고정순서(반도체/AI·전력기기·조선·방산·원자력·증권·로봇·우주·**건설(v3.50, KODEX 건설 117700)**·**건설기계(v3.50.1, KODEX 기계장비 102960 프록시)**·**항공(v3.50.1, TIGER 여행레저 228800 프록시)**·**정유(v3.50.1, KODEX 에너지화학 117460 프록시)**·**K푸드(v3.63, HANARO Fn K-푸드 438900)**·**K화장품(v3.63, TIGER 화장품 228790)**·**2차전지(v3.65, KODEX 2차전지산업 305720)**·**엔터(v3.65, TIGER 미디어컨텐츠 228810)**) 10년 월별 series → `gen_rest_charts.py`. 게이트=verify req3(테마 16행 미달 시 차단). 반도체/AI **종목 10 + ETF 정확히 20**(다음금융 AUM 상위, 단일종목 레버리지 포함) 추세차트.
+**3.1.9 메모리+HBM 지표 대시보드 (구 3.2.5)** — `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(6패널 + HBM 3사 EPS/PER 표). HBM 스팟가격·ASP·출하량·점유율·EPS/PER 은 무료 실시간 API 가 없으므로 **HBMAgent 가 WebSearch+뉴스(TrendForce·각사 실적 컨센서스·언론)로 분기 추정치**를 `nmr_hbm.json` 으로 저장(스키마=`references/data-schema.md`). **모든 수치는 '추정' 명시**, 확인 불가 분기는 빈값. `nmr_hbm.json` 미수집 시 내장 예시·추정값으로 차트 생성('예시·추정' 표기 유지) — 3.1.9 는 비차단(차트 없으면 섹션 자동 생략).
+**3.3.1 빅테크 CAPEX** — MSFT·Alphabet·Amazon·Meta 연간. 실적값은 **FMP `statements` cashflow 의 `capitalExpenditure`**(절대값)로 정확 수집, 추정연도(**2027(E) 항상 채움**)만 WebSearch. 표 전체폭. **(req8) 미확인 칸은 빈값으로 두고 "확인불가"/"미공개" 문자열 금지 — 빌더가 전 기업에서 데이터가 전무한 (전망)연도 컬럼을 통째로 드롭하고 "확인불가"→"-"로 정규화한다. (req5 2026-07-18) 2028~2029 는 조사·기재 금지 — 매일 동일하게 받을 공식 출처가 없는 추정이라 제거했고 빌더도 2022~2027 만 그린다(실적 22~25 + 가이던스 26~27E, 홈피 db/capex.json 과 동일 구간). 그래프는 표값 기준. **(v3.62 req6) 차트는 서버 대시보드와 동일한 4분할 회사별 라인(`gen_capex_chart.py` → charts/capex_capex·capex_rev·capex_fcf·capex_ratio.png) — Microsoft·Amazon·Alphabet·Meta·Oracle 5개사(db/capex.json 소스, report_data series 오버라이드). 구 'Meta 삭제' 필터 폐지 — 표에도 Meta 포함.**
+**3.3.2 FOMC 점도표** — 2026·2027·2028말·장기중립 각 행에 **jun·mar 중간값 모두**(빈칸 금지).
+**3.1.1 HY 스프레드 (구 3.3.3 · v3.62 표 폐지)** — **(req1 2026-07-12) OAS 레벨 표(현재~1년) 폐지 — 현재값 코멘트+1년 차트만 렌더**(merge d1~y1 앵커 계산 제거, 차트용 series DB는 유지). FRED `BAMLH0A0HYM2` 일별 series = `fetch_kr.py` 가 **FRED API 키 직접 호출**(1순위, `nmr_fred.py`·SECURITY/secrets.env `FRED_API_KEY`) → equibles 미러 → 영구캐시 폴백 → `gen_hy_chart.py` → `charts/hy_oas.png`. ⚠️ FRED 는 ICE 라이선스로 이 시리즈를 **최근 약 3년만 제공(API 키로도 동일 — 2026-07-07 실측 확인)**, 초과 시 한계 명시. **(HY 정리) `hy_spread` 스키마 = {current, asof, d1, w1, m1, m3, m6, y1, comment, chart} — 수치는 merge 가 영구 DB(`namoobi-market-report-server/data/nmr_hy_history.json`, 2020~ 일별 누적) 우선으로 자동 계산. hy_oas·hy_yield·implied_ust·us_credit 블록은 폐지(미렌더링 중복). fetch_kr.py 가 대시보드용 `db/series_hy_oas.json` 도 동시 갱신(sync_server 가 서버 업로드 → 3.1.1 HY 표·차트 렌더).**
+**3.1.1 하위블록 「주요국 10년 국채금리」 (2026-09-13 신설 — 매일)** — 장단기차 뒤·HY 앞. 11개국(미·독·프·이·스·영·일·한·중·호·캐) 10Y 벤치마크 표(현재·기준일·1일/1주/1개월/3개월/6개월/1년 **bp 변화**·주기/출처) + 스프레드(IT/FR/ES−DE·US−DE/JP/KR) + 차트 2장(① 미·독·영·일·한·중 3년 ② 유로존 독·프·이·스 + 분트 대비 스프레드 라벨). **데이터 정본 = 서버 `fetch_gbonds.py`(cron 05:25·15:25 KST) → `data/db/gbonds.json`**: 1순위 stooq 일별 CSV(`10<cc>y.b`, 무키) → 2순위 FRED/OECD 월별 `IRLTLT01<CC>M156N`(미국은 DGS10, 중국 미제공) → 3순위 직전값 유지 `(stale)`. Phase 1.5: `python3 "$SRC/gen_gbonds_chart.py" "$WORK"`(`/api/db/gbonds` 회수) → `charts/gbonds_1..2.png` + `nmr_gbonds.json` → merge `m['gbonds']` → 빌더 `renderGBonds`(데이터 없으면 블록 비차단 생략, 데이터 있으면 차트 2장 필수 게이트). 홈피 3.1.1 패널(app.js `gbonds_wrap`)과 같은 API → 리포트=홈피 동일. 추정 금지.
+**3.3.x 미국 ETF·리밸런싱** — **(v3.96 2026-09-11) 3.3.2 리밸런싱은 S&P 500·S&P 100·나스닥 100 3개 지수** — S&P 100 은 S&P 500 과 같은 분기 보도자료에 실리며(`index_rebalance.sp100`, sp500 동형 스키마), 서버 `rebalance_news` 모니터도 S&P 100 검색어 포함(나이키 편출 누락 재발방지). `us_etfs` **48종**(③ 테마에 **DRAM=Roundhill Memory ETF** 항상 포함). **(v4.04 2026-09-05) ④ AI 세부 테마 15종 신설** — 한경MONEY 2026.08 'ETF 심층해부' AI ETF 맵 반영. 기존 30종이 index·sector·theme·defensive 구조라 'AI 하드웨어 4대 병목(연산→메모리→광통신→전력)'·'소프트웨어 4단계(파운데이션→데이터/RAG→보안→에이전트)' 계층이 통째로 비어 있었다(기사 맵 40종 중 보유 11종). 클라우드 SKYY·WCLD / 데이터센터 DTCR·TRFK / 광통신 LUMA·LYTE(2026 신규상장·이력 짧음) / 전력 GRID·AIPO / 반도체 CHPX / SW IGV / 보안 CIBR·HACK·BUG / 생성AI CHAT·IGPT. 그룹키 `aitheme` — 빌더 groups 배열·서버 app.js etfGroups 양쪽에 라벨 등록 필요. S&P500·나스닥100 정기 리밸런싱(편입/편출·일정·룰변경).
+**3.4.1 아시아 주요 ETF (한국 상장 · v3.46 신설)** — 3.4 아시아 증시 표 바로 뒤에 한국거래소 상장 아시아 국가·테마 대표 ETF 14종을 6그룹(① 아시아 통합·② 중국·③ 일본·④ 대만·⑤ 인도·⑥ 베트남)으로 묶어 `us_etfs` 와 동일한 추세표(현재가·1일·1주·1개월·3개월·6개월·1년·추세(1Y 스파크라인)·추세평가)로 렌더한다. 시세=야후 `<코드>.KS` 일봉 2년 → `scripts/fetch_asia_etf.py`(sandbox·stdlib·스레드 병렬, Phase 1 bash 병렬)가 merge.py `ret()` 동일 산출로 `nmr_asia_etf.json`(그룹별 rows)+`nmr_asia_etf_series.json`(스파크라인) 생성. merge `m['asia_etfs']=LCF('nmr_asia_etf.json')` → 빌더 `renderAsiaEtfs`(3.4 뒤, 데이터 없으면 자동 생략). 차트=`gen_rest_charts.py` 가 `charts/spark_aetf_<코드>.png` 생성. 종목: ACE 아시아TOP50S&P(277540)·TIGER 차이나CSI300(192090)·KODEX 차이나H(099140)·TIGER 차이나항셍테크(371160)·TIGER 차이나과창판STAR50합성(414780)·KODEX 차이나심천ChiNext합성(256750)·TIGER 일본니케이225(241180)·KODEX 일본TOPIX100(101280)·TIGER 일본반도체FACTSET(465660)·TIGER 대만TAIEX선물H(253990,야후 ETF 이력 미제공→기초지수 TAIEX(^TWII)로 수익률·추세 대체·현재가는 ETF 실값)·TIGER TSMC밸류체인FACTSET(453950,대만 반도체 밸류체인)·TIGER 인도니프티50(453870)·TIGER 인도빌리언컨슈머(479730)·ACE 베트남VN30합성(245710). 추정 금지·이력 없으면 '-'(비차단). **(v3.50) 미국거래소 상장 아시아 ETF 15종을 같은 나라 그룹에 병합**(달러 종가 `$` 표기, `ccy:"USD"`): 중국·홍콩=MCHI·FXI·KWEB·EWH / 일본=EWJ·DXJ / 대만=EWT / 인도=INDA / 베트남=VNM·VNAM / **⑦ 동남아(sea) 신설**=EIDO(인니)·EPHE(필리핀)·EWM(말련)·THD(태국)·EWS(싱가포르) — 총 33종(한국 17+미국 16 — 2026-07-17 TIGER 차이나휴머노이드로봇 0053L0·KraneShares KOID·KODEX 차이나AI반도체TOP10 0162L0·RISE 차이나AI반도체TOP4Plus 0164G0 추가), fetch_asia_etf.py 가 미국 티커는 `.KS` 미부착·Daum 폴백 없이 야후 직수집, comment 는 한국/미국 분리 평균.
+**3.6/3.7 북미&중남미·호주&중동 증시 (v3.50 신설)** — 3.5.1 유럽 ETF 뒤. 미국 상장 국가 대표 ETF 추세표(3.5.1과 동형·달러 기준): 3.6=EWW(멕시코)·EWZ(브라질)·EWC(캐나다), 3.7=EWA(호주)·KSA(사우디)·UAE·QAT(카타르). `fetch_us.py` 의 `AMER_ETF`/`AUME_ETF` 맵 → `nmr_amer_etf.json`/`nmr_aume_etf.json` → merge `m['americas_etfs']`/`m['aume_etfs']` → 빌더 `renderAmericasEtfs`/`renderAumeEtfs`(데이터 없으면 자동 생략). 스파크=etfseries 편입으로 `charts/spark_etf_<sym>.png` 자동 생성. 게이트=verify(항목수 3/4·스파크 커버리지 warning).
+**[부록C] AI 반도체 밸류체인 (v3.51 신설 · v4.04 55종)** — 부록B 뒤. 글로벌 개별종목 **55종**을 9개 분류(①빅테크 수요처5 ②팹리스/가속기8 ③파운드리/제조3 ④메모리2 ⑤소재/부품3 ⑥전공정 장비7 ⑦후공정/패키징10 ⑧광통신·CPO5 ⑨데이터센터 전력·인프라12)로 묶은 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세1Y/추세평가). `scripts/fetch_appc.py`(sandbox·stdlib·스레드, Phase 1 bash 병렬)가 야후 일봉 2년 → `nmr_appc.json`(그룹별 rows·ccy)+`nmr_appc_series.json` → merge `m['appendix_c']` → 빌더 `renderAppendixC`(데이터 없으면 자동 생략, 통화 접두 $/¥/₩=미/일/한). 스파크=gen_rest_charts `charts/spark_c_<심볼(.→_)>.png`. 게이트=verify [AppC](55종 미달·스파크 커버리지 warning). 멤버십 변경 시 fetch_appc.py `ROWS` 갱신(+부록D 관계도 assets/gen_appd_valuechain.py 재생성). 커버리지 근거(2026-07-05 헤지 검토): 테스트·그라인더(Advantest·Disco)/인터커넥트 짝(ALAB)/웨이퍼 짝(SUMCO) 보강, (v3.52.1) ORCL·이수페타시스(007660)·AMKR 추가. **(v4.03 2026-09-05) 온사이트 발전 축 = Bloom Energy(BE) 추가** — 가스터빈 백로그(GEV 116GW·2031년 인도)가 못 대는 물량을 리드타임 55~90일로 가져가는 대체 경로(오라클 Project Jupiter가 가스터빈+디젤 → 블룸 마이크로그리드 최대 2.85GW 로 전환). ⚠ **해자 지도(B1/선별B2) 편입은 부적합 판정** — 매출 73%가 고객 1곳(10-Q 2026 H1 원문)·두산퓨얼셀 양산 진입·리드타임 우위는 가스터빈 증설(2030년 30GW)로 희석되므로 '구조적 해자'가 아니라 '일시적 공급부족의 반사이익'. 밸류체인 참고 종목으로만 수록한다.
+
+**[부록E·F] 피지컬 AI 밸류체인 (v3.72 신설)** — 부록D 뒤. 피지컬 AI 생태계 **상장 63종**을 7계층(①두뇌7 ②신경·감각12 ③근육·관절17 ④골격·에너지8 ⑤가상훈련장3 ⑥완성체8 ⑦**산업 현장(비전·로봇·물류)8**)으로 묶은 추세표 + 관계도. `scripts/fetch_appe.py`(sandbox·stdlib·스레드, Phase 1 bash 병렬)가 야후 일봉 2년 → `nmr_appe.json`+`nmr_appe_series.json` → merge `m['appendix_e']` → 빌더 `renderAppendixE`(데이터 없으면 자동 생략, 통화 접두 $/¥/₩/NT$/CN¥/HK$/A$). 스파크=gen_rest_charts `charts/spark_e_<심볼(.→_)>.png`. 표 앞에 시장 규모·구조 핵심 수치표(모건스탠리 5조달러·골드만삭스 국가별 생산 87.7%·옴디아 점유 39%·액추에이터 원가 30~60%·전고체/시뮬레이터 시장) 고정 삽입. **[부록F]** = `renderAppendixF` 가 repo `assets/appf_physical_ai_{1..4}.png`(생성기 `assets/gen_appf_physical_ai.py`, weasyprint→PNG) 를 charts/ 로 IEND 검증 복사 후 **4장** 삽입. ⚠ 생성기 PARTS·빌더 loadOne 은 **장수를 하드코딩하지 않는다**(부록D 와 동일 — 구판 3장·6섹션 고정이라 7단을 넣으면 마지막 섹션이 조용히 사라진다) — 파란=독점·준독점 / 황색=과점·양강 / 회색=비상장(피겨AI·애지봇·유니트리·1X·샤르파·BD·에이로봇·알코닉·엔진AI). 구성 근거=한경비즈니스 2026.08.05-11 커버스토리 '피지컬 AI 핵심 밸류체인'. **(v4.06 2026-09-22) ⑦ 산업 현장 계층 신설** — 1~6계층이 '아직 안 팔리는' 휴머노이드 축에 집중돼 있어 **지금 돈을 벌고 있는 피지컬AI**(공장 머신비전·산업로봇·물류 자동화)가 통째로 빠져 있었고, 화낙은 해자지도가 나브테스코·하모닉의 선행지표로 쓰면서도 밸류체인엔 없는 모순 상태였다. 키엔스(6861.T)·코그넥스(CGNX)·화낙(6954.T)·야스카와(6506.T)·ABB(ABBNY)·테라다인(TER)·다이후쿠(6383.T)·심보틱(SYM) 8종. 계기=money_zine 'Physical AI 10종' 카드뉴스이나, **그 10종 중 편입은 3종(CGNX·TER·SYM)뿐** — 나머지(UMAC·OUST·ONDS·AEVA·SERV·AMBA)는 만성 적자·경쟁 난립으로 제외(SERV 는 매출 $7.8M 에 영업손실 $189M). 멤버십 변경 시 fetch_appe.py `ROWS` + gen_appf_physical_ai.py `SECTIONS` 동시 갱신. 서버 병행: 크론 `fetch_appe.py`(06:50·15:50) → `data/db/appe.json` → 대시보드 DB data 탭 패널·인벤토리(`appe`).
+**[부록G·H] 7대 국가전략분야(7대 SEED) 밸류체인 (v3.95 — G 개별종목 신설·구 부록G 관계도는 H 로 재명명)** — 부록F 뒤. **[부록G]** = 7대 SEED(2026.8.12 발표: SMR·핵융합·재생에너지·전력망·핵심광물·소부장·양자·우주·항공·첨단바이오) 밸류체인 **상장 106종**을 7분야 그룹 추세표로 렌더(부록C/E 동형: 현재가/1일/1주/1개월/3개월/6개월/1년/추세1Y/추세평가). `scripts/fetch_appg.py`(sandbox·stdlib·스레드, Phase 1 bash 병렬)가 야후 일봉 2년 → `nmr_appg.json`(그룹별 rows·ccy)+`nmr_appg_series.json` → merge `m['appendix_g']` → 빌더 `renderAppendixG`(데이터 없으면 자동 생략, 통화 접두 $/¥/₩/CN¥/HK$/A$/유럽 현지통화). 스파크=gen_rest_charts `charts/spark_g_<심볼(.→_)>.png`. 구성 = [부록H] 관계도의 상장 종목 전수(비상장·순수 수요처 빅테크(AMZN·GOOGL·META·MSFT·NVDA=부록C 기존재) 제외, 분야 간 중복은 첫 분야 1회). **[부록H]** = 구 부록G 관계도(assets/appg_strategy7_{1..11}.png — 이미지·생성기 파일명 불변, 제목만 H). 멤버십 변경 시 fetch_appg.py `ROWS` + assets/gen_appg_strategy7.py 동시 갱신.
+**[부록D] AI 반도체 밸류체인 관계도 (v3.52 신설)** — 부록C 뒤. 부록C 종목들이 '왜 중요한지·어떤 해자를 가졌는지'를 수요(빅테크 CAPEX)→설계→장비·소재→제조→후공정→전력 인프라 6단 흐름 + 해자 배지(파랑=독점·준독점, 황색=과점·복점·양강)로 그린 **정적 관계도 이미지 4장**(부록C와 동일 55종 — v4.04 동기화). ⚠ 생성기 PARTS·빌더 loadOne 은 **장수를 하드코딩하지 않는다** — 구판은 3장·6섹션 고정이라 광통신 섹션을 넣자 마지막 전력·인프라가 조용히 사라졌다(2026-09-05 실측). 원본=repo `assets/appd_valuechain_{1..4}.png`(생성기 `assets/gen_appd_valuechain.py` — weasyprint+pdftocairo, **종목 구성 변경 시에만 1회 재실행**; 매일 파이프라인 아님). 빌더 `renderAppendixD` 가 `charts/` 미존재 시 `/sessions/*/mnt` 에서 assets 를 find→PNG 무결성(IEND) 검증→잘림이면 `git show HEAD:assets/...` 폴백→charts/ 복사 후 삽입(TOC 부록D 포함, 이미지 없으면 자동 생략·비차단). 수집·에이전트·verify 게이트 변경 없음.
+**5 환율 스파크라인** — 원화 5쌍(usd/eur/jpy/cny/hkd_krw) 1년 주봉.
+**6.2/6.3 코인** — BTC·ETH·XRP·SOL 1년 + 공포·탐욕 1년 차트. 김프 4종(특히 SOL) 항상 채움.
+**7 한국 주요 증권사(12) = 텔레그램 7 + 공개 웹 4 (v3.73 삼성·미래에셋 추가)** — **(v3.73 신설) 삼성증권·미래에셋증권은 `fetch_brokers_tele.py` 가 공개 홈페이지에서 직접 수집**(서버 네이버 DB에 삼성 0건·미래에셋 며칠 지연으로 이틀 연속 '미확인'으로 비던 문제의 근본 해결): 삼성=`www.samsungpop.com/sscommon/jsp/search/research/research_pop.jsp`(리서치 탐색기, 표 [제목|작성자|발행일]) · 미래에셋=`securities.miraeasset.com/bbs/board/message/list.do?categoryId=1521`(EUC-KR, 표 [작성일|제목|첨부|작성자], 링크 `javascript:view('<messageId>','<messageNumber>')` → `view.do?messageId=…&messageNumber=…&categoryId=1521` 퍼머링크 복원). 둘 다 로그인·Chrome 불필요(2026-07-21 sandbox 실측 당일자 수집 확인) — 구 Chrome 3사 추출은 폴백으로만 유지. **(구 v3.66 원문)** 신한·키움·메리츠·하나·교보·유안타·현대차는 **공식 텔레그램**, **KB증권·NH투자증권은 공개 홈페이지**(KB=`rc.kbsec.com/today/index.able` 오늘의 리서치: 모닝/마감코멘트+당일 리포트 전체 · NH=`m.nhqv.com/research/boardList?rshPprDitCd=02` 시황·투자전략(Global Markets Morning Brief 데일리)+`m.nhsec.com/research/newestBoardList`, 둘 다 로그인 無·EUC-KR) — 모두 `scripts/fetch_brokers_tele.py`(curl·bash 병렬, Chrome 불필요; kb·nh 는 텔레그램이 봇/비공개 초대링크라 웹 수집). **(2차 req10 2026-07-18 · 2026-07-19 개정) 핵심(풀) 6사 = KB·NH·삼성·미래에셋·한투·메리츠**(7.1~7.6) + **7.7 기타 증권사 요약(텔레그램 기반 잔여 6사: 신한·키움·하나·교보·유안타·현대차 — key_message 1줄 표)** + **7.8 네이버 금융리서치 모음** — 서버 `broker_reports` DB(recent 2일치·6게시판)를 merge 가 자동 주입, 빌더가 테마별 표(작성일·증권사·제목링크·간단요약)로 렌더 + **7.9 공통 핵심 주제(7.1~7.8 종합)**. 6사 key_reports 링크는 merge 가 서버 DB로 자동 보강. 삼성·미래에셋·한투는 **메인세션 Claude in Chrome — `browser_batch` 로 3탭 navigate 를 묶고 `javascript_tool` 타깃추출(단계별 screenshot 금지·토큰 절감)**(공개 리서치 페이지 정상 접속됨 — 삼성=`samsungpop … research_pop.jsp#bm`(팝업'확인'), 미래에셋=`miraeasset … list.do?categoryId=1521`, 한투=`koreainvestment … Strategy.jsp?jkGubun=99`·`34`; 상세 URL `references/agents.md`. get_page_text 덤프 금지; "미확인/로그인전용" 오판 금지). 핵심 6사 풀·기타 4사 1줄 요약.
+**7·8 신선도** — Daily≤D-1, Weekly/Monthly≤D-3(주말은 금요일까지). 미충족이면 **stale 로 채우지 말고 빈값**("기준일 충족 최신 공개 자료 미확인"). 글로벌 IB(UBS·GS·JPM·MS·BlackRock)는 WebSearch+Bigdata MCP(Chrome 금지=메인세션과 충돌).
+**[DB화 v2 · 통합 DB — 마커체크 폐지] (2026-06)** — 점도표·버핏13F·지수리밸런싱·HY·주의사항/출처를 포함한 **모든 비매일 지표**는 통합 DB(`namoobi-market-report-server/db/`, 표 rows + **차트 시계열** 모두)에 저장한다. **대원칙: 매 실행 항상 최신값 조사**하되, 발표주기가 매일이 아닌 지표는 변동 시에만 DB 갱신·미변동이면 DB값 그대로 사용하고 캡션 "업데이트:매 실행 변동 여부만 체크, 변동없으면 기존 자료 유지" 를 표기한다. 차트 시계열은 `nmr_db.dbseries`(날짜 union 누적)로 매 실행 누적돼 부실 수집 회차도 과거 DB로 보강된다(기준금리·곡선·us2y·물가·BEI·고용). **구 마커체크(nmr_cache.py·Phase 1.0)는 폐지** — 별도 마커 관측 없이 통합 DB 가 변동체크·재사용을 담당한다. (CAPEX 표=차트 풀매트릭스 보강·HBM 누적 DB 동일.)
+**차트 생성(Phase 1.5)** — `gen_kr_candle.py` · `gen_leading_chart.py` · `gen_hy_chart.py` · `gen_rest_charts.py` · `gen_capex_chart.py` · `gen_hbm_dashboard.py` · `gen_macro_charts.py` · `gen_cli_chart.py` · `gen_customs_chart.py` · `gen_krliq_charts.py`(v3.64, 3.1.14) · `gen_veps_charts.py`(v3.72, 3.1.15 — 서버 API 회수) · `gen_debt_charts.py`(v4.01, 3.1.8 하위블록 조달구조 — 서버 API 회수) · `gen_curve_1y.py`(REQ6 — `charts/macro_curve_1y.png` 3.1.1 장단기차 1년, merge 가 이 경로를 차트로 지정하므로 누락 시 공백) **13종** 사용(`gen_tech_charts`·`gen_all2`·`gen_semi_etf`·`gen_kr_tech`·`gen_kr_extra`·`gen_kr_flows` 는 폐기). `gen_capex_chart.py` → `charts/capex_stack_ratio.png`·`charts/capex_fcf.png`(3.2.1 빅테크 CAPEX 차트, cwd 상대 출력). `gen_hbm_dashboard.py` → `charts/hbm_dashboard.png`(3.1.9 메모리·HBM **11패널(v3.62)** — ①DRAM현물 ②DRAM계약 ③NAND현물 ④NAND계약 ⑤스팟-계약갭 ⑥HBM점유율 ⑦**HBM ASP 추이** ⑧**HBM 시장규모·수요증가율(연간·Yole 추정)** ⑨**HBM:DDR5 GB당 단가격차(환산 추정)** ⑩선행지표 1년성과 ⑪메모리/GPU 상대강도). `gen_macro_charts.py` → `charts/macro_*.png`·`charts/spark_*.png`(3.1 주요지표 13종; `nmr_macro.json` 있으면 라이브, 없으면 내장 예시·추정값). **(R1) gen_macro_charts.py 는 반드시 `NMR_OUT="$WORK"` 환경변수로 실행** — us2y_daily 시계열을 `$WORK/nmr_indexseries.json` 에 주입해 美2년물 스파크가 정상 생성된다(미설정 시 상위 outputs 에 기록돼 美2년물 스파크가 10년물과 동일 모양으로 깨짐). **고용은 7패널 항상 표시**(맨앞=초기 실업수당 청구건수, 빈 시계열은 '데이터 미확보' 자리표시). **(req1·req2 2026-07-05) NFP·소매판매는 레벨·증감 "혼합" 시계열 내성 변환(_mixfix: 연속 레벨 구간만 차분/전월비 변환, 레벨→증감 경계 미변환)으로 절벽 스파이크를 방지한다 — db/series_emp_nfp·retail 오염분은 2026-07-05 클린 재작성.** `gen_leading_chart.py` → `charts/leading_cycle.png`(3.2.3 — 입력 `nmr_leading_series.json` = `fetch_leading.py` 실측 ~29개월). `gen_cli_chart.py` → `charts/oecd_cli.png`(3.1.4 OECD CLI 전 국가 통합 — 입력 `nmr_oecd_cli.json`(신규 스크랩) 또는 DB `db/oecd_cli.json` 폴백, 항상 생성 가능). `gen_customs_chart.py` → `charts/수출_전체_24개월.png`·`charts/수출_반도체_24개월.png`(3.1.10 관세청 수출 잠정치 2년치 그룹막대 — 입력 `nmr_customs.json`(변경시) 또는 DB `db/customs.json` 폴백; fresh 없고 두 차트 존재 시 스킵→기존 유지).
+**작성주체 익명화** — 표지·면책·13장에서 'Claude' 미표기('AI Research'/'AI').
+
+### (v4.08 · 2026-09-22 신설 · 필수) 서버 사전 DB 빈 값·stale 게이트 — `nmr_server_health.py`
+서버 크론은 **정상 종료하면서 빈 결과**를 낼 수 있다(9/22 실측: 네이버 리서치 SPA 이관 → broker_reports 0건 6일 / KRX 빈 응답 캐시 오염 → krx 스냅샷 asof null 6일). 보고서는 폴백(웹서치·carry-forward)으로 조용히 통과해 아무도 못 봤다. 따라서 **Phase 1 에서 server_*.json 캐시 + fetch D(deriv 회수) 직후** 반드시 실행한다:
+```bash
+python3 "$SRC/nmr_server_health.py" "$WORK"     # → $WORK/nmr_server_health.json + 경고 출력 (비차단·exit 0)
+```
+14항목(broker_reports·ib_insights·news_pool·events_calendar·policy_rates·m7_estimates·factset_insight·brokers3·ism_pmi·crypto_overview·crypto_movers·etf_quotes·krx_market·deriv)을 **비어 있음 / 기대 주기 초과(stale)** 로 판정한다. 경고가 있어도 실행은 계속(에이전트 폴백이 메움)하되 ① 해당 에이전트 프롬프트에 "서버 풀 비어 있음 → 웹서치/공개웹 폴백" 을 명시하고 ② verify_report.js **req40** 이 warnings 로 승격하며 ③ **Phase 6 결과 보고 `[서버 사전 DB 상태]` 블록에 경고를 그대로 옮긴다** — 같은 경고가 2회차 연속이면 "서버 크론 점검 필요" 로 사용자에게 명시. 파일이 없으면 req40 이 "미실행" 경고를 낸다.
+
+### (2026-07-18 req1~20) 서버 사전 DB — 실행 때 조사하지 말고 바로 쓸 것
+서버가 주기 수집해 두는 항목은 **curl로 읽기만** 한다 (`http://161.33.190.254/api/db/<name>`):
+- `broker_reports` **(req12)**: 증권사 17사 대표리포트(제목·네이버링크·PDF·공식페이지, 매일 2회 07:10/16:10). 7장 `key_reports` 는 여기서 채우고 **url 필수**(빌더가 하이퍼링크 렌더). 공식 리서치 페이지 링크도 함께 표기.
+- `ipo_news` **(req8)**: 대형 IPO·지수편입 헤드라인(구글뉴스 RSS, 매일 07:20). 3.3.2 패스트엔트리 후보는 이 목록에서 판정만.
+- `crypto_overview`·`crypto_movers`·`crypto_fng`·`kimp_series` **(req9~11·19)**: 위 암호화폐 규칙 참조.
+- `employment` + `series_emp_*` **(req3)**: FRED 값은 서버가 매일 07:40 자동 갱신(fred.key) — 보고서는 **ISM 제조업·서비스업 2종만** 조사해 갱신.
+- `fomc_meetings` **(req2)**: 이틀 회의는 종료일 기준 1건으로만 기록(예: 2026-07-28~29 한 줄, 같은 회의 단일일자 중복행 금지). 빌더가 미래3·과거5만 렌더.
+- `m7_estimates` **(req33)**: M7 EPS·매출 컨센서스 + 7/30/60일 전 값(리비전 방향)·목표가·투자의견 (Yahoo, 매일 06:00/15:00). 3.1.7 은 이 DB 기반으로 표만 구성.
+- `news_pool` **(req33)**: 주제별 뉴스 헤드라인 90건 (구글뉴스 RSS). 1장 Top10 은 이 풀에서 **선별·요약만** — 웹 재검색은 풀에 없는 특종 확인용으로만.
+- `factset_insight` **(req33)**: FactSet Earnings Insight 최신 발간물 제목·URL (주간). 3.1.6 링크는 여기서.
+- `etf_quotes` **(req33)**: 미국 주요 ETF 56종 시세·기간수익률 스냅샷. 3.3.1 표의 기초값 — fetch_us.py 실패 시 폴백으로도 사용.
+8장 IB **(req13)**: 각사에 `rep_pubs: [{title,url,date}]` (대표 발간물 2~3건, 공개 인사이트 페이지 링크) 필수 — 대시보드가 이 필드를 렌더한다.
+12장 **(req15)**: `action_items` 는 배열/사전({short_term,mid_term,long_term}) 모두 빌더 지원 — 비우지 말 것.
+
+### (2026-07-19 서버화 2차) 추가 사전 DB — market_prefetch2.py 크론(05:45·16:05)
+Phase 1 시작 시 아래도 함께 curl 로 `$WORK/server_<name>.json` 캐시한다:
+- `policy_rates`: 6개국 정책금리 daily 실측(미국 FRED·한국 ECOS·유로존 FRED·영일중 global-rates) — **PolicyRatesAgent 폐지**, merge 가 자동 사용(에이전트 미발행). monthly 이력도 서버가 upsert → 정책금리 차트 자동 최신.
+- `events_calendar`: 2.1 캘린더 뼈대(FRED 공식 발표일정 next+FOMC DB+중앙은행 회의(db/cb_meetings 시드)+만기 규칙+직전 보고서 검증 이벤트). **NewsAgent 는 이 DB를 1순위로 쓰고 검증·중요도·누락 보강만**(날짜 웹서치 재조사 금지). 홈피 📅 캘린더 페이지(calendar.html)도 이 DB.
+- `brokers3`: 한국투자 '한눈에 투데이' 모닝브리프 본문(직전 영업일 자동 백트래킹). **증권사 3사 메인세션 Chrome 추출 폐지** — SecuritiesCompose 는 brokers3+broker_reports(네이버: 삼성·미래에셋·한투 리포트 목록·요약)로 작성, DB 부실(둘 다 D-3 초과)일 때만 Chrome 폴백.
+- `factset_insight`: FactSet Insight **RSS**(HubSpot JS 캐시 우회) 최신 글 10건 — **3.1.6 최신 블로그 판별에 Chrome 불필요**(req7 개정). posts[0].date 가 DB(report.date)보다 새 것일 때만 개별 글·PDF 를 web_fetch 정독.
+- `ism_pmi`: ISM 제조/서비스 최신 공표치(PRNewswire 헤드라인 실측 파싱) — MacroAgent 는 이 DB 우선, 없을 때만 웹서치.
+- `ib_insights`: IB 5사 관련 최신 보도 풀(**24시간 이내만 보유**) — GlobalSecurities 1차 소스, 풀이 비면(주말 등) 기존 웹서치.
+- `rebalance_news`: 지수변경 헤드라인 모니터 — **change_marker 가 직전 실행과 동일하면 IndexRebalanceAgent 미발행·DB 재사용**, 변동시에만 발행.
+- news_pool `AI 산업` 토픽(**24시간 보존**): NewsBerk ai_trends 는 이 풀에서 선별 우선.
+- **(v4.02) 해자 '유형' 5분류 + 규제 워치** — 해자지도의 배지(B1/B2)는 해자의 **강도**만 본다. 여기에 모닝스타 표준 5유형(무형자산·전환비용·네트워크효과·원가우위·효율적 규모)을 얹어 **'어떻게 무너지는가'** 축을 더했다. 유형을 알면 감시 대상이 정해진다 — 원가우위는 경쟁사 증설로 가장 빨리 깨지고, 전환비용은 거의 안 깨지며, 네트워크효과는 오래 버티다 임계점에서 한 번에 무너진다(노키아형), 무형자산(특허)은 만료일이 정해져 시한이 있다(노보노디스크 제외가 이 사례). 정본 = 서버 `fetch_moat.py` 의 `MOAT_TYPE`(유형 정의·색·취약경로)·`MOAT_TYPES`(**51종** 전수 태깅, 복수 가능·앞이 주된 유형)·`REGULATORY`(반독점·수출통제 등 '해자가 강해서 생기는' 리스크 11종).
+  **(v4.05 2026-09-20) 리노공업(058470.KQ) 편입 — 49→50종.** 계기는 한경BUSINESS 2026.09.16-22 하나증권 '증설의 시대, 후공정의 수혜도 함께 온다'. 편입 근거는 **점유율이 아니라 마진의 지속성**이다 — 포고핀 글로벌 ~70% 에 OPM 이 2022 42.4%→2023 44.8%→2024 44.7%→2025 상반기 46.3% 로 4년 내내 40%대이고, **2023 1Q 실적쇼크(매출 −22%) 때도 38% 를 지켰다**(사이클 수혜주면 불가능한 패턴 = 가격결정력이 공급자 쪽). 선별B2·출하 병목형(어드밴테스트·무라타·나브테스코 계열), 유형 switching+intangible, 선행지표는 MU 가 아니라 **^SOX**(고객이 퀄컴·엔비디아·브로드컴 등 비메모리 중심·940여개사 분산). **같은 기사의 나머지 후공정주 4종은 전수 실측 후 탈락**시켰고 사유를 `fetch_moat.py` 하단 주석에 남겼다 — 고영(SPI 1위 51% 인데 OPM 16.1%→1.6% 붕괴, **'점유율=해자'가 아님을 보여주는 대표 반례**)·넥스틴(DF 검사 실제 점유 5~6%, KLA 가 90%+·중국 매출 75~85%·3분기 연속 적자)·이오테크닉스(레이저마킹 60%는 성숙사업, 어닐링은 특허만료로 중국 진입)·ISC(러버소켓 ~90% 유망하나 SLT 복점이 '형성 중' → **재심사 조건 2개를 코드에 명시**).
+  **(v4.07 2026-09-27) GE에어로스페이스(GE) 편입 — 50→51종.** 계기는 이코노미스트 2026.09 '대한항공 엔진정비 134대→500대' 기사와 사용자 가설 *"아시아나 합병 독점 + 엔진 MRO = 해자 아니냐"*. **가설을 뒤집어 '허가하는 쪽'을 편입했다** — 대한항공이 정비 가능한 엔진 6종이 전부 OEM 라이선스 범위 안이었기 때문이다. 근거 3중: ① 단독장착 2구간(B737MAX=CFM LEAP-1B 배타계약 · B777X=GE9X 성능장벽) ② 애프터마켓이 민항 부문 매출의 **75%** — 기체 도입 순간 엔진이 25~30년 고정되고 OEM 이 라이선스로 PMA·중고부품을 막아 정비 시장을 통제 ③ 백로그 1,900~2,100억$ ≈ 5년치, 분사(2024) 후 OPM 20.7%→26% 우상향. 선별B2·우주방산·유형 switching+intangible·선행지표 **JETS**. ⚠ 미확인 = GE 순수법인 기준 2020년 마진(당시 GE 전사에 묶여 분리 불가). **같은 축 4종은 탈락·보류** — 대한항공(OPM 1.4%→20.1%→6.3% 요동 + 공정위·EU·美 가 슬롯·화물사업을 강제 이관하는 '만들어지자마자 규제가 되돌리는 독점' + MRO 는 전사 매출 ~7% 의 OEM 하청) · RTX(파우더메탈 리콜로 P&W OPM −8.0% 붕괴) · **롤스로이스 ⏳ 보류**(A350 Trent XWB 단독장착은 강력하나 **배타권이 2030년 만료로 계약 명시** — 우리 MOAT_TYPE 정의의 '무형자산은 만료일이 정해져 시한이 있다'에 정확히 해당, 여기에 2020~22 3년 연속 붕괴) · 사프란(단독 sole-source 없음·CFM 50:50 지분법). 사유는 `fetch_moat.py` 하단 주석에 전수 기록. `moat.json` 에 `moat_types`(사전)·행별 `mtype`·`reg` 로 실려 홈피 🏰 해자워치 탭(유형 배지·유형 필터·⚖️ 규제 경고)과 보고서가 **같은 데이터**를 쓴다. 갱신은 유니버스 수동 동기화 시 함께.
+- **(v3.97) `moat` + `moat_llm`**: 해자워치 신호(서버 fetch_moat.py 매일 06:30) + 직전 AI 점검 — **[부록I] 렌더**(build_report.js 가 `$WORK/server_moat.json`·`server_moat_llm.json` 을 직접 읽음, 없으면 부록I 자동 생략) 및 Phase 3.6 점검 대상 추출에 사용.
+
+### (2026-07-19) 증권사 대표 리포트 링크 — 출처 URL 필수
+`securities.firm[*].key_reports[]` 의 각 항목은 **반드시 `url` 을 채운다**:
+- 텔레그램 수집분: `fetch_brokers_tele.py` 가 이제 메시지 퍼머링크(`https://t.me/<handle>/<id>`)를 `recent[].url` 로 담는다 → 애널 에이전트는 이 url 을 key_reports 에 그대로 옮긴다.
+- NH·KB(공개 홈페이지): 게시물 URL 을 url 로.
+- url 을 못 구하면 비워둔다(빌더·대시보드가 그 증권사 '출처 채널'로 폴백 링크한다). **웹에 없는 제목을 네이버/구글 검색 링크로 거는 것은 금지**(검색해도 안 나와 오해를 준다).
+빌더 reportBullet(r, SRCCH[key]) · 대시보드 houses() 모두 url→직행, 없으면 출처채널(t.me/홈페이지) 링크로 통일.
+
+## 보고서 품질 기준 (반드시 충족)
+
+생성되는 docx 는 다음 10개 항목을 모두 포함해야 한다. 하나라도 누락되면 재작업 대상.
+
+1. **글로벌 Top News 10** — 헤드라인 + 2~4문장 요약 + 임팩트 라벨(`▲ 강세`/`▼ 부정`/`■ 양면` — 기호+색 구분). **헤드라인·요약은 항상 한글**(외신도 한글 번역, 출처/URL 만 원문)
+2. **글로벌 주요 이벤트 캘린더** — ① 향후 1개월 전체 중요도(★~★★★) ② 1개월~1년 중장기는 ★★★만 (날짜·지역·이벤트·예상 영향). **빅테크 주요 이벤트(아이폰·갤럭시 언팩·GTC·CES·OpenAI 신모델 등)가 향후 일정에 있으면 누락 금지** (NewsAgent 가 별도 검색으로 확인)
+3. **단·중·장기 추세** — 모든 자산을 1주/1개월/3개월/6개월/1년 변화율로 제시
+4. **글로벌 증시 풀커버리지** — 한국(코스피·코스닥)·미국·홍콩·중국·일본·**대만**·인도·베트남·유럽 + **(v3.50) 북미&중남미(3.6: EWW·EWZ·EWC)·호주&중동(3.7: EWA·KSA·UAE·QAT)**
+5. **매크로 지표** — 달러지수(DXY), VIX, 美 10년 국채금리
+6. **원자재 풀커버리지** — 에너지(WTI·천연가스) + 금속(금·은·구리) + 농산물(4.3: 핵심곡물[옥수수·대두·소맥] + 기후충격[설탕·커피·오렌지주스] + 비용·종합[CRB 상품지수·BDI 운임, 프록시 ^TRCCRB·BDRY] + 농업ETF[DBA] + 비료·농기계 대장주[DE·NTR]) — 각 소그룹 추세표(현재가/1일/1주/1개월/3개월/6개월/1년/추세1Y/추세평가)
+7. **주요 환율 추세** — USD/EUR/JPY/CNY/HKD vs KRW 단·중·장기 추세 + **달러인덱스(DXY)** 병기 + 원화 톤
+8. **암호화폐** — 시장 개요 + 공포·탐욕 지수(현재/1일/1주/1개월) + 김치프리미엄(BTC/ETH/XRP/SOL)
+9. **글로벌 주요 IB 리서치** — UBS·Goldman Sachs·J.P. Morgan·Morgan Stanley·BlackRock 하우스 뷰 (한국 주요 증권사와 동일 구조)
+10. **종합 분석 + 포트폴리오** — 매크로 톤·테마·리스크 + 공격형/중립형/안정형 3개 모델 + 액션 아이템 (각 포트폴리오 `basis` 산출근거 포함)
+
+11. **국내 순환매 테마·수급** — 외국인 순매수(코스피/코스닥) + 경기선행지수 순환변동치 + 순환매 테마별 현황(반도체·조선·방산·전력·증권·로봇·우주)
+12. **미국 신용·ETF·리밸런싱·CAPEX** — 하이일드(HY) 신용 스프레드(OAS·유효수익률·국채분해) + 주요 미국 ETF(지수·섹터·테마·방어형 29종, 1년 추세) + 지수 정기 리밸런싱(S&P 500·나스닥 100 편입/편출·일정·룰변경) + AI 빅테크 자본지출(CAPEX)
+13. **전략광물·배터리 금속** — 리튬·니켈·코발트·우라늄·희토류·흑연(ETF 프록시+현물) + 빅테크 신제품·신기술 핵심 이벤트
+
+추가 품질 기준 (v3.3.0 반환각 보완):
+- **출처(grounding)**: Top News 와 증권사/IB 대표 리포트는 원문 링크(source_url)를 포함한다. 출처를 댈 수 없는 항목은 수록하지 않는다.
+- **수치 근거**: 포트폴리오 기대수익·MDD 는 단일 false-precision 숫자가 아니라 계산근거 또는 범위+가정으로 표기하고 `basis` 를 명시한다.
+- **디스클레이머**: 표지 AI·환각 경고 배너와 14장 출처·면책 고지가 반드시 포함된다.
+
+## 워크플로우 개요
+
+```
+[Phase 0: 사전 점검]  실행 모드 판정(예약/일반) / 날짜·시작시각 기록 / 연결 폴더(D:\claudeCowork) / Chrome / 빌드환경·무결성(자동복구)
+        ↓
+[Phase 1.0: (폐지) 마커체크 제거]  비매일 지표는 Phase 1 에서 항상 수집 시도 → 통합 DB(merge.py + nmr_db.dbseries)가 변동체크·미변동 재사용·차트 시계열 누적을 담당(구 nmr_cache 마커체크 미사용)
+        ↓
+[Phase 1: 병렬 수집 — 모든 수집 에이전트를 단일 메시지로 1회 발행 (P3 통합) · 수집 에이전트 model:sonnet]
+  ├─ News / Crypto(정성: CoinInfo) / Macro(FMP economics·treasury + FRED → nmr_macro.json)
+  ├─ KoreaSemiTheme(선정·AUM·노트) / GlobalSecurities  + (상시 수집 — DB가 변동체크·재사용) USMacroExtras·IndexRebalance·NewsBerk·HBM
+  ├─ [bash 병렬 tool-call] scripts/fetch_us.py + fetch_kr.py + fetch_semi.py + fetch_leading.py + fetch_oecd_cli.py + fetch_asia_etf.py + fetch_appc.py + fetch_appe.py + fetch_appg.py(v3.95 부록G 106종) + fetch_brokers_tele.py + fetch_krx_brief.py + fetch_memory.py + fetch_krliq.py "$WORK" (3.1.14 유동성·레버리지 — 서버 kr_liquidity.db scp 회수, 폴백 PC사본→로컬API)  (美/글로벌·한국 시세·시계열·경기선행·부록C·부록E 밸류체인·증권사 텔레그램 7사·KRX 브리프 2종, Chrome 불필요)
+  ├─ [bash 비차단] deriv_signals/run_for_report.py "$WORK/nmr_deriv_positioning.json" "<connected>/namoobi-market-report-server/data/deriv_signals.db"  (3.1.13 파생 포지셔닝 라이브 — 런처가 ①의존성 자동설치 ②DB없으면 run_backfill(1회 1년)·있으면 daily_update ③export_snapshot→JSON. **완전 비차단**: 실패해도 빌더 내장 스냅샷(DERIV_POS_DEFAULT)으로 렌더. ⚠️ **의존성 선설치(45초 벽 회피)**: 샌드박스 bash 호출은 45초 제한이라 런처 내부 pip(yfinance→curl_cffi 11MB)가 잘리기 쉽다 — 런처 실행 전 별도 bash 호출 2회로 `pip install -q curl_cffi --prefer-binary --break-system-packages` → `pip install -q yfinance cot_reports --prefer-binary --break-system-packages` 를 선설치한다(이미 설치돼 있으면 수 초). DB는 다른 DB섹션과 동일하게 `namoobi-market-report-server\data\deriv_signals.db` 영구 경로에 두어 매 실행 재백필 방지(2번째 인자 또는 DERIV_DB 환경변수). data.go.kr 키는 상위 `SECURITY/secrets.env` 자동 탐색. **(v3.51)** KRX OPEN API 키(`SECURITY/openapi.krx.co.kr.txt`)로 KOSPI200 현물·베이시스·OI·VKOSPI 를 1차 수집하고, 같은 런처가 **`nmr_krx_market.json`**(krx_market_snapshot.py — 코스피/코스닥/코스피200·VKOSPI·코스피200 섹터 등락 상하위·국고채 수익률·KRX 금현물·ETF 거래대금 상위+괴리율)도 함께 생성해 **국내 시장데이터의 웹서치 의존을 대체**한다(글로벌 지표는 KRX 범위 밖 → 기존 소스 유지). 큰 모듈 truncation 방지 위해 $RUN 추출본에서 실행. **(v3.66) T+0 당일 반영**: KRX OPEN API 는 T+1 공표라 런처의 `ingest_naver_t0()` 가 네이버 m.stock API 로 당일 현물·선물·베이시스를 자동 브리지한다(코드가 항상 실행 — 별도 조치 불필요). 단 **VKOSPI 는 T+0 무료 소스가 없으므로**, 당일 KOSPI 가 ±3% 이상 급변한 날에는 런처 실행 **전에** Claude in Chrome 으로 data.krx.co.kr(또는 네이버 뉴스 검색의 당일 VKOSPI 보도치)에서 당일 VKOSPI 를 확인해 `<connected>/namoobi-market-report-server/data/vkospi_override.json` 에 `{"date":"YYYY-MM-DD","vkospi":값}` 으로 저장하면 파이프라인이 주입한다(파일 없으면 D-1 값에 날짜 병기 + ⚠stale 경고가 자동 렌더되므로 비차단))
+  ├─ [bash · 필수] `nmr_server_health.py "$WORK"` — server_*.json 캐시 + deriv 회수 직후 실행, 서버 사전 DB 빈 값·stale 판정 → nmr_server_health.json (verify req40 · Phase 6 [서버 사전 DB 상태])
+  └─ **(v3.70 병렬화 · 2026-07-19 서버화1 개정 — Chrome 폐지)** 증권사 종합은 전부 서버 DB 기반: ① 배치 발행 직전 bash `fetch_brokers_tele.py`(~1분, 텔레그램 7사+KB·NH) ② **종합 작성 에이전트(SecuritiesCompose·sonnet)를 메인 배치에 포함** — 입력 = nmr_brokers_tele + `server_brokers3.json`(한투 '한눈에 투데이' 본문, 서버 크론) + `server_broker_reports.json`(네이버 6게시판 — 삼성·미래에셋·한투 리포트 목록·요약 포함). **메인세션 Chrome 3사 추출은 폐지** — brokers3·broker_reports 둘 다 D-3 초과로 부실할 때만 구 방식(Chrome 3탭) 폴백. 배치 뒤 직렬 작성 금지(17분 낭비 실측)
+        ↓
+[Phase 1.5: 차트 생성 (분석 전)]  gen_kr_candle.py·gen_leading_chart.py·gen_hy_chart.py·gen_rest_charts.py·gen_capex_chart.py·gen_hbm_dashboard.py·gen_macro_charts.py·gen_cli_chart.py·gen_customs_chart.py·gen_krliq_charts.py·gen_veps_charts.py·gen_debt_charts.py·gen_gbonds_chart.py "$WORK"(3.1.1 주요국 10Y — 서버 API 회수)·gen_curve_1y.py → charts/*.png
+        ↓
+[Phase 2: AnalysisAgent 단독 호출 · model:opus]  Phase 1 수집 데이터+차트를 입력으로 9~12장(종합분석·자산별견해·포트폴리오·액션) 도출
+        ↓
+[Phase 3: 데이터 종합 → JSON 저장 + 유효성 검증]
+        ↓
+[Phase 3.5: 반환각 점검 — 최소화(P3)]  verify_report.js 코드 게이트(req9~12: 누락섹션·출처·basis·날짜) + 메인세션 인라인 점검(별도 에이전트 없음)
+        ↓
+[Phase 4: 보고서 생성]  node build_report.js <json> <out.docx> → 연결 폴더에 저장
+        ↓
+[Phase 4.5: 품질 게이트 + GOODREPORT 비교 (v3.6.32 — 차단)]  node verify_report.js → problems 있으면 발송 보류·사용자에 질문(조용히 -/stale 통과 금지)
+        ↓
+[Phase 5: 이메일 발송]  Claude in Chrome → 로그인된 Gmail 직접 발송(docx 첨부) + 모드별 수신자 파일 (references/email-sending.md)
+        ↓
+[Phase 5.5: 서버 동기화 (v3.55 신설 · 비차단)]  python3 scripts/sync_server.py <생성한.docx> → db/*.json + deriv_signals.db + 신규 docx 를 공개 대시보드 서버로 업로드 (http://namoobi.duckdns.org)
+        ↓
+[Phase 6: 결과 보고]  헤드라인 3개 + 포트폴리오 톤 + 시작/완료/소요시간
+```
+
+## Phase 0: 사전 점검
+
+0. **실행 모드 판정 (v3.4.3 — Phase 5 수신자 결정)**: 이번 실행이 **예약(scheduled)** 인지 **일반(normal)** 인지 먼저 판정한다.
+   - **예약 모드 조건** (하나라도 해당): 스킬 인자(ARGUMENTS)에 `scheduled`/`schedule`/`예약` 포함 / 예약 작업 프롬프트가 예약 실행임을 명시(예: "이 실행은 예약 실행") / 세션이 사용자 입력 없이 스케줄러로 자동 시작됨.
+   - **일반 모드**: 그 외 모두 (사용자가 채팅에서 직접 `/namoobi-market-report` 실행, 인자 `direct` 등).
+   - 판정 결과를 메모해 두고(예: `$WORK/nmr_mode.txt` 에 `scheduled` 또는 `normal` 기록) Phase 5 에서 수신자 파일을 고른다:
+     예약 → `SECURITY\예약메일수신자.txt`, 일반 → `SECURITY\메일수신자.txt`. (애매하면 **일반 모드**로 처리하고 Phase 6 에 모드를 명시한다.)
+0-0. **(v4.05 · 2026-09-06 사용자 지시) 주말 미발송 판정 — 예약/직접 공통**: `TZ=Asia/Seoul date +%u` 가 6(토)·7(일)이면 `$WORK/nmr_weekend.txt` 에 `weekend` 를 기록한다. **주말에는 보고서 생성·게이트·서버 동기화(Phase 1~5.5)는 정상 수행하되 Phase 5 메일 발송만 건너뛴다**(대시보드는 갱신, 메일은 없음). 모드(예약/일반)와 무관하며 사용자가 채팅에서 직접 실행해도 동일 — 주말에 굳이 보내려면 사용자가 명시적으로 "주말이지만 발송"을 지시한 경우에만 `send_mail_server.py … --force` 를 쓴다. 코드 게이트: `send_mail_server.py`(v3.96)·서버 `send_report_mail.py`(v3.96) 둘 다 docx 파일명 날짜(YYYYMMDD)가 토·일이면 `SKIP (weekend …)` exit 0 으로 자동 차단하므로 스킬이 깜빡해도 발송되지 않는다(2중 방어). Phase 0-1 기발송 가드는 주말에도 그대로 수행한다(중복 실행·빌드 낭비 방지).
+0-1. **(v3.82 필수) 기발송·병렬 실행 가드**: 모드 판정 직후, 서버 mail_sent.log 에서 **오늘 일자 보고서가 이미 발송됐는지** 확인한다:
+   ```bash
+   KEY="$(ls /sessions/*/mnt/claudeCowork/SECURITY/nmr_deploy_key | head -1)"; cp "$KEY" /dev/shm/nk; chmod 600 /dev/shm/nk
+   ssh -i /dev/shm/nk -o StrictHostKeyChecking=no -o ConnectTimeout=12 ubuntu@161.33.190.254 \
+     "grep global_market_report_$(TZ=Asia/Seoul date +%Y%m%d) namoobi/data/mail_sent.log | tail -1"
+   ```
+   - 출력이 있으면(=오늘자 기발송): **예약 모드 → 즉시 종료**(Phase 6 결과 보고에 "오늘자 기발송 확인 — 중복 실행 방지로 종료"만 남김), **일반 모드 → 사용자에게 재실행/재발송 여부 질문**(서버 dedup 이 같은 날짜 재발송을 차단하므로 재발송은 서버측 `--force` 필요함을 함께 안내).
+   - 배경(2026-08-04 실측): PC 꺼짐으로 06시 예약이 누락되면 Cowork 스케줄러가 PC/앱 재시작 시 **catch-up 으로 지연 실행**한다(06시 누락분이 13:31 자동 실행). 이를 모르고 수동 재실행하면 병렬 2세션이 같은 날짜 보고서를 각각 발송·중복 수신된다. 서버 v3.71 일자 키 dedup 이 2번째 발송은 차단하지만, **40여 분의 수집·빌드 낭비와 초박빙 레이스는 이 가드로만 막는다**.
+   - (보조) `list_sessions` 도구가 있으면 다른 "1 namoobi market report" 세션이 **running** 인지도 확인 — running 이면 기발송과 동일하게 처리(예약=종료, 일반=사용자 질문).
+1. **날짜·시작시각**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` 로 오늘(KST)과 **워크플로우 시작시각**을 확정. `YYYYMMDD` 압축형도 함께 만든다. 시작시각(사람이 읽는 형식 + epoch)은 Phase 6 소요시간 계산에 쓰므로 아래 3번에서 `$WORK/nmr_start_epoch.txt` 로 기록한다.
+2. **연결 폴더 확인**: D:\claudeCowork 가 세션에 연결돼 있는지 확인. **`request_cowork_directory` 는 절대 호출하지 않는다**(매 실행 권한창의 원인). 미연결이면 outputs 에서 진행하고, Phase 6 보고에 "연결 폴더 미연결 — docx 사본 미생성·메일 첨부 불가"를 명시한다.
+3. **Chrome (v3.53 — 미연결 시 직접 실행 루틴)**: `mcp__Claude_in_Chrome__list_connected_browsers` 로 연결 확인. **일반(normal) 브라우저 창**이 있어야 한다. (발송 직전이 아니라 지금 미리 확인해 두면 Phase 5 실패를 줄인다.) **결과가 빈 배열(`[]`)이면 사용자에게 떠넘기지 말고 computer-use 로 크롬을 직접 실행한다**:
+   1. `mcp__computer-use__request_access(apps=["Google Chrome"], reason="크롬을 실행해 Claude 확장을 연결하고 시황 보고서를 Gmail 로 발송")` — 브라우저는 tier "read" 라 "It is rare for this to be required…" 경고가 뜨면 **같은 턴에서 즉시 한 번 더** `request_access` 를 호출해 확정한다(권한창은 그 재시도가 띄운다). 여기서 얻는 read 권한은 **크롬을 포그라운드로 띄우기(`open_application`)** 용이며, 실제 웹 조작은 전부 Claude-in-Chrome 확장으로 한다.
+   2. `mcp__computer-use__open_application(app="Google Chrome")` → `wait(3초)` → `list_connected_browsers` 재확인.
+   3. **프로필 선택 화면("Chrome 사용자 선택")이 뜨면**(computer-use `screenshot` 로 확인) 브라우저는 read 전용이라 Claude 가 클릭할 수 없다 → 사용자에게 **namoobi 프로필 카드를 한 번 클릭**해 달라고 요청(1회 클릭이면 확장이 붙는다). 프로필 피커를 끄고 싶으면 크롬 프로필 설정에서 "시작 시 표시" 체크 해제를 안내한다.
+   4. 확장이 붙어 `list_connected_browsers` 가 기기를 반환하면 그대로 진행. 재실행·프로필 클릭 후에도 계속 `[]` 이면 그때만 Phase 6 에 "Chrome 미연결 — 메일 미발송(docx 는 연결 폴더 저장 완료)"으로 보고하고 발송은 보류한다. (상세 절차·함정은 `references/email-sending.md` "Chrome 미연결 시 직접 실행" 참조.)
+4-0. **(v3.42 근본해결) 실행 스크립트는 설치본이 아니라 로컬 repo git HEAD 에서 추출 — 마운트 잘림 영구 회피**:
+   D: 마운트가 큰 파일(merge.py·gen_macro_charts.py 등)을 **설치 시점에 간헐적으로 잘라 기록**해 `.remote-plugins` 설치본이 손상될 수 있다(자가점검 SC=2의 실제 원인). 따라서 **매 실행, 로컬 repo(`D:\claudeCowork\namoobi-market-report`)의 git 객체에서 완전한 스크립트를 추출해 그걸로 실행**한다(git show=마운트 미경유·절대 안 잘림):
+   ```bash
+   SRC0="$(dirname "$(find /sessions/*/mnt/.remote-plugins -path '*namoobi-market-report/scripts/build_report.js' 2>/dev/null | head -1)")"
+   RUN="$(python3 "$SRC0/nmr_runsrc.py" 2>/dev/null | sed -n 's/^RUNSRC=//p')"
+   if [ -n "$RUN" ] && [ -f "$RUN/merge.py" ]; then SRC="$RUN"; echo "✅ git HEAD 완전 스크립트로 실행: $SRC"; else SRC="$SRC0"; echo "⚠️ repo 없음 → 설치본 사용(잘림 주의)"; fi
+   ```
+   이후 모든 스크립트 호출은 `$SRC` 를 쓴다. (`nmr_runsrc.py` 가 36파일을 git 에서 추출·무결성검증 후 경로 반환. 자가점검은 참고용이 되고, 실행 자체는 항상 완전판으로 보장.)
+
+4. **빌드 환경 준비 + 무결성 검사·자동복구** — 플러그인 마운트는 읽기 전용이므로 쓰기 가능한 outputs 에 복사해 빌드한다:
+
+```bash
+SRC="$(dirname "$(find /sessions/*/mnt -path '*namoobi-market-report/scripts/build_report.js' 2>/dev/null | head -1)")"
+OUT="$(ls -d /sessions/*/mnt/outputs 2>/dev/null | head -1)"
+# (v3.73) rm -rf 는 마운트 unlink 차단으로 실패 → 초기화 대신 매 실행 새 타임스탬프 폴더 + 경로 파일
+WORK="$OUT/nmr_build_$(TZ=Asia/Seoul date '+%H%M')"; mkdir -p "$WORK/charts"; echo "$WORK" > "$OUT/nmr_work_current.txt"
+date +%s > "$WORK/nmr_start_epoch.txt"   # v3.2.4 시작시각 기록
+TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S' > "$WORK/nmr_start_human.txt"
+echo "$(date +%s) phase0_setup" > "$WORK/nmr_phase_times.txt"   # v3.21 Phase별 계측 시작
+cp "$SRC/build_report.js" "$SRC/package.json" "$WORK/"
+cp -r "$SRC/fonts" "$WORK/fonts" 2>/dev/null && echo "폰트 OK ($(wc -c < "$WORK/fonts/nmr_kr.ttf")B)"  # v3.4.2 한글 임베드 폰트
+cd "$WORK"
+# (2026-07-19 서버화9 · npm 캐시) WORK 는 매 실행 초기화되므로 node_modules 는 outputs 캐시에서 재사용(~30초 절감)
+NCACHE="$(dirname "$WORK")/nmr_node_cache"
+if [ -d "$NCACHE/node_modules/docx" ]; then cp -r "$NCACHE/node_modules" "$WORK/node_modules" && echo "docx 캐시 재사용"
+else npm install docx --no-fund --no-audit && mkdir -p "$NCACHE" && cp -r "$WORK/node_modules" "$NCACHE/node_modules"; fi
+node -e "require('$WORK/node_modules/docx'); console.log('docx OK')"
+# (v3.71) 3.2.1 일봉 캔들 필수 의존성 사전설치 — 미설치면 gen_kr_candle 이 주봉 폴백 마커를 남겨 게이트(req1)가 발송을 차단한다
+pip install -q mplfinance --prefer-binary --break-system-packages >/dev/null 2>&1; python3 -c "import mplfinance" 2>/dev/null && echo "mplfinance OK" || echo "⚠️ mplfinance 설치 실패 — gen_kr_candle 자동설치가 재시도"
+# 무결성 검사 (v3.2.6) — 샌드박스 마운트가 큰 파일을 잘라 읽는 사례가 있음 (호스트 원본은 정상)
+if ! tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report"; then
+  echo "⚠️ 잘림 감지 → git 원본에서 재복사"
+  cp "$SRC/build_report.js" "$WORK/build_report.js"
+fi
+tail -1 "$WORK/build_report.js" | grep -q "EOF — namoobi-market-report" \
+  && node --check "$WORK/build_report.js" && echo "script OK" \
+  || echo "❌ 여전히 잘림 — 호스트 git 원본을 Read 도구로 읽어(마운트 bash 금지) WORK 에 재구성할 것"
+```
+
+> ⚠️ `/tmp` 는 이전 세션 잔존물로 권한 오류가 날 수 있으니 사용하지 말 것. 항상 outputs 하위에서 빌드.
+> ⚠️ 마운트 읽기 잘림이 의심되면(EOF 마커 없음) 호스트 git 원본을 **Read 도구** 또는 `git show HEAD:<path>` 로 읽어 WORK 에 재구성한다 — 둘 다 잘리지 않는다.
+
+5. **(v3.39 필수) 설치본 자가점검 — stale 방지**: 매 실행, 빌드에 쓸 `$SRC`(현재 실행 중인 설치본 스크립트)가 GitHub repo HEAD 와 일치하는지 확인한다.
+
+```bash
+TOKP="$(ls /sessions/*/mnt/claudeCowork/SECURITY/githubtoken.txt 2>/dev/null | head -1)"
+python3 "$SRC/nmr_selfcheck.py" "$SRC" "$TOKP"; SC=$?
+```
+
+`SC=2`(설치본이 GitHub 보다 옛 버전 = 플러그인 미업데이트)면 **여기서 멈추고** 사용자에게 알린다: "플러그인을 업데이트해야 최신 수정본이 적용됩니다(설정→Capabilities/플러그인). 지금 실행하면 옛 결과가 나옵니다 — 그래도 진행할까요?" 승인 없이는 진행하지 않는다. (`SC=0`=최신→진행 / 네트워크·토큰 실패 등 기타 코드→경고만 남기고 진행.) 이 점검이 "고쳐서 push 했는데 새 실행에 반영 안 되는" 문제를 매 실행 입구에서 잡는다.
+
+## ⏱ Phase별 계측 (v3.21 — 병목 가시화)
+
+각 Phase **시작 시** 1줄로 벽시계를 마킹한다(저비용·비차단). 어느 Phase(수집/발송/게이트 재작업)에 시간이 쏠리는지 매 실행 수치로 확인하기 위함이다.
+
+- **마킹**(각 Phase 진입 직후 1회): `echo "$(date +%s) <라벨>" >> "$WORK/nmr_phase_times.txt"` — 새 bash 호출이라 `$WORK` 가 비었으면 `WORK="$(ls -d /sessions/*/mnt/outputs 2>/dev/null|head -1)/nmr_build"` 로 재유도. 라벨 순서: `phase1_collect`(Phase 1 배치 발행 직후)·`phase1_5_charts`·`phase2_analysis`·`phase3_merge`·`phase4_build`·`phase4_5_gate`·`phase5_send`.
+- **⚠️ (2026-07-18 실측) `phase1_collect` 마커는 에이전트 발행 메시지에 넣지 말 것** — 병렬 Agent 호출과 같은 메시지에 묶인 bash 는 실행이 에이전트 완료 뒤로 밀려 마커가 늦게 찍히고, 수집 ~20분이 phase0 구간으로 오귀속된다. 마커는 **발행 직전 단독 bash 호출**로 먼저 찍고, 그 다음 메시지에서 에이전트+fetch 를 발행한다.
+- **리포트**(Phase 6): 발송 확인 직후 `phase6_report` 마킹 후 `SRC="$(dirname "$(find /sessions/*/mnt -path '*namoobi-market-report/scripts/nmr_timer.py'|head -1)")"; python3 "$SRC/nmr_timer.py" report "$WORK/nmr_phase_times.txt"` 출력을 결과 보고 [실행 시간] 아래에 붙인다.
+- 마킹 일부 누락돼도 비차단 — 기록된 구간만 집계된다.
+
+## Phase 1–2: 서브에이전트 호출
+
+상세 프롬프트와 각 에이전트의 반환 JSON 스키마는 **`references/agents.md`** 를 읽고 그대로 사용한다.
+
+핵심 규칙:
+- **(v3.16 모델 티어링) 서브에이전트 `model` 인자를 반드시 명시한다.** 수집 에이전트(News·Crypto·Macro·KoreaSemiTheme·GlobalSecurities·USMacroExtras·IndexRebalance·NewsBerk·HBM)는 전부 **`model:"sonnet"`**, 종합·추론하는 AnalysisAgent(Phase 2)만 **`model:"opus"`**. 미지정 시 부모(Opus) 상속이라 토큰·지연이 커지므로 누락 금지 — 수집은 검색→추출→저장 작업이라 Sonnet 으로 충분하고 "추정 금지·도구값만" 규칙으로 품질이 유지된다.
+- Phase 1의 **수집 에이전트를 단일 메시지에서 1회 동시 발행** (general-purpose · model:sonnet): News·Crypto(정성)·KoreaSemiTheme(선정·AUM·노트)·GlobalSecurities·**MacroAgent(3.1 주요지표: FMP economics/treasury + FRED API → nmr_macro.json)** + **(상시 수집 — DB가 변동체크·재사용)** USMacroExtras(점도표 due 또는 CAPEX 창)·IndexRebalance(리밸런싱 due)·NewsBerk(ai_trends 때문에 상시, 단 13F 서브태스크는 berkshire due일 때만)·HBM(분기 창). **마커 reuse·창밖이면 해당 에이전트 미발행·캐시 재사용.** **같은 메시지에서 `scripts/fetch_us.py`·`fetch_kr.py`·`fetch_semi.py`·`fetch_leading.py`·`fetch_oecd_cli.py`(3.1.4 OECD CLI — SDMX 직접)·`fetch_customs.py`(3.1.10 관세청 수출 잠정치 — 매일 최근4개월 해시로 변경체크, 변경시만 전체백필)·`fetch_asia_etf.py`(3.4.1 아시아 ETF 29종)·`fetch_appc.py`([부록C] AI 반도체 밸류체인 55종, v4.04)·`fetch_appe.py`([부록E] 피지컬 AI 밸류체인 63종, v4.06)·`fetch_appg.py`([부록G] 7대 국가전략분야 밸류체인 106종, v3.95)·`fetch_krx_brief.py`(3.2.4/3.2.5 KRX 증시 Brief·공매도 데일리 브리프 — 회차 att_seq 변동시만 다운로드·캡쳐, 불변이면 저장본 재사용) 를 bash 병렬 tool-call** 로 실행(美/글로벌·한국 시세·시계열, 스레드 병렬 각 ~1~10초; 에이전트 아님). **(v3.70) 증권사는 배치 "앞" 재배치**: 배치 발행 **직전** bash `fetch_brokers_tele.py`(텔레그램 7사+KB·NH) + 메인세션 Chrome 3사(삼성·미래에셋·한투, `browser_batch` 3탭 navigate·`javascript_tool` 타깃추출, screenshot·get_page_text 덤프 금지)·FactSet topic 추출 → 원문 `$WORK/chrome_secu_raw.json` 저장 → **SecuritiesCompose 에이전트(sonnet)를 메인 배치에 포함**(직렬 작성 금지 — 17분 낭비 실측). (v3.67) OECD CLI 는 `fetch_oecd_cli.py` sandbox 직접 수집으로 전환 — Chrome KOSIS 탭 불필요. **(v3.70) deriv 3.1.13 은 서버 크론(05:50 KST) 정본 — `run_for_report.py` 가 서버 스냅샷(26h 내)이면 회수만 하고 로컬 파이프라인·pip 선설치를 생략**하므로 deriv pip 2회 선설치는 서버 스냅샷 미신선(로컬 폴백)일 때만 필요.
+- AnalysisAgent 는 6개 결과를 모두 받은 뒤 **마지막에 단독 호출**(general-purpose · model:opus). 6개 JSON 을 프롬프트에 붙이는 대신 "outputs 의 nmr_*.json 6개를 bash 로 읽으라"고 지시해도 된다 (재타이핑 절감).
+- **(v3.2.3 속도)** MarketsAgent·CommoditiesAgent 프롬프트에 `period="1y", interval="1wk"`(주봉) 사용을 명시한다 — 일봉 금지. 1주 변화율은 직전 주봉 종가 기준.
+- **(v3.2.3 속도)** 각 에이전트 프롬프트에 "최종 JSON 을 outputs 하위 `nmr_<이름>.json` 파일로 bash heredoc 저장하고, 응답으로는 저장 경로와 1줄 요약만 반환하라"를 명시한다. 메인 세션이 긴 JSON 을 받아 재타이핑하는 것을 금지.
+- MCP 도구는 deferred 상태일 수 있으므로 각 에이전트 프롬프트에 "먼저 `ToolSearch` 키워드 검색(예: `+UsStockInfo historical`, `+CoinInfo fear greed`)으로 도구를 로드한 뒤 사용하라"고 명시한다. **UUID 가 포함된 도구명을 하드코딩하지 말 것** — 서버 ID는 세션마다 다를 수 있다.
+- 서브에이전트가 API 오류(소켓 끊김 등)로 결과 파일을 저장하지 못했으면 해당 에이전트만 재실행한다 (파일 존재 여부로 판단).
+- 실패한 데이터는 null / 빈 배열로 두고 진행한다. 빌더가 "-" 로 렌더링한다.
+
+## Phase 3: 데이터 종합 및 저장
+
+에이전트·스크립트가 저장한 `nmr_*.json` 을 **`python3 scripts/merge.py $WORK YYYYMMDD` 로 병합**해 (메인 세션 재타이핑 금지)
+outputs 하위 `namoobi-market-report-server/data/report_data_YYYYMMDD.json` 으로 저장한다(merge.py 가 수익률·추세·경기선행 코멘트 계산, longterm 빈event 필터, metadata 추가).
+
+> ⚠️ 직접 heredoc 작성이 불가피한 경우: 한글 JSON 은 단일 인용 heredoc(`<<'JSONEOF'`)으로 변수확장을 막을 것.
+> 병합 후 JSON 사본을 연결 폴더 `D:\claudeCowork\namoobi-market-report-server\data\` 에도 복사한다 (새 파일 생성은 허용됨).
+
+저장 후 검증은 **Phase 4.5 `verify_report.js` 단일 코드 게이트로 일원화**(P3). 구 `build_report.js --validate`(누락 섹션·출처 없는 뉴스·basis 누락 포트폴리오)는 verify_report.js `req9~12` 로 흡수했으므로 **별도 validate 호출 불필요**(누락 섹션 등은 Phase 4.5 warnings 로 보고).
+
+## Phase 3.5: 반환각(Hallucination) 점검 — 최소화 (P3)
+
+검증은 **Phase 4.5 `verify_report.js` 코드 게이트로 일원화**한다(별도 서브에이전트 발행 안 함 — spin-up 절감). 게이트가 `req9~12` 로 **누락 섹션·`top_news.source_url`·포트폴리오 `basis`·`events_calendar` 날짜 sanity**를 자동 점검(구 `--validate` + 환각검증의 코드화 가능 항목 흡수).
+
+코드로 못 잡는 **판단 필요 항목만** 메인세션이 종합 JSON 에서 **인라인으로 짧게** 확인한다:
+- **수치 모순**: `analysis` 방향성이 수집된 `markets`/`commodities`/`crypto` 수치와 모순되지 않는지(예: "증시 강세"인데 주요 지수 1개월 일제히 음수).
+- **환각 의심**: 출처 없이 단정한 구체 수치·목표주가·인용이 있는지.
+
+의심되면 해당 필드를 null/수정 후 재검증. 검증 대부분이 Phase 4.5 코드 게이트로 강제되므로 별도 에이전트 없이 동등 이상이며, 게이트 `problems` 가 있으면 Phase 4.5 에서 발송 차단·사용자 질문은 그대로.
+
+## Phase 3.6: 해자워치 AI 점검 (v3.93 신설 — 비차단·조건부)
+
+해자워치(홈피 🏰 탭 · 서버 `fetch_moat.py` 매일 06:30)가 가격·선행지표로 거른 **주의 종목만** 메인세션이 뉴스로 최종 점검한다 — 카드의 "수동 확인 대상"을 보고서 실행이 대신 수행하는 단계.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/moat` → 점검 대상 추출(**합산 최대 8종**, 우선순위 buy_m → risk → buy → lead 미연결):
+   ① `verdict ∈ {buy, buy_m, risk}` 종목 ② **`lead: null`(선행지표 미연결) 종목 전체 — 판정 무관**(v3.98, 자동 방증이 없는 종목은 뉴스가 유일한 해자 점검 수단).
+   ②-b **`verdict: "top_warn"`(⚪⚠ 과열·소진 주의)** 종목(v3.99, 고점 질 점수 40 미만 = 멀티플 의존 고점) — 천장 형성 신호(경쟁 진입·수요 둔화·가이던스 하향) 뉴스를 점검한다.
+   ③ **선별 B2(`tier:"B2+"`) 종목은 점유율 변화도 함께 점검** — `share` 필드의 점유 구도가 최근 뉴스와 어긋나면 note 에 갱신 제안을 적는다(예: "무라타 점유 40→35% 보도 — SHARES 갱신 필요").
+2. 종목당 웹서치 1회(최근 2주: 경쟁 진입·규제·소송·핵심계약 상실·기술 대체 등 **해자 훼손 이슈**)로 판정:
+   `유지`(훼손 뉴스 없음 — 낙폭은 업황·수급 성격) / `주의`(모니터링 필요 이슈 존재) / `훼손 의심`(구조적 악재 확인). note 한 줄(근거 요약, 40자 내외) + src(대표 출처 URL 1개). **추정 금지 — 확인 못 하면 `주의`가 아니라 생략.**
+3. `namoobi-market-report-server/data/db/moat_llm.json` 저장:
+   `{"as_of":"YYYY-MM-DD HH:MM","checks":[{"sym","name","verdict_llm","note","src"}]}`
+   → Phase 5.5 `sync_server` 가 db/*.json 과 함께 자동 업로드, 홈피 해자워치 카드에 '🧠 AI 점검'으로 표시된다.
+4. 실패·시간 부족 시 건너뛴다(비차단). 파일이 안 올라가면 홈피는 직전 점검 날짜를 그대로 표시하므로 무해.
+
+## Phase 3.7: 점유율 추이 갱신 (v4.00 신설 — 비차단·조건부)
+
+홈피 📊 점유율 추이 탭(서버 `fetch_share.py` 매일 06:35)의 분기·반기 대결(B급 등)은 공개 API가 없어 보고서 실행이 갱신을 담당한다 — 릴리 vs 노보 같은 '점유 역전'을 진행 중에 잡기 위한 단계.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/share` → `stale: true` 인 배틀만 추출(**최대 5개**, `auto` 배틀 제외).
+2. 배틀당 웹서치 1회로 **가장 최근 공표된 점유 수치**(기관 보도·실적 발표)를 확인:
+   - 전 플레이어 값을 같은 시점 기준으로 맞춘다(리더만 갱신하고 2위를 방치하면 격차 계산이 왜곡).
+   - **추정 금지** — 새 공표치를 못 찾으면 그 배틀은 생략(기존 시계열 유지가 정답).
+3. `namoobi-market-report-server/data/db/share_llm.json` 저장:
+   `{"as_of":"YYYY-MM-DD HH:MM","updates":[{"id":"<battle id>","d":"YYYY-MM","v":{"플레이어":값,...},"note":"근거 요약","src":"URL"}]}`
+   → Phase 5.5 sync 가 자동 업로드, 서버 fetch_share 가 다음 실행 때 시계열에 upsert(같은 날짜면 교체)하고 탭에 🧠 표기.
+4. 실패·시간 부족 시 건너뛴다(비차단).
+
+## Phase 3.8: 빅테크 조달구조 — 발행 딜·신용등급 갱신 (v4.01 신설 — 비차단·조건부)
+
+3.1.8 하위블록 「조달 구조」와 홈피 💵 조달구조 탭의 **수치는 서버가 SEC EDGAR XBRL 로 매일 자동 수집**(`fetch_bigtech_debt.py` 06:45)하므로 손댈 필요가 없다. LLM 이 담당하는 건 **XBRL 에 없는 두 가지**뿐이다 — ① 개별 발행 딜(금액·청약배수·조건) ② 신용등급·전망 변경.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/bigtech_debt` → `deals` 의 최신 날짜, `ratings` 확인.
+2. **최신 딜 날짜 이후에 새 발행이 있었는지**만 웹서치(최대 2회): 5사(MSFT·AMZN·GOOGL·META·ORCL) 회사채/주식 발행. 청약배수(오버서브스크립션)가 보도되면 반드시 함께 기록한다 — **배수 하락 = 수요 둔화 조기 신호**라 이 블록의 핵심 해석 포인트다.
+3. 신용등급은 **변경이 보도된 경우에만** 갱신(S&P·무디스·피치). 특히 오라클은 투자등급 마지노선 1단계 위(BBB-)라 추가 강등 시 채권가격·CDS 압박 → 반드시 반영.
+4. `namoobi-market-report-server/data/db/debt_llm.json` 저장:
+   `{"as_of":"YYYY-MM-DD HH:MM","deals":[{"d":"YYYY-MM","co":"회사명","amt":숫자(십억$)|null,"note":"청약배수·조건·용도"}],"ratings":[{"co":"회사명","sp":"...","moody":"...","flag":"ok|watch|warn","note":"..."}]}`
+   → Phase 5.5 sync 가 업로드, 서버 `fetch_bigtech_debt` 가 다음 실행 때 시드에 upsert(같은 날짜·회사면 교체)하고 🧠 표기.
+5. **추정 금지** — 발행액·배수는 보도 실측만. 새 딜이 없으면 이 Phase 는 통째로 생략(기존 타임라인 유지가 정답). 실패·시간 부족 시 건너뛴다(비차단).
+
+## Phase 3.9: 코인 정책·이벤트 판정 (v4.03 신설 — 비차단·조건부)
+
+홈피 🪙 코인 선행 탭(`fetch_cryptolead.py` 매일 06:55)은 **수치 지표 30여 종을 서버가 무토큰으로 수집·판정**한다(공포탐욕·김프·거래소 유출입·MVRV·코인베이스 프리미엄·IBIT·CFTC·펀딩비·Fed 순유동성·스테이블 공급 등). LLM 이 담당하는 건 **수치화가 안 되는 정책 칸**뿐이다.
+
+1. `curl -s http://namoobi.duckdns.org/api/db/cryptolead | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['overall']);print(d['policy'].get('as_of'))"` 로 종합 판정·직전 정책 갱신일 확인.
+2. 직전 갱신일 이후의 **코인 정책 이벤트만** 웹서치(최대 2회): SEC(ETF 승인·소송·집행), 스테이블코인·시장구조 법안, FOMC 결정·점도표, 국내(가상자산법 2단계·법인 계좌·현물 ETF), 대형 해킹·거래소 사고, 국가·기업 비축(전략비축·MSTR 등).
+3. `namoobi-market-report-server/data/db/cryptolead_policy.json` 저장(직전 events 유지 + 신규 추가, 최근 20건만):
+   `{"as_of":"YYYY-MM-DD HH:MM","summary":"한 줄 총평(정책 순풍/역풍)","events":[{"date":"YYYY-MM-DD","title":"이벤트","impact":"왜 선행/후행인지 한 줄","status":"bull|neu|bear"}]}`
+   → Phase 5.5 sync 가 업로드, 서버 `fetch_cryptolead` 가 다음 실행 때 `policy` 로 동봉해 탭 하단 '정책·이벤트' 표에 표시.
+4. 보고서 6장(암호화폐)에는 `overall.text` 한 줄과 🔴/🟢 지표 이름만 인용한다(수치 재조사 금지 — 서버 DB 가 정본). 새 이벤트가 없으면 통째로 생략. 실패·시간 부족 시 건너뛴다(비차단).
+
+## Phase 4: 보고서 생성 (docx 전용)
+
+> **최종 산출물 = docx.** soffice→PDF 변환은 이 환경에서 자주 hang/실패하므로 폐지했다. 빌더가 만든 docx 를 그대로 연결 폴더에 저장하고 메일에 첨부한다(한글 폰트는 빌더가 docx 에 임베드하므로 별도 변환 불필요).
+
+1. **docx 생성** — outputs 에 생성:
+```bash
+cd "$WORK"
+# (R1~R3 · req0/req3 — merge 직후·build 직전 필수) 결측 셀에 정확한 사유/계산값 주입:
+#   물가 MoM = FRED 지수 전월비 직접 계산(nmr_mom.json) · BEI = 수준값 표기 · 고용 발표일 보강 · KSVKOSPI = investing.com 파싱 실측(anchors) 주입
+python3 "$SRC/nmr_reasons.py" <outputs>/_market_report_data/report_data_YYYYMMDD.json
+# (req5 · v3.41) 표=차트 일치: merge 후 report_data 로 CAPEX 차트 재생성 (Phase 1.5 는 머지 전이라 내장 기본값으로 그려져 표와 어긋날 수 있음)
+python3 "$SRC/gen_capex_chart.py" <outputs>/_market_report_data/report_data_YYYYMMDD.json
+# (req2 2026-07-19) 정책금리 등 merge 가 DB·이력(nmr_policyrates_monthly upsert 등)을 갱신한 뒤에만 최신이 되는
+#   매크로 차트를 재생성 — Phase 1.5 시점 차트는 upsert 전 이력이라 표(예: 한국 7/16 인상)와 어긋난다.
+NMR_OUT="$WORK" python3 "$SRC/gen_macro_charts.py"
+# (v3.71) 3.2.3 반도체 종목/ETF 추세(semi_s_*/semi_e_*)는 report_data 를 참조 — merge 후 재실행해야 전부 생성된다(Phase 1.5 시점 미생성분 보강)
+python3 "$SRC/gen_rest_charts.py" "$WORK"
+node build_report.js \
+  <outputs>/_market_report_data/report_data_YYYYMMDD.json \
+  <outputs>/global_market_report_YYYYMMDD_HHMM.docx
+```
+빌드 후 파일 크기와 `unzip -l` 무결성, 표 개수(`<w:tbl>`)를 점검한다.
+
+2. **(v3.94 · 2026-08-30 재발방지) 연결 폴더 복사는 Phase 4.5 게이트를 통과한 뒤에 단 1회만 한다 — 빌드 직후 복사 금지.**
+   종전에는 빌드 직후 연결 폴더에 복사하고 그 다음 게이트를 돌렸는데, 게이트가 결함을 잡아 재빌드하면 새 `_HHMM` 파일이 생기면서
+   **실패본이 연결 폴더에 그대로 남아 같은 회차 docx 가 2개 쌓였다**(8/30 실측: `_1954`(점도표 누락 실패본)·`_1956`(통과본) 동시 잔존 — 사용자 지적).
+   따라서 순서는 **빌드 → 게이트(WORK 경로로 검사) → 통과 시에만 연결 폴더 복사**다. 게이트 재실행이 필요하면 WORK 안에서만 재빌드한다.
+   - 복사 직전 **같은 날짜의 이전 회차를 먼저 지운다**(날짜별 최종본 1건 원칙):
+     `ls /sessions/*/mnt/claudeCowork/global_market_report_<YYYYMMDD>_*.docx | grep -v <이번파일> | xargs -r rm -f`
+     (마운트가 unlink 를 막아 `Operation not permitted` 가 나면 `mcp__cowork__allow_cowork_file_delete` 로 권한을 받은 뒤 재시도.)
+   - ⚠️ file_upload 는 `D:\claudeCowork\...` Windows 경로만 받으므로(outputs·VM 경로 거부) **메일 첨부를 하려면 docx 가 연결 폴더에 반드시 있어야 한다.**
+   - 동일 파일명이 이미 있으면 실행 시각 접미사(`_HHMM`)를 붙여 새 파일로 저장하고, 그 실제 파일명을 Phase 5 첨부에 사용한다.
+   - 복사 후 **반드시 크기를 비교 검증**한다 (`wc -c` 원본=사본). 연결 폴더가 없으면 첨부가 불가하므로 Phase 6 에 "연결 폴더 미연결 — docx 첨부 불가"를 명시한다.
+   - 서버측도 동일 원칙: `sync_server.py`(v3.94)가 업로드 직후 같은 날짜의 다른 회차를 자동 삭제한다(구 회전 로직은 '최신 5건 무조건 보존'이라 같은 날 재빌드분을 못 걸렀다).
+
+## Phase 4.5: 품질 게이트 + GOODREPORT 비교 (v3.6.32 — 필수·차단)
+
+> **이 단계를 통과하지 못하면 Phase 5(발송)로 절대 진행하지 않는다.** 목적: 결함을 조용히 미표시(-)·carry-forward·stale 로 통과시키지 않고, 사용자에게 보고·질문한다.
+
+> **(v3.94) 이 게이트는 WORK 안의 docx 로 돌린다 — 연결 폴더 복사는 통과 뒤(Phase 4-2)다.** 게이트 전에 복사하면 실패본이 연결 폴더에 남아 같은 회차가 2개 쌓인다(8/30 실측).
+
+1. **코드 게이트 실행**:
+```bash
+cd "$WORK" && node verify_report.js <outputs>/_market_report_data/report_data_YYYYMMDD.json "$WORK" "$WORK/global_market_report_YYYYMMDD_HHMM.docx"
+echo "verify exit=$?"   # 0=통과, 1=결함  (v3.72: 3번째 인자 docx — req35 가 크기·미디어수를 GOODREPORT 골든과 자동 비교)
+```
+   `{ok,problems[],warnings[]}` 가 출력된다. `problems` 가 있으면 그 목록이 곧 "정상 예제 수준 미달 항목"이다(예: `3.1.1 코스피 차트가 캔들이 아님(flows 폴백)`, `반도체 ETF 17<20`, `증권사 신한 리포트 stale: 2026-05-11`).
+
+2. **GOODREPORT 비교**:
+```bash
+GOLD="$(ls -t /sessions/*/mnt/claudeCowork/GOODREPORT/*.docx 2>/dev/null | head -1)"
+gn=$(unzip -l "$GOLD" 2>/dev/null | grep -c 'word/media/'); nn=$(unzip -l "<새 docx>" | grep -c 'word/media/')
+echo "golden media=$gn  new media=$nn"   # new < gold*0.9 이면 결함
+```
+   (GOODREPORT 가 비었거나 '깨진 회차' 파일만 있으면 사용자에게 어떤 파일을 기준으로 쓸지 먼저 확인한다 — 임의 진행 금지.)
+
+3. **결함이 있으면(필수)**: **발송하지 말고**, problems 와 미디어 개수 차이를 사용자에게 그대로 제시하고 다음 중 무엇을 할지 **묻는다**:
+   - (a) 해당 섹션을 재수집·재생성한 뒤 다시 게이트 → 통과하면 발송,
+   - (b) 결함을 안고 그대로 발송(사용자가 명시 승인 시에만),
+   - (c) 이번 회차 발송 보류.
+   **예약(scheduled) 실행도 동일** — 자동 발송하지 말고, Phase 6 결과 보고에 결함 목록과 "사용자 확인 대기"를 남긴다. (낡은·깨진 보고서를 무인 자동 발송하는 것이 그동안의 반복 문제였다.)
+
+4. 게이트 `ok:true` + 미디어 개수 정상이면 Phase 5 로 진행한다.
+
+## Phase 5: 이메일 발송
+
+**`references/email-sending.md` 를 읽고 절차를 그대로 따른다.** 요점:
+- **(v4.05 · 2026-09-06 최우선) 주말(토·일 KST)에는 메일을 보내지 않는다 — 예약·직접 실행 공통.** Phase 0-0 의 `$WORK/nmr_weekend.txt` 가 `weekend` 면 Phase 5.5(sync)만 수행하고 **이 Phase 전체(서버 SMTP·Chrome 폴백 모두)를 건너뛴다**. Chrome 폴백으로 우회 발송 금지. `send_mail_server.py` 를 호출하더라도 wrapper·서버 2중 가드가 `SKIP (weekend …)` exit 0 으로 차단한다 — SKIP 은 실패가 아니므로 재시도·폴백하지 말 것. Phase 6 결과 보고 첫 줄을 "📋 글로벌 시황 보고서 생성 완료 — 주말 미발송(대시보드 갱신)" 으로 쓴다. 사용자가 그 주말에 명시적으로 "주말이지만 발송해" 라고 지시한 경우에만 `--force` 를 붙인다.
+- **(v3.69) 1순위 = 서버 SMTP 발송** — Phase 5.5 sync 를 **먼저** 수행해 docx 를 서버에 올린 뒤, `python3 "$SRC/send_mail_server.py" <docx VM경로> "<제목>" <body파일> <모드>` 1회로 발송(내부: 모드별 BCC 파일 읽기(// 제외)→ssh stdin JSON→서버 `send_report_mail.py` 가 Gmail SMTP(앱 비밀번호, keys/gmail_app_password.txt)로 발송, ~10초·Chrome 불필요·주소 argv 미노출). exit 0+"SENT"=성공. **exit 3(서버 인증파일 없음)·기타 실패 시에만** 아래 Chrome 경로로 폴백. 준비물: 사용자가 Google 계정 '앱 비밀번호'를 `SECURITY/gmail_app_password.txt` 에 1회 저장(2단계 인증 필요) — 배포는 sync_server 가 자동.
+- **(폴백 · v3.68) Chrome 초안 경유 발송**: 전면 작성창(view=cm)의 '보내기'는 조용히 무시되는 재발성 결함(3회 실측) — prefill 로 초안만 만들고 `#drafts` 에서 열어 미니 작성창에서 첨부(업로드 progressbar 소멸 폴링)·발송한다. 발송 판정은 "메시지 전송됨" 토스트 또는 보낸편지함 실측. 렌더러 프리즈 시 탭 폐기→새 탭 재개. 상세=email-sending.md.
+- (v3.69 순서 변경) **Phase 5.5(sync)를 Phase 5(발송)보다 먼저** 실행한다 — 게이트 통과본만 sync 하므로 깨진 데이터 노출 없음은 유지되고, 서버 발송이 sync 된 docx 를 그대로 첨부해 '대시보드=메일 동일 회차'도 유지된다. Chrome 폴백 시에도 순서 무관. **이 순서는 중복 발송 방지에도 필수** — docx 가 서버에 미리 있어야 발송 ssh 가 ~10초에 끝나 45초 샌드박스 벽에 잘리지 않는다.
+- **(v3.70 멱등 가드 — 2026-07-18 중복 발송 재발방지 · v3.71/2026-08-04 일자 키로 확장)**: 서버 `send_report_mail.py` 가 발송 성공을 `data/mail_sent.log` 에 기록하고, **같은 일자 키(`global_market_report_YYYYMMDD` — 회차 _HHMM 무관)가 최근 20시간 내 기발송이면 SMTP 를 건너뛰고 `SENT <기존 메시지ID> (dedup …)` 로 응답**한다(구 완전일치 dedup 은 병렬 세션의 _HHMM 다른 회차를 못 잡아 8/4 중복 수신 발생 → 일자 키로 확장. 같은 날 의도적 재발송은 서버측 `--force` 로만)(실측 원인: 7/18 발송 ssh 가 45초 벽에 SENT 확인 직전 잘림 → 세션이 실패로 오판·재시도 → 2중 발송 06:40/06:42). **(v3.83 개정 — 8/6 레이스 실측 반영)** 종전 "그냥 재실행하면 안전" 규약은 첫 발송의 SMTP 진행 중(로그 기록 전) 재시도가 dedup 을 통과하는 TOCTOU 창을 못 막아 8/6 중복 발송의 원인이 됐다. 현행: **서버 v3.72 flock 직렬화(락 획득 후 dedup 재확인) + wrapper v3.83 pre-dedup(발송 전 mail_sent.log 일자 키 선확인)** 으로 재시도·병렬 호출 모두 구조적으로 차단되므로 재실행은 안전하다. 새 회차(_HHMM 다른 파일명)도 같은 일자 키면 차단되며, 의도적 재발송은 서버측 `--force` 로만.
+- **(v3.53) Chrome 확장 미연결이면 먼저 직접 실행**: `list_connected_browsers` 가 `[]` 면 Phase 0-3 루틴대로 computer-use `request_access(["Google Chrome"])`(경고 시 같은 턴 재요청)→`open_application("Google Chrome")`→`wait(3)`→재확인. 프로필 피커가 뜨면 사용자에게 namoobi 프로필 1회 클릭 요청. 확장이 붙은 뒤 아래 절차 진행.
+- **Gmail 이 안 켜져 있으면** Claude in Chrome 으로 `https://mail.google.com/mail/u/0/?ogbl#inbox` 로 navigate (로그인 상시 유지 — 비밀번호 단계 불필요).
+- **첨부는 docx** — 연결 폴더(`D:\claudeCowork\...docx`) Windows 경로로 첨부 (outputs·VM 경로는 거부됨). (`references/email-sending.md` 의 PDF 언급은 docx 로 간주 — 차기 정리 대상.)
+- **받는사람(To)**: `namoobi@gmail.com` 단독.
+- **숨은참조(BCC) — 실행 모드별 파일 (v3.4.3)**: Phase 0 에서 판정한 모드에 따라
+  **예약** → `D:\claudeCowork\SECURITY\예약메일수신자.txt`, **일반** → `D:\claudeCowork\SECURITY\메일수신자.txt` 의 주소를 읽어 넣는다 (해당 파일 없으면 BCC 생략·보고에 명시).
+- **`//` 주석 제외**: 라인 맨 앞(공백 허용)이 `//` 인 줄은 BCC 대상에서 제외. 읽기: `grep -vE '^[[:space:]]*//' <모드별 파일> | grep -oE '<email>'`. 유효 주소 0개면 To 만 발송·"BCC 0명(전부 주석)" 보고.
+- BCC 주소는 비공개 정보 — 채팅·보고에 평문 노출 금지, **인원 수만** 보고 (예: "BCC 2명").
+- 사용자가 자동발송을 승인한 세션에서는 추가 확인 없이 발송. 단, 로그인(비밀번호 입력)은 정책상 대신 수행 불가.
+- 수신자 칩 클릭 금지. **(v3.18 경량화) 입력은 `browser_batch` 로 묶고 단계마다 screenshot 금지 — 검증은 발송 직전 1회, 우선 `get_page_text`(패시브 읽기·토큰 저렴) 로 To/BCC 칩·제목·첨부 확인, 애매할 때만 screenshot 1장.** 상세 함정 목록은 reference 참조.
+- "메시지 전송됨" 확인 직후 완료시각을 기록한다: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S'` + `date +%s`
+
+## Phase 5.5: 서버 동기화 (v3.55 신설 — 비차단)
+
+**메일 발송 성공을 확인한 직후**, 이번 실행 결과를 공개 대시보드 서버로 올린다.
+
+```bash
+python3 scripts/sync_server.py "<Phase 4에서 생성한 docx 절대경로>"
+```
+
+- **업로드 대상**: `namoobi-market-report-server/db/*.json`(통합 DB) + `deriv_signals.db` + **이번 회차 docx 1건**
+- **대상 서버**: Oracle Cloud Always Free(도쿄) → 공개 주소 **http://namoobi.duckdns.org**
+- **인증**: 연결폴더 `SECURITY/nmr_deploy_key` (배포 전용 SSH 키 — 인스턴스 접속키와 분리)
+- **보고서 회전**: 서버는 **날짜별 최종본 1건 × 최근 7일**만 유지(스크립트가 자동 정리).
+- **⚠️ 완전 비차단**: 서버가 꺼져 있거나 네트워크가 막혀도 **경고만 출력하고 종료코드 0** 을 반환한다.
+
+**왜 메일 발송 "후" 인가** — ① `merge.py` 가 db/*.json 갱신을 끝낸 확정 상태라 중간 상태가 올라가지 않는다 ② 방금 만든 docx를 함께 올려 **대시보드와 수신자 메일이 같은 회차**가 된다 ③ 리포트가 중간에 실패하면 이 단계에 도달하지 않으므로 **깨진 데이터가 공개 사이트에 노출되지 않는다**.
+
+> **서버 측 자체 수집(참고)**: 서버는 `poll.py` 를 **1일 2회(09:00·21:00 KST)** cron 으로 돌려 김치프리미엄·공포탐욕지수·원달러를 SQLite 에 누적한다. **본 워크플로우와 독립적으로 동작**한다.
+
+## Phase 6: 결과 보고
+
+소요시간 계산: `END=$(date +%s); START=$(cat "$WORK/nmr_start_epoch.txt"); echo $(( (END-START)/60 ))분 $(( (END-START)%60 ))초`
+
+**Phase별 소요(v3.21)**: 발송 확인 후 `echo "$(date +%s) phase6_report" >> "$WORK/nmr_phase_times.txt"` 마킹 → `python3 "$SRC/nmr_timer.py" report "$WORK/nmr_phase_times.txt"` 출력을 아래 [실행 시간] 블록에 포함한다(병목 Phase 확인용).
+
+```
+📋 글로벌 시황 보고서 발송 완료   ← 주말이면 "📋 글로벌 시황 보고서 생성 완료 — 주말 미발송(대시보드 갱신)" (v4.05)
+실행 모드: 예약 / 일반  (수신자 파일: 예약메일수신자.txt / 메일수신자.txt)
+생성: global_market_report_YYYYMMDD_HHMM.docx (NN KB)
+수신: namoobi@gmail.com (To) + 숨은참조 N명 (주소 비공개)   ← 주말이면 "수신: 없음 — 토·일 미발송 규칙(v4.05), 서버 동기화만 완료"
+수집: 뉴스 N / 증시 N / 원자재 N / 코인 N / 증권사 N+IB N
+검증(Phase 4.5 코드 게이트): problems N건 / warnings N건
+[서버 사전 DB 상태] (v4.08 · nmr_server_health.json — 정상이면 "14/14 정상" 1줄, 경고는 항목별 1줄씩 그대로)
+- ⚠ [server:<name>] 빈 값/stale … — <점검 힌트>   (2회차 연속이면 "서버 크론 점검 필요" 명시)
+[실행 시간]
+- 시작: YYYY-MM-DD HH:MM:SS (KST)
+- 완료(메일 발송 확인): YYYY-MM-DD HH:MM:SS (KST)
+- 소요: M분 S초
+- Phase별 소요: (nmr_timer.py report 출력 — 예: phase1_collect 23분 / phase5_send 10분 …)
+[핵심 헤드라인 3개]
+1~3. (top_news 상위 3개)
+[추천 포트폴리오 톤]
+- 공격형/중립형/안정형 1줄씩
+```
+연결 폴더 미연결로 docx 를 연결 폴더에 두지 못해 첨부할 수 없었으면 그 사실도 함께 보고한다.
+
+## 트러블슈팅 (요약)
+
+| 증상 | 대처 |
+|------|------|
+| Chrome "Tabs can only be moved to and from normal windows" | 일반 크롬 창 없음 → 사용자에게 열어달라 요청 후 `tabs_context_mcp(createIfEmpty=true)` 재시도 |
+| Chrome 확장 미연결(`list_connected_browsers`=`[]`) | computer-use 로 직접 실행: `request_access(["Google Chrome"])`(read 경고 시 같은 턴 재요청)→`open_application("Google Chrome")`→`wait(3)`→재확인. 프로필 피커("Chrome 사용자 선택") 뜨면 사용자에게 namoobi 프로필 1회 클릭 요청(브라우저 read 전용이라 Claude 클릭 불가) |
+| Gmail 로그인 안 됨 | 비밀번호 대리 입력 불가 → 사용자가 직접 로그인 후 재시도 |
+| 작성창이 닫히고 초안만 남음 | `#drafts` 에서 초안 다시 열어 이어서 작성·발송 (email-sending.md) |
+| 작성창이 최소화돼 "새 메일" 바만 보임 | 하단 "새 메일" 바 클릭해 펼친 뒤 진행 |
+| 제목 입력이 누락됨 | 발송 전 screenshot 검증에서 제목 칸 확인, 비었으면 제목 칸 다시 클릭 후 입력 |
+| Write/Edit "outside connected folders" | bash heredoc 으로 저장 |
+| npm/cp 권한 오류 | /tmp 금지, outputs/nmr_build 에서 빌드 |
+| 파일이 중간에 잘려 보임 (마운트 잘림) | 호스트 원본은 정상 — Read 도구 또는 `git show HEAD:<path>` 로 읽으면 완전하다. Phase 0 EOF 마커 검사 실패 시 git 원본에서 재복사. 복사·패키징 후 크기·EOF 검증 필수 |
+| 빌드 exit 0 인데 docx 미생성 | 스크립트 잘림 — Phase 0 EOF 검사·자동복구 수행 여부 확인 |
+| 연결 폴더 미연결 | **`request_cowork_directory` 호출 금지**(권한창 원인) — outputs 진행 + Phase 6 에 "연결 폴더 미연결" 명시 |
+| 연결 폴더 cp "Permission denied" | 동일 파일명 존재 (덮어쓰기 차단) → `_HHMM` 접미사 새 파일명으로 저장 |
+| 첨부 시 "only files the user has shared" | file_upload 는 `D:\claudeCowork\...docx` Windows 경로만 허용 — outputs·`/sessions/...` VM 경로는 거부. docx 를 연결 폴더에 두고 그 경로로 첨부 |
+| 주말인데 메일이 안 옴 / `SKIP (weekend …)` 출력 | 정상 — v4.05 주말(토·일 KST) 미발송 규칙(예약·직접 공통). 보고서·대시보드는 갱신됨. 주말 의도적 발송은 사용자 명시 지시 후 `send_mail_server.py … --force` |
+| 예약/일반 수신자 혼동 | Phase 0 모드 판정 결과로 결정 — 예약=예약메일수신자.txt, 일반=메일수신자.txt. 예약 작업 프롬프트에 `scheduled` 인자 전달 확인 |
+| 예약이 제시간에 실행 안 됨(PC 꺼짐) | Cowork 스케줄러가 PC/앱 재시작 시 **catch-up 자동 실행**함(8/4 실측: 06시분이 13:31 실행) — 수동 재실행 전 반드시 Phase 0-1 기발송·병렬 가드로 확인 |
+| 같은 날짜 보고서 중복 발송 | 서버 v3.72 flock 직렬화+락 후 dedup 재확인, wrapper v3.83 pre-dedup 이 재시도·병렬 호출을 차단(`SENT (dedup/pre-dedup …)`) — mail_sent.log 확인, 의도적 재발송은 서버측 `--force` 로만 |
+| 발송 wrapper 가 timeout 으로 출력 없이 종료 | 원격 SMTP 는 계속 진행 중일 수 있음(파이썬 stdout 버퍼링으로 SENT 유실) — 재실행하면 pre-dedup/서버 락이 기발송을 확인해 차단하므로 안전. 판정은 mail_sent.log 로만 |
+| 서브에이전트 API 오류로 결과 누락 | nmr_*.json 존재 여부 확인 후 해당 에이전트만 재실행 |
+| Chrome 차단 도메인(naver.com 등) | NaverSearch MCP / web_fetch 로 대체 |
+| VNINDEX 데이터 부재 | VNM ETF (VanEck Vietnam) 로 대체 |
+| 선물 티커 실패(PL=F 등) | current:null → 빌더가 "-" 렌더 |
+| CoinInfo gainers/losers 간헐 오류 (429 등) | null/빈배열로 두고 진행 |
+| 한글 폰트 깨짐 | 빌더가 docx 에 NanumBarunGothic 임베드 — 별도 설치 불필요(임베드 무시하는 뷰어면 시스템 한글폰트 확인) |
+| 백그라운드(nohup/setsid &) 프로세스 소실 | 샌드박스 bwrap --die-with-parent — 콜 종료 시 전멸. 모든 실행은 포그라운드 timeout 43 + 콜 내 병렬(&+wait), 미완주는 다음 콜에서 같은 명령 재실행(멱등) |
+| pgrep -f 로 "실행 중" 오판 | 자기 bash 명령줄을 자기매칭 — 완료 판단은 출력파일 존재·로그 꼬리로만 |
+| WORK 폴더 `rm -rf` 실패(EPERM 대량) | 마운트 unlink 차단 — 초기화하지 말고 `nmr_build_HHMM` 새 폴더 생성 + `nmr_work_current.txt` 로 경로 전달(v3.73) |
+| 에이전트가 stalled mid-stream 으로 중단 | 산출 파일 미생성 — `ls nmr_*.json` 확인 후 **없는 것만** 재발행(검색 상한·기확인 사실 주입) |
+| charts/*_tech.weekly 마커 rm EPERM | 마운트가 unlink 차단 — mv(rename) 개명은 허용, gen_kr_candle(v3.71)이 자동 처리 |
+
+## 플러그인 유지보수·배포 (git push)
+
+플러그인 파일(SKILL.md·references·scripts·plugin.json 등)을 수정한 뒤 GitHub(origin main)에 반영할 때 따른다.
+
+1. **토큰 자동 사용 — 추가 질문 없이 push**: `D:\claudeCowork\SECURITY\githubtoken.txt` 가 있고 그 안에 GitHub 토큰(`ghp_…`/`github_pat_…`)이 있으면, 사용자에게 다시 묻지 말고 그 토큰으로 `git push origin main` 한다. 파일이 없거나 비어 있을 때만 사용자에게 토큰을 요청하거나 사용자가 직접 푸시하도록 안내한다.
+2. **토큰 취급 (비공개)**: 토큰은 채팅·로그·커밋·remote URL 어디에도 평문 노출 금지. URL 에 토큰을 박지 말고 일회성 credential helper(환경변수)로만 전달한다:
+
+    ```bash
+    # ⚠️ 토큰은 Read 도구(호스트 직접)로 전체값을 확인해 쓴다 — 마운트 bash 의 grep 은 긴 fine-grained 토큰을 잘라 읽는다.
+    # ⚠️ credential helper 는 별도 프로세스라 GH_TOKEN 을 반드시 export 해야 보인다 (export 안 하면 빈 값 → "Invalid username or token").
+    export GH_TOKEN='<githubtoken.txt 의 전체 토큰값>'
+    git -c credential.helper='!f(){ echo username=namoobi-code; echo "password=$GH_TOKEN"; };f' push origin main 2>&1 | sed "s/$GH_TOKEN/***REDACTED***/g"
+    unset GH_TOKEN
+    # (검증된 one-shot 대안) git push "https://namoobi-code:<토큰>@github.com/namoobi-code/namoobi-market-report.git" main   # 토큰이 명령행에 남으니 마스킹 필수
+    ```
+
+    (push 출력에 토큰이 섞일 수 있으면 `| sed "s/$GH_TOKEN/***REDACTED***/g"` 로 마스킹한다.)
+3. **SECURITY 폴더 커밋 금지**: `D:\claudeCowork\SECURITY` 는 레포(`D:\claudeCowork\namoobi-market-report`) 밖이고 `.gitignore` 에도 `SECURITY/` 가 있다. 토큰·수신자 파일은 절대 커밋하지 않는다.
+4. **마운트 잘림 회피 커밋 절차**: 샌드박스 D: 마운트가 큰 파일(SKILL.md·build_report.js 등)을 간헐적으로 잘라 읽고/쓴다. 워킹트리에서 바로 `git add` 하면 잘린 blob 이 커밋될 수 있으니 금지. 대신 ① 편집은 Read/Write/Edit(호스트 직접) 도구로 하고, ② 커밋은 `git show HEAD:<path>` 로 원본을 받아(객체는 git 이 완전히 읽음) 메모리에서 동일 편집을 적용한 뒤 `git hash-object -w --stdin` 으로 blob 을 만들고 `git cat-file` 로 무결성(끝부분 마커·바이트수)을 검증한다. ③ 인덱스는 마운트가 아닌 tmpfs(`GIT_INDEX_FILE=/dev/shm/idx`)에 두고 `read-tree HEAD` → `update-index --cacheinfo` → `write-tree` → `commit-tree -p HEAD` → `update-ref refs/heads/main` 순으로 커밋한 뒤 push 한다.
+5. **`.git/index.lock` 이 안 지워질 때**: 마운트 캐시 때문에 `rm` 이 'Operation not permitted' 가 나면 `mcp__cowork__allow_cowork_file_delete` 로 삭제 권한을 받은 뒤 제거한다.
+6. **로컬 인덱스 복구 (자동)**: 작업 후 `.git/index` 가 손상돼 `git status` 가 "index file corrupt"/"bad signature" 를 띄우면, 사용자에게 미루지 말고 직접 `git read-tree HEAD`(또는 `git reset`)로 HEAD 기준 깨끗한 인덱스를 재생성한다. 푸시에는 영향 없다.
+7. **(v3.39 필수) 커밋·push 후 작업트리 동기화**: 위 mount-safe 방식은 `refs/heads/main`(HEAD)만 옮기고 **디스크 작업파일·인덱스는 옛 버전으로 남는다**. 커밋·push 직후 반드시 `git reset --hard HEAD`(잘림 의심 시 파일별 `git show HEAD:<path>` 로 재기록 후 검증)로 **디스크 = HEAD** 동기화한다. 빠뜨리면 ① 플러그인이 옛 디스크 파일로 설치돼 새 실행에서 수정 누락, ② 다음 `git add -A` 가 옛 파일을 커밋해 수정이 통째로 되돌려진다. 동기화 후 `git status --porcelain` 이 비어야 정상.
+
+## 부록 A: 주요 증권사 강점 사전 정의
+
+| 증권사 | 핵심 강점 | 대표 채널 | 추천 투자자 |
+|--------|-----------|-----------|-------------|
+| KB증권 (v3.66) | 리서치·법인영업 종합 1위(2026 상반기), 데일리 시황(하인환)·투자전략·건설·자산배분 | rc.kbsec.com '오늘의 리서치'(공개), KB 리봇 | 시황·전략 중시 종합형 |
+| NH투자증권 (v3.66) | 종합 2위, 유통·금융·생활소비재·디지털자산 부문 베스트, Global Markets Morning Brief | m.nhqv.com 리서치(공개) | 글로벌 시황·섹터 균형형 |
+| 신한투자증권 | 자산배분 통합 (주식·채권·원자재·대안), 매크로 일관성 | 카카오채널 '쏠쏠한 리포트', 신한 알파 앱 | 장기 자산배분형 |
+| 미래에셋증권 | 12개국 현지법인, ETF 특화, 신흥국(베트남·인도·인니) | m.Global 앱, 디지털리서치 숏폼 | 해외주식·ETF·신흥국 |
+| 삼성증권 | SGR 독립 싱크탱크, 파생·선물, SPOT 코멘트, POP TV | mPOP 앱, 유튜브 '글로벌 마켓토크' | 단기 트레이더·매크로 |
+| 한국투자증권 | JP모간·골드만삭스 IB 리포트 독점, 중국 국태해통 | 한투 앱 '독점 글로벌 리서치' | 기관 수준 분석 선호·중국 |
+| 키움증권 | 텔레그램 실시간, 글로벌 ETF 전략, 중국·신흥국 섹션 | 텔레그램 t.me/s/KiwoomResearch | ETF·속보성 중시 |
+
+복수 구독 전략: 자산배분 큰 그림(신한) + 해외 종목(한투 IB) + ETF(키움) + 신흥국(미래에셋) 조합.
+
+## 부록 B: 해외 주요 IB 5사 강점 사전 정의 (무료 공개 채널)
+
+| 기관 | 핵심 강점 | 무료 공개 채널 | 갱신 주기 |
+|------|-----------|----------------|-----------|
+| UBS | CIO House View — 자산배분·일일 시황 (시황보고서에 최적) | ubs.com/global/en/wealthmanagement/insights (CIO Daily) | 매일 |
+| Goldman Sachs | 매크로·원자재·경제전망 (Top of Mind·Briefings) | goldmansachs.com/insights | 주 1~2회 |
+| J.P. Morgan | 자산배분·Guide to the Markets·글로벌 마켓 인사이트 | am.jpmorgan.com (Market Insights) | 주간/분기 |
+| Morgan Stanley | 미국 주식 전략(Mike Wilson)·Thoughts on the Market | morganstanley.com/ideas | 매일~주간 |
+| BlackRock | BII 주간 코멘터리·iShares ETF 플로우 | blackrock.com (BlackRock Investment Institute) | 주간 |
+
+복수 활용 전략: 일일 톤(UBS CIO Daily) + 매크로 심층(GS) + 자산배분 프레임(JPM GTM) + 미국 주식 전략(MS) + ETF 플로우(BlackRock BII) 조합. 신선도 규칙(Daily≤D-1·Weekly≤D-3)을 항상 적용한다.
+
+> (v3.82 복원 주석) 부록 B 표가 과거 마운트 잘림 blob 커밋(약 140커밋 전) 이후 'goldmans'에서 절단된 채 유지돼 온 것을 2026-08-04 재구성했다. 큰 파일 커밋 시 SKILL.md 유지보수 절차(4번 mount-safe 커밋)의 무결성 검증(끝부분 마커·바이트수)을 반드시 지킬 것.
+이 워크플로우를 통해 매일 아침 종합적인 글로벌 시황 보고서가 자동으로 생성·발송된다.
+
+<!-- EOF — namoobi-market-report SKILL.md -->
