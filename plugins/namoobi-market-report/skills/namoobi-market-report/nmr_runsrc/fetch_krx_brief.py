@@ -63,7 +63,11 @@ def store_base():
 def pdf_to_pngs(pdf, outdir, prefix):
     """pdftocairo(폴백 pdftoppm) -r 110 → [outdir/<prefix>_p1.png, ...]"""
     tmp = os.path.join(outdir, '_cap')
-    for f in glob.glob(os.path.join(outdir, prefix + '_p*.png')): os.remove(f)
+    _ex = sorted(glob.glob(os.path.join(outdir, prefix + '_p*.png')))
+    if _ex and all(os.path.getsize(f) > 0 for f in _ex): return _ex  # (2026-10-18) 마운트 unlink 차단 — 동일 회차 PNG 가 이미 있으면 재캡쳐 없이 재사용
+    for f in _ex:
+        try: os.remove(f)
+        except OSError: pass
     for tool in (['pdftocairo', '-png', '-r', '110', pdf, tmp], ['pdftoppm', '-png', '-r', '110', pdf, tmp]):
         try:
             if subprocess.run(tool, capture_output=True, timeout=120).returncode == 0:
