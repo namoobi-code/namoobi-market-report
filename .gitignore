@@ -16,3 +16,6 @@ __pycache__/
 
 # 작업 중 생성된 스크린샷/캡처 (산출물 아님)
 *.png
+
+# 런타임 git-extract 산출물(nmr_runsrc.py) — 커밋 금지
+**/scripts/nmr_runsrc/
