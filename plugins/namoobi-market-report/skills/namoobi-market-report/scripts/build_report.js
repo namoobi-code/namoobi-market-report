@@ -791,6 +791,28 @@ function renderCapexFunding(){ const f=(data.markets||{}).bigtech_debt;
   children.push(p("업데이트: 서버가 매일 06:45 SEC EDGAR XBRL(각사 10-K/10-Q 원문 태그)로 총부채·현금·발행액·상환액·CAPEX·영업이익·감가상각을 재수집하고, 발행 딜·신용등급은 보고서 실행 Phase 3.8 이 웹서치로 갱신한다(🧠). 오라클은 5월 결산이라 달력분기 축에서 직전 관측이 이월된다. 기준 "+(f.as_of||"-"),{size:13,italics:true,color:"94A3B8"}));
   children.push(fsLink("SEC EDGAR XBRL Frames/Company Concept API (원문 태그)","https://www.sec.gov/edgar/sec-api-documentation"));
   if(b.url) children.push(fsLink("참고 — "+(b.src||"외부 집계"),b.url));
+  // (v4.13 2026-10-24) 네오클라우드 — 빚으로 짓는 쪽 (매경ECONOMY 2026.10.21 'AIDC NO WAY OUT')
+  try{ const N=f.neo; if(N&&N.rows&&N.rows.length){ const NL=N.last||{};
+    children.push(p("■ 네오클라우드 — 빚으로 짓는 쪽 (코어위브·네비우스·아이렌·사이퍼마이닝·테라울프·어플라이드디지털)",{bold:true,color:"6D28D9",before:160,size:21}));
+    children.push(p("의미: 빅테크는 순현금이라 '증분부채÷CAPEX' 상승이 경고였지만, GPU 임대 사업자(네오클라우드)는 자기 현금이 없어 전액을 빚·리스로 짓는다 — 이 비율이 100%를 넘는 게 정상이고, 봐야 할 건 ① 이자보상배율(LTM EBITDA÷이자)이 1을 향해 내려오는가 ② CAPEX÷매출이 꺾이는가(투자 둔화) 다. 코어위브는 GPU 인프라를 담보로 85억$ 대출(무디스 A3)을 받았고, 코어사이언티픽은 계약 590MW 중 과금 395MW(67%)만 매출로 전환됐다 — '계약≠매출' 격차가 투자 회수를 늦춘다."));
+    children.push(p(`${NL.d||"-"} 기준 — 6사 합산 총부채 ${n(NL.debt)}십억$ · LTM 매출 ${n(NL.rev_ltm)}십억$ 에 LTM CAPEX ${n(NL.capex_ltm)}십억$ (CAPEX÷매출 ${NL.capex_rev!=null?NL.capex_rev+"%":"-"}) · 이자보상배율 ${NL.int_cov!=null?NL.int_cov.toFixed(1)+"x":"-"} · 증분부채÷CAPEX ${NL.dd_capex==null?"-":NL.dd_capex+"%"}`,{bold:true,size:20,color:(NL.int_cov!=null&&NL.int_cov<2)?"DC2626":"0F172A"}));
+    const w=[1700,950,950,950,1000,1000,1000,1000,1050];
+    const rows=[hdrRow(["기업 (십억 $)","총부채","운영리스","순부채","CAPEX(LTM)","매출(LTM)","CAPEX÷매출","이자보상","순부채/EBITDA"],w)];
+    N.rows.forEach((r,i)=>{ const s=r.last||{}; const a=i%2===1; const cov=s.int_cov, lev=s.nd_ebitda;
+      rows.push(new TableRow({children:[
+        cell((r.name||r.sym)+" ("+(s.d||"")+")",{width:w[0],alt:a,bold:true}),
+        cell(n(s.debt),{width:w[1],alt:a,align:AlignmentType.CENTER}),
+        cell(n(s.oplease),{width:w[2],alt:a,align:AlignmentType.CENTER,size:16,color:"475569"}),
+        cell(n(s.net)+(s.net<0?" (순현금)":""),{width:w[3],alt:a,align:AlignmentType.CENTER,color:(s.net>0?"DC2626":"166534")}),
+        cell(n(s.capex_ltm),{width:w[4],alt:a,align:AlignmentType.CENTER}),
+        cell(n(s.rev_ltm),{width:w[5],alt:a,align:AlignmentType.CENTER}),
+        cell(s.capex_rev!=null?s.capex_rev+"%":"-",{width:w[6],alt:a,align:AlignmentType.CENTER,bold:true}),
+        cell(cov==null?"-":cov.toFixed(1)+"x",{width:w[7],alt:a,align:AlignmentType.CENTER,bold:true,color:(cov==null?"475569":cov<1.5?"DC2626":cov<3?"B45309":"166534")}),
+        cell(lev==null?((s.ebitda_ltm!=null&&s.ebitda_ltm<=0)?"EBITDA≤0":"-"):lev.toFixed(1)+"x",{width:w[8],alt:a,align:AlignmentType.CENTER,color:(lev==null?"475569":lev>=6?"DC2626":lev>=3?"B45309":"166534")}),
+      ]}));});
+    children.push(makeTable(w,rows));
+    children.push(p("총부채 = 회사채+대출+전환사채+금융리스(운영리스 제외, 별도 표시 — 코어위브는 데이터센터 임차가 운영리스 163억$). 네비우스는 20-F 연간만 XBRL 이라 분기 사이는 이월. 출처: SEC EDGAR XBRL(매일 06:45) · "+(N.src||""),{italics:true,color:"94A3B8",size:16}));
+  } }catch(e){}
   children.push(p("")); }
 // (v3.12.0) HY 스프레드 — 3.1.1 금리·통화정책에 통합(하위 블록).
 function renderHY(){ const m=data.markets||{};

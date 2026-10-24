@@ -91,6 +91,11 @@ def main():
                   "last": (r.get("series") or [{}])[-1]} for r in rows],
         "deals": D.get("deals", []), "ratings": D.get("ratings", []), "bench": D.get("bench", {}),
         "charts": ["charts/debt_1.png", "charts/debt_2.png"],
+        # (v4.13 2026-10-24) 네오클라우드 6사 — 서버 fetch_bigtech_debt.py 의 neo 블록 그대로(없으면 None, 빌더가 생략)
+        "neo": ({"last": (D["neo"].get("agg") or [{}])[-1],
+                 "rows": [{"sym": r["sym"], "name": r["name"], "last": (r.get("series") or [{}])[-1]} for r in D["neo"].get("rows", [])],
+                 "deals": D["neo"].get("deals", []), "notes": D["neo"].get("notes", []), "src": D["neo"].get("src")}
+                if isinstance(D.get("neo"), dict) and D["neo"].get("rows") else None),
     }
     json.dump(summary, open(out_p, "w", encoding="utf-8"), ensure_ascii=False)
     print(f"[debt] ✅ {last['d']} 총부채 {last.get('debt')}B · 증분부채/CAPEX {last.get('dd_capex')}% · 차트 2장")
