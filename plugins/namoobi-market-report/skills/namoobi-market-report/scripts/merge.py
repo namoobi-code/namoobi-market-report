@@ -1541,6 +1541,10 @@ try:
     elif not _ff2.get('bias'): _ff2['bias'] = '중립'
     try:
         if isinstance(macro.get('inflation'), dict): macro['inflation']['chart'] = 'charts/macro_inflation.png'
+        # (2026-10-24) 3.1.2 '앞으로의 물가 경로' — gen_macro_charts.py 가 서버 /api/db/infl_fcst 를 회수해 $WORK/nmr_infl_fcst.json 으로 떨궈 둔다
+        #   (나우캐스트·SPF·SEP·기대인플레, 홈피와 같은 정본). 없으면 빌더가 표만 생략(비차단).
+        _if = L('nmr_infl_fcst.json')
+        if isinstance(macro.get('inflation'), dict) and isinstance(_if, dict) and _if.get('ext'): macro['inflation']['fcst'] = _if
         if isinstance(macro.get('employment'), dict): macro['employment']['chart'] = 'charts/macro_employment.png'
         print('  [R4] 차트경로 강제: inflation/employment')
     except Exception as _ce: print('  [R4] 차트경로 강제 skip:', _ce)

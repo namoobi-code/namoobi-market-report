@@ -243,11 +243,46 @@ def _ch_infl():
         else:
             _mx=months(2025,6,len(ys)) if len(ys)!=12 else mon
             ax.plot(_mx,ys,linewidth=1.6,marker="o",ms=3,label=k)
-    _ttl="미국 물가 YoY 통합 (점선=연준 2% 목표"
+    # (2026-10-24 한경MONEY 이은택 'CPI와 장기금리의 암울한 예언') 실제 뒤에 공식 전망 경로를 점선으로 —
+    #   서버 /api/db/infl_fcst(fetch_infl_fcst.py 06:20): 클리블랜드 연준 나우캐스트 월 → 필라델피아 연준 SPF 분기(YoY 환산) + FOMC SEP 연말점.
+    #   홈피 3.1.2 차트와 같은 정본·같은 점선. 회수 실패 시 실제만 그린다(비차단). JSON 은 $WORK 에 저장해 merge → 빌더 표.
+    _fc=None; _lastx_act=_lastx
+    try:
+        import urllib.request as _ur
+        for _t in range(3):
+            try:
+                _fc=json.loads(_ur.urlopen("http://161.33.190.254/api/db/infl_fcst",timeout=10).read().decode("utf-8")); break
+            except Exception: _fc=None
+        if _fc and _fc.get("ext"):
+            json.dump(_fc, open(os.path.join(O,"nmr_infl_fcst.json"),"w",encoding="utf-8"), ensure_ascii=False)
+            _km={"CPI":"CPI","Core CPI":"CORECPI","PCE":"PCE","Core PCE":"COREPCE"}
+            _cols={ln.get_label():ln.get_color() for ln in ax.get_lines()}
+            _fx=None
+            for k,v in infl.items():
+                ek=_km.get(k); pts=(_fc["ext"] or {}).get(ek) or []
+                if not ek or not pts or not isinstance(v,list): continue
+                v2=[q for q in v if isinstance(q,(list,tuple)) and len(q)==2 and isinstance(q[1],(int,float)) and abs(q[1])<=30]
+                if not v2: continue
+                xs=[mdates.datestr2num(str(v2[-1][0])[:7]+"-01")]+[mdates.datestr2num(str(p_[0])[:7]+"-01") for p_ in pts]
+                ys=[float(v2[-1][1])]+[float(p_[1]) for p_ in pts]
+                ax.plot(xs,ys,linewidth=1.2,linestyle="--",marker="o",ms=2.5,color=_cols.get(k),alpha=0.9)
+                _fx=max(_fx or xs[-1],xs[-1])
+            _sep=_fc.get("sep") or {}
+            _spf_end=max([int(str(p_[0])[:4]) for v_ in (_fc["ext"] or {}).values() for p_ in v_] or [0])
+            for ek,k in (("PCE","PCE"),("COREPCE","Core PCE")):
+                for y_,val in (_sep.get(ek) or []):
+                    if int(y_)<=_spf_end:
+                        ax.scatter([mdates.datestr2num("%d-12-01"%int(y_))],[val],marker="D",s=22,color=_cols.get(k),edgecolors="white",linewidths=0.6,zorder=6)
+            if _fx is not None:
+                _lastx=max(_lastx or _fx,_fx)
+                ax.annotate("전망(E)",xy=(_fx,ax.get_ylim()[0]),fontsize=6.5,color="#64748B",ha="right",va="bottom")
+    except Exception as _fe:
+        print("  [infl_fcst] 전망 점선 skip:", repr(_fe)[:100])
+    _ttl="미국 물가 YoY 통합 (점선=연준 2% 목표"+(" · 파선=나우캐스트·SPF 전망(E) ◆=FOMC SEP" if _fc and _fc.get("ext") else "")
     if _lastx is not None:
         ax.set_xlim(right=_lastx+25)
         _lastd=mdates.num2date(_lastx)
-        _ttl+=" · 최신 %s"%_lastd.strftime("%Y-%m")
+        _ttl+=" · 최신 %s"%mdates.num2date(_lastx_act if _lastx_act is not None else _lastx).strftime("%Y-%m")   # 제목의 최신월은 실제 기준(전망 끝 아님)
         # (v3.6.27 · 2026-08-30 실측) 기본 눈금이 26/05에서 끝나 최신월(26/07) 점이 눈금 밖으로 보임
         # → '차트가 6월까지'로 오인. 최신 월을 기준으로 4개월 간격 역산 눈금을 박아
         # 마지막 눈금 = 최신 기준월이 되게 한다.

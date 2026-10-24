@@ -1,5 +1,11 @@
 # Namoobi Market Report — 변경이력 (CHANGELOG)
 
+## v4.13.0 (plugin 1.74.0, 2026-10-24) — 3.1.2 「앞으로의 물가 경로」 신설 (나우캐스트·SPF·SEP)
+- 배경: 한경MONEY 2026-10 이은택 'CPI와 장기금리의 암울한 예언' — 블룸버그 50여 기관 CPI 전망(내년 2분기 2%대 회귀) 차트. 유료라 못 가져오므로 공식·무료 3종으로 대체.
+- 서버 `fetch_infl_fcst.py`(cron 06:20): 필라델피아 연준 SPF medianlevel.xlsx(CPI·CORECPI·PCE·COREPCE 5분기 → FRED 지수에 월 단위로 잇고 분기평균 YoY 환산 · 2025-10 CPI 셧다운 결측·부분 발표 분기 처리), FOMC SEP(FRED), 클리블랜드 나우캐스트 JSON(nowcast_month/year), EXPINF. 산출 `db/infl_fcst.json`.
+- `gen_macro_charts.py _ch_infl`: `/api/db/infl_fcst` 회수 → 실제 마지막 점에서 파선 전망(E)·◆SEP, 제목 '최신'은 실제 기준 유지, `$WORK/nmr_infl_fcst.json` 저장. `merge.py`: `macro.inflation.fcst`. `build_report.js`: 차트 뒤 「■ 앞으로의 물가 경로」 표(최신 실제·나우캐스트 2개월·SPF 6분기·SEP 3년) + 기대인플레·읽는 법. 전부 비차단.
+- 실측(2026-10-24): 9월 CPI 나우캐스트 MoM 0.53 vs 실제 0.65 · SPF CPI YoY 2026-12 3.69 → 2027-06 2.62(기저효과) → 2027-12 2.42 · SEP PCE 2026 3.6/2027 2.35/2028 2.1 · 1년 기대인플레 7월 2.39 → 10월 2.98.
+
 ## v4.08.0 (plugin 1.66.0, 2026-09-22) — 서버 사전 DB 빈 값·stale 게이트(nmr_server_health.py · verify req40)
 - 배경: v4.07 의 두 사고(broker_reports 0건·KRX 스냅샷 빈 값)는 크론이 정상 종료하며 빈 결과를 내 6일간 미인지. 보고서는 폴백으로 조용히 통과.
 - 신설 `scripts/nmr_server_health.py "$WORK"`: 14항목(broker_reports·ib_insights·news_pool·events_calendar·policy_rates·m7_estimates·factset_insight·brokers3·ism_pmi·crypto_overview·crypto_movers·etf_quotes·krx_market·deriv)을 '비어 있음/기대 주기 초과' 로 판정 → nmr_server_health.json(비차단). 9/22 캐시로 회귀 테스트: 당일 사고 3건 정확히 검출.

@@ -1300,6 +1300,29 @@ function renderMacroIndicators(){
       cell(o.interp||"-",{width:w[7],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
   { const ic=imagePara(inf.chart||'charts/macro_inflation.png',660,259); if(ic){ children.push(ic); } }
+  // (2026-10-24 한경MONEY 이은택 'CPI와 장기금리의 암울한 예언') ■ 앞으로의 물가 경로 — 서버 /api/db/infl_fcst (merge → inf.fcst). 홈피 3.1.2 와 같은 표.
+  //   나우캐스트(클리블랜드 연준·당월/익월·직전 달 오차) · SPF(필라델피아 연준 중앙값 5분기, YoY 환산) · SEP(FOMC 중앙값 Q4/Q4, CPI 없음) · 기대인플레. 전부 (E). 없으면 생략(비차단).
+  try{ const F=inf.fcst; if(F&&F.ext){
+    const V4=[["CPI","CPI"],["CORECPI","Core CPI"],["PCE","PCE"],["COREPCE","Core PCE"]];
+    const f1=v=>(v==null?"-":(+v).toFixed(2)+"%"), fm=v=>(v==null?"-":((+v>=0?"+":"")+(+v).toFixed(2)+"%"));
+    const nc=((F.nowcast||{}).months||[]).slice(-2), la=F.last_actual||{}, spf=(F.spf||{}).vars||{}, sep=F.sep||{};
+    const qs=[...new Set(Object.values(spf).flatMap(v=>(v.yoy||[]).map(q=>q[0])))].sort().slice(0,6);
+    const yrs=(sep.PCE||[]).map(q=>q[0]).slice(0,3);
+    const hdr=["지표","최신 실제",...nc.map(m=>"나우캐스트 "+m.m+" (MoM·YoY)"),...qs.map(q=>"SPF "+q.slice(0,4)+"Q"+Math.ceil(+q.slice(5,7)/3)),...yrs.map(y=>"SEP "+y+" (Q4/Q4)")];
+    const n=hdr.length, wsum=9880, w0=1000, w1=760, wn=nc.length?1500:0, rest=wsum-w0-w1-wn*nc.length, wq=Math.floor(rest/Math.max(1,qs.length+yrs.length));
+    const w=[w0,w1,...nc.map(()=>wn),...qs.map(()=>wq),...yrs.map(()=>wq)];
+    children.push(p("■ 앞으로의 물가 경로 — 클리블랜드 연준 나우캐스트 · 필라델피아 연준 SPF · FOMC SEP (공식 전망 E · 차트 파선)",{bold:true,color:"1E40AF",before:100,size:19}));
+    const rows=[hdrRow(hdr,w)];
+    V4.forEach(([k,nm],i)=>{ const a=i%2===1; const cells=[cell(nm,{width:w[0],alt:a,bold:true}),cell(la[k]||"-",{width:w[1],alt:a,align:AlignmentType.CENTER,size:15})];
+      nc.forEach(m=>{ const x=m[k]||{}; const t=(x.act_mom!=null)?("예측 "+fm(x.mom)+" → 실제 "+fm(x.act_mom)):(fm(x.mom)+" · "+f1(x.yoy)); cells.push(cell(t,{width:wn,alt:a,align:AlignmentType.CENTER,size:14})); });
+      const ym=Object.fromEntries(((spf[k]||{}).yoy||[]).map(q=>[q[0],q[1]])); qs.forEach(q=>cells.push(cell(ym[q]!=null?f1(ym[q]):"-",{width:wq,alt:a,align:AlignmentType.CENTER,size:15})));
+      const sm=Object.fromEntries(sep[k]||[]); yrs.forEach(y=>cells.push(cell(sm[y]!=null?f1(sm[y]):"CPI 없음",{width:wq,alt:a,align:AlignmentType.CENTER,size:14})));
+      rows.push(new TableRow({children:cells})); });
+    children.push(makeTable(w,rows));
+    const ei=F.expinf||{}, ann=(spf.CPI||{}).annual||{};
+    children.push(p("기대인플레(클리블랜드 연준 모델 "+(ei.as_of||"")+"): 1년 "+f1(ei.y1)+" · 2년 "+f1(ei.y2)+" · 5년 "+f1(ei.y5)+" · 10년 "+f1(ei.y10)+" | SPF 연평균 CPI "+Object.entries(ann).map(([y,v])=>y+" "+f1(v)).join(" · "),{size:14,color:"334155"}));
+    children.push(p("읽는 법 — 나우캐스트는 발표 전 1~2개월의 일별 추정(예측→실제는 직전 달 오차). SPF 는 분기 1회(2·5·8·11월) 40여 기관 중앙값의 전분기비 연율을 실제 지수에 이어붙여 YoY 로 환산 — 내년 2분기 급락은 올해 2분기 급등의 기저효과가 큰 몫. SEP 는 연준 위원 중앙값(연말 Q4/Q4)이라 CPI 는 없다. 전부 전망(E). "+(F.spf?"SPF "+F.spf.survey+" 서베이":"")+" · SEP 갱신 "+(sep.updated||"")+" · 나우캐스트 "+((F.nowcast||{}).as_of||"")+" · 수집 "+(F.as_of||""),{size:13,italics:true,color:"94A3B8"}));
+  } }catch(_fe){ console.log("infl_fcst 표 skip:",_fe&&_fe.message); }
   { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); } }
   children.push(p(""));
 
@@ -2026,23 +2049,33 @@ function renderMoatWatch(){ try{
   if(!fs.existsSync('server_moat.json'))return;
   const M=JSON.parse(fs.readFileSync('server_moat.json','utf-8'));
   let LLM={}; try{ const L=JSON.parse(fs.readFileSync('server_moat_llm.json','utf-8')); (L.checks||[]).forEach(c=>LLM[c.sym]=c); }catch(e){}
-  const rows=(M.rows||[]).filter(r=>r.verdict==='buy'||r.verdict==='buy_z'||r.verdict==='buy_m'||r.verdict==='risk');
+  // (v4.12 2026-10-21) 3층 판정 — alert(🔴 해자 경보)·buy(🟢)·wait(🟡)·nogate(🚫) 만 수록. 구 판정(buy_z/buy_m/risk)도 호환.
+  const KEEP={alert:0,risk:0,buy:1,buy_z:1,buy_m:1,wait:2,nogate:3};
+  const rows=(M.rows||[]).filter(r=>r.verdict in KEEP);
   if(!rows.length)return;
-  const VN={buy:"🟢 일시적 빠짐 후보",buy_z:"🟢~ 빠짐 후보(선행지표 중립)",buy_m:"🟢 빠짐 후보(수동확인)",risk:"🔴 선행지표 동반 악화"};
+  const VN={alert:"🔴 해자 경보",buy:"🟢 매수 후보",wait:"🟡 싸졌지만 하락 중",nogate:"🚫 이익 미확정",buy_z:"🟢~ (구)빠짐 후보",buy_m:"🟢 (구)빠짐 후보",risk:"🔴 (구)선행지표 악화"};
   const MT=M.moat_types||{}; const MTN=r=>(r.mtype||[]).map(k=>(MT[k]||{}).name||k).join("·")||"-";
   const MK=s=>/\.KS$|\.KQ$/.test(s)?"한국":/\.T$/.test(s)?"일본":/\.SS$|\.SZ$/.test(s)?"중국":/\.HK$/.test(s)?"홍콩":/\.L$/.test(s)?"영국":/\.AX$/.test(s)?"호주":/\.DE$/.test(s)?"독일":"미국";
-  rows.sort((a,b)=>(a.verdict>b.verdict?1:-1)||((a.dd||0)-(b.dd||0)));
+  const pf=v=>v==null?"-":(v>0?"+":"")+Number(v).toFixed(1)+"%";
+  rows.sort((a,b)=>(KEEP[a.verdict]-KEEP[b.verdict])||((a.ddp3y??100)-(b.ddp3y??100)));
   children.push(new Paragraph({children:[new PageBreak()]}));
-  children.push(h("[부록I] 해자 워치 — 독점기업 빠짐·저평가 신호",1));
-  children.push(p("해자지도([부록D·F·H])의 독점·준독점(파란 배지) 상장 "+(M.rows||[]).length+"종을 매일 3층 신호로 점검해(가격 낙폭·RSI → 해자 선행지표 방향 → 신호등 판정) '일시적 빠짐 후보'와 '이유 있는 하락'을 구분한다. 아래는 오늘 신호가 켜진 종목만("+rows.length+"종). 판정은 검토 후보 알림이지 매수 신호가 아니며, 가치함정은 가격 신호로 걸러지지 않는다 — 실시간 전체 카드·해석 가이드는 홈피 🏰 해자워치 탭.",{italics:true,color:"64748B"}));
-  simpleTable([1400,700,1500,800,750,2350,1550,2110],["종목","시장","해자 유형","52주고점比","RSI","해자 선행지표 (3개월)","판정","🧠 AI 점검"],
-    rows.map(r=>{const L=LLM[r.sym];
-      return [r.name,MK(r.sym),MTN(r),(r.dd!=null?r.dd.toFixed(1)+"%":"-"),(r.rsi!=null?String(r.rsi):"-"),
-        (r.lead?(r.lead.name+" "+(r.lead.m3!=null?(r.lead.m3>0?"+":"")+r.lead.m3.toFixed(1)+"%":"-")):"미연결"),
+  children.push(h("[부록I] 해자 워치 — 해자 유지·안전마진·멈춤 3층 판정",1));
+  children.push(p("해자지도([부록D·F·H])의 독점·준독점 상장 "+(M.rows||[]).length+"종을 매일 3층으로 판정한다 — ① 해자 유지 게이트(TTM EPS 전년比, 영업이익 교차검증) → ② 안전마진(오늘 낙폭이 그 종목 자신의 3년 낙폭 분포 하위 10%인가) → ③ 멈춤 확인(종가>20일선). 2026-10-21 백테스트(49종 10년)에서 구 규칙(낙폭 -20%·RSI<50)은 아무 날 매수와 차이가 없었고, 3층 규칙은 미국 18종 12M 승률 83%·최악10% -3%(24M 승률 90%)였다. 생존편향 유의 — 규칙 간 비교만 신뢰."));
+  const al=M.alerts||[];
+  if(al.length) children.push(p("🔴 해자 경보 "+al.length+"종 — "+al.map(a=>a.name+"(EPS "+pf(a.eps_yoy)+" "+(a.down_q||"?")+"분기 연속 · 영업이익 "+pf(a.oi_yoy)+(a.opm!=null?" · OPM "+a.opm+"%":"")+")").join(" / ")+". 해자 해지 의심이지 매도 신호가 아니다 — 사람이 확인할 것.",{color:"B91C1C"}));
+  const lo=M.lone||[];
+  if(lo.length) children.push(p("⚠ 혼자 빠짐 "+lo.length+"종 — 섹터 대리지표는 오르는데(3개월 ≥+5%) 자기역사 낙폭 하위 10%: "+lo.map(x=>x.name+"(지표 "+pf(x.lead_m3)+")").join(", ")+". 백테스트상 '섹터 동반 하락'보다 성적이 나빴던 유형 — 고유 사유 점검.",{color:"9A3412"}));
+  simpleTable([1300,650,1350,900,1700,900,900,1500,1960],["종목","시장","해자 유형","52주고점比","① 이익 게이트","② 자기역사 낙폭","③ 20일선比","판정","🧠 AI 점검"],
+    rows.map(r=>{const L=LLM[r.sym]; const f=r.fund||{}; const g=f.gate||"na";
+      const gl=g==="alert"?"🔴 2분기↓+영업이익↓":g==="down"?"⚠ 1분기↓":g==="ok"?(f.note?"✓ (회계효과)":"✓ 증가"):"🚫 적자·미확정";
+      return [r.name,MK(r.sym),MTN(r),(r.dd!=null?r.dd.toFixed(1)+"%":"-"),
+        gl+(f.eps_yoy!=null?" EPS "+pf(f.eps_yoy):"")+(f.oi_yoy!=null?" 영익 "+pf(f.oi_yoy):""),
+        (r.ddp3y!=null?"하위 "+r.ddp3y+"%":"이력 부족"),
+        pf(r.gap20)+(r.stop?" 회복":" 하락중"),
         VN[r.verdict]||r.verdict,
-        (L?(L.verdict_llm+" — "+(L.note||"")):"-")];}),{left:[0,2,5,7]});
-  children.push(p("읽는 법: 🟢 = 낙폭 ≤ -20%·RSI<50 인데 해자 선행지표(우라늄 실물·관세청 수출·업황 대리 등)는 견조 — 해자가 무사하다는 방증 속의 큰 낙폭. 🔴 = 선행지표도 함께 꺾임 — 업황·구조적 이유 의심. 🧠 AI 점검은 보고서 실행 시 해당 종목의 최근 2주 해자 훼손 뉴스를 웹서치로 확인한 판정(유지/주의/훼손 의심).",{size:18,color:"64748B"}));
-  if(M.as_of)children.push(p("기준: "+M.as_of+" · 산출: 서버 fetch_moat.py(매일 06:30) · 유니버스: 해자지도 B1 배지 상장 전수",{size:16,color:"94A3B8"}));
+        (L?(L.verdict_llm+" — "+(L.note||"")):"-")];}),{left:[0,2,4,7,8]});
+  children.push(p("읽는 법: 🟢 = 세 조건 동시 충족(검토 후보). 🟡 = 이익·안전마진은 되나 아직 20일선 아래(떨어지는 칼날 — 회복 시 🟢). 🚫 = 안전마진은 있으나 TTM EPS 적자·비교 불가라 매수 규칙을 적용하지 않음(백테스트 승률 57%·최악10% -44%). 🔴 = TTM EPS 전년比 2분기 연속 감소에 영업이익도 감소 — 해자 해지 의심. 선행지표는 매수 판정에서 뺐다(백테스트상 방향이 거꾸로: 섹터 동반 하락이 일시적, 혼자 빠짐이 고유 사유). 어느 것도 매수·매도 신호가 아니다.",{size:17,color:"475569"}));
+  if(M.as_of)children.push(p("기준: "+M.as_of+" · 산출: 서버 fetch_moat.py(매일 06:30) · 이익 데이터: 야후 fundamentals-timeseries(TTM EPS·분기 영업이익, 분할 보정) · 유니버스: 해자지도 B1+선별B2 상장 전수",{size:16,color:"94A3B8"}));
 }catch(e){} }
 
 // (v4.02 2026-09-04) [부록J] 해자 '유형' 매트릭스 — 모닝스타 5분류 × 7대 분야

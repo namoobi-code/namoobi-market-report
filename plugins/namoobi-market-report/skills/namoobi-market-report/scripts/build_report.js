@@ -1300,6 +1300,29 @@ function renderMacroIndicators(){
       cell(o.interp||"-",{width:w[7],alt:a,size:14})]})); });
     children.push(makeTable(w,rows)); }
   { const ic=imagePara(inf.chart||'charts/macro_inflation.png',660,259); if(ic){ children.push(ic); } }
+  // (2026-10-24 한경MONEY 이은택 'CPI와 장기금리의 암울한 예언') ■ 앞으로의 물가 경로 — 서버 /api/db/infl_fcst (merge → inf.fcst). 홈피 3.1.2 와 같은 표.
+  //   나우캐스트(클리블랜드 연준·당월/익월·직전 달 오차) · SPF(필라델피아 연준 중앙값 5분기, YoY 환산) · SEP(FOMC 중앙값 Q4/Q4, CPI 없음) · 기대인플레. 전부 (E). 없으면 생략(비차단).
+  try{ const F=inf.fcst; if(F&&F.ext){
+    const V4=[["CPI","CPI"],["CORECPI","Core CPI"],["PCE","PCE"],["COREPCE","Core PCE"]];
+    const f1=v=>(v==null?"-":(+v).toFixed(2)+"%"), fm=v=>(v==null?"-":((+v>=0?"+":"")+(+v).toFixed(2)+"%"));
+    const nc=((F.nowcast||{}).months||[]).slice(-2), la=F.last_actual||{}, spf=(F.spf||{}).vars||{}, sep=F.sep||{};
+    const qs=[...new Set(Object.values(spf).flatMap(v=>(v.yoy||[]).map(q=>q[0])))].sort().slice(0,6);
+    const yrs=(sep.PCE||[]).map(q=>q[0]).slice(0,3);
+    const hdr=["지표","최신 실제",...nc.map(m=>"나우캐스트 "+m.m+" (MoM·YoY)"),...qs.map(q=>"SPF "+q.slice(0,4)+"Q"+Math.ceil(+q.slice(5,7)/3)),...yrs.map(y=>"SEP "+y+" (Q4/Q4)")];
+    const n=hdr.length, wsum=9880, w0=1000, w1=760, wn=nc.length?1500:0, rest=wsum-w0-w1-wn*nc.length, wq=Math.floor(rest/Math.max(1,qs.length+yrs.length));
+    const w=[w0,w1,...nc.map(()=>wn),...qs.map(()=>wq),...yrs.map(()=>wq)];
+    children.push(p("■ 앞으로의 물가 경로 — 클리블랜드 연준 나우캐스트 · 필라델피아 연준 SPF · FOMC SEP (공식 전망 E · 차트 파선)",{bold:true,color:"1E40AF",before:100,size:19}));
+    const rows=[hdrRow(hdr,w)];
+    V4.forEach(([k,nm],i)=>{ const a=i%2===1; const cells=[cell(nm,{width:w[0],alt:a,bold:true}),cell(la[k]||"-",{width:w[1],alt:a,align:AlignmentType.CENTER,size:15})];
+      nc.forEach(m=>{ const x=m[k]||{}; const t=(x.act_mom!=null)?("예측 "+fm(x.mom)+" → 실제 "+fm(x.act_mom)):(fm(x.mom)+" · "+f1(x.yoy)); cells.push(cell(t,{width:wn,alt:a,align:AlignmentType.CENTER,size:14})); });
+      const ym=Object.fromEntries(((spf[k]||{}).yoy||[]).map(q=>[q[0],q[1]])); qs.forEach(q=>cells.push(cell(ym[q]!=null?f1(ym[q]):"-",{width:wq,alt:a,align:AlignmentType.CENTER,size:15})));
+      const sm=Object.fromEntries(sep[k]||[]); yrs.forEach(y=>cells.push(cell(sm[y]!=null?f1(sm[y]):"CPI 없음",{width:wq,alt:a,align:AlignmentType.CENTER,size:14})));
+      rows.push(new TableRow({children:cells})); });
+    children.push(makeTable(w,rows));
+    const ei=F.expinf||{}, ann=(spf.CPI||{}).annual||{};
+    children.push(p("기대인플레(클리블랜드 연준 모델 "+(ei.as_of||"")+"): 1년 "+f1(ei.y1)+" · 2년 "+f1(ei.y2)+" · 5년 "+f1(ei.y5)+" · 10년 "+f1(ei.y10)+" | SPF 연평균 CPI "+Object.entries(ann).map(([y,v])=>y+" "+f1(v)).join(" · "),{size:14,color:"334155"}));
+    children.push(p("읽는 법 — 나우캐스트는 발표 전 1~2개월의 일별 추정(예측→실제는 직전 달 오차). SPF 는 분기 1회(2·5·8·11월) 40여 기관 중앙값의 전분기비 연율을 실제 지수에 이어붙여 YoY 로 환산 — 내년 2분기 급락은 올해 2분기 급등의 기저효과가 큰 몫. SEP 는 연준 위원 중앙값(연말 Q4/Q4)이라 CPI 는 없다. 전부 전망(E). "+(F.spf?"SPF "+F.spf.survey+" 서베이":"")+" · SEP 갱신 "+(sep.updated||"")+" · 나우캐스트 "+((F.nowcast||{}).as_of||"")+" · 수집 "+(F.as_of||""),{size:13,italics:true,color:"94A3B8"}));
+  } }catch(_fe){ console.log("infl_fcst 표 skip:",_fe&&_fe.message); }
   { const bc=imagePara("charts/macro_infl_exp.png",648,176); if(bc){ children.push(p("■ 기대인플레이션 (10년 BEI) — 실시간 시장지표",{bold:true,color:"1E40AF",before:100,size:19})); children.push(bc); } }
   children.push(p(""));
 

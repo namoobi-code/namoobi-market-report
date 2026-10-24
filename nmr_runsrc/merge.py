@@ -1270,8 +1270,12 @@ try:
     _sc_ok = _sc_canon(_sci)
     m['semi_cycle'] = _ndb.sync('semi_cycle', (_sci if _sc_ok else None), _today,
                                 ((_sci or {}).get('asof') or _run_m) if _sc_ok else _run_m, _dd)
-    # (req7 2026-07-12) 3대 조기경보 '판정상태' 매일 누적 → db/series_semi_status.json
-    #   정량 미공개 신호(재고주수·CAPEX YoY)도 판정(안전=0/주의=1/경보=2)을 타임라인으로 축적해 차트화한다.
+    # (req7 2026-07-12 · v4.08 2026-10-17 리드타임 추가로 3대→4대) 조기경보 '판정상태' 매일 누적
+    #   → db/series_semi_status.json. 정량 미공개 신호(재고주수·CAPEX YoY·리드타임)도
+    #   판정(안전=0/주의=1/경보=2)을 타임라인으로 축적해 차트화한다.
+    #   ⚠ 키 매핑에 없는 신호는 **조용히 누락**된다 — 신호를 추가하면 _key7 분기도 반드시 함께 늘릴 것.
+    #     (2026-10-17 실측: '리드타임'은 '재고'·'CAPEX'·'계약가/DRAM' 어디에도 안 걸려 통째로 빠졌다.
+    #      '리드타임'을 DRAM 분기보다 **먼저** 검사하는 이유 = 신호명에 'D램'이 들어가 오분류 위험)
     try:
         _scd = m.get('semi_cycle') or {}
         def _st2n(s):
@@ -1282,7 +1286,10 @@ try:
         _svals = {}
         for _z in (_scd.get('signals') or []):
             _nm2 = str(_z.get('name') or '')
-            _key7 = 'inventory' if '재고' in _nm2 else ('capex_yoy' if 'CAPEX' in _nm2.upper() else ('price_qoq' if ('계약가' in _nm2 or 'QOQ' in _nm2.upper() or 'DRAM' in _nm2.upper()) else None))
+            _key7 = ('leadtime' if '리드타임' in _nm2 else
+                     ('inventory' if '재고' in _nm2 else
+                      ('capex_yoy' if 'CAPEX' in _nm2.upper() else
+                       ('price_qoq' if ('계약가' in _nm2 or 'QOQ' in _nm2.upper() or 'DRAM' in _nm2.upper()) else None))))
             if _key7:
                 _nv2 = _st2n(_z.get('status'))
                 if _nv2 is not None: _svals[_key7] = _nv2
@@ -1534,6 +1541,10 @@ try:
     elif not _ff2.get('bias'): _ff2['bias'] = '중립'
     try:
         if isinstance(macro.get('inflation'), dict): macro['inflation']['chart'] = 'charts/macro_inflation.png'
+        # (2026-10-24) 3.1.2 '앞으로의 물가 경로' — gen_macro_charts.py 가 서버 /api/db/infl_fcst 를 회수해 $WORK/nmr_infl_fcst.json 으로 떨궈 둔다
+        #   (나우캐스트·SPF·SEP·기대인플레, 홈피와 같은 정본). 없으면 빌더가 표만 생략(비차단).
+        _if = L('nmr_infl_fcst.json')
+        if isinstance(macro.get('inflation'), dict) and isinstance(_if, dict) and _if.get('ext'): macro['inflation']['fcst'] = _if
         if isinstance(macro.get('employment'), dict): macro['employment']['chart'] = 'charts/macro_employment.png'
         print('  [R4] 차트경로 강제: inflation/employment')
     except Exception as _ce: print('  [R4] 차트경로 강제 skip:', _ce)
