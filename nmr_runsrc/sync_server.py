@@ -221,7 +221,17 @@ def main():
     #   구버전(패턴별 scp 전량 재업로드)은 재시도마다 ~30MB 를 다시 올려 45초 벽의 주범이었다.
     try:
         import glob as _g2
-        _wk = sorted(_g2.glob("/sessions/*/mnt/outputs/nmr_build/charts"))
+        # (2026-10-31 실측 재발방지) v3.73(7/21)부터 WORK 가 nmr_build_HHMM 타임스탬프 폴더인데 여기만 'nmr_build/charts' 고정이라
+        #   스파크·kospi_tech 등 차트가 8/14 이후 한 번도 안 올라갔다(서버 data/charts 가 8/14 에 멈춤 → 홈피 3.2.1 캔들이 두 달 전 그림).
+        #   nmr_work_current.txt(현재 회차 경로) 우선, 없으면 nmr_build*/charts 중 최신 수정본.
+        _wk = []
+        for _cur in _g2.glob("/sessions/*/mnt/outputs/nmr_work_current.txt"):
+            try:
+                _d = open(_cur, encoding="utf-8").read().strip() + "/charts"
+                if os.path.isdir(_d): _wk = [_d]
+            except Exception: pass
+        if not _wk:
+            _wk = sorted(_g2.glob("/sessions/*/mnt/outputs/nmr_build*/charts"), key=os.path.getmtime, reverse=True)
         if _wk:
             _pats = ("spark_*.png", "semi_s_*.png", "semi_e_*.png", "theme_*.png", "kospi_tech.png", "kosdaq_tech.png")
             _fl = sorted({f for p in _pats for f in _g2.glob(_wk[0] + "/" + p)})
